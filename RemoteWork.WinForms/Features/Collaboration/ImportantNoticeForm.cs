@@ -12,6 +12,12 @@ namespace RemoteWork.WinForms.Features.Collaboration
             InitializeSampleData();
         }
 
+        public ImportantNoticeForm(Notice notice) : this()
+        {
+            lblText2.Text = notice.Title;
+            txtContent.Text = notice.GetDisplayText();
+        }
+
         private void InitializeSampleData()
         {
         }

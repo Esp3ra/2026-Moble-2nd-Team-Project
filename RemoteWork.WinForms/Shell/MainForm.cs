@@ -9,6 +9,8 @@ namespace RemoteWork.WinForms.Shell
     public partial class MainForm : Form
     {
         private readonly PreviewRole previewRole;
+        // Keep the local chat store when navigating between pages.
+        private readonly IChatService? chatService;
         private UserControl? currentPage;
 
         public MainForm() : this(PreviewRole.Employee) { }
@@ -18,6 +20,9 @@ namespace RemoteWork.WinForms.Shell
             InitializeComponent();
             previewRole = role;
             if (PreviewActions.IsDesignMode(this)) return;
+            chatService = new InMemoryChatService(role == PreviewRole.Administrator
+                ? new ChatParticipant("ADM-001", "이관리자", "운영관리팀")
+                : new ChatParticipant("EMP-001", "김직원", "개발팀"));
             InitializeSampleData(role);
             ShowPage(new NoticesControl(previewRole), btnNotices);
         }
@@ -50,7 +55,7 @@ namespace RemoteWork.WinForms.Shell
 
         private void btnChat_Click(object? sender, EventArgs e)
         {
-            ShowPage(new ChatControl(), btnChat);
+            if (chatService is not null) ShowPage(new ChatControl(chatService), btnChat);
         }
 
         private void btnNotices_Click(object? sender, EventArgs e)

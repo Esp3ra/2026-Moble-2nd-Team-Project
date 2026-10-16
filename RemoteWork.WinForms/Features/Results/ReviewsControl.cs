@@ -54,7 +54,7 @@ namespace RemoteWork.WinForms.Features.Results
             {
                 gridReviews.Rows.Add(new object[] { "WRK-2026-003", "원격 근무 가이드 초안", "김직원", "v1", "2026-10-20 14:00", "반려완료" });
                 gridReviews.Rows.Add(new object[] { "WRK-2026-006", "가이드 참고 자료 정리", "김직원", "v1", "2026-10-21 15:30", "제출완료" });
-                gridReviews.Rows.Add(new object[] { "WRK-2026-007", "공지 항목 목록 작성", "김직원", "v1", "2026-10-19 11:20", "승인완료" });
+                gridReviews.Rows.Add(new object[] { "WRK-2026-007", "공지사항 항목 목록 작성", "김직원", "v1", "2026-10-19 11:20", "승인완료" });
                 gridReviews.Rows.Add(new object[] { "WRK-2026-009", "가이드 검토 항목 정리", "김직원", "—", "—", "진행중" });
                 gridAttachments.Rows.Add(new object[] { "원격근무_가이드_v1.pdf", "v1", "184 KB" });
                 gridAttachments.Rows.Add(new object[] { "검토_참고자료.xlsx", "v1", "42 KB" });

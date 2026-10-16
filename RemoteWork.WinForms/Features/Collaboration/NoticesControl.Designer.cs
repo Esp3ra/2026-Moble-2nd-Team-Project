@@ -87,7 +87,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             layoutContent.GrowStyle = System.Windows.Forms.TableLayoutPanelGrowStyle.AddRows;
             layoutContent.Name = "layoutContent";
             layoutContent.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
+            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 70F));
             layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             layoutContent.Controls.Add(layoutContent2, 0, 0);
             layoutContent.Controls.Add(panelContent, 0, 1);
@@ -96,7 +96,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             //
             layoutContent2.Text = "";
             layoutContent2.Location = new System.Drawing.Point(0, 0);
-            layoutContent2.Size = new System.Drawing.Size(1062, 44);
+            layoutContent2.Size = new System.Drawing.Size(1062, 70);
             layoutContent2.MinimumSize = new System.Drawing.Size(0, 0);
             layoutContent2.MaximumSize = new System.Drawing.Size(0, 0);
             layoutContent2.Margin = new System.Windows.Forms.Padding(0, 0, 0, 0);
@@ -112,9 +112,10 @@ namespace RemoteWork.WinForms.Features.Collaboration
             layoutContent2.AutoScroll = false;
             layoutContent2.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowOnly;
             layoutContent2.ColumnCount = 1;
-            layoutContent2.RowCount = 1;
+            layoutContent2.RowCount = 2;
             layoutContent2.GrowStyle = System.Windows.Forms.TableLayoutPanelGrowStyle.AddRows;
             layoutContent2.Name = "layoutContent2";
+            layoutContent2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0F));
             layoutContent2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             layoutContent2.Controls.Add(lblPageTitle, 0, 0);
             //
@@ -125,7 +126,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             lblPageTitle.Size = new System.Drawing.Size(125, 28);
             lblPageTitle.MinimumSize = new System.Drawing.Size(0, 0);
             lblPageTitle.MaximumSize = new System.Drawing.Size(0, 0);
-            lblPageTitle.Margin = new System.Windows.Forms.Padding(0, 4, 8, 4);
+            lblPageTitle.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
             lblPageTitle.Padding = new System.Windows.Forms.Padding(0, 0, 0, 0);
             lblPageTitle.Dock = System.Windows.Forms.DockStyle.None;
             lblPageTitle.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left;
@@ -140,6 +141,8 @@ namespace RemoteWork.WinForms.Features.Collaboration
             lblPageTitle.BorderStyle = System.Windows.Forms.BorderStyle.None;
             lblPageTitle.UseCompatibleTextRendering = false;
             lblPageTitle.Name = "lblPageTitle";
+            //
+            //
             //
             // panelContent
             //
@@ -229,7 +232,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             flowActions.Size = new System.Drawing.Size(585, 41);
             flowActions.MinimumSize = new System.Drawing.Size(0, 40);
             flowActions.MaximumSize = new System.Drawing.Size(0, 0);
-            flowActions.Margin = new System.Windows.Forms.Padding(0, 0, 0, 8);
+            flowActions.Margin = new System.Windows.Forms.Padding(0, 0, 0, 16);
             flowActions.Padding = new System.Windows.Forms.Padding(0, 0, 0, 0);
             flowActions.Dock = System.Windows.Forms.DockStyle.Fill;
             flowActions.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left;
@@ -250,12 +253,12 @@ namespace RemoteWork.WinForms.Features.Collaboration
             //
             // cmbOptions2
             //
-            cmbOptions2.Text = "전체 대상";
+            cmbOptions2.Text = "전체";
             cmbOptions2.Location = new System.Drawing.Point(121, 4);
             cmbOptions2.Size = new System.Drawing.Size(121, 26);
             cmbOptions2.MinimumSize = new System.Drawing.Size(0, 0);
             cmbOptions2.MaximumSize = new System.Drawing.Size(0, 0);
-            cmbOptions2.Margin = new System.Windows.Forms.Padding(0, 4, 0, 6);
+            cmbOptions2.Margin = new System.Windows.Forms.Padding(0, 4, 8, 6);
             cmbOptions2.Padding = new System.Windows.Forms.Padding(0, 0, 0, 0);
             cmbOptions2.Dock = System.Windows.Forms.DockStyle.None;
             cmbOptions2.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left;
@@ -269,7 +272,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             cmbOptions2.IntegralHeight = true;
             cmbOptions2.MaxDropDownItems = 8;
             cmbOptions2.Name = "cmbOptions2";
-            cmbOptions2.Items.AddRange(new object[] { "전체 대상", "전 직원", "기획팀", "개발팀" });
+            cmbOptions2.Items.AddRange(new object[] { "전체", "전 직원", "기획팀", "개발팀" });
             //
             // btnQuery
             //
@@ -297,11 +300,11 @@ namespace RemoteWork.WinForms.Features.Collaboration
             btnQuery.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(255, 213, 220, 231);
             btnQuery.FlatAppearance.BorderSize = 1;
             btnQuery.Name = "btnQuery";
-            btnQuery.Click += new System.EventHandler(Unavailable_Click);
+            btnQuery.Click += new System.EventHandler(QueryNotice_Click);
             //
             // btnNewNoticePreview
             //
-            btnNewNoticePreview.Text = "공지 작성";
+            btnNewNoticePreview.Text = "공지사항 작성";
             btnNewNoticePreview.Location = new System.Drawing.Point(338, 0);
             btnNewNoticePreview.Size = new System.Drawing.Size(123, 35);
             btnNewNoticePreview.MinimumSize = new System.Drawing.Size(88, 34);
@@ -381,7 +384,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             //
             // lblText2
             //
-            lblText2.Text = "공지 목록";
+            lblText2.Text = "공지사항 목록";
             lblText2.Location = new System.Drawing.Point(0, 4);
             lblText2.Size = new System.Drawing.Size(112, 19);
             lblText2.MinimumSize = new System.Drawing.Size(0, 0);
@@ -443,7 +446,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             columnGridNotices1.Width = 122;
             columnGridNotices1.FillWeight = 100F;
             columnGridNotices1.ReadOnly = true;
-            columnGridNotices1.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
+            columnGridNotices1.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.Programmatic;
             columnGridNotices1.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.NotSet;
             columnGridNotices2.Name = "columnGridNotices2";
             columnGridNotices2.HeaderText = "제목";
@@ -451,7 +454,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             columnGridNotices2.Width = 168;
             columnGridNotices2.FillWeight = 100F;
             columnGridNotices2.ReadOnly = true;
-            columnGridNotices2.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
+            columnGridNotices2.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.Programmatic;
             columnGridNotices2.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.NotSet;
             columnGridNotices3.Name = "columnGridNotices3";
             columnGridNotices3.HeaderText = "작성자";
@@ -459,7 +462,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             columnGridNotices3.Width = 123;
             columnGridNotices3.FillWeight = 100F;
             columnGridNotices3.ReadOnly = true;
-            columnGridNotices3.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
+            columnGridNotices3.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.Programmatic;
             columnGridNotices3.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.NotSet;
             columnGridNotices4.Name = "columnGridNotices4";
             columnGridNotices4.HeaderText = "등록일";
@@ -467,7 +470,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             columnGridNotices4.Width = 122;
             columnGridNotices4.FillWeight = 100F;
             columnGridNotices4.ReadOnly = true;
-            columnGridNotices4.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
+            columnGridNotices4.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.Programmatic;
             columnGridNotices4.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.NotSet;
             headerStyle1.BackColor = System.Drawing.Color.FromArgb(255, 243, 246, 251);
             headerStyle1.ForeColor = System.Drawing.Color.FromArgb(255, 103, 116, 135);
@@ -515,8 +518,8 @@ namespace RemoteWork.WinForms.Features.Collaboration
             layoutContent6.GrowStyle = System.Windows.Forms.TableLayoutPanelGrowStyle.AddRows;
             layoutContent6.Name = "layoutContent6";
             layoutContent6.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            layoutContent6.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            layoutContent6.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            layoutContent6.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 75F));
+            layoutContent6.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 25F));
             layoutContent6.Controls.Add(panelContent3, 0, 0);
             layoutContent6.Controls.Add(panelContent4, 0, 1);
             //

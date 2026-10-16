@@ -1,4 +1,4 @@
-﻿#nullable disable
+#nullable disable
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -86,7 +86,7 @@ namespace RemoteWork.WinForms.Shell
             panelNavigation.Margin = new Padding(0);
             panelNavigation.Padding = new Padding(0);
             // btnNotices
-            btnNotices.Text = "01   공지";
+            btnNotices.Text = "01   공지사항";
             btnNotices.Name = "btnNotices";
             btnNotices.Dock = DockStyle.Fill;
             btnNotices.FlatStyle = FlatStyle.Flat;
