@@ -36,6 +36,7 @@ public sealed class PasswordChangeForm : Form
                 MessageBox.Show(this, "비밀번호를 변경했습니다. 다시 로그인해 주세요.", "변경 완료");
                 DialogResult = DialogResult.OK; Close();
             }
+            catch (OperationCanceledException) { /* The owning login session has ended. */ }
             catch (ApiException ex) { if (!IsDisposed) status.Text = ex.Message; }
             finally { current.Clear(); next.Clear(); repeat.Clear(); if (!IsDisposed) save.Enabled = true; }
         };

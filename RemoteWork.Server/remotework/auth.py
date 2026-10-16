@@ -2,14 +2,15 @@ import hashlib
 import hmac
 import re
 import secrets
+from contextlib import contextmanager
 from datetime import timedelta
 from functools import wraps
 from flask import current_app, g, request
 from sqlalchemy import select, func, delete
 from werkzeug.security import generate_password_hash, check_password_hash
 from .common import AppError, audit
-from .db import get_db
-from .models import AuthSession, LoginFailure, User, utcnow
+from .db import get_db, transaction
+from .models import AdminGuard, AuthSession, LoginFailure, User, utcnow
 
 
 def token_digest(token):
@@ -115,6 +116,34 @@ def login_required(fn):
 
 def revoke_all(db, user_id):
     db.execute(delete(AuthSession).where(AuthSession.user_id == user_id))
+
+
+@contextmanager
+def admin_transaction():
+    """Serialize user administration and recheck auth using current locking reads.
+
+    load_identity() may have established an older MySQL REPEATABLE READ snapshot.
+    Refresh ORM objects too: a locking SELECT alone can reuse a cached User.
+    All user-administration writes acquire guard -> actor -> session -> target.
+    """
+    actor_id, token_hash = g.user.id, g.auth_session.token_hash
+    channel = g.auth_session.channel
+    with transaction() as db:
+        guard = db.scalar(select(AdminGuard).where(AdminGuard.id == 1).with_for_update())
+        if guard is None:
+            raise AppError(503, "DATABASE_UNAVAILABLE", "관리자 보호 테이블 초기화 상태를 확인해 주세요.")
+        actor = db.scalar(select(User).where(User.id == actor_id).with_for_update()
+                          .execution_options(populate_existing=True))
+        session = db.scalar(select(AuthSession).where(AuthSession.token_hash == token_hash).with_for_update()
+                            .execution_options(populate_existing=True))
+        if (actor is None or not actor.is_active or session is None
+                or session.user_id != actor_id or session.channel != channel
+                or session.expires_at <= utcnow()):
+            raise AppError(401, "AUTH_REQUIRED", "로그인이 필요하거나 로그인 시간이 만료되었습니다.")
+        if actor.role != "admin":
+            raise AppError(403, "FORBIDDEN", "접근 권한이 없습니다.")
+        g.user, g.auth_session = actor, session
+        yield db
 
 
 def logout():

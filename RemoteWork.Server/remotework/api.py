@@ -2,11 +2,11 @@ import json
 from flask import Blueprint, g, current_app, request
 from sqlalchemy import select, func, delete
 from .auth import (authenticate, login_required, logout, create_user, text_field,
-                   validate_password, revoke_all)
+                   validate_password, revoke_all, admin_transaction)
 from werkzeug.security import generate_password_hash, check_password_hash
 from .common import AppError, success, payload, require_role, audit
 from .db import get_db, transaction, check_schema
-from .models import User, AuditEvent, AdminGuard, iso
+from .models import User, AuditEvent, iso
 
 bp = Blueprint("api", __name__, url_prefix="/api/v1")
 
@@ -79,7 +79,7 @@ def users():
 @require_role("admin")
 def add_user():
     data = payload()
-    with transaction() as db:
+    with admin_transaction() as db:
         user = create_user(db, data)
         audit("user.created", "user", user.id, {"login_id": user.login_id, "role": user.role})
     return success({"user": user.public()}, 201)
@@ -92,9 +92,9 @@ def update_user(user_id):
     allowed = {"display_name", "department", "employee_no", "role", "is_active"}
     if not data or set(data) - allowed:
         raise AppError(400, "INVALID_INPUT", "수정할 사용자 항목을 확인해 주세요.")
-    with transaction() as db:
-        db.scalar(select(AdminGuard).where(AdminGuard.id == 1).with_for_update())
-        user = db.scalar(select(User).where(User.id == user_id).with_for_update())
+    with admin_transaction() as db:
+        user = db.scalar(select(User).where(User.id == user_id).with_for_update()
+                         .execution_options(populate_existing=True))
         if user is None:
             raise AppError(404, "NOT_FOUND", "사용자를 찾을 수 없습니다.")
         before = user.public()
@@ -112,7 +112,10 @@ def update_user(user_id):
         if user.id == g.user.id and (user.role != "admin" or not user.is_active):
             raise AppError(400, "SELF_LOCKOUT", "본인의 관리자 권한 또는 활성 상태는 해제할 수 없습니다.")
         db.flush()
-        if db.scalar(select(func.count()).select_from(User).where(User.role == "admin", User.is_active.is_(True))) == 0:
+        # Locking reads observe the latest committed rows, not load_identity's snapshot.
+        active_admins = db.scalars(select(User.id).where(
+            User.role == "admin", User.is_active.is_(True)).with_for_update()).all()
+        if not active_admins:
             raise AppError(409, "LAST_ADMIN", "활성 관리자가 한 명 이상 필요합니다.")
         if before["role"] != user.role or before["is_active"] != user.is_active:
             revoke_all(db, user.id)
@@ -125,8 +128,9 @@ def update_user(user_id):
 def reset_password(user_id):
     data = payload()
     validate_password(data.get("new_password"))
-    with transaction() as db:
-        user = db.get(User, user_id)
+    with admin_transaction() as db:
+        user = db.scalar(select(User).where(User.id == user_id).with_for_update()
+                         .execution_options(populate_existing=True))
         if user is None:
             raise AppError(404, "NOT_FOUND", "사용자를 찾을 수 없습니다.")
         user.password_hash = generate_password_hash(data["new_password"], method="scrypt")

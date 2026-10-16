@@ -96,6 +96,7 @@ public sealed class UserManagementForm : Form
             if (result.Items.Count > 0) Fill(result.Items[0]); else ClearEditor();
             status.Text = "계정을 비활성화하거나 권한을 변경하면 해당 사용자의 기존 접속이 종료됩니다.";
         }
+        catch (OperationCanceledException) { /* The owning login session has ended. */ }
         catch (ApiException ex) { if (!IsDisposed) status.Text = ex.Message; }
         finally { loading = false; if (!IsDisposed) save.Enabled = true; }
     }
@@ -113,6 +114,7 @@ public sealed class UserManagementForm : Form
                     department = department.Text.Trim(), role = role.SelectedIndex == 1 ? "admin" : "employee", is_active = active.Checked });
             password.Clear(); await LoadUsers();
         }
+        catch (OperationCanceledException) { /* The owning login session has ended. */ }
         catch (ApiException ex) { if (!IsDisposed) status.Text = ex.Message; }
         finally { if (!IsDisposed) save.Enabled = true; }
     }
@@ -128,6 +130,7 @@ public sealed class UserManagementForm : Form
             await AppServices.Api.PostAsync<MessageResult>($"users/{selectedId}/password", new { new_password = password.Text });
             if (!IsDisposed) status.Text = "비밀번호 초기화 완료. 새 비밀번호를 사용자에게 별도로 전달해 주세요.";
         }
+        catch (OperationCanceledException) { /* The owning login session has ended. */ }
         catch (ApiException ex) { if (!IsDisposed) status.Text = ex.Message; }
         finally { password.Clear(); if (!IsDisposed) reset.Enabled = true; }
     }

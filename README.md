@@ -35,6 +35,7 @@ dotnet run --project .\RemoteWork.WinForms\RemoteWork.WinForms.csproj
 | [공통 요청 회신](docs/1번_공통규약_확인요청_회신.md) | 2번 A1~A4·B1~B5에 대한 구현과 미합의 구분 |
 | [업무 조회 경계](RemoteWork.WinForms/Features/Tasks/Queries/README.md) | 2번 담당 원본 읽기 인터페이스·대역 안내 |
 | [이번 병합 검증](docs/통합검증_2026-10-16.md) | 최신 팀 코드 보존과 재실행 결과 |
+| [PR #2 수정 검증](docs/PR2_수정검증_2026-10-16.md) | 관리자 동시 변경·이전 접속 응답·본문 형식별 401 회귀 검증 |
 
 ## 검증 실행
 
@@ -42,6 +43,7 @@ dotnet run --project .\RemoteWork.WinForms\RemoteWork.WinForms.csproj
 dotnet build .\RemoteWork.sln -c Debug
 dotnet build .\RemoteWork.sln -c Release
 dotnet run --project .\Tests\TaskQueries.Tests\TaskQueries.Tests.csproj -c Release
+dotnet run --project .\Tests\ApiClient.Tests\ApiClient.Tests.csproj -c Release
 cd .\RemoteWork.Server
 python -m pip install -r requirements-dev.txt
 python -m pytest -q
@@ -50,3 +52,9 @@ python -m pytest -q
 서버 테스트는 기본 임시 SQLite를 사용합니다. MySQL 테스트는 `remote_work_test_`로 시작하는 삭제 가능한 별도 DB에만 연결합니다. 기존 팀 DB를 테스트 대상으로 쓰지 않습니다. 공통 실제 HTTP 점검 도구는 `Tests/RemoteWork.ClientChecks`에 있으며 실행 조건은 [테스트 안내](Tests/README.md)에 있습니다.
 
 기존 화면의 기능별 Form/Designer/resx 구조와 `ForceDesignerDPIUnaware` 설정을 유지합니다. `DOCX/`는 코드 게시 대상에서 제외하고 기존 원격 Preview는 이전 화면 검토 자료로 보존합니다. 이번 공통 인증 화면과 같다고 해석하지 않습니다. 0.0.1V·0.0.2V 태그는 기존 화면 버전을 유지합니다.
+
+## PR #2 수정 요청 반영
+
+팀장 [PR 브랜치의 1번 수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/1번/2026-10-16_PR2_공통기반_수정요청.md)을 기준으로 관리자 사용자 변경을 잠금 구간에서 재인증하고 현재 관리자 상태를 다시 조회하도록 수정했습니다. C#은 접속 세대·취소·늦은 응답 차단을 적용하고 현재 접속의 401을 JSON 파싱과 독립적으로 처리합니다. 취소된 이전 접속 요청은 공통 화면에서 무시합니다.
+
+기존 Features와 조회 인터페이스·대역·테스트는 변경하지 않습니다. 최초 공통 검증 기록과 수정 전 결함 재현·수정 후 결과는 위 별도 검증 문서에서 구분합니다. 코드 PR은 [#2](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/2)를 계속 사용하고, PR #3의 기존 문서 병합이 코드 수정 승인·병합을 뜻하지는 않습니다.

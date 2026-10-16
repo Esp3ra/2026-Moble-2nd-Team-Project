@@ -41,6 +41,7 @@ public partial class LoginForm : Form
             using (var workspace = new MainForm(login.User)) workspace.ShowDialog(this);
             if (!IsDisposed) { Show(); Activate(); txtPassword.Focus(); }
         }
+        catch (OperationCanceledException) { /* A newer login or server setting superseded this request. */ }
         catch (ApiException ex) { if (!IsDisposed) MessageBox.Show(this, ex.Message, "로그인 확인", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         finally { if (!IsDisposed) { txtPassword.Clear(); SetBusy(false); } }
     }

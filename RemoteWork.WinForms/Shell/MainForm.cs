@@ -118,6 +118,7 @@ namespace RemoteWork.WinForms.Shell
                 lblIdentityCaption.Text = "사원 정보 · 서버 연결됨";
                 lblPreviewIdentity.Text = $"{user.DisplayName} | {(user.Role == "admin" ? "관리자" : "직원")}\n{user.Department}\n사번 {user.EmployeeNo}";
             }
+            catch (OperationCanceledException) { /* Logout/relogin superseded this refresh. */ }
             catch (ApiException ex) { if (!IsDisposed && ex.StatusCode != 401) lblIdentityCaption.Text = "서버 연결 끊김 · 재확인 중"; }
             finally { refreshing = false; }
         }
