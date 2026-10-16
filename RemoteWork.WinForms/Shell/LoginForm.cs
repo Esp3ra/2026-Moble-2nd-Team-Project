@@ -1,16 +1,36 @@
 using RemoteWork.WinForms.Ui;
 
-namespace RemoteWork.WinForms.Shell;
-
-public partial class LoginForm : Form
+namespace RemoteWork.WinForms.Shell
 {
-    public LoginForm() => InitializeComponent();
-
-    private void ShowWorkspace(PreviewRole role)
+    public partial class LoginForm : Form
     {
-        Hide();
-        using (var workspace = new MainForm(role)) workspace.ShowDialog();
-        Show();
-        Activate();
+        public LoginForm()
+        {
+            InitializeComponent();
+        }
+
+        private void Unavailable_Click(object? sender, EventArgs e)
+        {
+            PreviewActions.ShowUnavailable(this);
+        }
+
+        private void btnEmployeePreview_Click(object? sender, EventArgs e)
+        {
+            ShowWorkspace(PreviewRole.Employee);
+        }
+
+        private void btnAdministratorPreview_Click(object? sender, EventArgs e)
+        {
+            ShowWorkspace(PreviewRole.Administrator);
+        }
+
+        private void ShowWorkspace(PreviewRole role)
+        {
+            Hide();
+            using (var workspace = new MainForm(role)) workspace.ShowDialog();
+            Show();
+            Activate();
+        }
+
     }
 }

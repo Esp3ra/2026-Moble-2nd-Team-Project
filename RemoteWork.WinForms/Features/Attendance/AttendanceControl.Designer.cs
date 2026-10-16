@@ -1,49 +1,359 @@
-#nullable enable
-using RemoteWork.WinForms.Ui;
+#nullable disable
+using System.Drawing;
+using System.Windows.Forms;
 
-namespace RemoteWork.WinForms.Features.Attendance;
-
-partial class AttendanceControl
+namespace RemoteWork.WinForms.Features.Attendance
 {
-    private System.ComponentModel.IContainer? components = null;
-
-    protected override void Dispose(bool disposing)
+    partial class AttendanceControl
     {
-        if (disposing) components?.Dispose();
-        base.Dispose(disposing);
-    }
+        private System.ComponentModel.IContainer components = null;
 
-    private void InitializeComponent()
-    {
-        SuspendLayout();
-        Name = "AttendanceControl";
-        var history = UiKit.Stack(
-            UiKit.Toolbar(UiKit.Combo("2026년 10월 · 샘플", "2026년 9월 · 샘플"), UiKit.Button("조회"),
-                UiKit.Button("연차 신청 화면", () => UiKit.OpenPreview(this, new LeaveApplicationForm()), primary: true)),
-            UiKit.Card("출퇴근 기록 · 샘플", UiKit.Grid(
-                new[] { "일자", "출근", "퇴근", "상태", "근무 형태" },
-                new[] { "2026.10.13", "09:03", "―", "근무 중 · 샘플", "원격" },
-                new[] { "2026.10.12", "08:57", "18:02", "정상 · 샘플", "원격" },
-                new[] { "2026.10.08", "―", "―", "연차 · 샘플", "―" })),
-            UiKit.Card("연차 신청 내역 · 샘플", UiKit.Grid(
-                new[] { "유형", "기간", "사유", "상태" },
-                new[] { "연차", "2026.10.08", "개인 일정 · 샘플", "접수 예시" },
-                new[] { "연차", "2026.10.16", "개인 일정 · 샘플", "신청 예시" })),
-            UiKit.Label("출퇴근·연차 내역은 고정 예시입니다. 실제 출근·퇴근 처리와 기록 조회는 연결되지 않았습니다."));
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && components != null) components.Dispose();
+            base.Dispose(disposing);
+        }
 
-        var devices = UiKit.Stack(
-            UiKit.Card("출퇴근 기기 · 외형 미리보기", UiKit.Stack(
-                UiKit.Label("UNCONNECTED", size: 15, bold: true),
-                UiKit.ReadOnlyText("기기 상태: 연결되지 않음\r\n직원: 이서연 · 샘플\r\n기기 ID: DEVICE-SAMPLE\r\n통신·센서·인증 데이터 없음"))),
-            UiKit.Card("지문 · 얼굴 인증 영역", UiKit.ReadOnlyText(
-                "[ 지문 센서 미리보기 ]\r\n지문 인식: 미연결\r\n\r\n" +
-                "[ 얼굴 인식 미리보기 ]\r\n카메라 화면: 미연결\r\n\r\n" +
-                "센서와 카메라는 실행되지 않습니다.")),
-            UiKit.Card("OLED 표시 영역 · 샘플", UiKit.ReadOnlyText(
-                "REMOTE WORK\r\nDEVICE: UNCONNECTED\r\nDISPLAY PREVIEW\r\n\r\n고정 문구로 표시 배치만 확인합니다.")));
+        #region Windows Form Designer generated code
 
-        UiKit.Page(this, "출퇴근 · 연차", "출퇴근 조회와 연차 신청 양식, 별도 출퇴근 기기 화면의 외형을 확인합니다.",
-            UiKit.Split(history, devices, 66));
-        ResumeLayout(false);
+        private void InitializeComponent()
+        {
+            components = new System.ComponentModel.Container();
+            DataGridViewCellStyle attendanceHeaderStyle = new DataGridViewCellStyle();
+            DataGridViewCellStyle leaveHeaderStyle = new DataGridViewCellStyle();
+            layoutPage = new TableLayoutPanel();
+            layoutHeading = new TableLayoutPanel();
+            lblPageTitle = new Label();
+            lblDescription = new Label();
+            flowActions = new FlowLayoutPanel();
+            cmbOptions = new ComboBox();
+            btnQuery = new Button();
+            btnLeaveApplicationPreview = new Button();
+            btnLeaveDecision = new Button();
+            lblBalance = new Label();
+            layoutRecords = new TableLayoutPanel();
+            panelAttendance = new Panel();
+            layoutAttendance = new TableLayoutPanel();
+            lblAttendanceTitle = new Label();
+            gridAttendance = new DataGridView();
+            columnAttendanceEmployee = new DataGridViewTextBoxColumn();
+            columnAttendanceDepartment = new DataGridViewTextBoxColumn();
+            columnAttendanceDate = new DataGridViewTextBoxColumn();
+            columnAttendanceStart = new DataGridViewTextBoxColumn();
+            columnAttendanceEnd = new DataGridViewTextBoxColumn();
+            columnAttendanceStatus = new DataGridViewTextBoxColumn();
+            columnAttendanceMode = new DataGridViewTextBoxColumn();
+            panelLeave = new Panel();
+            layoutLeave = new TableLayoutPanel();
+            lblLeaveTitle = new Label();
+            gridLeaveRequests = new DataGridView();
+            columnLeaveEmployee = new DataGridViewTextBoxColumn();
+            columnLeaveDepartment = new DataGridViewTextBoxColumn();
+            columnLeaveType = new DataGridViewTextBoxColumn();
+            columnLeavePeriod = new DataGridViewTextBoxColumn();
+            columnLeaveReason = new DataGridViewTextBoxColumn();
+            columnLeaveStatus = new DataGridViewTextBoxColumn();
+            layoutPage.SuspendLayout();
+            layoutHeading.SuspendLayout();
+            flowActions.SuspendLayout();
+            layoutRecords.SuspendLayout();
+            panelAttendance.SuspendLayout();
+            layoutAttendance.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)gridAttendance).BeginInit();
+            panelLeave.SuspendLayout();
+            layoutLeave.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)gridLeaveRequests).BeginInit();
+            SuspendLayout();
+
+            // layoutPage
+            layoutPage.ColumnCount = 1;
+            layoutPage.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            layoutPage.RowCount = 3;
+            layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 74F));
+            layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 54F));
+            layoutPage.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            layoutPage.Dock = DockStyle.Fill;
+            layoutPage.Margin = new Padding(0);
+            layoutPage.Name = "layoutPage";
+            layoutPage.Controls.Add(layoutHeading, 0, 0);
+            layoutPage.Controls.Add(flowActions, 0, 1);
+            layoutPage.Controls.Add(layoutRecords, 0, 2);
+            // layoutHeading
+            layoutHeading.ColumnCount = 1;
+            layoutHeading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            layoutHeading.RowCount = 2;
+            layoutHeading.RowStyles.Add(new RowStyle(SizeType.Absolute, 39F));
+            layoutHeading.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            layoutHeading.Dock = DockStyle.Fill;
+            layoutHeading.Margin = new Padding(0);
+            layoutHeading.Name = "layoutHeading";
+            layoutHeading.Controls.Add(lblPageTitle, 0, 0);
+            layoutHeading.Controls.Add(lblDescription, 0, 1);
+            lblPageTitle.AutoSize = true;
+            lblPageTitle.Font = new Font("맑은 고딕", 20F, FontStyle.Bold);
+            lblPageTitle.ForeColor = Color.FromArgb(30, 42, 61);
+            lblPageTitle.Text = "출퇴근 · 연차";
+            lblPageTitle.Name = "lblPageTitle";
+            lblPageTitle.Margin = new Padding(0, 0, 0, 4);
+            lblDescription.AutoSize = true;
+            lblDescription.ForeColor = Color.FromArgb(103, 116, 135);
+            lblDescription.Text = "출퇴근 기록과 연차 사용 현황을 확인합니다.";
+            lblDescription.Name = "lblDescription";
+            lblDescription.Margin = new Padding(0, 4, 0, 0);
+            // flowActions
+            flowActions.Dock = DockStyle.Fill;
+            flowActions.Margin = new Padding(0);
+            flowActions.WrapContents = true;
+            flowActions.Name = "flowActions";
+            flowActions.Controls.Add(cmbOptions);
+            flowActions.Controls.Add(btnQuery);
+            flowActions.Controls.Add(btnLeaveApplicationPreview);
+            flowActions.Controls.Add(btnLeaveDecision);
+            flowActions.Controls.Add(lblBalance);
+            cmbOptions.DropDownStyle = ComboBoxStyle.DropDownList;
+            cmbOptions.Items.AddRange(new object[] { "2026년 10월", "2026년 9월" });
+            cmbOptions.Size = new Size(146, 28);
+            cmbOptions.Margin = new Padding(0, 4, 10, 0);
+            cmbOptions.Name = "cmbOptions";
+            btnQuery.Text = "조회";
+            btnQuery.Size = new Size(88, 34);
+            btnQuery.FlatStyle = FlatStyle.Flat;
+            btnQuery.FlatAppearance.BorderColor = Color.FromArgb(213, 220, 231);
+            btnQuery.BackColor = Color.White;
+            btnQuery.Margin = new Padding(0, 0, 10, 0);
+            btnQuery.Name = "btnQuery";
+            btnQuery.Click += new System.EventHandler(Unavailable_Click);
+            btnLeaveApplicationPreview.Text = "연차 신청";
+            btnLeaveApplicationPreview.Size = new Size(112, 34);
+            btnLeaveApplicationPreview.FlatStyle = FlatStyle.Flat;
+            btnLeaveApplicationPreview.FlatAppearance.BorderColor = Color.FromArgb(52, 101, 224);
+            btnLeaveApplicationPreview.BackColor = Color.FromArgb(52, 101, 224);
+            btnLeaveApplicationPreview.ForeColor = Color.White;
+            btnLeaveApplicationPreview.Margin = new Padding(0, 0, 10, 0);
+            btnLeaveApplicationPreview.Name = "btnLeaveApplicationPreview";
+            btnLeaveApplicationPreview.Click += new System.EventHandler(btnLeaveApplicationPreview_Click);
+            btnLeaveDecision.Text = "신청 검토";
+            btnLeaveDecision.Size = new Size(112, 34);
+            btnLeaveDecision.FlatStyle = FlatStyle.Flat;
+            btnLeaveDecision.FlatAppearance.BorderColor = Color.FromArgb(52, 101, 224);
+            btnLeaveDecision.BackColor = Color.FromArgb(52, 101, 224);
+            btnLeaveDecision.ForeColor = Color.White;
+            btnLeaveDecision.Margin = new Padding(0, 0, 10, 0);
+            btnLeaveDecision.Name = "btnLeaveDecision";
+            btnLeaveDecision.Click += new System.EventHandler(btnLeaveDecision_Click);
+            lblBalance.AutoSize = true;
+            lblBalance.Font = new Font("맑은 고딕", 11F, FontStyle.Bold);
+            lblBalance.ForeColor = Color.FromArgb(52, 101, 224);
+            lblBalance.Margin = new Padding(12, 5, 0, 0);
+            lblBalance.Text = "남은 연차 8.0일";
+            lblBalance.Name = "lblBalance";
+            // layoutRecords
+            layoutRecords.ColumnCount = 1;
+            layoutRecords.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            layoutRecords.RowCount = 2;
+            layoutRecords.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
+            layoutRecords.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
+            layoutRecords.Dock = DockStyle.Fill;
+            layoutRecords.Margin = new Padding(0);
+            layoutRecords.Name = "layoutRecords";
+            layoutRecords.Controls.Add(panelAttendance, 0, 0);
+            layoutRecords.Controls.Add(panelLeave, 0, 1);
+            // panelAttendance
+            panelAttendance.Dock = DockStyle.Fill;
+            panelAttendance.BackColor = Color.White;
+            panelAttendance.Padding = new Padding(16);
+            panelAttendance.Margin = new Padding(0, 0, 0, 12);
+            panelAttendance.BorderStyle = BorderStyle.FixedSingle;
+            panelAttendance.Name = "panelAttendance";
+            panelAttendance.Controls.Add(layoutAttendance);
+            layoutAttendance.ColumnCount = 1;
+            layoutAttendance.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            layoutAttendance.RowCount = 2;
+            layoutAttendance.RowStyles.Add(new RowStyle(SizeType.Absolute, 34F));
+            layoutAttendance.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            layoutAttendance.Dock = DockStyle.Fill;
+            layoutAttendance.Margin = new Padding(0);
+            layoutAttendance.Name = "layoutAttendance";
+            layoutAttendance.Controls.Add(lblAttendanceTitle, 0, 0);
+            layoutAttendance.Controls.Add(gridAttendance, 0, 1);
+            lblAttendanceTitle.AutoSize = true;
+            lblAttendanceTitle.Font = new Font("맑은 고딕", 10F, FontStyle.Bold);
+            lblAttendanceTitle.Text = "출퇴근 기록";
+            lblAttendanceTitle.Name = "lblAttendanceTitle";
+            lblAttendanceTitle.Margin = new Padding(0, 0, 0, 6);
+            gridAttendance.Dock = DockStyle.Fill;
+            gridAttendance.Margin = new Padding(0);
+            gridAttendance.ReadOnly = true;
+            gridAttendance.AllowUserToAddRows = false;
+            gridAttendance.AllowUserToDeleteRows = false;
+            gridAttendance.AllowUserToResizeRows = false;
+            gridAttendance.AllowUserToOrderColumns = false;
+            gridAttendance.RowHeadersVisible = false;
+            gridAttendance.MultiSelect = false;
+            gridAttendance.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            gridAttendance.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            gridAttendance.BackgroundColor = Color.White;
+            gridAttendance.BorderStyle = BorderStyle.None;
+            gridAttendance.GridColor = Color.FromArgb(235, 239, 246);
+            gridAttendance.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+            gridAttendance.ColumnHeadersHeight = 36;
+            gridAttendance.EnableHeadersVisualStyles = false;
+            gridAttendance.RowTemplate.Height = 38;
+            gridAttendance.Name = "gridAttendance";
+            attendanceHeaderStyle.BackColor = Color.FromArgb(243, 246, 251);
+            attendanceHeaderStyle.ForeColor = Color.FromArgb(103, 116, 135);
+            attendanceHeaderStyle.Font = new Font("맑은 고딕", 9F, FontStyle.Bold);
+            gridAttendance.ColumnHeadersDefaultCellStyle = attendanceHeaderStyle;
+            gridAttendance.Columns.AddRange(new DataGridViewColumn[] { columnAttendanceEmployee, columnAttendanceDepartment, columnAttendanceDate, columnAttendanceStart, columnAttendanceEnd, columnAttendanceStatus, columnAttendanceMode });
+            columnAttendanceEmployee.HeaderText = "직원";
+            columnAttendanceEmployee.Name = "columnAttendanceEmployee";
+            columnAttendanceEmployee.SortMode = DataGridViewColumnSortMode.NotSortable;
+            columnAttendanceDepartment.HeaderText = "부서";
+            columnAttendanceDepartment.Name = "columnAttendanceDepartment";
+            columnAttendanceDepartment.SortMode = DataGridViewColumnSortMode.NotSortable;
+            columnAttendanceDate.HeaderText = "일자";
+            columnAttendanceDate.Name = "columnAttendanceDate";
+            columnAttendanceDate.SortMode = DataGridViewColumnSortMode.NotSortable;
+            columnAttendanceDate.FillWeight = 130F;
+            columnAttendanceStart.HeaderText = "출근";
+            columnAttendanceStart.Name = "columnAttendanceStart";
+            columnAttendanceStart.SortMode = DataGridViewColumnSortMode.NotSortable;
+            columnAttendanceEnd.HeaderText = "퇴근";
+            columnAttendanceEnd.Name = "columnAttendanceEnd";
+            columnAttendanceEnd.SortMode = DataGridViewColumnSortMode.NotSortable;
+            columnAttendanceStatus.HeaderText = "상태";
+            columnAttendanceStatus.Name = "columnAttendanceStatus";
+            columnAttendanceStatus.SortMode = DataGridViewColumnSortMode.NotSortable;
+            columnAttendanceMode.HeaderText = "근무 형태";
+            columnAttendanceMode.Name = "columnAttendanceMode";
+            columnAttendanceMode.SortMode = DataGridViewColumnSortMode.NotSortable;
+            // panelLeave
+            panelLeave.Dock = DockStyle.Fill;
+            panelLeave.BackColor = Color.White;
+            panelLeave.Padding = new Padding(16);
+            panelLeave.Margin = new Padding(0);
+            panelLeave.BorderStyle = BorderStyle.FixedSingle;
+            panelLeave.Name = "panelLeave";
+            panelLeave.Controls.Add(layoutLeave);
+            layoutLeave.ColumnCount = 1;
+            layoutLeave.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            layoutLeave.RowCount = 2;
+            layoutLeave.RowStyles.Add(new RowStyle(SizeType.Absolute, 34F));
+            layoutLeave.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            layoutLeave.Dock = DockStyle.Fill;
+            layoutLeave.Margin = new Padding(0);
+            layoutLeave.Name = "layoutLeave";
+            layoutLeave.Controls.Add(lblLeaveTitle, 0, 0);
+            layoutLeave.Controls.Add(gridLeaveRequests, 0, 1);
+            lblLeaveTitle.AutoSize = true;
+            lblLeaveTitle.Font = new Font("맑은 고딕", 10F, FontStyle.Bold);
+            lblLeaveTitle.Text = "연차 신청 내역";
+            lblLeaveTitle.Name = "lblLeaveTitle";
+            lblLeaveTitle.Margin = new Padding(0, 0, 0, 6);
+            gridLeaveRequests.Dock = DockStyle.Fill;
+            gridLeaveRequests.Margin = new Padding(0);
+            gridLeaveRequests.ReadOnly = true;
+            gridLeaveRequests.AllowUserToAddRows = false;
+            gridLeaveRequests.AllowUserToDeleteRows = false;
+            gridLeaveRequests.AllowUserToResizeRows = false;
+            gridLeaveRequests.AllowUserToOrderColumns = false;
+            gridLeaveRequests.RowHeadersVisible = false;
+            gridLeaveRequests.MultiSelect = false;
+            gridLeaveRequests.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            gridLeaveRequests.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            gridLeaveRequests.BackgroundColor = Color.White;
+            gridLeaveRequests.BorderStyle = BorderStyle.None;
+            gridLeaveRequests.GridColor = Color.FromArgb(235, 239, 246);
+            gridLeaveRequests.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+            gridLeaveRequests.ColumnHeadersHeight = 36;
+            gridLeaveRequests.EnableHeadersVisualStyles = false;
+            gridLeaveRequests.RowTemplate.Height = 38;
+            gridLeaveRequests.Name = "gridLeaveRequests";
+            leaveHeaderStyle.BackColor = Color.FromArgb(243, 246, 251);
+            leaveHeaderStyle.ForeColor = Color.FromArgb(103, 116, 135);
+            leaveHeaderStyle.Font = new Font("맑은 고딕", 9F, FontStyle.Bold);
+            gridLeaveRequests.ColumnHeadersDefaultCellStyle = leaveHeaderStyle;
+            gridLeaveRequests.Columns.AddRange(new DataGridViewColumn[] { columnLeaveEmployee, columnLeaveDepartment, columnLeaveType, columnLeavePeriod, columnLeaveReason, columnLeaveStatus });
+            columnLeaveEmployee.HeaderText = "직원";
+            columnLeaveEmployee.Name = "columnLeaveEmployee";
+            columnLeaveEmployee.SortMode = DataGridViewColumnSortMode.NotSortable;
+            columnLeaveDepartment.HeaderText = "부서";
+            columnLeaveDepartment.Name = "columnLeaveDepartment";
+            columnLeaveDepartment.SortMode = DataGridViewColumnSortMode.NotSortable;
+            columnLeaveType.HeaderText = "유형";
+            columnLeaveType.Name = "columnLeaveType";
+            columnLeaveType.SortMode = DataGridViewColumnSortMode.NotSortable;
+            columnLeavePeriod.HeaderText = "기간";
+            columnLeavePeriod.Name = "columnLeavePeriod";
+            columnLeavePeriod.SortMode = DataGridViewColumnSortMode.NotSortable;
+            columnLeavePeriod.FillWeight = 135F;
+            columnLeaveReason.HeaderText = "사유";
+            columnLeaveReason.Name = "columnLeaveReason";
+            columnLeaveReason.SortMode = DataGridViewColumnSortMode.NotSortable;
+            columnLeaveReason.FillWeight = 160F;
+            columnLeaveStatus.HeaderText = "상태";
+            columnLeaveStatus.Name = "columnLeaveStatus";
+            columnLeaveStatus.SortMode = DataGridViewColumnSortMode.NotSortable;
+            // AttendanceControl
+            AutoScaleDimensions = new SizeF(7F, 15F);
+            AutoScaleMode = AutoScaleMode.Font;
+            BackColor = Color.FromArgb(242, 245, 250);
+            Font = new Font("맑은 고딕", 9F);
+            ForeColor = Color.FromArgb(30, 42, 61);
+            Padding = new Padding(24, 18, 24, 18);
+            Name = "AttendanceControl";
+            Size = new Size(1100, 700);
+            Controls.Add(layoutPage);
+            ((System.ComponentModel.ISupportInitialize)gridLeaveRequests).EndInit();
+            layoutLeave.ResumeLayout(false);
+            layoutLeave.PerformLayout();
+            panelLeave.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)gridAttendance).EndInit();
+            layoutAttendance.ResumeLayout(false);
+            layoutAttendance.PerformLayout();
+            panelAttendance.ResumeLayout(false);
+            layoutRecords.ResumeLayout(false);
+            flowActions.ResumeLayout(false);
+            flowActions.PerformLayout();
+            layoutHeading.ResumeLayout(false);
+            layoutHeading.PerformLayout();
+            layoutPage.ResumeLayout(false);
+            ResumeLayout(false);
+        }
+
+        #endregion
+
+        private TableLayoutPanel layoutPage;
+        private TableLayoutPanel layoutHeading;
+        private Label lblPageTitle;
+        private Label lblDescription;
+        private FlowLayoutPanel flowActions;
+        private ComboBox cmbOptions;
+        private Button btnQuery;
+        private Button btnLeaveApplicationPreview;
+        private Button btnLeaveDecision;
+        private Label lblBalance;
+        private TableLayoutPanel layoutRecords;
+        private Panel panelAttendance;
+        private TableLayoutPanel layoutAttendance;
+        private Label lblAttendanceTitle;
+        private DataGridView gridAttendance;
+        private DataGridViewTextBoxColumn columnAttendanceEmployee;
+        private DataGridViewTextBoxColumn columnAttendanceDepartment;
+        private DataGridViewTextBoxColumn columnAttendanceDate;
+        private DataGridViewTextBoxColumn columnAttendanceStart;
+        private DataGridViewTextBoxColumn columnAttendanceEnd;
+        private DataGridViewTextBoxColumn columnAttendanceStatus;
+        private DataGridViewTextBoxColumn columnAttendanceMode;
+        private Panel panelLeave;
+        private TableLayoutPanel layoutLeave;
+        private Label lblLeaveTitle;
+        private DataGridView gridLeaveRequests;
+        private DataGridViewTextBoxColumn columnLeaveEmployee;
+        private DataGridViewTextBoxColumn columnLeaveDepartment;
+        private DataGridViewTextBoxColumn columnLeaveType;
+        private DataGridViewTextBoxColumn columnLeavePeriod;
+        private DataGridViewTextBoxColumn columnLeaveReason;
+        private DataGridViewTextBoxColumn columnLeaveStatus;
     }
 }

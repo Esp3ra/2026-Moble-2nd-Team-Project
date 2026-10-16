@@ -1,55 +1,87 @@
-using RemoteWork.WinForms.Features.Attendance;
-using RemoteWork.WinForms.Features.Collaboration;
-using RemoteWork.WinForms.Features.Results;
-using RemoteWork.WinForms.Features.Tasks;
 using RemoteWork.WinForms.Ui;
+using RemoteWork.WinForms.Features.Tasks;
+using RemoteWork.WinForms.Features.Results;
+using RemoteWork.WinForms.Features.Collaboration;
+using RemoteWork.WinForms.Features.Attendance;
 
-namespace RemoteWork.WinForms.Shell;
-
-public partial class MainForm : Form
+namespace RemoteWork.WinForms.Shell
 {
-    private readonly PreviewRole previewRole;
-    private readonly List<Button> menuButtons = new();
-    private UserControl? currentPage;
-
-    public MainForm() : this(PreviewRole.Employee) { }
-
-    public MainForm(PreviewRole role)
+    public partial class MainForm : Form
     {
-        previewRole = role;
-        InitializeComponent();
-        AddMenu("01   업무", () => new TasksControl(previewRole));
-        AddMenu("02   결과물 · 검토", () => new ReviewsControl(previewRole));
-        AddMenu("03   채팅 · 협업", () => new ChatControl());
-        AddMenu("04   공지 · 알림", () => new NoticesControl(previewRole));
-        AddMenu("05   출퇴근 · 연차", () => new AttendanceControl());
-        AddMenu("06   업무 이력", () => new HistoryControl());
-        ShowPage(() => new TasksControl(previewRole), menuButtons[0]);
-    }
+        private readonly PreviewRole previewRole;
+        private UserControl? currentPage;
 
-    private void AddMenu(string title, Func<UserControl> pageFactory)
-    {
-        var button = new Button
+        public MainForm() : this(PreviewRole.Employee) { }
+
+        public MainForm(PreviewRole role)
         {
-            Text = title, Width = 184, Height = 46, FlatStyle = FlatStyle.Flat,
-            TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(12, 0, 0, 0),
-            BackColor = UiKit.Navy, ForeColor = Color.FromArgb(193, 206, 225),
-            Font = new Font("맑은 고딕", 10), Margin = new Padding(0, 0, 0, 8), Cursor = Cursors.Hand
-        };
-        button.FlatAppearance.BorderSize = 0;
-        button.Click += (_, _) => ShowPage(pageFactory, button);
-        menuButtons.Add(button); menuPanel.Controls.Add(button);
-    }
-
-    private void ShowPage(Func<UserControl> pageFactory, Button selected)
-    {
-        contentPanel.Controls.Clear(); currentPage?.Dispose();
-        currentPage = pageFactory(); currentPage.Dock = DockStyle.Fill;
-        contentPanel.Controls.Add(currentPage);
-        foreach (var item in menuButtons)
-        {
-            item.BackColor = item == selected ? UiKit.Accent : UiKit.Navy;
-            item.ForeColor = item == selected ? Color.White : Color.FromArgb(193, 206, 225);
+            InitializeComponent();
+            previewRole = role;
+            if (PreviewActions.IsDesignMode(this)) return;
+            InitializeSampleData(role);
+            ShowPage(new NoticesControl(previewRole), btnNotices);
         }
+
+        private void InitializeSampleData(PreviewRole role)
+        {
+            bool administrator = role == PreviewRole.Administrator;
+            lblPreviewIdentity.Text = administrator
+                ? "이관리자 | 관리자\n운영관리팀\n사번 ADM-001"
+                : "김직원 | 사원\n개발팀\n사번 EMP-001";
+            btnHistory.Visible = administrator;
+            btnReviews.Text = administrator ? "04   결과물 검토" : "04   결과물";
+            btnAttendance.Text = administrator ? "06   출퇴근 · 연차" : "05   출퇴근 · 연차";
+        }
+
+        private void ClosePreview_Click(object? sender, EventArgs e)
+        {
+            Close();
+        }
+
+        private void btnTasks_Click(object? sender, EventArgs e)
+        {
+            ShowPage(new TasksControl(previewRole), btnTasks);
+        }
+
+        private void btnReviews_Click(object? sender, EventArgs e)
+        {
+            ShowPage(new ReviewsControl(previewRole), btnReviews);
+        }
+
+        private void btnChat_Click(object? sender, EventArgs e)
+        {
+            ShowPage(new ChatControl(), btnChat);
+        }
+
+        private void btnNotices_Click(object? sender, EventArgs e)
+        {
+            ShowPage(new NoticesControl(previewRole), btnNotices);
+        }
+
+        private void btnAttendance_Click(object? sender, EventArgs e)
+        {
+            ShowPage(new AttendanceControl(previewRole), btnAttendance);
+        }
+
+        private void btnHistory_Click(object? sender, EventArgs e)
+        {
+            ShowPage(new HistoryControl(), btnHistory);
+        }
+
+        private void ShowPage(UserControl page, Button selected)
+        {
+            contentPanel.Controls.Clear();
+            currentPage?.Dispose();
+            currentPage = page;
+            currentPage.Dock = DockStyle.Fill;
+            contentPanel.Controls.Add(currentPage);
+            Button[] menus = { btnTasks, btnReviews, btnChat, btnNotices, btnAttendance, btnHistory };
+            foreach (var button in menus)
+            {
+                button.BackColor = button == selected ? Color.FromArgb(52, 101, 224) : Color.FromArgb(23, 38, 63);
+                button.ForeColor = button == selected ? Color.White : Color.FromArgb(193, 206, 225);
+            }
+        }
+
     }
 }
