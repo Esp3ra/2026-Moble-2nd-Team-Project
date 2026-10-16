@@ -1,11 +1,11 @@
 # 원격 근무용 업무 처리 확인 시스템 alpha
 
-`alpha`는 화면 초안 작성과 수정·검토에 사용하는 브랜치입니다. 현재 초안 버전은 **0.0.2V**이며, **업무 상태 5개와 관리자 본인 업무·결과물 화면 구분**을 포함합니다. 도구상자에서 편집할 수 있는 화면 뼈대와 구현계획을 함께 관리합니다.
+`alpha`는 화면 초안 작성과 수정·검토에 사용하는 브랜치입니다. 현재 초안 버전은 **0.0.2V**이며, **업무 상태 5개와 관리자 본인 업무·결과물 화면 구분**을 포함합니다. 이 브랜치에서는 도구상자에서 편집할 수 있는 화면 뼈대를 관리합니다. 기획·설계·구현계획은 별도 [DOCX 브랜치](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/DOCX)에서 관리합니다.
 
 | 구분 | 구성 |
 |---|---|
 | [0.0.1V](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/0.0.1V) | UiKit과 코드 배치에 기반한 초기 17개 화면 |
-| [0.0.2V](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/0.0.2V) | 표준 Designer 구조의 19개 화면, 단일 업무 상태 5개, 관리자 본인 수락·제출 화면과 계획서 |
+| [0.0.2V](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/0.0.2V) | 표준 Designer 구조의 19개 화면, 단일 업무 상태 5개, 관리자 본인 수락·제출 화면 |
 | alpha 최신 작업본 | 위 0.0.2V와 같은 수정본 |
 
 `0.0.1V`는 초기 코드 배치 초안을 보존하고, 이번 수정은 기존 `0.0.2V`에 누적 반영합니다. 프로젝트 전체 소개는 [main README](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/main/README.md), 수정사항별 기록은 [LOG](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG)에서 확인합니다. **푸시할 때마다 README를 폼·계획서·실제 구현 범위와 확인 결과에 맞춰 최신화합니다.**
@@ -28,7 +28,7 @@ dotnet run --project .\RemoteWork.WinForms\RemoteWork.WinForms.csproj
 
 ## 2026년 10월 16일 폼 수정
 
-로컬에 보존한 폼 수정 검토안과 이후 확정한 업무 흐름을 기준으로 화면을 수정했습니다. 이 브랜치의 [2번 업무·상태·마감 구현계획](DOCX/2번_업무_상태_마감_구현계획.md)에 최신 규칙과 API·DB 제안을 정리했습니다.
+폼 수정 검토안과 이후 확정한 업무 흐름을 기준으로 화면을 수정했습니다. [DOCX 브랜치의 2번 업무·상태·마감 구현계획](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/DOCX/DOCX/2번_업무_상태_마감_구현계획.md)에 최신 규칙과 API·DB 제안을 정리했습니다.
 
 | 구분 | 반영 내용 |
 |---|---|
@@ -55,7 +55,7 @@ dotnet run --project .\RemoteWork.WinForms\RemoteWork.WinForms.csproj
 
 배정 후 진행전, 담당자 수락 후 진행중, 정식 제출·재제출 후 제출완료, 검토 판단 후 승인완료·반려완료로 바뀌는 기본 흐름은 확정됐습니다. 상태 저장 코드·연결 규격·반려 후 재작업 복귀 시점·상위 검토자 권한 매핑은 1번·3번과 합의 필요이며, 실제 제출·판단 기능은 아직 연결하지 않았습니다.
 
-**마감 경과에 따른 자동 제출은 제외합니다.** 마감 경과만으로 제출 기록·제출 시각·버전·제출완료 상태를 만들지 않습니다. 자동 검토 요청은 별도 기능이며 도입 여부와 조건은 합의 필요입니다. 검토 요청 창은 제출완료된 결과 검토의 예시를 표시하며, 요청의 확인 대기 같은 상태는 업무 상태와 별개입니다. 상세한 API·DB 후보와 구현 순서는 [구현계획서](DOCX/2번_업무_상태_마감_구현계획.md)에서 관리합니다.
+**마감 경과에 따른 자동 제출은 제외합니다.** 마감 경과만으로 제출 기록·제출 시각·버전·제출완료 상태를 만들지 않습니다. 자동 검토 요청은 별도 기능이며 도입 여부와 조건은 합의 필요입니다. 검토 요청 창은 제출완료된 결과 검토의 예시를 표시하며, 요청의 확인 대기 같은 상태는 업무 상태와 별개입니다. 상세한 API·DB 후보와 구현 순서는 [DOCX 브랜치의 구현계획서](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/DOCX/DOCX/2번_업무_상태_마감_구현계획.md)에서 관리합니다.
 
 ## 화면과 담당 파일
 
@@ -96,7 +96,7 @@ dotnet run --project .\RemoteWork.WinForms\RemoteWork.WinForms.csproj
 
 ## 확인 결과
 
-이번에 게시하는 수정본은 게시용 소스에서 Debug와 Release 빌드를 모두 경고 0개, 오류 0개로 통과했습니다.
+문서 분리 전 게시한 화면 소스는 Debug와 Release 빌드를 모두 경고 0개, 오류 0개로 통과했습니다. 이번 문서 분리에서는 화면 소스·솔루션·프로젝트 파일을 변경하지 않았습니다.
 
 직원의 본인 업무·결과물·출퇴근·연차와 관리자의 내 업무·관리 업무·내 결과물·결과물 검토를 기본·최소 크기로 확인했습니다. 모달을 포함한 화면 렌더 44개, 창 열기 15개 경로, 준비 중 업무 액션 21개의 데이터 불변을 확인했습니다. 상태 열·상세·필터의 5개 상태, 관리자 본인 수락·제출 버튼, 범위 전환과 원복, 결과물 목록 4행 표시를 포함해 347개 검증을 통과했습니다. 같은 업무의 목록·검토 요청 마감일, 직원 사원 정보·출퇴근 내역·연차 신청자, 양쪽 결과물 목록의 담당자도 교차 확인했습니다. 이 확인은 화면 뼈대에 대한 검증이며 실제 업무 기능 완료를 뜻하지 않습니다.
 
@@ -104,4 +104,4 @@ dotnet run --project .\RemoteWork.WinForms\RemoteWork.WinForms.csproj
 
 현재 업무·결과물 화면은 `Preview/AdminOwnTasks.png`, `Preview/AdminManagedTasks.png`, `Preview/AdminOwnResults.png`, `Preview/AdminReviewResults.png`, `Preview/AdminSubmission.png`에서 볼 수 있습니다. `Preview/MainForm.png`, `Preview/Results.png`, `Preview/AdminTaskRequests.png`도 최신 화면으로 갱신했습니다. 기존 로그인·공지 작성·연차 판단 화면은 `Preview/LoginForm.png`, `Preview/NoticeEdit.png`, `Preview/LeaveDecision.png`에 있습니다. 날짜가 붙은 디자이너 캡처는 이전 버전의 기록입니다.
 
-원본 DOCX와 폼 수정 검토안은 로컬 참고자료로 보존합니다. 이 브랜치에는 솔루션·폼 소스·현재 미리보기와 2번 구현계획서를 포함하며, 원본 팀 문서·PDF·백업 ZIP·빌드 결과물은 포함하지 않습니다.
+2026년 10월 16일 문서 분리로 `alpha`와 `0.0.2V`에서 `DOCX` 폴더를 제거했습니다. 원본 Word·PDF·폼 수정 검토안·2번 구현계획서·이전 단계 사본과 메모는 [DOCX 브랜치](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/DOCX/DOCX)에서 확인합니다. 로컬 문서 폴더는 유지합니다. 이 브랜치에는 솔루션·폼 소스·현재 미리보기를 포함하며, 빌드 결과물은 포함하지 않습니다.
