@@ -11,7 +11,7 @@
 | 코드에 포함된 규약 | [INTEGRATION.md](https://github.com/jinkyu1452-cmd/Sang1/blob/2d3cc480c4ab5eb9a3466c9034cfdaf256102df3/docs/INTEGRATION.md) |
 | 실행·MySQL 설정 | [SETUP.md](https://github.com/jinkyu1452-cmd/Sang1/blob/2d3cc480c4ab5eb9a3466c9034cfdaf256102df3/docs/SETUP.md) |
 | 최신 팀 코드 기준 | [alpha 8f09183](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/8f09183ef992606ec4c2b7e3da79ef07983ba019) |
-| 이 문서의 전달 | 포크 `LOG` → 팀장 `LOG` 문서 PR. 코드 PR과 상호 연결 |
+| 문서 PR | [PR #3 — 포크 LOG → 팀장 LOG](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/3). 코드 PR과 상호 연결 |
 
 | 날짜·주제 | 기록 |
 |---|---|
