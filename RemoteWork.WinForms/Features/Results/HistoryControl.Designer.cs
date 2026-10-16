@@ -256,7 +256,7 @@ namespace RemoteWork.WinForms.Features.Results
             cmbOptions2.IntegralHeight = true;
             cmbOptions2.MaxDropDownItems = 8;
             cmbOptions2.Name = "cmbOptions2";
-            cmbOptions2.Items.AddRange(new object[] { "전체 변경 유형", "생성", "담당자 변경", "상태 변경", "진행률 변경", "결과 제출", "반려", "승인" });
+            cmbOptions2.Items.AddRange(new object[] { "전체 변경 유형", "생성", "담당자 변경", "처리상태 변경", "진행상태 변경", "결과 제출", "반려", "승인" });
             //
             // btnQuery
             //

@@ -266,7 +266,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             //
             // lblCurrentStatus
             //
-            lblCurrentStatus.Text = "현재 상태";
+            lblCurrentStatus.Text = "진행상태";
             lblCurrentStatus.Location = new System.Drawing.Point(0, 48);
             lblCurrentStatus.Size = new System.Drawing.Size(108, 36);
             lblCurrentStatus.MinimumSize = new System.Drawing.Size(0, 0);

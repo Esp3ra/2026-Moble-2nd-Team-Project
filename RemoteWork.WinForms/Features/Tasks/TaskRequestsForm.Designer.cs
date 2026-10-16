@@ -204,7 +204,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             txtReviewRequest.ReadOnly = true;
             txtReviewRequest.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             txtReviewRequest.TabStop = false;
-            txtReviewRequest.Text = "TASK-001 · 주간 업무 자료 정리\r\n요청자: 김직원\r\n현재 상태: 진행중\r\n현재 마감일: 2026-10-22\r\n\r\n검토 요청 내용\r\n업무 자료의 정리 방향을 마감 전에 검토해 주세요.\r\n\r\n처리 상태: 확인 대기";
+            txtReviewRequest.Text = "TASK-001 · 주간 업무 자료 정리\r\n요청자: 김직원\r\n진행상태: 진행중\r\n현재 마감일: 2026-10-22\r\n\r\n검토 요청 내용\r\n업무 자료의 정리 방향을 마감 전에 검토해 주세요.\r\n\r\n처리 상태: 확인 대기";
             //
             // flowActions
             //

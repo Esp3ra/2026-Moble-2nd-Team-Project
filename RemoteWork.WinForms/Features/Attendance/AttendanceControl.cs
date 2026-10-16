@@ -24,9 +24,6 @@ namespace RemoteWork.WinForms.Features.Attendance
             btnLeaveApplicationPreview.Visible = !administrator;
             btnLeaveDecision.Visible = administrator;
             lblBalance.Text = administrator ? "검토 대기 3건" : "남은 연차 8.0일";
-            lblDescription.Text = administrator
-                ? "직원의 출퇴근 기록과 연차 신청을 확인합니다."
-                : "출퇴근 기록과 연차 사용 현황을 확인합니다.";
             lblAttendanceTitle.Text = administrator ? "직원 출퇴근 기록" : "출퇴근 기록";
             lblLeaveTitle.Text = administrator ? "직원 연차 신청 목록" : "연차 신청 내역";
 

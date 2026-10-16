@@ -21,7 +21,6 @@ namespace RemoteWork.WinForms.Features.Collaboration
             layoutContent = new System.Windows.Forms.TableLayoutPanel();
             layoutContent2 = new System.Windows.Forms.TableLayoutPanel();
             lblPageTitle = new System.Windows.Forms.Label();
-            lblText = new System.Windows.Forms.Label();
             panelContent = new System.Windows.Forms.Panel();
             layoutContent3 = new System.Windows.Forms.TableLayoutPanel();
             panelContent2 = new System.Windows.Forms.Panel();
@@ -72,7 +71,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             layoutContent.GrowStyle = System.Windows.Forms.TableLayoutPanelGrowStyle.AddRows;
             layoutContent.Name = "layoutContent";
             layoutContent.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 70F));
+            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
             layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 50F));
             layoutContent.Controls.Add(layoutContent2, 0, 0);
@@ -83,7 +82,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             //
             layoutContent2.Text = "";
             layoutContent2.Location = new System.Drawing.Point(0, 0);
-            layoutContent2.Size = new System.Drawing.Size(736, 70);
+            layoutContent2.Size = new System.Drawing.Size(736, 44);
             layoutContent2.MinimumSize = new System.Drawing.Size(0, 0);
             layoutContent2.MaximumSize = new System.Drawing.Size(0, 0);
             layoutContent2.Margin = new System.Windows.Forms.Padding(0, 0, 0, 0);
@@ -99,13 +98,11 @@ namespace RemoteWork.WinForms.Features.Collaboration
             layoutContent2.AutoScroll = false;
             layoutContent2.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowOnly;
             layoutContent2.ColumnCount = 1;
-            layoutContent2.RowCount = 2;
+            layoutContent2.RowCount = 1;
             layoutContent2.GrowStyle = System.Windows.Forms.TableLayoutPanelGrowStyle.AddRows;
             layoutContent2.Name = "layoutContent2";
-            layoutContent2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 36F));
             layoutContent2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             layoutContent2.Controls.Add(lblPageTitle, 0, 0);
-            layoutContent2.Controls.Add(lblText, 0, 1);
             //
             // lblPageTitle
             //
@@ -129,29 +126,6 @@ namespace RemoteWork.WinForms.Features.Collaboration
             lblPageTitle.BorderStyle = System.Windows.Forms.BorderStyle.None;
             lblPageTitle.UseCompatibleTextRendering = false;
             lblPageTitle.Name = "lblPageTitle";
-            //
-            // lblText
-            //
-            lblText.Text = "업무와 요청 대상을 선택하고 협업 내용을 작성합니다.";
-            lblText.Location = new System.Drawing.Point(0, 40);
-            lblText.Size = new System.Drawing.Size(234, 15);
-            lblText.MinimumSize = new System.Drawing.Size(0, 0);
-            lblText.MaximumSize = new System.Drawing.Size(0, 0);
-            lblText.Margin = new System.Windows.Forms.Padding(0, 4, 8, 4);
-            lblText.Padding = new System.Windows.Forms.Padding(0, 0, 0, 0);
-            lblText.Dock = System.Windows.Forms.DockStyle.None;
-            lblText.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left;
-            lblText.AutoSize = true;
-            lblText.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
-            lblText.ForeColor = System.Drawing.Color.FromArgb(255, 103, 116, 135);
-            lblText.BackColor = System.Drawing.Color.FromArgb(255, 242, 245, 250);
-            lblText.TabIndex = 1;
-            lblText.TabStop = false;
-            lblText.AutoEllipsis = false;
-            lblText.TextAlign = System.Drawing.ContentAlignment.TopLeft;
-            lblText.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            lblText.UseCompatibleTextRendering = false;
-            lblText.Name = "lblText";
             //
             // panelContent
             //
@@ -636,7 +610,6 @@ namespace RemoteWork.WinForms.Features.Collaboration
         private System.Windows.Forms.TableLayoutPanel layoutContent;
         private System.Windows.Forms.TableLayoutPanel layoutContent2;
         private System.Windows.Forms.Label lblPageTitle;
-        private System.Windows.Forms.Label lblText;
         private System.Windows.Forms.Panel panelContent;
         private System.Windows.Forms.TableLayoutPanel layoutContent3;
         private System.Windows.Forms.Panel panelContent2;

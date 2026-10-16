@@ -45,7 +45,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             columnGridTasks2 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             columnGridTasks3 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             columnGridTasks4 = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            columnGridTasks5 = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            columnTaskProgressStatus = new System.Windows.Forms.DataGridViewTextBoxColumn();
             columnGridTasks6 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             columnGridTasks7 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             layoutContent6 = new System.Windows.Forms.TableLayoutPanel();
@@ -626,21 +626,21 @@ namespace RemoteWork.WinForms.Features.Tasks
             columnGridTasks3.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
             columnGridTasks3.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.NotSet;
             columnGridTasks4.Name = "columnGridTasks4";
-            columnGridTasks4.HeaderText = "상태";
+            columnGridTasks4.HeaderText = "처리상태";
             columnGridTasks4.MinimumWidth = 82;
             columnGridTasks4.Width = 82;
             columnGridTasks4.FillWeight = 100F;
             columnGridTasks4.ReadOnly = true;
             columnGridTasks4.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
             columnGridTasks4.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.NotSet;
-            columnGridTasks5.Name = "columnGridTasks5";
-            columnGridTasks5.HeaderText = "우선순위";
-            columnGridTasks5.MinimumWidth = 82;
-            columnGridTasks5.Width = 82;
-            columnGridTasks5.FillWeight = 100F;
-            columnGridTasks5.ReadOnly = true;
-            columnGridTasks5.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
-            columnGridTasks5.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.NotSet;
+            columnTaskProgressStatus.Name = "columnTaskProgressStatus";
+            columnTaskProgressStatus.HeaderText = "진행상태";
+            columnTaskProgressStatus.MinimumWidth = 82;
+            columnTaskProgressStatus.Width = 82;
+            columnTaskProgressStatus.FillWeight = 100F;
+            columnTaskProgressStatus.ReadOnly = true;
+            columnTaskProgressStatus.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
+            columnTaskProgressStatus.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.NotSet;
             columnGridTasks6.Name = "columnGridTasks6";
             columnGridTasks6.HeaderText = "시작일";
             columnGridTasks6.MinimumWidth = 106;
@@ -677,7 +677,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             cellStyle1.NullValue = "";
             gridTasks.ColumnHeadersDefaultCellStyle = headerStyle1;
             gridTasks.DefaultCellStyle = cellStyle1;
-            gridTasks.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] { columnGridTasks1, columnGridTasks2, columnGridTasks3, columnGridTasks4, columnGridTasks5, columnGridTasks6, columnGridTasks7 });
+            gridTasks.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] { columnGridTasks1, columnGridTasks2, columnGridTasks3, columnGridTasks4, columnTaskProgressStatus, columnGridTasks6, columnGridTasks7 });
             //
             // layoutContent6
             //
@@ -785,7 +785,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             //
             // txtContent
             //
-            txtContent.Text = "TASK-001\r\n\r\n업무 제목   주간 업무 자료 정리\r\n담당자      김직원\r\n우선순위    높음\r\n현재 상태   진행중\r\n진행률      40%\r\n\r\n시작일      2026-10-15\r\n현재 마감일 2026-10-22\r\n변경 마감일 —\r\n\r\n상세 내용\r\n주간 업무 자료를 모아 항목별로 정리합니다.";
+            txtContent.Text = "TASK-001\r\n\r\n업무 제목   주간 업무 자료 정리\r\n담당자      김직원\r\n처리상태    진행중\r\n진행상태    진행중\r\n\r\n시작일      2026-10-15\r\n현재 마감일 2026-10-22\r\n변경 마감일 —\r\n\r\n상세 내용\r\n주간 업무 자료를 모아 항목별로 정리합니다.";
             txtContent.Location = new System.Drawing.Point(3, 37);
             txtContent.Size = new System.Drawing.Size(368, 209);
             txtContent.MinimumSize = new System.Drawing.Size(0, 56);
@@ -1042,7 +1042,7 @@ namespace RemoteWork.WinForms.Features.Tasks
         private System.Windows.Forms.DataGridViewTextBoxColumn columnGridTasks2;
         private System.Windows.Forms.DataGridViewTextBoxColumn columnGridTasks3;
         private System.Windows.Forms.DataGridViewTextBoxColumn columnGridTasks4;
-        private System.Windows.Forms.DataGridViewTextBoxColumn columnGridTasks5;
+        private System.Windows.Forms.DataGridViewTextBoxColumn columnTaskProgressStatus;
         private System.Windows.Forms.DataGridViewTextBoxColumn columnGridTasks6;
         private System.Windows.Forms.DataGridViewTextBoxColumn columnGridTasks7;
         private System.Windows.Forms.TableLayoutPanel layoutContent6;

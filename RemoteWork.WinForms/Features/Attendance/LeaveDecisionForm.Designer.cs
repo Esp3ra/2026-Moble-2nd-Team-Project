@@ -22,7 +22,6 @@ namespace RemoteWork.WinForms.Features.Attendance
             layoutPage = new TableLayoutPanel();
             layoutHeading = new TableLayoutPanel();
             lblPageTitle = new Label();
-            lblDescription = new Label();
             panelRequest = new Panel();
             layoutRequest = new TableLayoutPanel();
             lblApplicant = new Label();
@@ -53,7 +52,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             layoutPage.ColumnCount = 1;
             layoutPage.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             layoutPage.RowCount = 4;
-            layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 78F));
+            layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 48F));
             layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 250F));
             layoutPage.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 58F));
@@ -66,24 +65,17 @@ namespace RemoteWork.WinForms.Features.Attendance
             layoutPage.Controls.Add(flowActions, 0, 3);
             layoutHeading.ColumnCount = 1;
             layoutHeading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            layoutHeading.RowCount = 2;
-            layoutHeading.RowStyles.Add(new RowStyle(SizeType.Absolute, 39F));
+            layoutHeading.RowCount = 1;
             layoutHeading.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             layoutHeading.Dock = DockStyle.Fill;
             layoutHeading.Margin = new Padding(0);
             layoutHeading.Name = "layoutHeading";
             layoutHeading.Controls.Add(lblPageTitle, 0, 0);
-            layoutHeading.Controls.Add(lblDescription, 0, 1);
             lblPageTitle.AutoSize = true;
             lblPageTitle.Font = new Font("맑은 고딕", 20F, FontStyle.Bold);
             lblPageTitle.Text = "연차 신청 검토";
             lblPageTitle.Margin = new Padding(0, 0, 0, 4);
             lblPageTitle.Name = "lblPageTitle";
-            lblDescription.AutoSize = true;
-            lblDescription.ForeColor = Color.FromArgb(103, 116, 135);
-            lblDescription.Text = "신청 내용을 확인하고 검토 의견을 작성합니다.";
-            lblDescription.Margin = new Padding(0, 4, 0, 0);
-            lblDescription.Name = "lblDescription";
             // panelRequest
             panelRequest.Dock = DockStyle.Fill;
             panelRequest.BackColor = Color.White;
@@ -256,7 +248,6 @@ namespace RemoteWork.WinForms.Features.Attendance
         private TableLayoutPanel layoutPage;
         private TableLayoutPanel layoutHeading;
         private Label lblPageTitle;
-        private Label lblDescription;
         private Panel panelRequest;
         private TableLayoutPanel layoutRequest;
         private Label lblApplicant;
