@@ -9,6 +9,7 @@
 | [#1](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/1) | 4번 공지·로컬 채팅 | 미병합 · 수정 후 재검토 |
 | [#2](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/2) | 1번 공통 서버·DB·인증·통신 | 미병합 · 수정 후 재검토 |
 | [#3](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/3) | 1번 협의·검증 문서 | LOG 병합 완료 · [6348997](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/6348997d78976ad5127116ccd606aaa36fc264b5) |
+| [#4](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/4) | 4번의 타 담당 파일 수정 전달 문서 | LOG 병합 완료 · [831670e](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/831670e58df09d79b124d1cb0b19975bea6216b2) |
 
 문서 PR 병합은 PR #1·#2의 코드 반영이나 아래 결함의 수정 완료를 뜻하지 않습니다. 실제 alpha·0.0.2V 기준은 `8f09183ef992606ec4c2b7e3da79ef07983ba019`로 유지합니다.
 
