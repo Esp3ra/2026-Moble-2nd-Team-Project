@@ -256,7 +256,7 @@ namespace RemoteWork.WinForms.Features.Results
             cmbOptions2.IntegralHeight = true;
             cmbOptions2.MaxDropDownItems = 8;
             cmbOptions2.Name = "cmbOptions2";
-            cmbOptions2.Items.AddRange(new object[] { "전체 변경 유형", "생성", "담당자 변경", "처리상태 변경", "진행상태 변경", "결과 제출", "반려", "승인" });
+            cmbOptions2.Items.AddRange(new object[] { "전체 변경 유형", "생성", "담당자 변경", "상태 변경", "결과 제출", "반려", "승인" });
             //
             // btnQuery
             //
@@ -535,7 +535,7 @@ namespace RemoteWork.WinForms.Features.Results
             //
             // txtContent
             //
-            txtContent.Text = "WRK-2026-002 · 월간 운영 현황 정리\r\n수행자: 이서연 (관리자)   |   변경 시각: 2026-10-22 10:30   |   유형: 승인\r\n변경 내용: v2 제출 결과 검토 승인";
+            txtContent.Text = "WRK-2026-002 · 월간 운영 현황 정리\r\n수행자: 이서연 (관리자)   |   변경 시각: 2026-10-22 10:30   |   유형: 승인\r\n변경 내용: 제출완료 → 승인완료 · v2 제출 결과 검토 승인";
             txtContent.Location = new System.Drawing.Point(3, 37);
             txtContent.Size = new System.Drawing.Size(995, 86);
             txtContent.MinimumSize = new System.Drawing.Size(0, 56);

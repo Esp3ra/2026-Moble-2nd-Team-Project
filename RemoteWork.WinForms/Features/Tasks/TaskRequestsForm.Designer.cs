@@ -139,7 +139,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             columnRequestedAt.Name = "columnRequestedAt";
             columnRequestedAt.ReadOnly = true;
             columnRequestedAt.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
-            columnRequestStatus.HeaderText = "처리 상태";
+            columnRequestStatus.HeaderText = "요청 상태";
             columnRequestStatus.MinimumWidth = 100;
             columnRequestStatus.Name = "columnRequestStatus";
             columnRequestStatus.ReadOnly = true;
@@ -181,7 +181,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             txtDeadlineRequest.ReadOnly = true;
             txtDeadlineRequest.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             txtDeadlineRequest.TabStop = false;
-            txtDeadlineRequest.Text = "TASK-001 · 주간 업무 자료 정리\r\n요청자: 김직원\r\n현재 마감일: 2026-10-22\r\n요청 마감일: 2026-10-26\r\n\r\n연장 사유\r\n추가 참고 자료를 반영하기 위해 작업 기간 연장을 요청합니다.\r\n\r\n처리 상태: 확인 대기";
+            txtDeadlineRequest.Text = "TASK-001 · 주간 업무 자료 정리\r\n요청자: 김직원\r\n현재 마감일: 2026-10-22\r\n요청 마감일: 2026-10-26\r\n\r\n연장 사유\r\n추가 참고 자료를 반영하기 위해 작업 기간 연장을 요청합니다.\r\n\r\n요청 상태: 확인 대기";
             //
             // groupReviewRequest
             //
@@ -204,7 +204,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             txtReviewRequest.ReadOnly = true;
             txtReviewRequest.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             txtReviewRequest.TabStop = false;
-            txtReviewRequest.Text = "TASK-001 · 주간 업무 자료 정리\r\n요청자: 김직원\r\n진행상태: 진행중\r\n현재 마감일: 2026-10-22\r\n\r\n검토 요청 내용\r\n업무 자료의 정리 방향을 마감 전에 검토해 주세요.\r\n\r\n처리 상태: 확인 대기";
+            txtReviewRequest.Text = "TASK-003 · 프로젝트 검토 자료 준비\r\n요청자: 박직원\r\n업무 상태: 제출완료\r\n제출 버전: v1\r\n현재 마감일: 2026-10-21\r\n\r\n검토 요청 내용\r\n결과 설명과 첨부파일을 제출했습니다. 제출 결과를 검토해 주세요.\r\n\r\n요청 상태: 확인 대기";
             //
             // flowActions
             //

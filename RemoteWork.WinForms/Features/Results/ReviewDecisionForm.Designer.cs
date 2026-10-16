@@ -400,7 +400,7 @@ namespace RemoteWork.WinForms.Features.Results
             //
             // txtSubmissionVersion
             //
-            txtSubmissionVersion.Text = "김민수 / v2 · 검토 대기";
+            txtSubmissionVersion.Text = "김민수 / v2 · 제출완료";
             txtSubmissionVersion.Location = new System.Drawing.Point(119, 47);
             txtSubmissionVersion.Size = new System.Drawing.Size(356, 28);
             txtSubmissionVersion.MinimumSize = new System.Drawing.Size(0, 28);
@@ -451,7 +451,7 @@ namespace RemoteWork.WinForms.Features.Results
             //
             // txtReviewer
             //
-            txtReviewer.Text = "이서연 · 관리자";
+            txtReviewer.Text = "이관리자 · 관리자";
             txtReviewer.Location = new System.Drawing.Point(119, 91);
             txtReviewer.Size = new System.Drawing.Size(356, 28);
             txtReviewer.MinimumSize = new System.Drawing.Size(0, 28);
@@ -605,7 +605,7 @@ namespace RemoteWork.WinForms.Features.Results
             //
             // txtContent5
             //
-            txtContent5.Text = "결과 설명\r\n운영 지표와 주간 이슈를 정리했습니다. 1차 검토 의견을 반영해 누락된 항목을 보완했습니다.\r\n\r\n첨부 파일\r\n월간_운영현황_v2.pdf · 184 KB\r\n검토_참고자료.xlsx · 42 KB\r\n\r\n이전 제출\r\nv1 · 2026-10-20 14:00 · 반려\r\n사유: 누락된 운영 지표 보완 요청";
+            txtContent5.Text = "결과 설명\r\n운영 지표와 주간 이슈를 정리했습니다. 1차 검토 의견을 반영해 누락된 항목을 보완했습니다.\r\n\r\n첨부 파일\r\n월간_운영현황_v2.pdf · 184 KB\r\n검토_참고자료.xlsx · 42 KB\r\n\r\n이전 제출\r\nv1 · 2026-10-20 14:00 · 반려완료\r\n사유: 누락된 운영 지표 보완 요청";
             txtContent5.Location = new System.Drawing.Point(3, 37);
             txtContent5.Size = new System.Drawing.Size(344, 422);
             txtContent5.MinimumSize = new System.Drawing.Size(0, 56);

@@ -29,7 +29,7 @@ namespace RemoteWork.WinForms.Shell
                 ? "이관리자 | 관리자\n운영관리팀\n사번 ADM-001"
                 : "김직원 | 사원\n개발팀\n사번 EMP-001";
             btnHistory.Visible = administrator;
-            btnReviews.Text = administrator ? "04   결과물 검토" : "04   결과물";
+            btnReviews.Text = "04   결과물";
             btnAttendance.Text = administrator ? "06   출퇴근 · 연차" : "05   출퇴근 · 연차";
         }
 

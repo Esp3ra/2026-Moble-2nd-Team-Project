@@ -27,6 +27,11 @@ namespace RemoteWork.WinForms.Features.Tasks
             lblPageTitle = new System.Windows.Forms.Label();
             panelContent = new System.Windows.Forms.Panel();
             layoutContent3 = new System.Windows.Forms.TableLayoutPanel();
+            flowViewOptions = new System.Windows.Forms.FlowLayoutPanel();
+            lblTaskScope = new System.Windows.Forms.Label();
+            cmbTaskScope = new System.Windows.Forms.ComboBox();
+            lblTaskStatusFilter = new System.Windows.Forms.Label();
+            cmbTaskStatusFilter = new System.Windows.Forms.ComboBox();
             flowActions = new System.Windows.Forms.FlowLayoutPanel();
             btnNewTaskPreview = new System.Windows.Forms.Button();
             btnEditTaskPreview = new System.Windows.Forms.Button();
@@ -44,8 +49,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             columnGridTasks1 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             columnGridTasks2 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             columnGridTasks3 = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            columnGridTasks4 = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            columnTaskProgressStatus = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            columnTaskStatus = new System.Windows.Forms.DataGridViewTextBoxColumn();
             columnGridTasks6 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             columnGridTasks7 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             layoutContent6 = new System.Windows.Forms.TableLayoutPanel();
@@ -64,6 +68,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             layoutContent2.SuspendLayout();
             panelContent.SuspendLayout();
             layoutContent3.SuspendLayout();
+            flowViewOptions.SuspendLayout();
             flowActions.SuspendLayout();
             layoutContent4.SuspendLayout();
             panelContent2.SuspendLayout();
@@ -198,14 +203,71 @@ namespace RemoteWork.WinForms.Features.Tasks
             layoutContent3.AutoScroll = false;
             layoutContent3.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowOnly;
             layoutContent3.ColumnCount = 1;
-            layoutContent3.RowCount = 2;
+            layoutContent3.RowCount = 3;
             layoutContent3.GrowStyle = System.Windows.Forms.TableLayoutPanelGrowStyle.AddRows;
             layoutContent3.Name = "layoutContent3";
             layoutContent3.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             layoutContent3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0F));
+            layoutContent3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0F));
             layoutContent3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            layoutContent3.Controls.Add(flowActions, 0, 0);
-            layoutContent3.Controls.Add(layoutContent4, 0, 1);
+            layoutContent3.Controls.Add(flowViewOptions, 0, 0);
+            layoutContent3.Controls.Add(flowActions, 0, 1);
+            layoutContent3.Controls.Add(layoutContent4, 0, 2);
+            //
+            // flowViewOptions
+            //
+            flowViewOptions.AutoSize = true;
+            flowViewOptions.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            flowViewOptions.Dock = System.Windows.Forms.DockStyle.Fill;
+            flowViewOptions.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight;
+            flowViewOptions.WrapContents = true;
+            flowViewOptions.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
+            flowViewOptions.MinimumSize = new System.Drawing.Size(0, 38);
+            flowViewOptions.Name = "flowViewOptions";
+            flowViewOptions.TabIndex = 0;
+            flowViewOptions.Controls.Add(lblTaskScope);
+            flowViewOptions.Controls.Add(cmbTaskScope);
+            flowViewOptions.Controls.Add(lblTaskStatusFilter);
+            flowViewOptions.Controls.Add(cmbTaskStatusFilter);
+            //
+            // lblTaskScope
+            //
+            lblTaskScope.AutoSize = true;
+            lblTaskScope.Margin = new System.Windows.Forms.Padding(0, 6, 8, 6);
+            lblTaskScope.Name = "lblTaskScope";
+            lblTaskScope.Text = "업무 구분";
+            lblTaskScope.TabIndex = 0;
+            //
+            // cmbTaskScope
+            //
+            cmbTaskScope.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            cmbTaskScope.FormattingEnabled = true;
+            cmbTaskScope.Items.AddRange(new object[] { "내 업무", "관리 업무" });
+            cmbTaskScope.Margin = new System.Windows.Forms.Padding(0, 2, 24, 8);
+            cmbTaskScope.Name = "cmbTaskScope";
+            cmbTaskScope.Size = new System.Drawing.Size(148, 25);
+            cmbTaskScope.TabIndex = 1;
+            cmbTaskScope.AccessibleName = "업무 구분";
+            cmbTaskScope.SelectedIndexChanged += new System.EventHandler(cmbTaskScope_SelectedIndexChanged);
+            //
+            // lblTaskStatusFilter
+            //
+            lblTaskStatusFilter.AutoSize = true;
+            lblTaskStatusFilter.Margin = new System.Windows.Forms.Padding(0, 6, 8, 6);
+            lblTaskStatusFilter.Name = "lblTaskStatusFilter";
+            lblTaskStatusFilter.Text = "업무 상태";
+            lblTaskStatusFilter.TabIndex = 2;
+            //
+            // cmbTaskStatusFilter
+            //
+            cmbTaskStatusFilter.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            cmbTaskStatusFilter.FormattingEnabled = true;
+            cmbTaskStatusFilter.Items.AddRange(new object[] { "전체 업무 상태", "진행전", "진행중", "제출완료", "승인완료", "반려완료" });
+            cmbTaskStatusFilter.Margin = new System.Windows.Forms.Padding(0, 2, 0, 8);
+            cmbTaskStatusFilter.Name = "cmbTaskStatusFilter";
+            cmbTaskStatusFilter.Size = new System.Drawing.Size(156, 25);
+            cmbTaskStatusFilter.TabIndex = 3;
+            cmbTaskStatusFilter.AccessibleName = "업무 상태";
             //
             // flowActions
             //
@@ -625,22 +687,14 @@ namespace RemoteWork.WinForms.Features.Tasks
             columnGridTasks3.ReadOnly = true;
             columnGridTasks3.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
             columnGridTasks3.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.NotSet;
-            columnGridTasks4.Name = "columnGridTasks4";
-            columnGridTasks4.HeaderText = "처리상태";
-            columnGridTasks4.MinimumWidth = 82;
-            columnGridTasks4.Width = 82;
-            columnGridTasks4.FillWeight = 100F;
-            columnGridTasks4.ReadOnly = true;
-            columnGridTasks4.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
-            columnGridTasks4.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.NotSet;
-            columnTaskProgressStatus.Name = "columnTaskProgressStatus";
-            columnTaskProgressStatus.HeaderText = "진행상태";
-            columnTaskProgressStatus.MinimumWidth = 82;
-            columnTaskProgressStatus.Width = 82;
-            columnTaskProgressStatus.FillWeight = 100F;
-            columnTaskProgressStatus.ReadOnly = true;
-            columnTaskProgressStatus.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
-            columnTaskProgressStatus.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.NotSet;
+            columnTaskStatus.Name = "columnTaskStatus";
+            columnTaskStatus.HeaderText = "업무 상태";
+            columnTaskStatus.MinimumWidth = 92;
+            columnTaskStatus.Width = 92;
+            columnTaskStatus.FillWeight = 100F;
+            columnTaskStatus.ReadOnly = true;
+            columnTaskStatus.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
+            columnTaskStatus.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.NotSet;
             columnGridTasks6.Name = "columnGridTasks6";
             columnGridTasks6.HeaderText = "시작일";
             columnGridTasks6.MinimumWidth = 106;
@@ -677,7 +731,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             cellStyle1.NullValue = "";
             gridTasks.ColumnHeadersDefaultCellStyle = headerStyle1;
             gridTasks.DefaultCellStyle = cellStyle1;
-            gridTasks.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] { columnGridTasks1, columnGridTasks2, columnGridTasks3, columnGridTasks4, columnTaskProgressStatus, columnGridTasks6, columnGridTasks7 });
+            gridTasks.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] { columnGridTasks1, columnGridTasks2, columnGridTasks3, columnTaskStatus, columnGridTasks6, columnGridTasks7 });
             //
             // layoutContent6
             //
@@ -785,7 +839,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             //
             // txtContent
             //
-            txtContent.Text = "TASK-001\r\n\r\n업무 제목   주간 업무 자료 정리\r\n담당자      김직원\r\n처리상태    진행중\r\n진행상태    진행중\r\n\r\n시작일      2026-10-15\r\n현재 마감일 2026-10-22\r\n변경 마감일 —\r\n\r\n상세 내용\r\n주간 업무 자료를 모아 항목별로 정리합니다.";
+            txtContent.Text = "TASK-001\r\n\r\n업무 제목   주간 업무 자료 정리\r\n담당자      김직원\r\n업무 상태   진행전\r\n\r\n시작일      2026-10-15\r\n현재 마감일 2026-10-22\r\n변경 마감일 —\r\n\r\n상세 내용\r\n주간 업무 자료를 모아 항목별로 정리합니다.";
             txtContent.Location = new System.Drawing.Point(3, 37);
             txtContent.Size = new System.Drawing.Size(368, 209);
             txtContent.MinimumSize = new System.Drawing.Size(0, 56);
@@ -1005,6 +1059,8 @@ namespace RemoteWork.WinForms.Features.Tasks
             layoutContent4.PerformLayout();
             flowActions.ResumeLayout(false);
             flowActions.PerformLayout();
+            flowViewOptions.ResumeLayout(false);
+            flowViewOptions.PerformLayout();
             layoutContent3.ResumeLayout(false);
             layoutContent3.PerformLayout();
             panelContent.ResumeLayout(false);
@@ -1024,6 +1080,11 @@ namespace RemoteWork.WinForms.Features.Tasks
         private System.Windows.Forms.Label lblPageTitle;
         private System.Windows.Forms.Panel panelContent;
         private System.Windows.Forms.TableLayoutPanel layoutContent3;
+        private System.Windows.Forms.FlowLayoutPanel flowViewOptions;
+        private System.Windows.Forms.Label lblTaskScope;
+        private System.Windows.Forms.ComboBox cmbTaskScope;
+        private System.Windows.Forms.Label lblTaskStatusFilter;
+        private System.Windows.Forms.ComboBox cmbTaskStatusFilter;
         private System.Windows.Forms.FlowLayoutPanel flowActions;
         private System.Windows.Forms.Button btnNewTaskPreview;
         private System.Windows.Forms.Button btnEditTaskPreview;
@@ -1041,8 +1102,7 @@ namespace RemoteWork.WinForms.Features.Tasks
         private System.Windows.Forms.DataGridViewTextBoxColumn columnGridTasks1;
         private System.Windows.Forms.DataGridViewTextBoxColumn columnGridTasks2;
         private System.Windows.Forms.DataGridViewTextBoxColumn columnGridTasks3;
-        private System.Windows.Forms.DataGridViewTextBoxColumn columnGridTasks4;
-        private System.Windows.Forms.DataGridViewTextBoxColumn columnTaskProgressStatus;
+        private System.Windows.Forms.DataGridViewTextBoxColumn columnTaskStatus;
         private System.Windows.Forms.DataGridViewTextBoxColumn columnGridTasks6;
         private System.Windows.Forms.DataGridViewTextBoxColumn columnGridTasks7;
         private System.Windows.Forms.TableLayoutPanel layoutContent6;

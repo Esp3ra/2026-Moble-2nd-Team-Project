@@ -105,7 +105,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             lblApplicant.TextAlign = ContentAlignment.MiddleLeft;
             lblApplicant.Font = new Font("맑은 고딕", 9F, FontStyle.Bold);
             lblApplicant.Name = "lblApplicant";
-            txtApplicant.Text = "이서연 · 기획팀";
+            txtApplicant.Text = "김직원 · 개발팀";
             txtApplicant.ReadOnly = true;
             txtApplicant.Dock = DockStyle.Fill;
             txtApplicant.Margin = new Padding(0, 10, 0, 8);

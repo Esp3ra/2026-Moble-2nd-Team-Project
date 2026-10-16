@@ -158,7 +158,7 @@ namespace RemoteWork.WinForms.Shell
             btnChat.FlatAppearance.BorderSize = 0;
             panelNavigation.Controls.Add(btnChat);
             // btnReviews
-            btnReviews.Text = "04   결과물 검토";
+            btnReviews.Text = "04   결과물";
             btnReviews.Name = "btnReviews";
             btnReviews.Dock = DockStyle.Fill;
             btnReviews.FlatStyle = FlatStyle.Flat;

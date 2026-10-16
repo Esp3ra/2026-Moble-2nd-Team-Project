@@ -423,7 +423,7 @@ namespace RemoteWork.WinForms.Features.Results
             //
             // txtSubmissionVersion
             //
-            txtSubmissionVersion.Text = "박지은 / v2 제출 예정";
+            txtSubmissionVersion.Text = "김직원 / v2 제출 예정";
             txtSubmissionVersion.Location = new System.Drawing.Point(119, 47);
             txtSubmissionVersion.Size = new System.Drawing.Size(331, 28);
             txtSubmissionVersion.MinimumSize = new System.Drawing.Size(0, 28);
@@ -864,7 +864,7 @@ namespace RemoteWork.WinForms.Features.Results
             //
             // txtContent4
             //
-            txtContent4.Text = "이전 제출 v1 · 2026-10-20 14:00 · 반려\r\n반려 사유: 제출 기준과 예외 상황 설명을 보완해 주세요.";
+            txtContent4.Text = "이전 제출 v1 · 2026-10-20 14:00 · 반려완료\r\n반려 사유: 제출 기준과 예외 상황 설명을 보완해 주세요.";
             txtContent4.Location = new System.Drawing.Point(3, 3);
             txtContent4.Size = new System.Drawing.Size(379, 106);
             txtContent4.MinimumSize = new System.Drawing.Size(0, 56);

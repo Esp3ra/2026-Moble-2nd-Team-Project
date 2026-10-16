@@ -31,7 +31,9 @@ namespace RemoteWork.WinForms.Features.Results
             layoutContent3 = new System.Windows.Forms.TableLayoutPanel();
             panelContent2 = new System.Windows.Forms.Panel();
             layoutContent4 = new System.Windows.Forms.TableLayoutPanel();
+            layoutScopeHeader = new System.Windows.Forms.TableLayoutPanel();
             lblReviewListTitle = new System.Windows.Forms.Label();
+            cmbResultView = new System.Windows.Forms.ComboBox();
             layoutContent5 = new System.Windows.Forms.TableLayoutPanel();
             flowActions = new System.Windows.Forms.FlowLayoutPanel();
             cmbOptions = new System.Windows.Forms.ComboBox();
@@ -77,6 +79,7 @@ namespace RemoteWork.WinForms.Features.Results
             layoutContent3.SuspendLayout();
             panelContent2.SuspendLayout();
             layoutContent4.SuspendLayout();
+            layoutScopeHeader.SuspendLayout();
             layoutContent5.SuspendLayout();
             flowActions.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)gridReviews).BeginInit();
@@ -151,7 +154,7 @@ namespace RemoteWork.WinForms.Features.Results
             //
             // lblPageTitle
             //
-            lblPageTitle.Text = "결과 검토";
+            lblPageTitle.Text = "내 결과물";
             lblPageTitle.Location = new System.Drawing.Point(0, 4);
             lblPageTitle.Size = new System.Drawing.Size(134, 28);
             lblPageTitle.MinimumSize = new System.Drawing.Size(0, 0);
@@ -273,12 +276,38 @@ namespace RemoteWork.WinForms.Features.Results
             layoutContent4.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             layoutContent4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 34F));
             layoutContent4.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            layoutContent4.Controls.Add(lblReviewListTitle, 0, 0);
+            layoutContent4.Controls.Add(layoutScopeHeader, 0, 0);
             layoutContent4.Controls.Add(layoutContent5, 0, 1);
+            //
+            // layoutScopeHeader
+            //
+            layoutScopeHeader.ColumnCount = 2;
+            layoutScopeHeader.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            layoutScopeHeader.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 160F));
+            layoutScopeHeader.Dock = System.Windows.Forms.DockStyle.Fill;
+            layoutScopeHeader.Margin = new System.Windows.Forms.Padding(0);
+            layoutScopeHeader.Name = "layoutScopeHeader";
+            layoutScopeHeader.RowCount = 1;
+            layoutScopeHeader.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            layoutScopeHeader.Controls.Add(lblReviewListTitle, 0, 0);
+            layoutScopeHeader.Controls.Add(cmbResultView, 1, 0);
+            //
+            // cmbResultView
+            //
+            cmbResultView.Dock = System.Windows.Forms.DockStyle.Fill;
+            cmbResultView.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            cmbResultView.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            cmbResultView.FormattingEnabled = true;
+            cmbResultView.Items.AddRange(new object[] { "내 결과물", "결과물 검토" });
+            cmbResultView.Margin = new System.Windows.Forms.Padding(8, 0, 0, 5);
+            cmbResultView.Name = "cmbResultView";
+            cmbResultView.SelectedIndex = 0;
+            cmbResultView.TabIndex = 0;
+            cmbResultView.SelectedIndexChanged += new System.EventHandler(cmbResultView_SelectedIndexChanged);
             //
             // lblReviewListTitle
             //
-            lblReviewListTitle.Text = "검토 대상 목록";
+            lblReviewListTitle.Text = "내 결과물 목록";
             lblReviewListTitle.Location = new System.Drawing.Point(0, 4);
             lblReviewListTitle.Size = new System.Drawing.Size(145, 19);
             lblReviewListTitle.MinimumSize = new System.Drawing.Size(0, 0);
@@ -360,7 +389,7 @@ namespace RemoteWork.WinForms.Features.Results
             //
             // cmbOptions
             //
-            cmbOptions.Text = "전체 검토 상태";
+            cmbOptions.Text = "전체 상태";
             cmbOptions.Location = new System.Drawing.Point(0, 4);
             cmbOptions.Size = new System.Drawing.Size(121, 26);
             cmbOptions.MinimumSize = new System.Drawing.Size(0, 0);
@@ -379,7 +408,7 @@ namespace RemoteWork.WinForms.Features.Results
             cmbOptions.IntegralHeight = true;
             cmbOptions.MaxDropDownItems = 8;
             cmbOptions.Name = "cmbOptions";
-            cmbOptions.Items.AddRange(new object[] { "전체 검토 상태", "검토 대기", "승인", "반려" });
+            cmbOptions.Items.AddRange(new object[] { "전체 상태", "진행전", "진행중", "제출완료", "승인완료", "반려완료" });
             //
             // txtContent
             //
@@ -625,7 +654,7 @@ namespace RemoteWork.WinForms.Features.Results
             columnGridReviews5.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
             columnGridReviews5.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.NotSet;
             columnGridReviews6.Name = "columnGridReviews6";
-            columnGridReviews6.HeaderText = "검토 상태";
+            columnGridReviews6.HeaderText = "업무 상태";
             columnGridReviews6.MinimumWidth = 82;
             columnGridReviews6.Width = 163;
             columnGridReviews6.FillWeight = 100F;
@@ -737,7 +766,7 @@ namespace RemoteWork.WinForms.Features.Results
             //
             // lblResultDetailTitle
             //
-            lblResultDetailTitle.Text = "제출 결과 확인";
+            lblResultDetailTitle.Text = "내 결과와 반려 사유";
             lblResultDetailTitle.Location = new System.Drawing.Point(0, 4);
             lblResultDetailTitle.Size = new System.Drawing.Size(178, 19);
             lblResultDetailTitle.MinimumSize = new System.Drawing.Size(0, 0);
@@ -760,7 +789,7 @@ namespace RemoteWork.WinForms.Features.Results
             //
             // txtContent2
             //
-            txtContent2.Text = "WRK-2026-002 · 월간 운영 현황 정리\r\n담당자: 김민수   |   검토 상태: 검토 대기\r\n제출 버전: v2   |   제출일: 2026-10-21 15:30\r\n\r\n결과 설명\r\n운영 지표와 주간 이슈를 정리했습니다. 1차 검토 의견을 반영해 누락된 항목을 보완했습니다.\r\n\r\n검토 메모\r\n운영 지표와 첨부 문서를 확인해 주세요.";
+            txtContent2.Text = "WRK-2026-003 · 원격 근무 가이드 초안\r\n담당자: 김직원   |   업무 상태: 반려완료\r\n제출 버전: v1   |   제출일: 2026-10-20 14:00\r\n\r\n결과 설명\r\n원격 근무 절차와 업무 결과 제출 가이드를 초안으로 정리했습니다.\r\n\r\n반려 사유\r\n제출 기준과 예외 상황 설명이 부족합니다. 검토 의견을 반영한 후 결과를 다시 제출해 주세요.";
             txtContent2.Location = new System.Drawing.Point(3, 37);
             txtContent2.Size = new System.Drawing.Size(493, 236);
             txtContent2.MinimumSize = new System.Drawing.Size(0, 56);
@@ -1142,7 +1171,7 @@ namespace RemoteWork.WinForms.Features.Results
             columnGridVersions2.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
             columnGridVersions2.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.NotSet;
             columnGridVersions3.Name = "columnGridVersions3";
-            columnGridVersions3.HeaderText = "상태";
+            columnGridVersions3.HeaderText = "업무 상태";
             columnGridVersions3.MinimumWidth = 82;
             columnGridVersions3.Width = 100;
             columnGridVersions3.FillWeight = 100F;
@@ -1225,6 +1254,8 @@ namespace RemoteWork.WinForms.Features.Results
             layoutContent5.ResumeLayout(false);
             layoutContent5.PerformLayout();
             layoutContent4.ResumeLayout(false);
+            layoutScopeHeader.ResumeLayout(false);
+            layoutScopeHeader.PerformLayout();
             layoutContent4.PerformLayout();
             panelContent2.ResumeLayout(false);
             panelContent2.PerformLayout();
@@ -1249,7 +1280,9 @@ namespace RemoteWork.WinForms.Features.Results
         private System.Windows.Forms.TableLayoutPanel layoutContent3;
         private System.Windows.Forms.Panel panelContent2;
         private System.Windows.Forms.TableLayoutPanel layoutContent4;
+        private System.Windows.Forms.TableLayoutPanel layoutScopeHeader;
         private System.Windows.Forms.Label lblReviewListTitle;
+        private System.Windows.Forms.ComboBox cmbResultView;
         private System.Windows.Forms.TableLayoutPanel layoutContent5;
         private System.Windows.Forms.FlowLayoutPanel flowActions;
         private System.Windows.Forms.ComboBox cmbOptions;

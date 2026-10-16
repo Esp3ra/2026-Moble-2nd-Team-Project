@@ -38,11 +38,11 @@ namespace RemoteWork.WinForms.Features.Attendance
             }
             else
             {
-                gridAttendance.Rows.Add("이서연", "기획팀", "2026.10.16", "09:03", "―", "근무 중", "원격");
-                gridAttendance.Rows.Add("이서연", "기획팀", "2026.10.15", "08:57", "18:02", "정상", "원격");
-                gridAttendance.Rows.Add("이서연", "기획팀", "2026.10.08", "―", "―", "연차", "―");
-                gridLeaveRequests.Rows.Add("이서연", "기획팀", "연차", "2026.10.08", "개인 일정", "접수");
-                gridLeaveRequests.Rows.Add("이서연", "기획팀", "반차(오후)", "2026.10.20", "개인 일정", "검토 대기");
+                gridAttendance.Rows.Add("김직원", "개발팀", "2026.10.16", "09:03", "―", "근무 중", "원격");
+                gridAttendance.Rows.Add("김직원", "개발팀", "2026.10.15", "08:57", "18:02", "정상", "원격");
+                gridAttendance.Rows.Add("김직원", "개발팀", "2026.10.08", "―", "―", "연차", "―");
+                gridLeaveRequests.Rows.Add("김직원", "개발팀", "연차", "2026.10.08", "개인 일정", "접수");
+                gridLeaveRequests.Rows.Add("김직원", "개발팀", "반차(오후)", "2026.10.20", "개인 일정", "검토 대기");
             }
         }
 

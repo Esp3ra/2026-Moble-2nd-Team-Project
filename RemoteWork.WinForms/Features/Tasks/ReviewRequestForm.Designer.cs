@@ -238,7 +238,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             //
             // txtTaskSummary
             //
-            txtTaskSummary.Text = "TASK-001 · 주간 업무 자료 정리";
+            txtTaskSummary.Text = "TASK-003 · 프로젝트 검토 자료 준비";
             txtTaskSummary.Location = new System.Drawing.Point(119, 3);
             txtTaskSummary.Size = new System.Drawing.Size(597, 28);
             txtTaskSummary.MinimumSize = new System.Drawing.Size(0, 28);
@@ -266,7 +266,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             //
             // lblCurrentStatus
             //
-            lblCurrentStatus.Text = "진행상태";
+            lblCurrentStatus.Text = "업무 상태";
             lblCurrentStatus.Location = new System.Drawing.Point(0, 48);
             lblCurrentStatus.Size = new System.Drawing.Size(108, 36);
             lblCurrentStatus.MinimumSize = new System.Drawing.Size(0, 0);
@@ -289,7 +289,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             //
             // txtCurrentStatus
             //
-            txtCurrentStatus.Text = "진행중";
+            txtCurrentStatus.Text = "제출완료";
             txtCurrentStatus.Location = new System.Drawing.Point(119, 47);
             txtCurrentStatus.Size = new System.Drawing.Size(597, 28);
             txtCurrentStatus.MinimumSize = new System.Drawing.Size(0, 28);
@@ -340,7 +340,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             //
             // txtCurrentDeadline
             //
-            txtCurrentDeadline.Text = "2026-10-22";
+            txtCurrentDeadline.Text = "2026-10-21";
             txtCurrentDeadline.Location = new System.Drawing.Point(119, 91);
             txtCurrentDeadline.Size = new System.Drawing.Size(597, 28);
             txtCurrentDeadline.MinimumSize = new System.Drawing.Size(0, 28);

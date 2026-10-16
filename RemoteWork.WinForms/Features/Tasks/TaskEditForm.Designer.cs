@@ -398,7 +398,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             cmbAssignee.IntegralHeight = true;
             cmbAssignee.MaxDropDownItems = 8;
             cmbAssignee.Name = "cmbAssignee";
-            cmbAssignee.Items.AddRange(new object[] { "담당자 선택", "김직원", "이직원", "박직원" });
+            cmbAssignee.Items.AddRange(new object[] { "담당자 선택", "김직원", "이직원", "박직원", "이관리자" });
             //
             // lblStartDate
             //
