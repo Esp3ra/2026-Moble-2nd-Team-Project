@@ -1,0 +1,25 @@
+# 1번 — 공통 서버·DB·인증·사용자·통신·통합
+
+작성일: 2026-10-16 · 상태: 공통 코드와 협의 문서의 PR 검토 요청
+
+팀장 LOG의 기존 루트 `2번/` 구조에 맞춰 루트 `1번/` 아래 날짜·주제별 Markdown을 작성합니다. 기존 2번 기록과 `LOG/2026-10-16/` 기록은 보존합니다.
+
+| 구분 | 실제 공유 위치 |
+|---|---|
+| 공통 코드 PR | [PR #2 — alpha 대상](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/2) |
+| 공통 코드 기준 | [`2d3cc48`](https://github.com/jinkyu1452-cmd/Sang1/tree/2d3cc480c4ab5eb9a3466c9034cfdaf256102df3) · 포크 `team1/common-foundation` |
+| 코드에 포함된 규약 | [INTEGRATION.md](https://github.com/jinkyu1452-cmd/Sang1/blob/2d3cc480c4ab5eb9a3466c9034cfdaf256102df3/docs/INTEGRATION.md) |
+| 실행·MySQL 설정 | [SETUP.md](https://github.com/jinkyu1452-cmd/Sang1/blob/2d3cc480c4ab5eb9a3466c9034cfdaf256102df3/docs/SETUP.md) |
+| 최신 팀 코드 기준 | [alpha 8f09183](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/8f09183ef992606ec4c2b7e3da79ef07983ba019) |
+| 이 문서의 전달 | 포크 `LOG` → 팀장 `LOG` 문서 PR. 코드 PR과 상호 연결 |
+
+| 날짜·주제 | 기록 |
+|---|---|
+| [공통 규약 확인 요청 회신](2026-10-16_공통규약_확인요청_회신.md) | 2번 A1~A4·B1~B5: 구현·등록 API와 미합의 구분 |
+| [조회 인터페이스·DTO 전달 회신](2026-10-16_업무조회_인터페이스_DTO_회신.md) | 최신 실제 코드 확인과 2번의 6개 질문 답변·후속 담당 |
+| [공동 합의 필요 항목](2026-10-16_공동합의_필요항목.md) | 상태·결정할 내용·담당·결정 시점 |
+| [공통 구현·검증 기록](2026-10-16_공통서버_구현_검증기록.md) | 이번 병합본의 SQLite/MySQL/HTTP/빌드/기존 조회 재검증 |
+
+공통 서버·인증·사용자 관리는 구현·검증했습니다. 업무 목록·상세 API·실제 Own/Managed 범위·업무 상태 변경·제출·승인·파일·두 PC/웹 업무 통합은 별도입니다. 업무 조회 인터페이스·DTO·대역·기존 테스트와 전체 Features 60개 파일은 원격 Git blob 해시를 비교해 보존했습니다.
+
+‘구현 확인’은 위 코드에서 확인한 동작을 뜻합니다. ‘합의 필요’는 제안이며 팀 결정이 아닙니다. 공유 PR 생성은 팀장 저장소 병합 완료를 뜻하지 않습니다. 비밀번호·접속 증표·실제 .env·DB 데이터는 이 기록에 싣지 않습니다.
