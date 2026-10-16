@@ -8,8 +8,11 @@ namespace RemoteWork.WinForms.Features.Tasks
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing && components != null)
-                components.Dispose();
+            if (disposing)
+            {
+                CancelPendingQueries();
+                if (components != null) components.Dispose();
+            }
             base.Dispose(disposing);
         }
 
@@ -32,6 +35,10 @@ namespace RemoteWork.WinForms.Features.Tasks
             cmbTaskScope = new System.Windows.Forms.ComboBox();
             lblTaskStatusFilter = new System.Windows.Forms.Label();
             cmbTaskStatusFilter = new System.Windows.Forms.ComboBox();
+            btnRetryQuery = new System.Windows.Forms.Button();
+            layoutQueryStatus = new System.Windows.Forms.TableLayoutPanel();
+            lblTaskQuerySource = new System.Windows.Forms.Label();
+            lblTaskQueryStatus = new System.Windows.Forms.Label();
             flowActions = new System.Windows.Forms.FlowLayoutPanel();
             btnNewTaskPreview = new System.Windows.Forms.Button();
             btnEditTaskPreview = new System.Windows.Forms.Button();
@@ -69,6 +76,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             panelContent.SuspendLayout();
             layoutContent3.SuspendLayout();
             flowViewOptions.SuspendLayout();
+            layoutQueryStatus.SuspendLayout();
             flowActions.SuspendLayout();
             layoutContent4.SuspendLayout();
             panelContent2.SuspendLayout();
@@ -203,16 +211,18 @@ namespace RemoteWork.WinForms.Features.Tasks
             layoutContent3.AutoScroll = false;
             layoutContent3.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowOnly;
             layoutContent3.ColumnCount = 1;
-            layoutContent3.RowCount = 3;
+            layoutContent3.RowCount = 4;
             layoutContent3.GrowStyle = System.Windows.Forms.TableLayoutPanelGrowStyle.AddRows;
             layoutContent3.Name = "layoutContent3";
             layoutContent3.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             layoutContent3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0F));
             layoutContent3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0F));
+            layoutContent3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0F));
             layoutContent3.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             layoutContent3.Controls.Add(flowViewOptions, 0, 0);
-            layoutContent3.Controls.Add(flowActions, 0, 1);
-            layoutContent3.Controls.Add(layoutContent4, 0, 2);
+            layoutContent3.Controls.Add(layoutQueryStatus, 0, 1);
+            layoutContent3.Controls.Add(flowActions, 0, 2);
+            layoutContent3.Controls.Add(layoutContent4, 0, 3);
             //
             // flowViewOptions
             //
@@ -229,6 +239,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             flowViewOptions.Controls.Add(cmbTaskScope);
             flowViewOptions.Controls.Add(lblTaskStatusFilter);
             flowViewOptions.Controls.Add(cmbTaskStatusFilter);
+            flowViewOptions.Controls.Add(btnRetryQuery);
             //
             // lblTaskScope
             //
@@ -268,6 +279,64 @@ namespace RemoteWork.WinForms.Features.Tasks
             cmbTaskStatusFilter.Size = new System.Drawing.Size(156, 25);
             cmbTaskStatusFilter.TabIndex = 3;
             cmbTaskStatusFilter.AccessibleName = "업무 상태";
+            cmbTaskStatusFilter.SelectedIndexChanged += new System.EventHandler(cmbTaskStatusFilter_SelectedIndexChanged);
+            //
+            // btnRetryQuery
+            //
+            btnRetryQuery.AutoSize = true;
+            btnRetryQuery.BackColor = System.Drawing.Color.White;
+            btnRetryQuery.Cursor = System.Windows.Forms.Cursors.Hand;
+            btnRetryQuery.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(213, 220, 231);
+            btnRetryQuery.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            btnRetryQuery.Font = new System.Drawing.Font("맑은 고딕", 9F);
+            btnRetryQuery.ForeColor = System.Drawing.Color.FromArgb(30, 42, 61);
+            btnRetryQuery.Margin = new System.Windows.Forms.Padding(16, 0, 0, 6);
+            btnRetryQuery.MinimumSize = new System.Drawing.Size(88, 34);
+            btnRetryQuery.Name = "btnRetryQuery";
+            btnRetryQuery.Padding = new System.Windows.Forms.Padding(12, 4, 12, 4);
+            btnRetryQuery.Size = new System.Drawing.Size(96, 34);
+            btnRetryQuery.TabIndex = 4;
+            btnRetryQuery.Text = "다시 조회";
+            btnRetryQuery.UseVisualStyleBackColor = false;
+            btnRetryQuery.Click += new System.EventHandler(btnRetryQuery_Click);
+            //
+            // layoutQueryStatus
+            //
+            layoutQueryStatus.AutoSize = true;
+            layoutQueryStatus.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            layoutQueryStatus.ColumnCount = 1;
+            layoutQueryStatus.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            layoutQueryStatus.Controls.Add(lblTaskQuerySource, 0, 0);
+            layoutQueryStatus.Controls.Add(lblTaskQueryStatus, 0, 1);
+            layoutQueryStatus.Dock = System.Windows.Forms.DockStyle.Fill;
+            layoutQueryStatus.Margin = new System.Windows.Forms.Padding(0, 0, 0, 8);
+            layoutQueryStatus.Name = "layoutQueryStatus";
+            layoutQueryStatus.RowCount = 2;
+            layoutQueryStatus.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+            layoutQueryStatus.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+            layoutQueryStatus.TabIndex = 1;
+            //
+            // lblTaskQuerySource
+            //
+            lblTaskQuerySource.AutoSize = true;
+            lblTaskQuerySource.Dock = System.Windows.Forms.DockStyle.Fill;
+            lblTaskQuerySource.Font = new System.Drawing.Font("맑은 고딕", 9F);
+            lblTaskQuerySource.ForeColor = System.Drawing.Color.FromArgb(103, 116, 135);
+            lblTaskQuerySource.Margin = new System.Windows.Forms.Padding(0, 2, 0, 3);
+            lblTaskQuerySource.Name = "lblTaskQuerySource";
+            lblTaskQuerySource.TabIndex = 0;
+            lblTaskQuerySource.Text = "업무 조회 연결 필요 · 실제 서버 연결 없음\r\n업무 처리 창은 조회한 업무와 연결되지 않았습니다.";
+            //
+            // lblTaskQueryStatus
+            //
+            lblTaskQueryStatus.AutoSize = true;
+            lblTaskQueryStatus.Dock = System.Windows.Forms.DockStyle.Fill;
+            lblTaskQueryStatus.Font = new System.Drawing.Font("맑은 고딕", 9F);
+            lblTaskQueryStatus.ForeColor = System.Drawing.Color.FromArgb(30, 42, 61);
+            lblTaskQueryStatus.Margin = new System.Windows.Forms.Padding(0, 2, 0, 3);
+            lblTaskQueryStatus.Name = "lblTaskQueryStatus";
+            lblTaskQueryStatus.TabIndex = 1;
+            lblTaskQueryStatus.Text = "업무 조회를 기다리고 있습니다.";
             //
             // flowActions
             //
@@ -732,6 +801,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             gridTasks.ColumnHeadersDefaultCellStyle = headerStyle1;
             gridTasks.DefaultCellStyle = cellStyle1;
             gridTasks.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] { columnGridTasks1, columnGridTasks2, columnGridTasks3, columnTaskStatus, columnGridTasks6, columnGridTasks7 });
+            gridTasks.SelectionChanged += new System.EventHandler(gridTasks_SelectionChanged);
             //
             // layoutContent6
             //
@@ -839,7 +909,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             //
             // txtContent
             //
-            txtContent.Text = "TASK-001\r\n\r\n업무 제목   주간 업무 자료 정리\r\n담당자      김직원\r\n업무 상태   진행전\r\n\r\n시작일      2026-10-15\r\n현재 마감일 2026-10-22\r\n변경 마감일 —\r\n\r\n상세 내용\r\n주간 업무 자료를 모아 항목별로 정리합니다.";
+            txtContent.Text = "목록에서 업무를 선택하면 상세 내용이 표시됩니다.";
             txtContent.Location = new System.Drawing.Point(3, 37);
             txtContent.Size = new System.Drawing.Size(368, 209);
             txtContent.MinimumSize = new System.Drawing.Size(0, 56);
@@ -919,7 +989,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             //
             // lblText4
             //
-            lblText4.Text = "업무 첨부파일";
+            lblText4.Text = "업무 첨부파일 · 조회 연결 필요";
             lblText4.Location = new System.Drawing.Point(0, 4);
             lblText4.Size = new System.Drawing.Size(98, 19);
             lblText4.MinimumSize = new System.Drawing.Size(0, 0);
@@ -1036,6 +1106,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             TabIndex = 0;
             TabStop = true;
             Name = "TasksControl";
+            Load += new System.EventHandler(TasksControl_Load);
             Controls.Add(layoutContent);
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
@@ -1061,6 +1132,8 @@ namespace RemoteWork.WinForms.Features.Tasks
             flowActions.PerformLayout();
             flowViewOptions.ResumeLayout(false);
             flowViewOptions.PerformLayout();
+            layoutQueryStatus.ResumeLayout(false);
+            layoutQueryStatus.PerformLayout();
             layoutContent3.ResumeLayout(false);
             layoutContent3.PerformLayout();
             panelContent.ResumeLayout(false);
@@ -1085,6 +1158,10 @@ namespace RemoteWork.WinForms.Features.Tasks
         private System.Windows.Forms.ComboBox cmbTaskScope;
         private System.Windows.Forms.Label lblTaskStatusFilter;
         private System.Windows.Forms.ComboBox cmbTaskStatusFilter;
+        private System.Windows.Forms.Button btnRetryQuery;
+        private System.Windows.Forms.TableLayoutPanel layoutQueryStatus;
+        private System.Windows.Forms.Label lblTaskQuerySource;
+        private System.Windows.Forms.Label lblTaskQueryStatus;
         private System.Windows.Forms.FlowLayoutPanel flowActions;
         private System.Windows.Forms.Button btnNewTaskPreview;
         private System.Windows.Forms.Button btnEditTaskPreview;
