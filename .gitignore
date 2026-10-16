@@ -3,3 +3,6 @@
 .vs/
 *.user
 *.suo
+
+# Local project documents are published only on explicit request.
+/DOCX/

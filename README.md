@@ -6,11 +6,21 @@
 |---|---|
 | [0.0.1V](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/0.0.1V) | UiKit과 코드 배치에 기반한 초기 17개 화면 |
 | [0.0.2V](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/0.0.2V) | 표준 Designer 구조의 19개 화면, 단일 업무 상태 5개, 관리자 본인 수락·제출 화면 |
-| alpha 최신 작업본 | 위 0.0.2V와 같은 수정본 |
+| alpha 최신 작업본 | 0.0.2V와 같은 화면 소스, 로컬 DOCX 제외 규칙과 게시 기준 추가 |
 
-`0.0.1V`는 초기 코드 배치 초안을 보존하고, 이번 수정은 기존 `0.0.2V`에 누적 반영합니다. 프로젝트 전체 소개는 [main README](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/main/README.md), 수정사항별 기록은 [LOG](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG)에서 확인합니다. **푸시할 때마다 README를 폼·계획서·실제 구현 범위와 확인 결과에 맞춰 최신화합니다.**
+`0.0.1V`는 초기 코드 배치 초안을 보존합니다. `0.0.2V`에는 도구상자 화면 수정과 문서 폴더 분리를 반영했고, 이후 문서 제외 규칙과 게시 기준은 `alpha`에 추가했습니다. 프로젝트 전체 소개는 [main README](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/main/README.md), 수정사항별 기록은 [LOG](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG)에서 확인합니다. **푸시할 때마다 README를 폼·계획서·실제 구현 범위와 확인 결과에 맞춰 최신화합니다.**
 
 C# WinForms와 .NET 8로 만든 화면 뼈대입니다. 직원과 관리자 화면의 구성, 메뉴 이동, 신청과 검토 창을 확인할 수 있습니다. 업무 버튼은 기능 준비 중 안내를 표시합니다.
+
+## 코드와 문서 게시 기준
+
+- `alpha` 등 코드 브랜치를 푸시할 때 로컬 루트 `DOCX/` 폴더는 포함하지 않습니다. `.gitignore`의 `/DOCX/` 규칙으로 해당 폴더와 모든 하위 파일을 제외합니다.
+- 로컬 문서는 그대로 보관합니다. 별도 `DOCX` 브랜치의 게시·갱신은 사용자가 요청했을 때만 수행하며, 코드 푸시와 함께 자동으로 올리지 않습니다.
+- `LOG`의 수정 기록과 `DOCX/` 밖의 작업 관련 Markdown·소스·미리보기는 해당 브랜치의 작업 범위에 맞춰 반영합니다.
+- 새 코드 브랜치에도 `/DOCX/` 제외 규칙을 유지합니다. 다른 기준에서 브랜치를 만들 때도 같은 규칙을 적용합니다.
+- 푸시할 때마다 해당 브랜치 README의 목적·실제 구현 범위·파일 위치·확인 결과를 최신화합니다.
+
+코드 푸시 전 `git ls-files -- DOCX/`로 문서 폴더가 추적 대상에 없는지 확인합니다. 문서 폴더를 강제로 추가하지 않습니다.
 
 ## 실행
 
