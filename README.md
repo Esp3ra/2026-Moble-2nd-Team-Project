@@ -19,6 +19,8 @@
 
 1번 협의·검증 문서는 [PR #3](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/3)을 통해 LOG에 병합했습니다([6348997](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/6348997d78976ad5127116ccd606aaa36fc264b5)). 공통 코드 [PR #2](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/2)는 미병합이며 수정 후 재검토합니다. 공통 사용법·검증·2번 DTO 회신·미합의 항목은 [1번 기록](1번/README.md)에 있고, 수정 요청은 별도 [PR 브랜치](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/PR)에 담당별로 정리합니다. 기존 기록은 당시 자료로 보존하며 실제 업무 API·권한·저장/제출/승인과 두 PC·웹 통합은 별도입니다.
 
+4번의 다른 담당 영역 수정은 사용자 요청에 따라 [1번 전달 기록](1번/2026-10-16_4번_공지채팅_타담당파일_수정전달.md)에 남깁니다. 이번 기록은 코드 [PR #1](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/1)의 MainForm 연결·메뉴 및 결과물 샘플 문구 변경을 정리한 것으로, 1번의 기능 구현이나 코드 병합 완료를 뜻하지 않습니다. 코드와 문서 PR은 분리하고 상호 연결합니다.
+
 ## 현재 화면과 설계 기준
 
 - 업무 상태는 **진행전 / 진행중 / 제출완료 / 승인완료 / 반려완료** 5개로 통일합니다.
