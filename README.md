@@ -17,7 +17,7 @@
 
 처음 보낸 [공통 규약 확인 요청서](2번/2026-10-16_1번_담당_공통규약_확인요청.md)는 보존하고, 이후 받은 [1번 공통 규약 회신](2번/2026-10-16_1번_공통규약_회신정리.md)과 전달한 [조회 인터페이스·DTO·5개 상태 정의](2번/2026-10-16_업무조회_인터페이스_DTO_전달.md)를 별도 기록했습니다. 회신으로 전달된 규약과 이 PC에서 실행·확인한 범위를 구분합니다.
 
-1번 협의·검증 문서는 [PR #3](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/3)을 통해 LOG에 병합했습니다([6348997](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/6348997d78976ad5127116ccd606aaa36fc264b5)). 공통 코드 [PR #2](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/2)는 미병합이며 수정 후 재검토합니다. 공통 사용법·검증·2번 DTO 회신·미합의 항목은 [1번 기록](1번/README.md)에 있고, 수정 요청은 별도 [PR 브랜치](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/PR)에 담당별로 정리합니다. 기존 기록은 당시 자료로 보존하며 실제 업무 API·권한·저장/제출/승인과 두 PC·웹 통합은 별도입니다.
+1번 협의·검증 문서는 [PR #3](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/3)을 통해 LOG에 병합했습니다([6348997](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/6348997d78976ad5127116ccd606aaa36fc264b5)). 공통 코드 [PR #2](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/2)는 미병합이며 R1~R3 수정 커밋 `a35c972`와 [최신 회귀 검증](1번/2026-10-16_PR2_인증결함_수정검증.md)을 제출해 팀장 재검토를 요청합니다. 공통 사용법·검증·2번 DTO 회신·미합의 항목은 [1번 기록](1번/README.md)에 있고, 수정 요청은 별도 [PR 브랜치](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/PR)에 담당별로 정리합니다. 기존 기록은 당시 자료로 보존하며 실제 업무 API·권한·저장/제출/승인과 두 PC·웹 통합은 별도입니다.
 
 4번의 다른 담당 영역 수정 전달 문서는 [PR #4](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/4)를 통해 LOG에 병합했습니다([831670e](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/831670e58df09d79b124d1cb0b19975bea6216b2)). [1번 전달 기록](1번/2026-10-16_4번_공지채팅_타담당파일_수정전달.md)은 PR #1의 MainForm 연결·메뉴·결과물 샘플 문구 변경을 정리한 자료입니다. [병합 이력](2번/2026-10-16_PR4_문서병합_상태갱신.md)에서 확인 결과를 볼 수 있으며, 문서 병합은 1번 기능 구현이나 PR #1 코드 반영·필터 수정 완료를 뜻하지 않습니다.
 
