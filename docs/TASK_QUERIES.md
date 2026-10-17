@@ -88,3 +88,5 @@
 | 공유 서버·실제 업무 입력/관리자 지정 경로·두 PC·웹 | 별도 구현·통합 검증 필요 |
 
 확인한 테스트와 구현 기록은 [LOG/2번](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG/2번)에 남긴다. 공통 규칙은 INTEGRATION, 조회 동작은 이 문서로 확인한다.
+
+다른 담당의 수정·연결은 [2번 영역 수정 협업 규약](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/2026-10-17_2번_영역수정_협업규약.md)을 따른다. 이 문서의 계약을 바꾸면 서버·클라이언트·테스트·문서를 함께 갱신하고 영향 담당의 공동 확인을 기록한다.
