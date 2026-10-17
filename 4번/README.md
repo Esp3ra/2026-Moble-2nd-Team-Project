@@ -2,7 +2,21 @@
 
 담당: 공지·채팅 · 최초 기준일: 2026-10-16 · 최신화: 2026-10-17
 
-[전체 요청](../README.md) · [대상 PR #1](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/1)
+[전체 요청](../README.md)
+
+## 현재 검토 대상 — PR #7 공지 DB 연결
+
+[코드 PR #7](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/7) · [검토 상태](2026-10-17_PR7_공지DB_검토상태.md) · [별도 LOG PR #8](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/8)
+
+- 상태: **재검토 대기**. 코드 PR은 Draft·미병합이며 공지 전용 API/DDL·migration·정식 활성화의 1번 협의가 남아 있습니다.
+- 기준: 원본 alpha `5164b0c223a05b716d0f78ad722c9024bf7d5333`, 포크 alpha `74781018af21d3fa9f30bc6c06515dd260335730`.
+- 범위: 공지 DB 등록·목록/상세 조회·관리자 삭제. 팝업·확인 기록·실제 파일 전송·중지된 정렬 추가 조정은 제외합니다.
+- 작성자가 수행한 격리 검증 보고와 검토자의 확인을 구분합니다. 이번 문서 최신화에서는 프로그램 테스트를 다시 실행하지 않았습니다.
+- 아래 PR #1 본문은 당시 로컬 필터 수정·통합 검증 기록입니다. 당시 미연결 설명을 신규 PR #7의 구현 상태로 해석하지 않습니다.
+
+## 이전 PR #1 — 확인 완료·alpha 병합
+
+[이전 대상 PR #1](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/1)
 
 | 문서 | 현재 상태 |
 |---|---|
