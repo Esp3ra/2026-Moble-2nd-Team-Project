@@ -1,6 +1,14 @@
 # 원격 근무용 업무 처리 확인 시스템 변경 기록
 
-## 4번 PR #7 R1/R2 수정·1번 협의 요청 — 2026-10-17
+## 최신 — PR #7 재검토·문서 #10/#11 병합과 2번 입력 확인값 — 2026-10-17
+
+[PR 재검토 기록](2번/2026-10-17_PR7_수정재검토_PR10_PR11_문서병합.md)에서 수정 headc7282d1의 **R1·R2 해결을 독립 확인**했습니다. 문서 #10은 LOG530f171, #11은 PR120d855로 병합했습니다. 코드 #7은 **Draft·미병합**이며 1번 ID/오류·API/DDL 합의와 최신 alpha README 충돌 해소가 필요합니다. 서버 전체 SQLite74통과/16생략·MySQL 표적32통과·공지 실제HTTP37검증을 직접 확인했습니다. 아래 작성자 보고/과거 검토와 별도이며 수치를 합산하지 않습니다.
+
+[alpha 6ab86e4](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/6ab86e4efa80aba9d001dd5edbe007319ecaf18d)와 [2번 새 작업 기록](2번/2026-10-17_입력확인_스냅샷_실제HTTP_준비창검증.md)에는 불변 로컬 CheckedInput·입력 변경/날짜 체크 무이벤트 무효화·실제 조회 업무→준비 창 검증을 반영했습니다. UI12/140·HTTP대역6/103·실제직원43/관리자64·runner300(권한회수11포함) 통과, 개발/로컬 Release 경고0·오류0입니다. 로컬9개 반영·추적162파일 일치·DOCX7개 보존을 확인했습니다. 제품 쓰기·상태 변경·3번 기능은 연결하지 않았습니다.
+
+1번W1·3번W3 답변은 **아직 없음·합의 필요**입니다. 현재 진행/요청 수신은 [2번 README](2번/README.md), 과거 원문과 이번4번 회신은 [전체 기록목록](2번/기록목록.md)에서 확인합니다. 아래는 각 작성 시점의 기록으로 보존합니다.
+
+## 이전 작성자 보고 — 4번 PR #7 R1/R2 수정·1번 협의 요청 — 2026-10-17
 
 R1/R2 코드 수정·작성자 격리 검증 완료, **재검토 대기**. 코드 head `c7282d1e9e332daf3996aeb00f9a1b20c6ad2e61`, 기준 원본 alpha `8a652adaba4a8471b2fff581f1265bf27c8ff1d3`. R1은 가드 안 current/locking read와 populate_existing으로 재확인해 삭제200/후속404·감사1건을 검증했습니다. R2는 현재 INTEGER/C#int 기준 개발 방어 경계1..2147483647와 기존 미존재404를 적용했습니다. **ID 범위·오류 응답의 최종 공지 계약은 1번 회신 대기**이며 BIGINT·공통 API/DDL 확정이 아닙니다. 추가로 MySQL 시각 저장 정밀도에 따른 등록/재조회 차이를 저장값 refresh로 보완했습니다.
 
@@ -156,10 +164,10 @@ alpha 3b09480, DOCX 5dac768으로 각각 별도 게시했습니다. Release 경�
 | 최초 LOG 게시 당시 | 당시 `alpha`·`0.0.2V`는 [0d06c7108ef03f1638112a858a62f8c9fa11714c](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/0d06c7108ef03f1638112a858a62f8c9fa11714c). 5개 상태·관리자 본인 화면은 로컬 반영 단계 |
 | 14번 기록의 게시본 | [36dda613ac6194015e41da70038f6d420cec85fa](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/36dda613ac6194015e41da70038f6d420cec85fa) · 문서 분리 전 폼·계획서 게시 상태 |
 | 16번 기록의 코드 | [2cd1a32724ecec8c21cd8ddd659dbbf30d43dcaf](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/2cd1a32724ecec8c21cd8ddd659dbbf30d43dcaf) · 문서 제외 정책을 alpha에 추가한 당시 상태 |
-| 현재 alpha | [c96d495](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/c96d495087da97f7aac3385cf048da2f23d11eb8) · 2번 등록/수정·수락 대상·마감 입력 준비, 기존 읽기 계약 유지·제품 쓰기 미연결,161개 파일 |
+| 현재 alpha | [6ab86e4](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/6ab86e4efa80aba9d001dd5edbe007319ecaf18d) · 2번 로컬 입력 확인값·실제HTTP 준비 창 검증, 제품 쓰기 미연결·기존 읽기 계약 유지,162개 파일 |
 | 보존한 0.0.2V | `8f09183ef992606ec4c2b7e3da79ef07983ba019`의 이전 화면·조회 준비 버전. 태그 객체 `185dd13b63b6e2d1412f7b902586e69bbe7f80ca`, 이번 작업에서 이동하지 않음 |
 | 현재 DOCX | [5dac768](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/5dac768f443b32f8ca7e989382415c4b2b628806) · 지문센서 새 용도·5번 연결 경계 반영, 문서7개와 README·Word 정본1개 |
-| 이번 LOG 추가 | [입력 준비 구현](2번/2026-10-17_업무등록_수락_마감_입력준비.md)·1번/3번 쓰기 규약 요청, [2번 현재 안내](2번/README.md)·[전체 기록목록](2번/기록목록.md) 정리. 기존 원문 보존 |
+| 이번 LOG 추가 | [입력 확인값·실제HTTP 준비 창](2번/2026-10-17_입력확인_스냅샷_실제HTTP_준비창검증.md)·[PR7 재검토/문서10·11 병합](2번/2026-10-17_PR7_수정재검토_PR10_PR11_문서병합.md). [2번 현재 안내](2번/README.md)·[전체 기록목록](2번/기록목록.md) 최신화·기존 원문 보존 |
 
 현재 alpha에는 공통 기반·로컬 공지/채팅과 2번 조회 개발 초안이 통합됐습니다. 0.0.2V는 이전 화면 버전으로 보존합니다. 실제 로그인은 HTTP 조회 서비스를 주입하지만 업무 API는 서버의 명시적 활성화가 필요합니다. 조회 계약의 1번 수용과 별개로 쓰기 계약·정식 DDL/공유 DB·상태 변경·제출/승인·두 PC 통합은 별도 합의·검증 대상입니다. 구현계획·참고자료는 DOCX 브랜치에서 관리합니다.
 
@@ -173,4 +181,4 @@ alpha 3b09480, DOCX 5dac768으로 각각 별도 게시했습니다. Release 경�
 
 프로젝트 전체 소개는 [main README](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/main/README.md), 현재 통합 개발 코드는 [alpha](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/alpha), 초기 코드 배치 초안은 [0.0.1V](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/0.0.1V), 최신 도구상자 초안은 [0.0.2V](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/0.0.2V)에서 확인합니다.
 
-4번 PR 브랜치 목차 최신화 문서 [PR #9](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/9)는 PR9edcb08로 병합했습니다. 그 문서 작성 회차는 링크·표·범위 검사만 수행한 기록이며, 이후 검토자의 이번 코드 실행·P2 2건·수정 후 재검토 상태는 [최신 검토 기록](2번/2026-10-17_PR7_검토_및_PR8_PR9_문서병합.md)에서 구분합니다. PR #1 필터 해결·병합 기록과 원래 작성자 보고는 보존합니다.
+4번 PR 브랜치 목차 최신화 문서 [PR #9](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/9)는 PR9edcb08로 병합했습니다. 그 문서 작성 회차는 링크·표·범위 검사만 수행한 기록이며, 이후 최초 P2 2건은 [당시 검토 기록](2번/2026-10-17_PR7_검토_및_PR8_PR9_문서병합.md), 이번 R1/R2 해결 독립 확인·문서10/11 병합·남은 합의/충돌은 [최신 재검토](2번/2026-10-17_PR7_수정재검토_PR10_PR11_문서병합.md)에서 구분합니다. PR #1 필터 해결·병합 기록과 원래 작성자 보고는 보존합니다.
