@@ -105,6 +105,7 @@ python -m pytest -q
 
 | 테스트 | 범위 |
 |---|---|
+| [TaskPreparation.Tests](Tests/TaskPreparation.Tests/README.md) | W1 후보·쓰기 문맥·키/결과 연결, 접속 변경·응답 순서·실제 후보 선택 화면. 별도 명시적 새 소유 MySQL 실행기 제공 |
 | [ApiClient.Tests](Tests/ApiClient.Tests/README.md) | 접속 세대·취소·이전 응답·본문 형식별 401 등 C# 인증 회귀 |
 | [Collaboration.Tests](Tests/Collaboration.Tests/README.md) | 실제 WinForms 작성·대상 필터·공지·로컬 채팅 회귀 |
 | [Notices.Tests](Tests/Notices.Tests/README.md) | 공지 HTTP 대역·비동기 저장·WinForms, 선택적 격리 HTTP/SQLite 실행기 |
