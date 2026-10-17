@@ -2,7 +2,7 @@
 
 원격 근무 중 업무 배정·상태·마감·결과 검토와 공지·채팅·근태를 관리하는 팀 프로젝트입니다. `alpha`는 화면 초안과 담당별 구현을 통합하는 개발 브랜치입니다. C# WinForms 클라이언트와 Python 공통 서버를 포함합니다.
 
-현재 공통 로그인·사용자 관리·HTTP·DB 기반과 공지·채팅의 로컬 동작이 구현돼 있습니다. 업무 목록·상세는 공통 인증을 사용하는 GET API·HTTP 서비스와 기존 화면을 연결한 2번 개발 초안입니다. 업무 API는 명시적으로 활성화한 개발 서버에서 사용하며, 기본 실행에는 미확정 업무 스키마를 적용하지 않습니다. 설계·합의 사항은 [DOCX](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/DOCX/DOCX), 구현·검토 이력은 [LOG](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG), 담당별 수정 요청과 재검토 결과는 [PR](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/PR)에서 관리합니다.
+현재 공통 로그인·사용자 관리·HTTP·DB 기반과 공지 DB 저장 연결 개발 초안, 채팅의 로컬 동작이 구현돼 있습니다. 업무 목록·상세는 공통 인증을 사용하는 GET API·HTTP 서비스와 기존 화면을 연결한 2번 개발 초안입니다. 업무 API는 명시적으로 활성화한 개발 서버에서 사용하며, 기본 실행에는 미확정 업무 스키마를 적용하지 않습니다. 설계·합의 사항은 [DOCX](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/DOCX/DOCX), 구현·검토 이력은 [LOG](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG), 담당별 수정 요청과 재검토 결과는 [PR](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/PR)에서 관리합니다.
 
 ## 현재 구현 범위
 
@@ -11,18 +11,12 @@
 | 1번 | 공통 서버·DB·인증·사용자·통신 | 실제 로그인·역할 진입, 사용자 관리·비밀번호 변경, 접속 만료·폐기, 공통 응답·오류·트랜잭션·감사 이력, 웹 로그인·사용자 목록 |
 | 2번 | 업무·상태·마감 | 기존 화면·조회 경계를 유지한 GET 목록/상세·전체/5상태 필터·서버 본인/지정 관리자 권한·공통 HTTP 연결. 개발용 활성화 필요, 업무 저장·상태 변경은 제외 |
 | 3번 | 결과물·제출·검토·이력 | 직원·관리자 내 결과물과 관리자 검토 화면 예시. 실제 제출·파일·승인/반려·이력 저장은 미연결 |
-| 4번 | 공지·채팅 | 메모리 공지 등록·조회·관리자 삭제·4개 대상 필터·고정·정렬, 로컬 개인/그룹 방·메시지·메뉴 이동 시 저장소 유지 |
+| 4번 | 공지·채팅 | 명시적 개발 활성화 시 공지 DB 등록·조회·관리자 삭제, 대상 필터·고정·정렬. 채팅은 기존 로컬 메모리·메뉴 이동 중 저장소 유지 |
 | 5번 | 출퇴근·연차·장치 | 기존 폼과 역할별 화면 예시. 실제 근태 저장·승인·장치 인증은 미연결 |
 
 업무 조회는 현재 본인 배정과 업무별 지정 관리자 조건을 서버에서 각각 검사합니다. 2026-10-17 [1번 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/1번/2026-10-17_업무조회_API_DB_규약확정_회신.md)으로 조회 API·DTO·권한·오류와 상태/날짜 표현·공통 FK 기준을 수용했습니다. 상태 전환·마감 의미·제출 연결은 3번과 합의 필요이며, 실제 DDL 승인·공통 버전 지원·공유 DB 적용·두 PC 통합은 별도입니다.
 
 ## 기술과 실행 환경
-
-### 1번 W1 공통 쓰기 지원 개발 초안
-
-[공통 연결 계약](docs/WRITE_SUPPORT.md)에 직원/관리자 현재 인증 재확인·엄격한 기대 버전·최소 사용자 후보/별도 쓰기 문맥·서버 서명 요청 키/24시간 성공 결과·C# 명시적 요청 키 전송을 정리했습니다. 공통 쓰기 지원은 독립 opt-in이며 기본 off, 후보/문맥은 기존 업무 opt-in도 필요합니다. 새 저장소004는 검토용이며 공통schema version1·기존 GET/DTO는 유지합니다. HTTP에서 DDL을 자동 적용하지 않습니다.
-
-이 지원은 2번이 행동별 저장을 연결하기 위한 기반입니다. 실제 등록·수락·연장·제출/승인 API·업무 UI 저장·3번 미정 정책·공유 적용/두PC가 구현됐다는 뜻은 아닙니다. [실제 C#→HTTP→전용 MySQL 검증](Tests/WriteSupport.Http.Tests/README.md)은 시험용 mutation 경로를 사용하며 제품 업무 저장과 구분합니다.
 
 - 데스크톱: Windows, .NET 8 SDK, C# WinForms.
 - 서버: Python 3.11 이상, Flask/Waitress, SQLAlchemy/PyMySQL.
@@ -53,13 +47,17 @@ dotnet run --project .\RemoteWork.WinForms\RemoteWork.WinForms.csproj
 
 실제 API·오류·DB·기능 등록 방법은 [INTEGRATION](docs/INTEGRATION.md)을 따릅니다. 문서의 이전 업무 코드 블록과 새 2번 GET 개발 API를 구분합니다. 현재 조회 API와 활성화 조건은 [업무 조회 개발 계약](docs/TASK_QUERIES.md)을 따릅니다.
 
-## 공지·채팅의 저장 범위
+2번 쓰기 연결용 [W1 공통 지원](docs/WRITE_SUPPORT.md)은 기본 비활성 개발 초안이며, 실제 업무 저장 API와 구분합니다.
 
-공지 작성 대상과 목록 필터는 전 직원·기획팀·개발팀·디자인팀입니다. `전체`는 모든 대상이며 각 대상 필터는 그 대상으로 작성된 공지만 표시합니다. 선택한 공지의 본문은 조회 버튼으로 표시하고, 상단 고정을 먼저 정렬하며 관리자 우클릭 삭제를 제공합니다.
+## 공지 DB 개발 초안과 채팅 저장 범위
 
-공지 목록은 프로세스 메모리에만 보관되고 프로그램 종료 시 사라집니다. 채팅 저장소는 MainForm 단위여서 메뉴 이동 중에는 유지되지만 메인 창을 닫으면 사라집니다. 개인/그룹 방 생성·삭제, 참여자·메시지 조회, Enter 전송과 Shift+Enter 줄바꿈을 제공합니다.
+공지 작성·목록·상세·관리자 삭제를 공통 인증 서버와 notices 테이블에 연결합니다. 전 직원·기획팀·개발팀·디자인팀을 target으로 구분하고 사용자 결정에 따라 직원도 모든 부서를 조회합니다. 작성자·UTC 시각은 서버에서 결정하며 저장 성공 때만 작성 창을 닫고 오류 시 입력을 유지합니다. 목록/대상 필터·고정 우선·열 정렬·조회 버튼 상세를 유지합니다. 정적 샘플 공지는 제거했고 종료 후 유지 여부는 연결한 DB가 담당합니다.
 
-현재 공지·채팅 작성자와 대상은 로컬 예시이며 실제 인증 사용자와의 매핑·서버 권한·DB 저장·두 PC 전송은 미연결입니다. 첨부는 원본 경로·파일명 선택과 표시만 지원합니다. 실제 업로드·다운로드, 중요 공지 자동 팝업 배포와 직원별 확인 기록은 후속 기능입니다. 상단 고정은 자동 팝업 조건과 구분합니다.
+공지 API/ID/권한은 PR #12의 1번 수용 기준이며 **기본 off**를 유지합니다. 프로젝트 루트의 PowerShell에서 `$env:REMOTEWORK_ENABLE_NOTICE_DRAFT = "1"`을 지정하고 `& .\Start-Demo.cmd`를 실행하면 별도 SQLite 데모에 공지 테이블을 준비합니다. 기존 업무 플래그와 독립적으로 등록하며 공통 인증·스키마 버전1·업무 코드는 보존합니다. 실제 격리 MySQL 검증을 수행했고 migration003은 번호 예약에 따른 SQL 검토안입니다. 공유 적용·공통 버전 지원·정식 활성화는 대기입니다. [공지 준비·API·제한](RemoteWork.Server/remotework/features/notices/README.md)을 따릅니다.
+
+첨부는 파일명 메타데이터만 저장하고 원본 절대경로·파일 본문을 서버에 보내지 않습니다. 실제 업로드/다운로드·중요 공지 자동 팝업·직원별 확인 기록과 정렬 추가 조정은 이번 DB 변경에 포함하지 않습니다.
+
+채팅은 기존 MainForm 단위 로컬 저장소로 메뉴 이동 중에는 유지되지만 창 종료 후 사라집니다. 개인/그룹 방 생성·삭제, 참여자·메시지 조회, Enter 전송·Shift+Enter 줄바꿈을 제공합니다. 실제 채팅 사용자 매핑·서버/DB·두 PC 전송은 미연결입니다.
 
 ## 업무 조회와 상태 기준
 
@@ -87,6 +85,7 @@ Windows에서 소스 루트 기준으로 실행합니다.
 dotnet build .\RemoteWork.sln -c Release
 dotnet run --project .\Tests\ApiClient.Tests\ApiClient.Tests.csproj -c Release
 dotnet run --project .\Tests\Collaboration.Tests\Collaboration.Tests.csproj -c Release
+dotnet run --project .\Tests\Notices.Tests\Notices.Tests.csproj -c Release
 dotnet run --project .\Tests\TaskQueries.Tests\TaskQueries.Tests.csproj -c Release
 dotnet run --project .\Tests\TaskQueries.Http.Tests\TaskQueries.Http.Tests.csproj -c Release
 ```
@@ -102,6 +101,7 @@ python -m pytest -q
 |---|---|
 | [ApiClient.Tests](Tests/ApiClient.Tests/README.md) | 접속 세대·취소·이전 응답·본문 형식별 401 등 C# 인증 회귀 |
 | [Collaboration.Tests](Tests/Collaboration.Tests/README.md) | 실제 WinForms 작성·대상 필터·공지·로컬 채팅 회귀 |
+| [Notices.Tests](Tests/Notices.Tests/README.md) | 공지 HTTP 대역·비동기 저장·WinForms, 선택적 격리 HTTP/SQLite 실행기 |
 | [TaskQueries.Tests](Tests/TaskQueries.Tests/README.md) | 명시적 조회 대역과 실제 업무 화면의 목록·상세·필터·오류·응답 순서 |
 | [TaskQueries.Http.Tests](Tests/TaskQueries.Http.Tests/README.md) | 공통 HTTP 어댑터 응답·오류·취소, opt-in 실제 HTTP와 WinForms 조회 |
 | `RemoteWork.Server/tests` | 공통 인증·사용자·권한·웹·감사 이력·MySQL 관리자 동시 변경 및 업무 조회 권한. 예약 DDL의 전용 MySQL 검증은 [별도 opt-in 절차](RemoteWork.Server/migrations/002_task_queries.md)를 사용 |
@@ -109,7 +109,16 @@ python -m pytest -q
 
 실행 결과와 사용한 커밋은 [LOG](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG)에 기록합니다. 테스트 대역·로컬 메모리·공통 HTTP 통과를 실제 업무 통합 완료로 표시하지 않습니다. 서버·실제 업무 권한·두 PC·운영 DB의 검증 범위를 각각 구분합니다. 기존 Preview는 이전 화면 검토 자료이며 현재 인증 화면과 같다고 해석하지 않습니다.
 
-2번 조회는 [임시 HTTP/SQLite 통합 실행기](Tests/TaskQueries.Http.Tests/README.md)로 검증할 수 있습니다. 테스트 프로젝트를 Release 빌드한 뒤 `Tests/TaskQueries.Http.Tests/run_http_check.py`를 서버용 Python으로 실행하면 임시 DB·계정·실서버를 준비하고 직원·관리자 WinForms의 정확한 조회 집합/정렬·전체/5상태·행 선택·접속 폐기를 검사합니다. 실제 조회 업무에서 수락·연장·수정 준비 창을 열고 등록 창의 로컬 입력 확인도 검사하며 업무·배정·관리자 행과 감사 이력의 보존을 확인합니다. 지정 관리자 회수·재배정 후 조회 권한도 임시 fixture에서만 확인합니다. 실행 후 임시 서버·DB를 정리하며, 일반 실행의 업무 자동 생성·쓰기 API·공유 DB·MySQL/두 PC 검증을 뜻하지 않습니다.
+2번 조회의 MySQL 검증은 [전용 HTTP 실행기 안내](Tests/TaskQueries.Http.Tests/README.md)를 따릅니다. `run_mysql_http_check.py`는 명시적 실행 옵션과 MySQL 설치 경로를 받아 새 임시 MySQL 프로세스·datadir·DB·합성 계정·loopback API를 준비합니다. 공통7테이블과 검토용002 SQL로 만든 업무 테이블에서 기존 C# 직원·관리자 WinForms의 정확한 조회 집합/정렬·전체/5상태·행 상세·준비 창·접속 폐기를 검사합니다. 지정 관리자 회수·재배정은 fixture 안에서만 수행하며 GET 전후 업무/공통 행의 보존을 대조합니다.
+
+```powershell
+dotnet build .\Tests\TaskQueries.Http.Tests\TaskQueries.Http.Tests.csproj -c Release
+.\RemoteWork.Server\.venv\Scripts\python.exe .\Tests\TaskQueries.Http.Tests\run_mysql_http_check.py --allow-disposable-mysql --mysql-bin-dir "C:\Program Files\MySQL\MySQL Server 8.2\bin"
+```
+
+실제 `.env`·기존 DB 주소·서버 설정을 사용하지 않으며 자신이 생성한 서버·DB·임시 경로만 정리합니다. 제품 업무 등록·쓰기 API·정식 migration/버전 지원·공유 DB·두 PC 완료를 뜻하지 않습니다. 이전 SQLite 실행기는 DEMO 참고용으로 남기며 별도 제품 DB 관리 대상으로 확대하지 않습니다.
+
+다음 쓰기 연결에 필요한 [2번 행동별 API·후보 사용자 선택 제안](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/2026-10-17_W1_후속_행동별API_사용자선택_제안.md)은 1번 W1·3번 W3와 같은 ID로 검토합니다. 해당 경로·DTO·권한은 합의 전 제안이며 아직 등록된 쓰기 API가 아닙니다.
 
 ## 브랜치와 게시 기준
 

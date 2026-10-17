@@ -10,7 +10,37 @@ dotnet run --project .\Tests\TaskQueries.Http.Tests\TaskQueries.Http.Tests.cspro
 
 ## 격리 서버의 실제 HTTP 검증
 
-### 임시 서버·DB를 자동 준비하는 실행기
+### MySQL 전용 서버·DB를 자동 준비하는 실행기
+
+주요 DB 검증은 MySQL을 기준으로 합니다. Windows, MySQL 8.0.16 이상(이 환경은 8.2), 서버용 Python 의존성, 빌드한 C# 검증 DLL이 필요합니다. **기존 MySQL 서비스나 Start-MySQL.cmd는 실행하지 않습니다.** 아래 두 옵션으로 새 임시 MySQL을 만드는 검증에 명시적으로 동의하고 실제 MySQL 설치 경로를 전달합니다.
+
+```powershell
+dotnet build .\Tests\TaskQueries.Http.Tests\TaskQueries.Http.Tests.csproj -c Release
+.\RemoteWork.Server\.venv\Scripts\python.exe .\Tests\TaskQueries.Http.Tests\run_mysql_http_check.py --allow-disposable-mysql --mysql-bin-dir 'C:\Program Files\MySQL\MySQL Server 8.2\bin'
+```
+
+다른 빌드 출력은 `--client-dll <TaskQueries.Http.Tests.dll 절대 경로>`로 지정합니다. 외부 DB URL은 받지 않습니다. 상속된 실제 API/DB/프록시/Python 설정과 `.env`, MySQL 사용자·시스템 기본 설정을 사용하지 않습니다. SQLite DB도 열지 않습니다. MySQL 설치 파일은 읽기만 하며 새 임시 datadir·프로세스·loopback 포트·직접 생성한 고유 DB만 사용합니다.
+
+`--no-defaults`를 첫 MySQL 옵션으로 전달하고 X Plugin을 비활성화합니다. 접속한 서버의 실제 datadir·포트·MySQL 버전·InnoDB·REPEATABLE-READ를 검사한 뒤에만 DB를 생성합니다. 포트 경쟁이나 정리 중 주소 변경이 있으면 다른 서버에 DROP/SHUTDOWN을 보내지 않습니다. 성공한 CREATE에 대해서만 DB 삭제 소유권을 기록합니다. MySQL·C# 자식은 중지 상태로 생성해 Windows Job에 등록한 뒤 공식 WinAPI로 재개하므로 등록 전에 하위 프로세스가 생기지 않습니다. 중단·타임아웃·등록 실패도 이 실행의 프로세스 트리 안에서 정리합니다. 재귀 삭제 직전에는 임시 폴더의 절대 경로·부모·접두사·reparse 여부를 확인합니다.
+
+fixture는 공통 7개 테이블만 명시적으로 준비하고, [현재 002 SQL 초안](../../RemoteWork.Server/migrations/002_task_queries.mysql.sql)의 실제 3문장으로 업무 테이블을 생성합니다. 업무 ORM의 `create_all`이나 공통 `init_schema()`로 SQL 실행을 대신하지 않습니다. 공통 이력은 유지하고 `schema_versions`는 **1**로 남깁니다. 이 경로는 공유 DB 적용 도구나 1번의 버전2 지원 구현이 아닙니다.
+
+검사 범위는 아래 실제 HTTP·WinForms 항목과 같습니다. PK 순서로 모든 공통/업무 행을 해시하고, C# 조회·로컬 입력 준비 및 허용/거절 GET 전후에 행이 변하지 않는지 검사합니다. 관리자 회수·재배정은 임시 fixture의 stdin 제어에서만 수행하며 제품 쓰기 API를 추가하지 않습니다. 비밀번호·토큰·DB 원문·dump·자식 프로세스 출력을 표시하지 않습니다.
+
+2026-10-17 실행 결과: 실제 C# 직원43검사·관리자64검사, MySQL 실행기301검사(권한 회수11검사 포함) 통과. 실행기301에는 C# 호출 성공 검사 등이 포함되므로 수치를 합산하지 않습니다. 실제 DB 생성 후 의도적으로 실패하는 아래 실행도 exit1과 `CLEANUP` 완료를 확인했습니다. 공유 DB·두 PC·수동 UI·등록/수락/마감/제출·승인·쓰기 경합은 실행하지 않았습니다.
+
+```powershell
+# 안전 가드 회귀: DB/서버를 시작하지 않음
+.\RemoteWork.Server\.venv\Scripts\python.exe -m unittest discover -s .\Tests\TaskQueries.Http.Tests -p test_mysql_http_runner.py -v
+# 실제 새 DB 생성 후 의도적으로 실패: exit1과 CLEANUP 안내가 예상 결과
+.\RemoteWork.Server\.venv\Scripts\python.exe .\Tests\TaskQueries.Http.Tests\run_mysql_http_check.py --allow-disposable-mysql --mysql-bin-dir 'C:\Program Files\MySQL\MySQL Server 8.2\bin' --exercise-cleanup-failure
+```
+
+안전 가드 회귀16개는 opt-in 누락, 기존 datadir 보존, 잘못된 임시 삭제 경로, 포트/서버 불일치, 생성 실패 시 DROP 금지, 정리 전 서버 재대조, 생성한 DB만 정리, 상속된 설정 차단, 예외·중단 시 임시 경로 정리를 검사합니다. native 시작 중 SIGINT·등록 실패와 C# 중단/타임아웃 정리도 대역으로 검사합니다. 이 대역 검사는 실제 MySQL/C# 정상 실행 및 의도적 실패 실행 증거와 구분하며, 실제 C# 강제 중단·타임아웃을 재현한 결과로 표시하지 않습니다.
+
+### 기존 DEMO SQLite 실행기
+
+SQLite는 DEMO 종료 후 삭제 예정입니다. 아래 실행기는 기존 데모 참고용이며 주요 MySQL 검증·운영 관리 대상으로 확장하지 않습니다.
 
 서버용 Python 3.11 이상과 `RemoteWork.Server/requirements.txt` 의존성, Windows·.NET 8 런타임/SDK가 필요합니다. [SETUP](../../docs/SETUP.md)의 서버 가상환경을 준비한 뒤 프로젝트 루트에서 실행합니다. 기존 서버를 켜거나 `.env`·공유 DB·테스트 계정을 따로 설정할 필요가 없습니다.
 

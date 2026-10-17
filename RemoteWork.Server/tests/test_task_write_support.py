@@ -183,4 +183,3 @@ def test_mysql_relation_revoked_while_preparation_waits(preparation,login,revoke
             assert future.result(timeout=20)==403
     finally:
         event.remove(engine,'before_cursor_execute',pause)
-
