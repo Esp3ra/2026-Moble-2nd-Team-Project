@@ -317,19 +317,32 @@ internal static class Program
             var service = new HttpTaskQueryService(api);
             var own = Wait(service.GetTasksAsync(new(TaskQueryScope.Own)));
             Check(own.Count > 0, "isolated own fixture is nonempty");
+            CheckExpectedIds(own, "REMOTEWORK_TASK_TEST_EXPECTED_OWN_IDS");
             Check(Wait(service.GetTaskAsync(own[0].TaskId)).Summary.TaskId == own[0].TaskId,
                 "real HTTP selected detail identity");
             foreach (TaskDisplayStatus status in Enum.GetValues<TaskDisplayStatus>())
             {
                 var filtered = Wait(service.GetTasksAsync(new(TaskQueryScope.Own, status)));
                 Check(filtered.Count > 0 && filtered.All(task => task.Status == status), "live fixture covers each server status filter");
+                Check(filtered.Select(task => task.TaskId).SequenceEqual(
+                    own.Where(task => task.Status == status).Select(task => task.TaskId)),
+                    "live own filter preserves the complete authorized ordered set");
             }
+            IReadOnlyList<TaskSummary>? managed = null;
             if (identity.User.Role == "admin")
             {
-                var managed = Wait(service.GetTasksAsync(new(TaskQueryScope.Managed)));
+                managed = Wait(service.GetTasksAsync(new(TaskQueryScope.Managed)));
                 Check(managed.Count > 0, "isolated managed fixture is nonempty");
+                CheckExpectedIds(managed, "REMOTEWORK_TASK_TEST_EXPECTED_MANAGED_IDS");
                 Check(Wait(service.GetTaskAsync(managed[0].TaskId)).Summary.TaskId == managed[0].TaskId,
                     "real HTTP managed detail");
+                foreach (TaskDisplayStatus status in Enum.GetValues<TaskDisplayStatus>())
+                {
+                    var filtered = Wait(service.GetTasksAsync(new(TaskQueryScope.Managed, status)));
+                    Check(filtered.Select(task => task.TaskId).SequenceEqual(
+                        managed.Where(task => task.Status == status).Select(task => task.TaskId)),
+                        "live managed filter preserves only the designated authorized ordered set");
+                }
             }
             else
                 ExpectFailure(() => Wait(service.GetTasksAsync(new(TaskQueryScope.Managed))), TaskQueryFailure.Forbidden);
@@ -350,6 +363,7 @@ internal static class Program
             var content = Field<TextBox>(page, "txtContent");
             var queryStatus = Field<Label>(page, "lblTaskQueryStatus");
             Check(grid.Rows.Count == own.Count && content.Text.Contains(own[0].Title), "real HTTP list and first detail render");
+            CheckLiveRows(grid, own, "live own grid preserves authorized IDs and order");
             if (grid.Rows.Count > 1)
             {
                 grid.CurrentCell = grid.Rows[1].Cells[0];
@@ -363,21 +377,65 @@ internal static class Program
                 Until(() => queryStatus.Text == "상세 조회 완료");
                 Check(grid.Rows.Count > 0 && grid.Rows.Cast<DataGridViewRow>()
                     .All(row => ((TaskSummary)row.Tag!).Status == (TaskDisplayStatus)index), "live filter renders only selected status");
+                CheckLiveRows(grid, own.Where(task => task.Status == (TaskDisplayStatus)index),
+                    "live own filtered grid is complete and ordered");
             }
             filter.SelectedIndex = 0;
             Until(() => queryStatus.Text == "상세 조회 완료");
             Check(grid.Rows.Count == own.Count, "live all filter restores full list");
+            CheckLiveRows(grid, own, "live all filter restores exact authorized set");
             if (identity.User.Role == "admin")
             {
                 Field<ComboBox>(page, "cmbTaskScope").SelectedIndex = 1;
                 Until(() => queryStatus.Text == "상세 조회 완료");
                 Check(grid.Rows.Count > 0, "live managed UI scope renders");
+                CheckLiveRows(grid, managed!, "live managed grid includes only designated tasks");
+                for (int index = 0; index < StatusCodes.Length; index++)
+                {
+                    filter.SelectedIndex = index + 1;
+                    Until(() => queryStatus.Text == "상세 조회 완료"
+                        || (grid.Rows.Count == 0 && queryStatus.Text == "조회된 업무 0개"));
+                    CheckLiveRows(grid, managed!.Where(task => task.Status == (TaskDisplayStatus)index),
+                        "live managed filtered grid is complete and ordered");
+                }
+                filter.SelectedIndex = 0;
+                Until(() => queryStatus.Text == "상세 조회 완료");
+                CheckLiveRows(grid, managed!, "live managed all filter restores exact designated set");
             }
             Check(Field<DataGridView>(page, "gridTaskAttachments").Rows.Count == 0,
                 "member 3 attachments remain unconnected");
+
+            // Revoke the server session through a separate caller. The feature's
+            // shared ApiClient must discover the 401 on its next real task read.
+            using var revoker = new HttpClient { Timeout = TimeSpan.FromSeconds(12) };
+            using var logout = new HttpRequestMessage(HttpMethod.Post, new Uri(api.ServerUri, "api/v1/auth/logout"));
+            logout.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", identity.AccessToken);
+            using var revoked = Wait(revoker.SendAsync(logout));
+            Check(revoked.IsSuccessStatusCode, "isolated server session was revoked by another caller");
+            Wait(page.RefreshAsync());
+            Check(grid.Rows.Count == 0 && queryStatus.Text.Contains("인증이 만료"),
+                "real revoked-session task read clears the screen and shows authentication expiry");
+            Check(api.CurrentUser is null, "common client clears the revoked identity");
         }
         finally { Wait(api.LogoutAsync()); }
     }
+
+    private static void CheckExpectedIds(IReadOnlyList<TaskSummary> tasks, string setting)
+    {
+        if (Environment.GetEnvironmentVariable(setting) is not { Length: > 0 } raw) return;
+        string[]? expected;
+        try { expected = JsonSerializer.Deserialize<string[]>(raw); }
+        catch (JsonException) { throw new InvalidOperationException("Invalid expected-ID JSON setting: " + setting); }
+        Check(expected is not null && expected.All(id => !string.IsNullOrWhiteSpace(id))
+            && expected.Distinct(StringComparer.Ordinal).Count() == expected.Length,
+            "isolated fixture expected IDs are valid and unique");
+        Check(tasks.Select(task => task.TaskId).SequenceEqual(expected!),
+            "live response matches the fixture's exact authorized IDs and order");
+    }
+
+    private static void CheckLiveRows(DataGridView grid, IEnumerable<TaskSummary> expected, string message) =>
+        Check(grid.Rows.Cast<DataGridViewRow>().Select(row => ((TaskSummary)row.Tag!).TaskId)
+            .SequenceEqual(expected.Select(task => task.TaskId)), message);
 
     private static void Login(ApiClient api, TestHandler handler)
     {

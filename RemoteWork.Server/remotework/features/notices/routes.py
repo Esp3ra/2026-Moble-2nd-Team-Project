@@ -29,8 +29,18 @@ def require_table():
                        "공지사항 테이블이 없습니다. 서버에서 flask --app remotework notices init-table을 실행해 주세요.")
 
 
-def get_notice(notice_id):
-    notice = get_db().get(Notice, notice_id)
+def get_notice(notice_id, *, for_update=False):
+    # Draft defensive boundary matching the current INTEGER model/C# int.
+    # Keep existing missing-ID 404 semantics; final wire range awaits team 1.
+    if not 1 <= notice_id <= 2147483647:
+        raise AppError(404, "NOTICE_NOT_FOUND", "삭제되었거나 존재하지 않는 공지사항입니다.")
+    db = get_db()
+    if for_update:
+        # MySQL RR current read, after the common guard; never reuse a stale identity.
+        notice = db.scalar(select(Notice).where(Notice.id == notice_id).with_for_update()
+                           .execution_options(populate_existing=True))
+    else:
+        notice = db.get(Notice, notice_id)
     if notice is None:
         raise AppError(404, "NOTICE_NOT_FOUND", "삭제되었거나 존재하지 않는 공지사항입니다.")
     return notice
@@ -104,6 +114,8 @@ def create_notice():
                         attachment_names_json=json.dumps(names, ensure_ascii=False))
         session.add(notice)
         session.flush()
+        # Return stored values, including MySQL DATETIME precision, not the pre-flush timestamp.
+        session.refresh(notice)
         audit("notice.created", "notice", notice.id, {"target": notice.target})
         result = notice.public()
     return success({"notice": result}, 201)
@@ -114,7 +126,7 @@ def create_notice():
 def delete_notice(notice_id):
     require_table()
     with admin_transaction() as session:
-        notice = get_notice(notice_id)
+        notice = get_notice(notice_id, for_update=True)
         session.delete(notice)
         audit("notice.deleted", "notice", notice_id)
     return success({"message": "공지사항을 삭제했습니다."})

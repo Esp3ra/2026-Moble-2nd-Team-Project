@@ -1,5 +1,23 @@
 # 공지 DB 연결 (4번 로컬 구현)
 
+## PR #7 R1·R2 수정 보고 — 2026-10-17
+
+기준 원본 alpha8a652ad와 공지 head7478101을 결합하고 공지 전용 routes.py·회귀만 수정했다. 기존 업무 격리 HTTP 실행기와 공통 인증/DB/관리자 가드는 보존한다.
+
+| 구분 | 현재 상태 |
+|---|---|
+| 구현·작성자 검증, 재검토 대기 | R1: admin_transaction 뒤 공지를 FOR UPDATE/current read·populate_existing으로 다시 확인해 삭제200/후속404·삭제 감사1건 보장. R2: 현재 INTEGER/C#int에 맞춘 개발 방어 경계1..2147483647, DB 바인딩 전 기존 미존재404로 처리. 일반 DB 예외를404로 바꾸지 않음 |
+| 추가 발견·보완 | MySQL DATETIME 저장 정밀도로 등록 응답/재조회 시각이 달라지는 경우를 재현해 flush 후 저장된 값을 refresh하여 응답. 시각 컬럼/공통 규약은 바꾸지 않음 |
+| 미합의 | 공지 전용 ID 범위·범위 밖404 유지/400 등 최종 오류, 삭제 응답·API/DTO·보존·DDL 번호/버전·공유 적용/활성화. 1번 회신 전 개발 초안이며 BIGINT 전환이나 공통 규약 확정 아님 |
+| 미실행/범위 밖 | 공유/운영DB·두PC·웹·장비·수동 전체GUI, 이번 전체MySQL/실제C#→MySQL. 팝업/확인 기록·파일 전송·중지된 정렬 추가 조정은 PR 밖 |
+
+이번 실제 결과: 서버 SQLite전체74통과/16생략(기존 MySQL2+DDL12+새 R1 MySQL2), 격리MySQL8.2 REPEATABLE-READ 표적32통과(공지 기존+R1/R2/시각/삭제rollback+공통관리자회귀), 실제 공지 C#→HTTP→임시SQLite37검증 통과. 최신 업무HTTP 프로젝트/참조앱 Release 경고0·오류0, 업무 격리 HTTP 실행기300검증·권한회수11개(실행기 내 포함; 중복 합산하지 않음), C#직원36/관리자52검증 통과. 서로 포함/반복되는 수치를 합산하지 않는다.
+
+명령: 서버 `python -m pytest -q`, MySQL 전용 DB에서 `python -m pytest -q tests/test_notice_review.py tests/test_notices.py tests/test_admin_concurrency.py`, 프로젝트 루트 `python Tests/Notices.Tests/run_http_check.py --client-dll <Notices.Tests.dll>`, `python Tests/TaskQueries.Http.Tests/run_http_check.py --client-dll <TaskQueries.Http.Tests.dll>`. MySQL은 새 소유 datadir/프로세스/임시포트·합성계정만 사용하고 종료/정리했다. 이전 전체MySQL/빌드 보고는 아래 당시 결과로 보존하며 이번 실행으로 재사용하지 않는다.
+
+새 회귀를 수정 전 코드에 적용했을 때 SQLite의 큰ID500과 MySQL 동시삭제200/200·중복감사 경고를 탐지했다. 수정 후에는 해당 회귀가 통과했으며 검토자 독립 재확인·1번 계약 회신·원본 병합/정식 적용은 별도다. REMOTEWORK_ENABLE_NOTICE_DRAFT/ENABLE_NOTICE_DRAFT의 기본off와 공통version1·업무002 예약을 유지한다.
+
+
 4번 공지 전용 모델·API의 검토용 개발 초안입니다. API/DTO·테이블 구조·배포 migration 번호·정식 활성화는 1번 협의 대상이며 공유 DB에는 적용하지 않았습니다.
 
 ## 저장과 권한
@@ -84,6 +102,6 @@ $env:REMOTEWORK_ENABLE_NOTICE_DRAFT = "1"
 | 새 프로세스의 공지/업무 플래그4조합 | 기본off, 공지만on, 업무만on, 둘다on의 모델·경로 독립 등록 통과 |
 
 MySQL은 전용 임시 datadir·자체 프로세스·임시 포트·합성 계정/remote_work_test_ DB만 사용했습니다. 실제 데모/운영/공유 DB·자격 설정에는 접속하지 않았고 종료 시 자기 임시 서버만 정리했습니다. 두 PC·공유 서버·웹·파일 전송은 미검증이며 팝업·직원 확인 기록·정렬 추가 조정은 이번 PR에 없습니다. 공지 계약·migration 번호·공유 적용·정식 활성화의 1번 협의는 계속 필요합니다.
-# 최신 로그인 화면 결합 재검증
+## 이전: 로그인 화면 결합 재검증
 
 alpha 3b09480의 로그인 화면·README·실행 안내를 보존해 공지 DB 변경과 추가 결합했습니다. 앱/검증 프로젝트5개 Release 경고0·오류0, C# 검증5종 및 실제 공지 HTTP/SQLite37검증을 다시 통과했습니다. 서버 소스는 앞서 검증한 결합본과 동일합니다. 위 서버 전체/격리 MySQL 결과는 앞선 실행 결과이며 이번 로그인 화면 변경에서 다시 실행한 수치로 표시하지 않습니다.
