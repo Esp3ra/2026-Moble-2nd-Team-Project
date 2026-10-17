@@ -1,5 +1,7 @@
 # 1번 W1 공통 쓰기 지원 — 2번 연결 안내
 
+3번 제출·검토 연결을 위한 접속 범위와 기능별 receipt 등록 도구는 [RESULTS_INTEGRATION.md](RESULTS_INTEGRATION.md)를 참조한다. 기본 task 계약은 유지하며 실제 제품 제출 행동·검토 권한·파일 저장은 아직 연결하지 않았다.
+
 2026-10-17. 기준 alpha c56f3c8의 기존 업무 GET/DTO/CheckedInput은 유지한다. 이 문서는 **공통 지원**이며 업무 등록·수락·연장·제출·승인 API 구현이 아니다.
 
 ## 적용 범위와 승인된 기준
