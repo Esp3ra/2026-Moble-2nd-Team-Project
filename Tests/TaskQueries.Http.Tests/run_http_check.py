@@ -88,15 +88,16 @@ def isolated_environment(runtime):
 
 
 class FixtureServer:
-    def __init__(self, env, runtime, accounts):
+    def __init__(self, env, runtime, accounts, *, server_script=None):
         self.env, self.runtime, self.accounts = env, runtime, accounts
+        self.server_script = Path(server_script) if server_script is not None else Path(__file__).resolve()
         self.process = None
         self.messages = queue.Queue()
         self.request_number = 0
 
     def __enter__(self):
         self.process = subprocess.Popen(
-            [sys.executable, str(Path(__file__).resolve()), "--fixture-server"],
+            [sys.executable, str(self.server_script), "--fixture-server"],
             cwd=self.runtime, env=self.env, stdin=subprocess.PIPE,
             stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
             text=True, encoding="utf-8", bufsize=1,
@@ -227,7 +228,7 @@ class HttpChecks:
         return [item["task_id"] for item in self.items(token, scope, status)]
 
 
-def run_client(dotnet, dll, env, fixture, account, own, managed, checks):
+def run_client(dotnet, dll, env, fixture, account, own, managed, checks, *, process_runner=None):
     live_env = dict(env, REMOTEWORK_TASK_TEST_ALLOW_LIVE="1",
                     REMOTEWORK_TASK_TEST_URL=fixture.url, REMOTEWORK_API_URL=fixture.url,
                     REMOTEWORK_TASK_TEST_LOGIN_ID=account["login_id"],
@@ -236,7 +237,8 @@ def run_client(dotnet, dll, env, fixture, account, own, managed, checks):
                     REMOTEWORK_TASK_TEST_EXPECTED_OWN_IDS=json.dumps(own),
                     REMOTEWORK_TASK_TEST_EXPECTED_MANAGED_IDS=json.dumps(managed))
     try:
-        result = subprocess.run([dotnet, str(dll), "--live"], cwd=fixture.runtime,
+        execute = process_runner if process_runner is not None else subprocess.run
+        result = execute([dotnet, str(dll), "--live"], cwd=fixture.runtime,
                                 env=live_env, capture_output=True, text=True,
                                 encoding="utf-8", errors="replace", timeout=180,
                                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))

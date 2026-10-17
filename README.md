@@ -103,7 +103,16 @@ python -m pytest -q
 
 실행 결과와 사용한 커밋은 [LOG](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG)에 기록합니다. 테스트 대역·로컬 메모리·공통 HTTP 통과를 실제 업무 통합 완료로 표시하지 않습니다. 서버·실제 업무 권한·두 PC·운영 DB의 검증 범위를 각각 구분합니다. 기존 Preview는 이전 화면 검토 자료이며 현재 인증 화면과 같다고 해석하지 않습니다.
 
-2번 조회는 [임시 HTTP/SQLite 통합 실행기](Tests/TaskQueries.Http.Tests/README.md)로 검증할 수 있습니다. 테스트 프로젝트를 Release 빌드한 뒤 `Tests/TaskQueries.Http.Tests/run_http_check.py`를 서버용 Python으로 실행하면 임시 DB·계정·실서버를 준비하고 직원·관리자 WinForms의 정확한 조회 집합/정렬·전체/5상태·행 선택·접속 폐기를 검사합니다. 실제 조회 업무에서 수락·연장·수정 준비 창을 열고 등록 창의 로컬 입력 확인도 검사하며 업무·배정·관리자 행과 감사 이력의 보존을 확인합니다. 지정 관리자 회수·재배정 후 조회 권한도 임시 fixture에서만 확인합니다. 실행 후 임시 서버·DB를 정리하며, 일반 실행의 업무 자동 생성·쓰기 API·공유 DB·MySQL/두 PC 검증을 뜻하지 않습니다.
+2번 조회의 MySQL 검증은 [전용 HTTP 실행기 안내](Tests/TaskQueries.Http.Tests/README.md)를 따릅니다. `run_mysql_http_check.py`는 명시적 실행 옵션과 MySQL 설치 경로를 받아 새 임시 MySQL 프로세스·datadir·DB·합성 계정·loopback API를 준비합니다. 공통7테이블과 검토용002 SQL로 만든 업무 테이블에서 기존 C# 직원·관리자 WinForms의 정확한 조회 집합/정렬·전체/5상태·행 상세·준비 창·접속 폐기를 검사합니다. 지정 관리자 회수·재배정은 fixture 안에서만 수행하며 GET 전후 업무/공통 행의 보존을 대조합니다.
+
+```powershell
+dotnet build .\Tests\TaskQueries.Http.Tests\TaskQueries.Http.Tests.csproj -c Release
+.\RemoteWork.Server\.venv\Scripts\python.exe .\Tests\TaskQueries.Http.Tests\run_mysql_http_check.py --allow-disposable-mysql --mysql-bin-dir "C:\Program Files\MySQL\MySQL Server 8.2\bin"
+```
+
+실제 `.env`·기존 DB 주소·서버 설정을 사용하지 않으며 자신이 생성한 서버·DB·임시 경로만 정리합니다. 제품 업무 등록·쓰기 API·정식 migration/버전 지원·공유 DB·두 PC 완료를 뜻하지 않습니다. 이전 SQLite 실행기는 DEMO 참고용으로 남기며 별도 제품 DB 관리 대상으로 확대하지 않습니다.
+
+다음 쓰기 연결에 필요한 [2번 행동별 API·후보 사용자 선택 제안](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/2026-10-17_W1_후속_행동별API_사용자선택_제안.md)은 1번 W1·3번 W3와 같은 ID로 검토합니다. 해당 경로·DTO·권한은 합의 전 제안이며 아직 등록된 쓰기 API가 아닙니다.
 
 ## 브랜치와 게시 기준
 

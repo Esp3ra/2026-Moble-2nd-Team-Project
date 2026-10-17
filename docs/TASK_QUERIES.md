@@ -74,9 +74,11 @@
 
 ## 재현 가능한 실제 HTTP 검증
 
-[통합 실행기 안내](../Tests/TaskQueries.Http.Tests/README.md)의 `run_http_check.py`는 임시 SQLite·합성 사용자·업무 fixture와 loopback 실서버를 자동 준비한다. 직원/관리자의 C# HTTP·WinForms를 실행하고, 서버에서 내려온 정확한 허용 ID 집합·정렬·상태 필터·직접 상세 권한과 접속 폐기 처리를 검증한다. 추가 실제 HTTP 검사는 빈 목록·미인증·미존재·지정 관리자 회수·재배정 후 조회 범위를 다룬다. 권한 변경은 fixture 내부 준비 코드에서만 수행하며 제품의 쓰기 API가 아니다.
+[MySQL 통합 실행기 안내](../Tests/TaskQueries.Http.Tests/README.md)의 `run_mysql_http_check.py`는 명시적인 `--allow-disposable-mysql`·MySQL 설치 경로로 새 MySQL 프로세스/datadir·고유DB·합성 사용자·loopback API를 준비한다. 공통7테이블과 검토용002 실제 SQL을 사용하며 공통 버전1은 유지한다. 실제 서버의 datadir·포트를 생성한 인스턴스와 대조한 뒤 자기 DB만 다룬다. 기존 DB URL이나 `.env`를 연결 정보로 사용하지 않는다.
 
-일반 초기화·API·DTO·권한·공통 버전1·기본 off는 유지한다. 실행 중 생성하는 업무와 사용자는 명시적인 테스트 데이터이며 실제 업무·공유 환경으로 표시하지 않는다. 이 실행기는 SQLite 통합용이고 MySQL·정식 DDL·두 PC·웹·3번 제출/검토의 완료 증거가 아니다.
+기존 직원/관리자의 C# HTTP·WinForms 검사로 정확한 허용 ID 집합·정렬·전체/5상태·행 상세·수락/수정/연장 준비 창·접속 폐기를 검증한다. 추가 실제 HTTP 검사는 빈 목록·401/403/404·지정 관리자 회수·재배정 후 현재 조회 범위를 다룬다. 업무/공통 행은 PK 순서의 해시로 비교하며 권한 변경은 fixture 내부 준비 코드에서만 수행한다. 제품의 업무 쓰기 API가 아니다.
+
+일반 초기화·API·DTO·권한·공통 버전1·기본 off는 유지한다. 검증용 서버/DB·사용자는 격리된 임시 데이터이며 정식 DDL/버전 지원·공유 DB·두 PC·웹·3번 제출/검토 완료로 표시하지 않는다. 이전 `run_http_check.py`는 DEMO용 SQLite 이력이며 SQLite의 별도 제품 기능/스키마 관리는 추가하지 않는다.
 
 ## 남은 합의
 
