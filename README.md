@@ -261,3 +261,9 @@ alpha 3b09480, DOCX 5dac768으로 각각 별도 게시했습니다. Release 경�
 프로젝트 전체 소개는 [main README](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/main/README.md), 현재 통합 개발 코드는 [alpha](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/alpha), 초기 코드 배치 초안은 [0.0.1V](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/0.0.1V), 최신 도구상자 초안은 [0.0.2V](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/0.0.2V)에서 확인합니다.
 
 4번 PR 브랜치 목차 최신화 문서 [PR #9](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/9)는 PR9edcb08로 병합했습니다. 그 문서 작성 회차는 링크·표·범위 검사만 수행한 기록이며, 이후 최초 P2 2건은 [당시 검토 기록](2번/2026-10-17_PR7_검토_및_PR8_PR9_문서병합.md), 이번 R1/R2 해결 독립 확인·문서10/11 병합·남은 합의/충돌은 [최신 재검토](2번/2026-10-17_PR7_수정재검토_PR10_PR11_문서병합.md)에서 구분합니다. PR #1 필터 해결·병합 기록과 원래 작성자 보고는 보존합니다.
+
+## 1번의 3번 결과물 연결 지원 후속 — 2026-10-17
+
+[1번 대표 회신](1번/2026-10-17_3번_결과물연결_공통지원_회신.md) · [3번 수신 위치](3번/2026-10-17_1번_공통연결_현재지원_회신.md). 접속 범위·기능별 중복 요청 계약의 구현/검증과 검토자 협의 제안을 전달합니다. 기존 PR15·16 병합과 이번 후속 보완, 제품 제출/파일 미구현·공동 확인 대기를 구분합니다.
+
+게시 확인: [코드 PR #17](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/17) · [LOG PR #18](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/18) 생성 완료. 개인 포크 alpha/LOG → 원본 alpha/LOG 검토 대기이며 이번 보완의 원본 병합·공유 적용·2·3번 공동 회신은 미완료다.
