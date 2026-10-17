@@ -13,9 +13,9 @@ dotnet run --project .\Tests\Collaboration.Tests\Collaboration.Tests.csproj -c R
 - 관리자 삭제와 직원 삭제 거부를 검사합니다.
 - 기존 인메모리 채팅의 방 생성·전송·조회·삭제, MainForm 메뉴 왕복 시 저장소와 메시지 유지도 확인합니다.
 
-별도 NuGet 테스트 패키지 없이 실패 시 종료 코드 1을 반환합니다. 기존 private UI 이벤트/필드 및 internal 채팅 형식은 reflection으로 접근하므로 생산 코드의 접근 수준이나 공통 파일을 바꾸지 않습니다. 테스트 중 정적 공지 목록은 임시 데이터로 교체했다가 종료 시 복구합니다.
+별도 NuGet 테스트 패키지 없이 실패 시 종료 코드 1을 반환합니다. private UI 이벤트/필드 및 internal 채팅 형식은 reflection으로 접근합니다. 공지는 테스트 프로그램 안의 `TestNoticeService`를 명시적으로 주입하며 생산 화면의 기본 서비스는 실제 `HttpNoticeService`입니다. 정적 생산 공지 목록은 사용하지 않습니다.
 
 수정 전 PR #1 `249768732caf3357741d3aacbcfb4abdcb34bd80`에 같은 테스트를 연결하면 “Every authoring audience must have a list filter”에서 실패합니다. 2026-10-17 수정본에서는 5개 시나리오·85개 검증을 통과했습니다. 수정 결과는 담당자 검증 보고이며 검토자의 재검토·병합 승인은 별도입니다.
 
-이 테스트는 로컬 메모리 구현의 회귀입니다. 실제 HTTP·DB·서버 권한·두 PC·파일 선택 대화상자/업로드/다운로드·자동 팝업·확인 기록을 검증하지 않습니다. 실제 사용자나 운영 데이터를 사용하지 않습니다.
+이 테스트는 명시적 공지 서비스 대역과 로컬 채팅의 회귀입니다. 실제 HTTP·DB·서버 권한·두 PC·파일 선택 대화상자/업로드/다운로드·자동 팝업·확인 기록을 검증하지 않습니다. 실제 사용자나 운영 데이터를 사용하지 않습니다. 공지 HTTP·DB·비동기 저장 검증은 별도 `Tests/Notices.Tests`와 서버 pytest를 사용합니다.
 

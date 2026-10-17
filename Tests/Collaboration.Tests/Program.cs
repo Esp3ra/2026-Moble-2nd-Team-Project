@@ -11,8 +11,8 @@ internal static class Program
     private static int scenarios;
     private static Form host = null!;
     private static readonly string[] Targets = { "전 직원", "기획팀", "개발팀", "디자인팀" };
-    private static IList Store => (IList)typeof(NoticesControl)
-        .GetField("notices", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null)!;
+    private static readonly List<Notice> Store = new();
+    private static readonly TestNoticeService Notices = new(Store);
 
     [STAThread]
     private static int Main()
@@ -21,7 +21,7 @@ internal static class Program
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         Control.CheckForIllegalCrossThreadCalls = true;
-        var saved = Store.Cast<object>().ToArray();
+        var saved = Store.ToArray();
         int result = 1;
         using var coordinator = new Form
         {
@@ -42,7 +42,7 @@ internal static class Program
                 Run("empty list and administrator/employee deletion", EmptyAndDeletion);
                 Run("local chat and store lifetime across navigation", ChatRegression);
                 Console.WriteLine($"PASS: {checks} assertions; {scenarios} scenarios. " +
-                    "Actual WinForms controls and in-memory data; no server, DB or network.");
+                    "Actual WinForms controls and explicitly injected test service; no server, DB or network.");
                 result = 0;
             }
             catch (Exception error)
@@ -121,14 +121,14 @@ internal static class Program
         Invoke(page, "btnNewNoticePreview_Click", null, EventArgs.Empty);
         timer.Stop();
         if (failure is not null) throw new InvalidOperationException("Modal notice registration", failure);
-        Check(published is not null && Store.Contains(published), "Registered notice reaches the shared store");
+        Check(published is not null && Store.Contains(published), "Registered notice reaches the explicit test service");
         Check(published!.Target == target && published.Title == title, "Published target/title preserved");
         return published;
     }
 
     private static void TargetFilters()
     {
-        using var administrator = new NoticesControl(PreviewRole.Administrator);
+        using var administrator = new NoticesControl(PreviewRole.Administrator, Notices);
         Mount(administrator);
         using (var editor = new NoticeEditForm())
         {
@@ -144,7 +144,7 @@ internal static class Program
 
         foreach (var role in new[] { PreviewRole.Administrator, PreviewRole.Employee })
         {
-            using var page = new NoticesControl(role);
+            using var page = new NoticesControl(role, Notices);
             Mount(page);
             Check(Filter(page).Items.Cast<string>().SequenceEqual(new[] { "전체" }.Concat(Targets)),
                 "Administrator and employee use the same audiences");
@@ -166,7 +166,7 @@ internal static class Program
 
     private static void RegistrationWhileFiltered()
     {
-        using var page = new NoticesControl(PreviewRole.Administrator);
+        using var page = new NoticesControl(PreviewRole.Administrator, Notices);
         Mount(page);
         var development = Publish(page, "개발팀", "개발팀 기존 공지");
         Filter(page).SelectedItem = "개발팀";
@@ -190,15 +190,15 @@ internal static class Program
 
     private static void SortingAndDetails()
     {
-        var pinned = new Notice { Target = "디자인팀", Title = "고정", Author = "다", IsPinned = true,
+        var pinned = new Notice { Id = 1, Target = "디자인팀", Title = "고정", Author = "다", IsPinned = true,
             CreatedAt = new DateTime(2026, 1, 1), Content = "고정 본문" };
-        var first = new Notice { Target = "디자인팀", Title = "가", Author = "나",
+        var first = new Notice { Id = 2, Target = "디자인팀", Title = "가", Author = "나",
             CreatedAt = new DateTime(2026, 1, 3), Content = "선택한 상세 본문" };
-        var second = new Notice { Target = "디자인팀", Title = "나", Author = "가",
+        var second = new Notice { Id = 3, Target = "디자인팀", Title = "나", Author = "가",
             CreatedAt = new DateTime(2026, 1, 2), Content = "다른 본문" };
         foreach (var notice in new[] { second, pinned, first }) Store.Add(notice);
-        Store.Add(new Notice { Target = "개발팀", Title = "다른 팀", IsPinned = true });
-        using var page = new NoticesControl(PreviewRole.Administrator);
+        Store.Add(new Notice { Id = 4, Target = "개발팀", Title = "다른 팀", IsPinned = true });
+        using var page = new NoticesControl(PreviewRole.Administrator, Notices);
         Mount(page);
         Filter(page).SelectedItem = "디자인팀";
         Check(ReferenceEquals(Rows(page)[0], pinned), "Pinned design notice leads the filtered list");
@@ -230,14 +230,14 @@ internal static class Program
 
     private static void EmptyAndDeletion()
     {
-        var notice = new Notice { Target = "디자인팀", Title = "삭제할 디자인 공지", Content = "본문" };
+        var notice = new Notice { Id = 5, Target = "디자인팀", Title = "삭제할 디자인 공지", Content = "본문" };
         Store.Add(notice);
-        using var employee = new NoticesControl(PreviewRole.Employee);
+        using var employee = new NoticesControl(PreviewRole.Employee, Notices);
         Mount(employee);
         Check(!Field<Button>(employee, "btnNewNoticePreview").Visible, "Employee has no notice authoring button");
         Invoke(employee, "DeleteNotice", notice);
         Check(Store.Contains(notice), "Employee deletion is rejected");
-        using var administrator = new NoticesControl(PreviewRole.Administrator);
+        using var administrator = new NoticesControl(PreviewRole.Administrator, Notices);
         Mount(administrator);
         Filter(administrator).SelectedItem = "디자인팀";
         Check(Field<Button>(administrator, "btnNewNoticePreview").Visible, "Administrator can author notices");
@@ -303,3 +303,26 @@ internal static class Program
     }
 }
 
+
+// Test-only storage; production controls always use HttpNoticeService by default.
+internal sealed class TestNoticeService(List<Notice> store) : INoticeService
+{
+    private int nextId = 100;
+    public Task<IReadOnlyList<Notice>> GetNoticesAsync(CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<Notice>>(store.ToArray());
+    public Task<Notice> GetNoticeAsync(int id, CancellationToken ct = default) =>
+        Task.FromResult(store.Single(n => n.Id == id));
+    public Task<Notice> CreateNoticeAsync(CreateNoticeRequest request, CancellationToken ct = default)
+    {
+        var notice = new Notice { Id = ++nextId, AuthorId = 1, Author = "테스트 관리자",
+            Title = request.Title, Content = request.Content, Target = request.Target,
+            IsPinned = request.IsPinned, AttachmentNames = request.AttachmentNames };
+        store.Add(notice);
+        return Task.FromResult(notice);
+    }
+    public Task DeleteNoticeAsync(int id, CancellationToken ct = default)
+    {
+        store.RemoveAll(n => n.Id == id);
+        return Task.CompletedTask;
+    }
+}
