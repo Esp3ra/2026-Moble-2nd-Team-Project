@@ -1,5 +1,11 @@
 # 2번 담당 — 현재 상태와 작업 안내
 
+게시 상태: [코드 PR #15](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/15) · [LOG PR #16](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/16) 생성 완료. 포크 alpha/LOG → 원본 alpha/LOG 검토 대기이며 원본 병합·공유 적용은 미완료다.
+
+## 1번에서 전달한 W1 공통 지원 구현 — 2026-10-17
+
+[1번 전달 요약](2026-10-17_1번_쓰기공통지원_구현전달.md)·[대표 규약/검증](../1번/2026-10-17_W1_공통쓰기지원_구현_및_2번전달.md)에서사용법과코드49e5cc4를확인합니다. 공통지원은포크구현·격리검증완료/코드PR검토 대기(PR 생성 완료)이며아래2번작성의기존미구현/대기표는당시원문입니다. 2번제품쓰기/새문맥DTO·UI연결및3번W3는별도완료대상입니다.
+
 2번 담당인 **업무·상태·마감 관리**의 현재 상태를 이 문서에서 확인합니다. 정리일: **2026-10-17**.
 
 [전체 LOG](../README.md) · [모든 작업 기록](기록목록.md) · [alpha 코드](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/alpha) · [DOCX 구현계획](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/DOCX/DOCX/2번_업무_상태_마감_구현계획.md)

@@ -1,5 +1,11 @@
 # 1번 — 공통 서버·DB·인증·사용자·통신·통합
 
+게시 상태: [코드 PR #15](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/15) · [LOG PR #16](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/16) 생성 완료. 포크 alpha/LOG → 원본 alpha/LOG 검토 대기이며 원본 병합·공유 적용은 미완료다.
+
+## 1번 W1 공통 지원 구현·2번 전달 — 2026-10-17
+
+[대표 회신](2026-10-17_W1_공통쓰기지원_구현_및_2번전달.md)에 실제후보/문맥/요청키·결과/직원guard와검증을연결했습니다. 새코드49e5cc4·원본f486758결합, MySQL161통과·실제C#HTTP12포함, 현재코드/문서검토 대기(PR 생성 완료)입니다. 기존미구현/PR7미병합표현은당시기록이며이번1번지원과원본병합·2번제품쓰기완료는구분합니다.
+
 ## 4번 후속 전달 — 2026-10-17
 
 코드 #7 head [`d58064c`](https://github.com/zx234x/jang1/commit/d58064ccd30e7e718f94d5e5556d0f19c6afd88c)에 최신 alpha 결합·N4 수용·예약003 SQL/검증을 반영했다. 원본 미병합·새 코드/SQL 재검토 대기다. [대표 협의 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/1번/2026-10-17_4번_공지DB_등록_협의요청.md)에서 수신 상태를, [이번 검증/1번 확인 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/4번/2026-10-17_PR7_1번회신반영_003DDL_검증.md)에서 실제 결과와 미합의·미실행을 확인한다. 아래 내용은 이전 시점의 원문이다.
