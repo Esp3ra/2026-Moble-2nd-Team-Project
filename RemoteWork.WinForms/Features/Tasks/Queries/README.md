@@ -31,3 +31,5 @@
 - 서버 `tests/test_task_queries.py`: 인증 사용자·업무별 지정 관리자·현재 배정·상세 직접 접근과 실제 DB 조회.
 
 격리 DB에 주입한 데이터는 테스트 fixture이다. 실제 SQL/HTTP 검증과 공유 DB·기존 운영 업무·두 PC·웹 연결을 구분한다. 초기 미연결 감사는 [이전 LOG 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/2026-10-16_업무목록_상세_조회연결_준비.md)에 보존한다.
+
+타 담당이 이 경계나 업무 화면을 수정할 때는 [2번 영역 수정 협업 규약](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/2026-10-17_2번_영역수정_협업규약.md)을 참고한다. Tasks 폴더 안에도 검토·협업의 공동 접점이 있으므로 변경 동작별 담당과 계약을 확인하고, PR에 파일·계약 영향·실행/미실행 검증을 남긴다.
