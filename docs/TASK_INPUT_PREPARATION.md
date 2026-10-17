@@ -1,6 +1,6 @@
 # 2번 업무 등록·수락·마감 입력 준비
 
-최신화: 2026-10-17 · 로컬 입력/대상 확인 구현 · 서버 저장 규약은 합의 필요
+최신화: 2026-10-17 · 로컬 입력/대상 확인·불변 확인값 구현 · 서버 저장 규약은 합의 필요
 
 1번이 수용한 [기존 조회 계약](TASK_QUERIES.md)을 유지하며, 조회 성공한 업무를 등록·수정 입력 준비, 수락 대상 확인, 마감 연장 입력 준비에 연결한다. 이 화면의 입력 확인은 등록·수정·수락·접수나 실제 마감 변경이 아니다. HTTP 쓰기·DB 저장·상태 변경은 연결하지 않는다.
 
@@ -19,6 +19,19 @@
 
 수락 대상 확인 창에는 닫기만 제공한다. 화면에서 상태를 변경하거나 수락 가능 여부를 서버 판단처럼 확정하지 않는다. 관리자 본인 업무도 같은 방식으로 대상을 확인한다.
 
+## 확인된 로컬 입력값
+
+`Preparation/TaskInputDrafts.cs`의 불변 record는 입력 확인 성공 시점의 값을 보관한다. 서버 요청 DTO·DB 모델·배정/버전 계약이 아니며 HTTP 직렬화나 저장에 사용하지 않는다.
+
+| 폼의 CheckedInput | 보관하는 값 |
+|---|---|
+| TaskEditForm | TaskBasicInputDraft: 원본 TaskId(새 등록은 null), 제목·내용 원문, 시작일·마감일 DateOnly |
+| DeadlineExtensionForm | DeadlineExtensionInputDraft: 원본 TaskId·현재 마감일, 희망 마감일 DateOnly·사유 원문 |
+
+확인 전·검사 실패 후에는 null이다. 입력 변경 시 이전 확인값을 무효화하고, 값을 읽을 때도 현재 입력·원본 문맥과 대조한다. DateTimePicker의 Checked를 코드로 바꿔 변경 이벤트가 발생하지 않는 경우에도 이전 확인값을 반환하지 않는다. 다시 값을 확인하려면 입력 확인을 명시적으로 눌러야 한다. 이전 record를 이미 읽은 호출자의 값은 불변이므로 변하지 않으며 저장 권한이나 최신 서버 상태를 보장하지 않는다. 제목·내용·사유의 공백을 임의로 잘라내지 않는다.
+
+확인 후에도 모달을 성공 결과로 닫거나 업무 상태를 바꾸지 않는다. 사용자 ID·배정 차수·수정번호·idempotency key는 합의 전 추측해서 추가하지 않는다.
+
 ## 선택 문맥과 날짜 보존
 
 TasksControl은 현재 행의 상세 조회가 성공하고 ID가 일치할 때만 수정·수락·연장 대상 버튼을 활성화한다. 선택/범위/상태 변경·새 조회·로딩·상세 실패·인증 실패·취소·빈 목록·종료에서 이전 상세 캐시를 지운다. 늦게 도착한 응답은 새 선택의 준비 문맥이 될 수 없다. 모달 입력은 불변 TaskDetail을 복사해 표시하며 원래 업무를 수정하지 않는다.
@@ -36,4 +49,4 @@ DateOnly의 범위는 WinForms DateTimePicker보다 넓다. 조회 날짜가 Pic
 
 ## 검증
 
-[TaskQueries.Tests](../Tests/TaskQueries.Tests/README.md)에서 실제 WinForms 메시지 루프로 입력 형식·미전송 표시·선택 문맥 수명·대상별 실제 모달 연결을 검증한다. 기존 조회·HTTP 회귀와 [격리 HTTP 실행기](../Tests/TaskQueries.Http.Tests/README.md)를 함께 확인하되, 로컬 입력 검사를 실제 쓰기 API/DB 검증으로 표시하지 않는다. 실행한 결과와 미실행 범위는 [LOG/2번](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG/2번)에 기록한다.
+[TaskQueries.Tests](../Tests/TaskQueries.Tests/README.md)에서 실제 WinForms 메시지 루프로 입력 형식·미전송 표시·확인값 보존/무효화·선택 문맥 수명·대상별 실제 모달 연결을 검증한다. [격리 HTTP 실행기](../Tests/TaskQueries.Http.Tests/README.md)는 실제 조회 업무에서 준비 창을 열어 원본 ID/날짜와 로컬 확인값을 대조하고 업무·배정·관리자 행 및 감사 이력이 변경되지 않았는지 확인한다. 로컬 입력 검사를 실제 쓰기 API/DB 검증으로 표시하지 않는다. 실행한 결과와 미실행 범위는 [LOG/2번](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG/2번)에 기록한다.

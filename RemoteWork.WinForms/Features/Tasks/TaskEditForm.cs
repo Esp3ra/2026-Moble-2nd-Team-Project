@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using RemoteWork.WinForms.Features.Tasks.Preparation;
 using RemoteWork.WinForms.Features.Tasks.Queries;
 using RemoteWork.WinForms.Ui;
 
@@ -11,6 +12,27 @@ namespace RemoteWork.WinForms.Features.Tasks
         private readonly TaskDetail? sourceDetail;
         private bool initializing = true;
         private bool datesSupported = true;
+        private TaskBasicInputDraft? checkedInput;
+
+        // A local snapshot of the last successful input check; it does not authorize a write.
+        public TaskBasicInputDraft? CheckedInput
+        {
+            get
+            {
+                // Programmatic checkbox changes may not raise ValueChanged.
+                if (checkedInput is not null
+                    && (!datesSupported || (editing && sourceDetail is null)
+                        || !dtpStartDate.Checked || !dtpDeadline.Checked
+                        || checkedInput.TaskId != sourceDetail?.Summary.TaskId
+                        || checkedInput.Title != txtTaskTitle.Text
+                        || checkedInput.Description != txtTaskDescription.Text
+                        || checkedInput.StartDate != DateOnly.FromDateTime(dtpStartDate.Value)
+                        || checkedInput.DueDate != DateOnly.FromDateTime(dtpDeadline.Value)))
+                    checkedInput = null;
+                return checkedInput;
+            }
+            private set => checkedInput = value;
+        }
 
         public TaskEditForm() : this(false) { }
 
@@ -71,6 +93,7 @@ namespace RemoteWork.WinForms.Features.Tasks
 
         private void InputChanged(object? sender, EventArgs e)
         {
+            CheckedInput = null;
             if (initializing) return;
             inputErrors.Clear();
             ResetPreparationStatus();
@@ -89,8 +112,9 @@ namespace RemoteWork.WinForms.Features.Tasks
 
         private void ConfirmInput_Click(object? sender, EventArgs e)
         {
+            CheckedInput = null;
             inputErrors.Clear();
-            if (!btnConfirm.Enabled) return;
+            if (!btnConfirm.Enabled || (editing && sourceDetail is null) || !datesSupported) return;
             Control? firstInvalid = null;
             void Reject(Control control, string message)
             {
@@ -116,6 +140,12 @@ namespace RemoteWork.WinForms.Features.Tasks
                 return;
             }
 
+            CheckedInput = new TaskBasicInputDraft(
+                sourceDetail?.Summary.TaskId,
+                txtTaskTitle.Text,
+                txtTaskDescription.Text,
+                DateOnly.FromDateTime(dtpStartDate.Value),
+                DateOnly.FromDateTime(dtpDeadline.Value));
             lblPreparationStatus.ForeColor = Color.FromArgb(30, 42, 61);
             lblPreparationStatus.Text = "입력 형식 확인 · 저장·전송 안 됨\r\n담당자 조회·배정 및 업무 저장 규약을 연결한 뒤 서버에서 다시 검증해야 합니다.";
         }

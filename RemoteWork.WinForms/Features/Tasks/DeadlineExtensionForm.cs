@@ -1,4 +1,5 @@
 using System.Globalization;
+using RemoteWork.WinForms.Features.Tasks.Preparation;
 using RemoteWork.WinForms.Features.Tasks.Queries;
 using RemoteWork.WinForms.Ui;
 
@@ -8,6 +9,25 @@ namespace RemoteWork.WinForms.Features.Tasks
     {
         private readonly TaskDetail? sourceDetail;
         private bool initializing = true;
+        private DeadlineExtensionInputDraft? checkedInput;
+
+        // A local snapshot of the last successful input check; eligibility is still unconfirmed.
+        public DeadlineExtensionInputDraft? CheckedInput
+        {
+            get
+            {
+                // Programmatic checkbox changes may not raise ValueChanged.
+                if (checkedInput is not null
+                    && (sourceDetail is null || !dtpRequestedDeadline.Checked
+                        || checkedInput.TaskId != sourceDetail.Summary.TaskId
+                        || checkedInput.OriginalDueDate != sourceDetail.Summary.DueDate
+                        || checkedInput.RequestedDueDate != DateOnly.FromDateTime(dtpRequestedDeadline.Value)
+                        || checkedInput.Reason != txtExtensionReason.Text))
+                    checkedInput = null;
+                return checkedInput;
+            }
+            private set => checkedInput = value;
+        }
 
         public DeadlineExtensionForm() : this(PreviewRole.Employee) { }
 
@@ -37,6 +57,7 @@ namespace RemoteWork.WinForms.Features.Tasks
 
         private void InputChanged(object? sender, EventArgs e)
         {
+            CheckedInput = null;
             if (initializing) return;
             inputErrors.Clear();
             ResetPreparationStatus();
@@ -61,6 +82,7 @@ namespace RemoteWork.WinForms.Features.Tasks
 
         private void ConfirmInput_Click(object? sender, EventArgs e)
         {
+            CheckedInput = null;
             inputErrors.Clear();
             if (sourceDetail is null) return;
             Control? firstInvalid = null;
@@ -82,6 +104,11 @@ namespace RemoteWork.WinForms.Features.Tasks
                 return;
             }
 
+            CheckedInput = new DeadlineExtensionInputDraft(
+                sourceDetail.Summary.TaskId,
+                sourceDetail.Summary.DueDate,
+                DateOnly.FromDateTime(dtpRequestedDeadline.Value),
+                txtExtensionReason.Text);
             lblPreparationStatus.ForeColor = Color.FromArgb(30, 42, 61);
             lblPreparationStatus.Text = "입력 확인 · 접수·마감 변경 안 됨\r\n날짜·업무 상태별 신청 자격은 합의된 서버 규약으로 다시 검증해야 합니다.";
         }

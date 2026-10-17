@@ -18,6 +18,7 @@ internal static partial class Program
         var status = Field<Label>(form, "lblPreparationStatus");
         Need(title.Text == "" && description.Text == "" && !start.Checked && !due.Checked,
             "registration starts without fabricated task values or chosen dates");
+        Need(form.CheckedInput is null, "unchecked registration has no reusable input snapshot");
         Need(!Field<ComboBox>(form, "cmbAssignee").Enabled
             && Field<TextBox>(form, "txtAttachments").Text.Contains("연결 규약 확인 필요"),
             "unagreed assignee lookup and attachments are not fabricated");
@@ -25,6 +26,7 @@ internal static partial class Program
         check.PerformClick();
         Need(errors.GetError(title).Length > 0 && !form.IsDisposed,
             "blank title is rejected without closing the draft");
+        Need(form.CheckedInput is null, "failed input check does not expose a draft");
         title.Text = new string('가', 201);
         check.PerformClick();
         Need(errors.GetError(title).Length > 0, "title beyond the current 200-character storage limit is rejected locally");
@@ -45,9 +47,21 @@ internal static partial class Program
             "valid basic input leaves the unsaved form open");
         Need(status.Text.Contains("전송") && status.Text.Contains("저장"),
             "local input check explains the unconnected persistence boundary");
+        var checkedRegistration = form.CheckedInput;
+        Need(checkedRegistration is not null && checkedRegistration.TaskId is null
+            && checkedRegistration.Title == title.Text && checkedRegistration.Description == description.Text
+            && checkedRegistration.StartDate == new DateOnly(2026, 10, 20)
+            && checkedRegistration.DueDate == new DateOnly(2026, 10, 20),
+            "valid registration exposes only exact local values without inventing a task ID");
         var completedMessage = status.Text;
         title.Text += " 수정";
         Need(status.Text != completedMessage, "editing a checked draft invalidates its previous check message");
+        Need(form.CheckedInput is null && checkedRegistration!.Title == "등록 입력 초안",
+            "changing input invalidates the current draft and cannot mutate an earlier snapshot");
+        check.PerformClick();
+        start.Checked = false;
+        Need(form.CheckedInput is null, "unchecking a required date invalidates the captured input");
+        start.Checked = true;
         // A MySQL VARCHAR character is not the same as a UTF-16 code unit.
         title.Text = string.Concat(Enumerable.Repeat("😀", 200));
         check.PerformClick();
@@ -55,6 +69,7 @@ internal static partial class Program
         title.Text += "😀";
         check.PerformClick();
         Need(errors.GetError(title).Length > 0, "201 Unicode code points exceed the local title limit");
+        Need(form.CheckedInput is null, "rejected long title cannot reuse an earlier checked snapshot");
         Capture(form, "Registration-Input-Validation");
         form.Size = form.MinimumSize;
         Application.DoEvents();
@@ -74,6 +89,9 @@ internal static partial class Program
             "selected assignee display and exact DATE populate the edit draft");
         Field<TextBox>(editing, "txtTaskTitle").Text = "로컬에서만 바꾼 제목";
         Field<Button>(editing, "btnConfirm").PerformClick();
+        Need(editing.CheckedInput?.TaskId == original.Summary.TaskId
+            && editing.CheckedInput.Description == original.Description,
+            "edit snapshot retains the opaque source ID and exact source description");
         Need(original.Summary.Title == Fixtures[2].Summary.Title && original.Description == Fixtures[2].Description,
             "local editing never mutates the immutable queried task");
         Capture(editing, "Selected-Task-Edit-Draft");
@@ -86,6 +104,7 @@ internal static partial class Program
             && Field<DateTimePicker>(unsupported, "dtpStartDate").CustomFormat?.Contains("1000-01-01") == true
             && Field<DateTimePicker>(unsupported, "dtpDeadline").CustomFormat?.Contains("9999-12-31") == true,
             "valid server dates outside picker support are preserved visibly without clamping");
+        Need(unsupported.CheckedInput is null, "unsupported source dates never become a checked edit draft");
         Capture(unsupported, "Date-Picker-Outside-Range");
     }
 
@@ -95,6 +114,7 @@ internal static partial class Program
         Need(!Field<Button>(unconfigured, "btnConfirm").Enabled
             && !Field<TextBox>(unconfigured, "txtTaskSummary").Text.Contains("TASK-001"),
             "extension without a selected task has no example target or enabled confirmation");
+        Need(unconfigured.CheckedInput is null, "extension without a source task exposes no local snapshot");
         TaskDetail original = Fixtures[3];
         using var form = new DeadlineExtensionForm(PreviewRole.Administrator, original);
         ShowPreparation(form);
@@ -113,16 +133,28 @@ internal static partial class Program
         reason.Text = "   ";
         Field<Button>(form, "btnConfirm").PerformClick();
         Need(errors.GetError(reason).Length > 0, "whitespace extension reason is rejected");
-        reason.Text = "마감 연장 입력 형식만 점검합니다.";
+        reason.Text = "  마감 연장 입력 형식만 점검합니다.  ";
         Field<Button>(form, "btnConfirm").PerformClick();
         Need(errors.GetError(reason) == "" && errors.GetError(date) == ""
             && !form.IsDisposed && form.DialogResult != DialogResult.OK,
             "input check does not invent date/state eligibility or accept a request");
         Need(status.Text.Contains("접수") && original.Summary.DueDate == Fixtures[3].Summary.DueDate,
             "local extension preview leaves the actual deadline unchanged");
+        var checkedExtension = form.CheckedInput;
+        Need(checkedExtension is not null && checkedExtension.TaskId == original.Summary.TaskId
+            && checkedExtension.OriginalDueDate == original.Summary.DueDate
+            && checkedExtension.RequestedDueDate == original.Summary.DueDate
+            && checkedExtension.Reason == reason.Text,
+            "extension snapshot preserves the source deadline and verbatim reason without setting eligibility");
         var oldMessage = status.Text;
         reason.Text += " 변경";
         Need(status.Text != oldMessage, "changed extension input invalidates its previous check");
+        Need(form.CheckedInput is null && checkedExtension!.Reason.EndsWith("  ", StringComparison.Ordinal),
+            "extension invalidation leaves the earlier immutable snapshot unchanged");
+        Field<Button>(form, "btnConfirm").PerformClick();
+        date.Checked = false;
+        Need(form.CheckedInput is null, "unchecking an extension date invalidates its snapshot");
+        date.Checked = true;
         Capture(form, "Deadline-Input-Preparation");
         form.Size = form.MinimumSize;
         Application.DoEvents();
