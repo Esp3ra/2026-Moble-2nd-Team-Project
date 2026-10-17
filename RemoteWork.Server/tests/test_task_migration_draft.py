@@ -20,7 +20,7 @@ from werkzeug.security import generate_password_hash
 
 from remotework import create_app
 from remotework.auth import token_digest
-from remotework.features.tasks.models import TaskAssignment, TaskManager, TaskRecord
+from remotework.features.tasks.models import TASK_STATUSES, TaskAssignment, TaskManager, TaskRecord
 from remotework.models import (
     AdminGuard, AuditEvent, AuthSession, Base, LoginFailure, ResourceGrant, SchemaVersion, User, utcnow,
 )
@@ -193,9 +193,13 @@ def _normal_check(expression):
 
 
 def test_check_normalization_preserves_status_codes_and_detects_different_values():
-    expected = "task_status IN ('not_started','in_progress','submitted','approved','returned')"
-    reflected = "(`task_status` in (_utf8mb4'not_started',_utf8mb4'in_progress',_utf8mb4'submitted'," \
-                "_utf8mb4'approved',_utf8mb4'returned'))"
+    expected = "task_status IN ('not_started','in_progress','submitted','approved','returned') " \
+               "AND HEX(task_status) IN (HEX('not_started'),HEX('in_progress')," \
+               "HEX('submitted'),HEX('approved'),HEX('returned'))"
+    reflected = "((`task_status` in (_utf8mb4'not_started',_utf8mb4'in_progress',_utf8mb4'submitted'," \
+                "_utf8mb4'approved',_utf8mb4'returned')) and (hex(`task_status`) in " \
+                "(hex(_utf8mb4'not_started'),hex(_utf8mb4'in_progress'),hex(_utf8mb4'submitted')," \
+                "hex(_utf8mb4'approved'),hex(_utf8mb4'returned'))))"
     assert _normal_check(expected) == _normal_check(reflected)
     assert "not_started" in _normal_check(reflected)
     assert "in_progress" in _normal_check(reflected)
@@ -266,6 +270,93 @@ def _insert_task(connection, values):
     columns = list(values)
     connection.execute(text("INSERT INTO tasks (" + ",".join(columns) + ") VALUES ("
                             + ",".join(":" + column for column in columns) + ")"), values)
+
+
+@pytest.fixture(params=("sqlite_orm", "mysql_orm", "mysql_raw"))
+def status_constraint_db(request, tmp_path, fixture_password_hash):
+    """Exercise the actual ORM schema on both DBs and the MySQL SQL file separately."""
+    if request.param == "sqlite_orm":
+        engine = create_engine("sqlite:///" + (tmp_path / "status-check.db").as_posix(),
+                               hide_parameters=True)
+    else:
+        create_owned = request.getfixturevalue("owned_databases")
+        engine = create_owned(request.param)
+    try:
+        _seed_common(engine, fixture_password_hash)
+        before = _common_snapshot(engine)
+        if request.param == "mysql_raw":
+            _apply_draft(engine)
+        else:
+            Base.metadata.create_all(engine, tables=TASK_TABLES)
+        yield engine, request.param, before
+    finally:
+        if request.param == "sqlite_orm":
+            engine.dispose()
+
+
+def _write_task_status(engine, schema_source, task_id, status, *, inserting):
+    if schema_source == "mysql_raw":
+        with engine.begin() as connection:
+            if inserting:
+                _insert_task(connection, _task_values(task_id=task_id, task_status=status))
+            else:
+                connection.execute(text("UPDATE tasks SET task_status=:status WHERE task_id=:id"),
+                                   {"id": task_id, "status": status})
+    else:
+        with Session(engine) as db, db.begin():
+            if inserting:
+                db.add(TaskRecord(**_task_values(task_id=task_id, task_status=status)))
+            else:
+                db.get(TaskRecord, task_id).task_status = status
+            db.flush()  # Exercise the actual DB constraint, not a Python validator.
+
+
+def test_status_constraint_accepts_only_exact_codes_on_insert_and_update(status_constraint_db):
+    engine, source, common_before = status_constraint_db
+    canonical = ("not_started", "in_progress", "submitted", "approved", "returned")
+    assert TASK_STATUSES == canonical
+    with engine.connect() as connection:
+        if engine.dialect.name == "mysql":
+            collation = connection.exec_driver_sql(
+                "SELECT COLLATION_NAME FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='tasks' "
+                "AND COLUMN_NAME='task_status'").scalar_one()
+            assert collation == "utf8mb4_unicode_ci"
+            # Establish the case/trailing-space hazard in this actual column collation.
+            assert connection.exec_driver_sql(
+                "SELECT _utf8mb4'APPROVED' COLLATE utf8mb4_unicode_ci = _utf8mb4'approved', "
+                "_utf8mb4'approved ' COLLATE utf8mb4_unicode_ci = _utf8mb4'approved'").one() == (1, 1)
+
+    for index, status in enumerate(canonical):
+        _write_task_status(engine, source, 1000 + index, status, inserting=True)
+        _write_task_status(engine, source, 1000, status, inserting=False)
+        with engine.connect() as connection:
+            assert connection.execute(text("SELECT task_status FROM tasks WHERE task_id=:id"),
+                                      {"id": 1000 + index}).scalar_one() == status
+            assert connection.exec_driver_sql(
+                "SELECT task_status FROM tasks WHERE task_id=1000").scalar_one() == status
+
+    malformed = [variant for status in canonical for variant in (
+        status.upper(), status[0].upper() + status[1:], status + " ", " " + status,
+        status + "\t", status + "\0")]
+    malformed += ["", "unknown_status", "approvéd", "ａｐｐｒｏｖｅｄ"]
+    if engine.dialect.name == "sqlite":
+        # HEX alone would accept these same bytes as BLOB, unlike the original TEXT IN check.
+        malformed += [factory(status.encode("ascii")) for status in canonical
+                      for factory in (bytes, bytearray, memoryview)]
+    for status in malformed:
+        for inserting in (True, False):
+            with pytest.raises(DBAPIError) as caught:
+                _write_task_status(engine, source, 2000 if inserting else 1000, status,
+                                   inserting=inserting)
+            assert "ck_tasks_draft_status" in str(caught.value.orig)
+            if engine.dialect.name == "mysql":
+                assert caught.value.orig.args[0] == 3819
+            with engine.connect() as connection:
+                assert connection.exec_driver_sql("SELECT COUNT(*) FROM tasks").scalar_one() == 5
+                assert connection.exec_driver_sql(
+                    "SELECT task_status FROM tasks WHERE task_id=1000").scalar_one() == "returned"
+    assert _common_snapshot(engine) == common_before
 
 
 @pytest.mark.parametrize("changes", [

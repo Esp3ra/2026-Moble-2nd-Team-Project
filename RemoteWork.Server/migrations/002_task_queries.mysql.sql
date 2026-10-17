@@ -17,7 +17,8 @@ CREATE TABLE tasks (
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
     PRIMARY KEY (task_id),
-    CONSTRAINT ck_tasks_draft_status CHECK (task_status IN ('not_started','in_progress','submitted','approved','returned')),
+    CONSTRAINT ck_tasks_draft_status CHECK (task_status IN ('not_started','in_progress','submitted','approved','returned')
+        AND HEX(task_status) IN (HEX('not_started'),HEX('in_progress'),HEX('submitted'),HEX('approved'),HEX('returned'))),
     CONSTRAINT ck_tasks_assignment_revision CHECK (current_assignment_revision > 0),
     CONSTRAINT ck_tasks_row_version CHECK (row_version > 0),
     CONSTRAINT ck_tasks_dates CHECK (due_date >= start_date),

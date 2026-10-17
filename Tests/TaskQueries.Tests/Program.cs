@@ -7,7 +7,7 @@ using RemoteWork.WinForms.Features.Tasks.Queries.TestDoubles;
 using RemoteWork.WinForms.Shell;
 using RemoteWork.WinForms.Ui;
 
-internal static class Program
+internal static partial class Program
 {
     private static int assertions;
     private static readonly List<string> completed = new();
@@ -60,6 +60,9 @@ internal static class Program
             Run("same-query refresh preserves selection and changed views reset it", RefreshSelection);
             Run("failed selected detail retries without reloading the list", RetrySelectedDetail);
             Run("service cancellation is distinct and clears previous session data", ServiceCancellation);
+            Run("registration and selected-task drafts validate locally", RegistrationPreparation);
+            Run("deadline inputs and acceptance target do not mutate tasks", DeadlineAndAcceptancePreparation);
+            Run("preparation dialogs use only the latest successful selected detail", PreparationContextLifetime);
             Console.WriteLine($"PASS: {assertions} assertions; {completed.Count} scenarios. Test doubles only; HTTP, authentication, server authorization and DB were not exercised.");
             return 0;
         }

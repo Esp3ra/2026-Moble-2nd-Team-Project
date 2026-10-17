@@ -384,6 +384,7 @@ internal static class Program
             Until(() => queryStatus.Text == "상세 조회 완료");
             Check(grid.Rows.Count == own.Count, "live all filter restores full list");
             CheckLiveRows(grid, own, "live all filter restores exact authorized set");
+            CheckLivePreparation(page, (TaskSummary)grid.CurrentRow!.Tag!, management: false);
             if (identity.User.Role == "admin")
             {
                 Field<ComboBox>(page, "cmbTaskScope").SelectedIndex = 1;
@@ -401,6 +402,7 @@ internal static class Program
                 filter.SelectedIndex = 0;
                 Until(() => queryStatus.Text == "상세 조회 완료");
                 CheckLiveRows(grid, managed!, "live managed all filter restores exact designated set");
+                CheckLivePreparation(page, (TaskSummary)grid.CurrentRow!.Tag!, management: true);
             }
             Check(Field<DataGridView>(page, "gridTaskAttachments").Rows.Count == 0,
                 "member 3 attachments remain unconnected");
@@ -431,6 +433,83 @@ internal static class Program
             "isolated fixture expected IDs are valid and unique");
         Check(tasks.Select(task => task.TaskId).SequenceEqual(expected!),
             "live response matches the fixture's exact authorized IDs and order");
+    }
+
+    private static void CheckLivePreparation(TasksControl page, TaskSummary expected, bool management)
+    {
+        if (!management)
+        {
+            WithLiveDialog<TaskAcceptanceForm>(() => Field<Button>(page, "btnAcceptTask").PerformClick(), form =>
+            {
+                Check(Field<TextBox>(form, "txtTaskId").Text == expected.TaskId,
+                    "real HTTP selected task reaches the acceptance target");
+                Check(Field<TextBox>(form, "txtTaskId").ReadOnly
+                    && Field<TextBox>(form, "txtTaskStatus").ReadOnly,
+                    "acceptance preparation is read-only");
+            });
+            WithLiveDialog<DeadlineExtensionForm>(() => Field<Button>(page, "btnDeadlineExtensionPreview").PerformClick(), form =>
+            {
+                Check(Field<TextBox>(form, "txtTaskSummary").Text.Contains(expected.TaskId)
+                    && Field<TextBox>(form, "txtCurrentDeadline").Text == expected.DueDate.ToString("yyyy-MM-dd"),
+                    "real HTTP selected task and DATE reach the extension input");
+                var desired = Field<DateTimePicker>(form, "dtpRequestedDeadline");
+                desired.Value = expected.DueDate.ToDateTime(TimeOnly.MinValue);
+                desired.Checked = true;
+                var reason = Field<TextBox>(form, "txtExtensionReason");
+                reason.Text = "  Local-only live fixture input  ";
+                Field<Button>(form, "btnConfirm").PerformClick();
+                Check(form.CheckedInput is { } draft && draft.TaskId == expected.TaskId
+                    && draft.OriginalDueDate == expected.DueDate && draft.RequestedDueDate == expected.DueDate
+                    && draft.Reason == reason.Text && form.DialogResult != DialogResult.OK,
+                    "live extension captures exact local values without accepting a request");
+                reason.Text += "changed";
+                Check(form.CheckedInput is null, "live changed extension invalidates checked input");
+            });
+            return;
+        }
+        WithLiveDialog<TaskEditForm>(() => Field<Button>(page, "btnEditTaskPreview").PerformClick(), form =>
+        {
+            Check(Field<TextBox>(form, "txtTaskTitle").Text == expected.Title,
+                "real HTTP managed task reaches its edit input");
+            Field<Button>(form, "btnConfirm").PerformClick();
+            Check(form.CheckedInput is { } draft && draft.TaskId == expected.TaskId
+                && draft.StartDate == expected.StartDate && draft.DueDate == expected.DueDate
+                && form.DialogResult != DialogResult.OK,
+                "live edit captures the exact local source identity and DATE values");
+        });
+        WithLiveDialog<TaskEditForm>(() => Field<Button>(page, "btnNewTaskPreview").PerformClick(), form =>
+        {
+            Field<TextBox>(form, "txtTaskTitle").Text = "Local-only registration fixture";
+            var start = Field<DateTimePicker>(form, "dtpStartDate");
+            var due = Field<DateTimePicker>(form, "dtpDeadline");
+            start.Value = expected.StartDate.ToDateTime(TimeOnly.MinValue);
+            due.Value = expected.DueDate.ToDateTime(TimeOnly.MinValue);
+            start.Checked = due.Checked = true;
+            Field<Button>(form, "btnConfirm").PerformClick();
+            Check(form.CheckedInput is { TaskId: null } && form.DialogResult != DialogResult.OK,
+                "live registration remains a local draft with no invented persistent identity");
+        });
+    }
+
+    private static void WithLiveDialog<T>(Action open, Action<T> inspect) where T : Form
+    {
+        bool found = false;
+        Exception? failure = null;
+        using var timer = new System.Windows.Forms.Timer { Interval = 15 };
+        timer.Tick += (_, _) =>
+        {
+            if (Application.OpenForms.OfType<T>().FirstOrDefault() is not { } dialog) return;
+            timer.Stop();
+            found = true;
+            try { inspect(dialog); }
+            catch (Exception error) { failure = error; }
+            finally { dialog.Close(); }
+        };
+        timer.Start();
+        open();
+        timer.Stop();
+        if (failure is not null) throw failure;
+        Check(found, "the expected preparation dialog opens from the real HTTP task screen");
     }
 
     private static void CheckLiveRows(DataGridView grid, IEnumerable<TaskSummary> expected, string message) =>

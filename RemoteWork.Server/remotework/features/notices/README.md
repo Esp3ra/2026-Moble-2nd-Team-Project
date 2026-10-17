@@ -1,6 +1,35 @@
 # 공지 DB 연결 (4번 로컬 구현)
 
-## PR #7 R1·R2 수정 보고 — 2026-10-17
+## 현재 — 1번 N4 회신 반영·003 DDL 검토안, 2026-10-17
+
+기준 원본 alpha `c56f3c87e446adb30309c46287cd7c4aa3cff273`과 기존 공지 head `c7282d1e9e332daf3996aeb00f9a1b20c6ad2e61`을 결합했다. 원본의 업무 입력 준비·정확한 상태 CHECK·002 SQL·공통 로그인/인증/DB 코드를 보존하고 README의 양쪽 내용을 합쳤다.
+
+[병합된 PR #12의 1번 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/1번/2026-10-17_공지DB_API_DDL_협의회신.md)에서 N4-01~04·07·10의 공통 재사용·signed INTEGER/C# int `1..2147483647`·범위 밖/미존재404·현재 API/DTO·직원 전체 부서 조회·관리자 쓰기·독립 opt-in을 수용했다. 이 항목은 회신 대기가 아니다. R1/R2는 이전 검토자가 해결을 확인했으며 이번 결합본의 작성자 회귀와 새 DDL은 별도 재검토 대상이다.
+
+예약된 `003_notices.mysql.sql`과 검증·복구안을 추가했다. 실제 SQL로 새 notices 테이블을 만들고 ORM 타입/NULL/default/index/FK, 기존 공통/업무 데이터·버전1 보존, 작성자 비활성 후 snapshot, 재실행/실패, 실제 dump→새DB 복원과 API를 검사한다. **SQL 최종 검토·공통 실제/기대 버전 지원·삭제/보존 정책·공유 적용은 대기**다. version3은002→2가 먼저 승인·적용될 때의 후속안이며 실제version1·기본off를 유지한다. [003 절차](../../../migrations/003_notices.md)를 따른다.
+
+최신 실행 결과·명령·검증 범위는 아래 연결된 공지 안내와 LOG의 4번 후속 검증 기록을 따른다. 팝업/확인 기록·실제 파일 전송·중지된 정렬 조정은 이번 PR에 없다. 아래 과거 회차의 수치/회신 대기 상태는 당시 기록이며 현재 상태로 재사용하지 않는다.
+
+## 이번 결합본 직접 실행 결과 — alpha c56f3c8 기준
+
+Windows / SDK9.0.316·net8.0-windows / 격리 MySQL8.2.0 REPEATABLE-READ. 운영/공유 MySQL·사용자 .env·실제 계정은 사용하지 않았다.
+
+| 실제 실행 | 결과·범위 |
+|---|---|
+| MySQL 전체 `python -m pytest -q` | **112통과**,107.38초. 공통 인증/동시성·공지 R1/R2·업무 조회/실제002·새 실제003·dump/새DB 복원 포함 |
+| 실제 C#→TCP HTTP→raw003 MySQL | **37검증 통과**. notices를 create_all로 만들지 않고 SQL로 생성, 실제 작성 화면/직원 조회/권한/삭제 검사 |
+| 기존 DEMO SQLite 전체 pytest | **83통과/29생략**,97.25초. 생략은 MySQL 전용4+업무DDL14+공지DDL11. 지속 관리 DB는 MySQL이며 SQLite는 기존 DEMO 검사만 수행 |
+| 앱·C# 검증 프로젝트5개 Release | 모두 **경고0/오류0**. 최신 업무 C# 소스 보존, 최종 alpha 추가분은 Python/문서만 변경 |
+| C# 대역/실제 WinForms | ApiClient18시나리오88검증, Collaboration5/85, Notices30, TaskQueries12/140, TaskQueries.Http6/103 |
+| 실제 공지 TCP HTTP→임시 SQLite | **37검증 통과**, 기존 DEMO 실행기 경로 |
+| 최신 업무 실제 TCP HTTP→임시 SQLite | 실행기 **300검사·권한회수11개 포함**, C#직원43/관리자64. 최종 상태 CHECK 모델로 재실행 |
+| 독립 공지/업무 플래그 | 새 프로세스4조합의 모델/경로 등록·기본off 검증 통과 |
+
+서버 전체 결과는 `python -m pytest -q`, 공지 rawDDL만 재현하려면 `python -m pytest -q tests/test_notice_migration_draft.py`와 별도 NOTICE_MIGRATION_TEST_URL/명시적 opt-in을 사용한다. MySQL 전체 실행에는 공통 MYSQL_TEST_URL과 업무DDL의 별도 opt-in도 전용 테스트 서버로 지정했다. SQL 준비·접속 범위는003 절차를 따른다. C#5개는 각 검증 프로젝트의 Release DLL, 기존 DEMO HTTP 실행기는 Tests/Notices.Tests/run_http_check.py 및 Tests/TaskQueries.Http.Tests/run_http_check.py로 실행했다.
+
+MySQL은 새 소유 datadir·임시 loopback포트·합성계정·고유 remote_work_test_ DB만 사용했다. 최신 전체 실행과 raw HTTP가 exit0으로 끝났고 자기 임시 서버 종료/정리를 확인했다. 포함/반복되는 검증 수치를 합산하지 않는다. Flask test_client·실제 TCP·대역·공유 두PC를 구분한다. **공유/운영 DB·공식 migration/version 지원·공유 복구·두PC·웹·장치·수동 전체GUI는 미실행**이다. SQL 검토/공유 적용 승인·원본 병합은 이 결과와 별도다.
+
+## 이전 — PR #7 R1·R2 수정 보고, 2026-10-17
 
 기준 원본 alpha8a652ad와 공지 head7478101을 결합하고 공지 전용 routes.py·회귀만 수정했다. 기존 업무 격리 HTTP 실행기와 공통 인증/DB/관리자 가드는 보존한다.
 
@@ -18,7 +47,7 @@
 새 회귀를 수정 전 코드에 적용했을 때 SQLite의 큰ID500과 MySQL 동시삭제200/200·중복감사 경고를 탐지했다. 수정 후에는 해당 회귀가 통과했으며 검토자 독립 재확인·1번 계약 회신·원본 병합/정식 적용은 별도다. REMOTEWORK_ENABLE_NOTICE_DRAFT/ENABLE_NOTICE_DRAFT의 기본off와 공통version1·업무002 예약을 유지한다.
 
 
-4번 공지 전용 모델·API의 검토용 개발 초안입니다. API/DTO·테이블 구조·배포 migration 번호·정식 활성화는 1번 협의 대상이며 공유 DB에는 적용하지 않았습니다.
+4번 공지 전용 모델·API입니다. 현재 API/DTO·ID·권한·등록 방식은 1번 N4 회신 수용 범위이며, 예약003의 SQL 최종 검토·공통 버전 지원·공유 적용·정식 활성화는 별도 대기입니다. 공유 DB에는 적용하지 않았습니다.
 
 ## 저장과 권한
 
@@ -31,7 +60,7 @@
 
 ## 서버 준비
 
-프로젝트 루트에서 `REMOTEWORK_ENABLE_NOTICE_DRAFT=1`을 명시적으로 설정한 서버만 공지 API/모델을 등록합니다. 기존 업무 플래그와 독립적이며 기본 서버는 공지 모델을 import하지 않습니다. 기존 공통 로그인·DB 설정을 준비한 뒤 아래를 **명시적으로 한 번** 실행합니다. 이 명령은 없는 공지 테이블만 만들고 기존 공지를 삭제하지 않습니다. 기존 열을 자동 이관하는 migration은 아닙니다.
+프로젝트 루트에서 `REMOTEWORK_ENABLE_NOTICE_DRAFT=1`을 명시적으로 설정한 서버만 공지 API/모델을 등록합니다. 기존 업무 플래그와 독립적이며 기본 서버는 공지 모델을 import하지 않습니다. **삭제 가능한 로컬 개발 DB에서만** 기존 공통 로그인·DB 설정을 준비한 뒤 아래를 명시적으로 실행합니다. 공유 DB에서는 이 명령을 정식 migration으로 사용하지 않습니다. 이 명령은 없는 공지 테이블만 만들고 기존 공지를 삭제하지 않습니다. 기존 열을 자동 이관하는 migration은 아닙니다.
 
 ```powershell
 $env:REMOTEWORK_ENABLE_NOTICE_DRAFT = "1"
@@ -39,13 +68,13 @@ Set-Location .\RemoteWork.Server
 & .\.venv\Scripts\python.exe -m flask --app remotework notices init-table
 ```
 
-새 DB에는 기존 공통 `init-db`가 먼저 필요합니다. Blueprint가 등록되어 있으므로 새 DB 초기화 때 공지 모델도 생성됩니다. 앱 시작이나 API 요청에서는 DDL을 실행하지 않습니다. 공통 schema_versions의 1을 임의 변경하지 않았으며 공유 DB migration/버전 정책은 1번과 협의해야 합니다.
+새 DB에는 기존 공통 `init-db`가 먼저 필요합니다. Blueprint가 등록되어 있으므로 새 DB 초기화 때 공지 모델도 생성됩니다. 앱 시작이나 API 요청에서는 DDL을 실행하지 않습니다. 공통 schema_versions의 1을 임의 변경하지 않았으며 003 번호 예약과 현재version1 유지 기준은 1번 회신을 따릅니다. SQL 승인·실제/기대 버전 지원·공유 적용은 [003 검토/복구 절차](../../../migrations/003_notices.md)의 별도 게이트입니다.
 
-수정한 서버와 클라이언트를 모두 다시 실행합니다. `Start-Demo.cmd`는 위 플래그를 지정한 PowerShell에서 실행할 때 별도 SQLite 데모 DB에 공지 테이블을 준비하며 종료 후에도 공지를 보존합니다. MySQL을 사용하려면 기존 `.env.example`/`docs/SETUP.md`에 따라 MySQL·SECRET_KEY를 준비하고 위 명령을 실행합니다. 초기 로컬 구현 환경에는 `.env`가 없어 실제 MySQL에는 적용·검증하지 않았습니다. 공유 적용은 1번 합의·백업·migration 절차를 따른 뒤 진행합니다. 데모 실행은 MySQL 저장 검증을 대신하지 않습니다.
+수정한 서버와 클라이언트를 모두 다시 실행합니다. `Start-Demo.cmd`는 위 플래그를 지정한 PowerShell에서 실행할 때 별도 SQLite 데모 DB에 공지 테이블을 준비하며 종료 후에도 공지를 보존합니다. 실제 구현·지속 관리·주요 검증은 MySQL 기준입니다. 삭제 가능한 로컬 MySQL을 준비하려면 기존 `.env.example`/`docs/SETUP.md`를 따릅니다. SQLite는 기존 DEMO 임시 구성으로 종료 후 삭제 예정이며 별도 운영 DB로 확장하지 않습니다. 초기 회차에는 MySQL 미검증이었으나 이번 격리 검증에서는 실제003 SQL·MySQL·C# HTTP를 별도로 검사했습니다. 사용자 .env·공유 DB는 사용하지 않았습니다. 공유 적용은 1번 합의·백업·migration 절차를 따른 뒤 진행합니다. 데모 실행은 MySQL 저장 검증을 대신하지 않습니다.
 
 테이블이 없으면 `503 NOTICE_SCHEMA_REQUIRED`와 준비 명령을 응답합니다. 공통 테이블·접속 정보가 없거나 연결에 실패하면 공통 DB 오류가 반환됩니다. 메모리 예시나 JSON 파일로 성공을 대체하지 않습니다.
 
-## API 제안
+## 현재 API — 1번 N4-03 수용
 
 공통 Bearer 인증, snake_case, `{ok,data,request_id}` 응답을 사용합니다.
 
@@ -57,7 +86,7 @@ Set-Location .\RemoteWork.Server
 | POST `/api/v1/notices` | 제목·본문·대상·고정·파일명 전달. commit 후 201 `{notice: ...}` |
 | POST `/api/v1/notices/{id}/delete` | 관리자 삭제·감사 이력 저장. `{message: ...}` |
 
-삭제 action 경로는 공통 ApiClient에 임의로 새 메서드를 추가하지 않기 위한 로컬 제안입니다. 부서 ID 테이블이나 공통 인증 규약을 새로 정의하지 않았습니다.
+삭제 action 경로와 응답은 1번 N4-03의 수용 범위입니다. signed INTEGER/C# int 범위는1..2147483647이며 범위 밖/미존재는404 NOTICE_NOT_FOUND, 순차 삭제는첫200/다음404입니다. 부서 ID 테이블이나 공통 인증 규약을 새로 정의하지 않았습니다.
 
 ## 클라이언트 흐름
 
@@ -69,7 +98,7 @@ Set-Location .\RemoteWork.Server
 
 ## 검증
 
-`RemoteWork.Server/tests/test_notices.py`는 별도 테스트 DB에서 저장·앱 재생성 후 유지·모든 부서 조회·관리자 권한·입력 검증·감사 rollback·삭제·페이지·테이블 준비를 검사합니다. `Tests/Notices.Tests`는 C# HTTP 대역·실제 WinForms·선택적 실제 로컬 HTTP/SQLite 연계를 검사합니다. 실제 MySQL·공유 DB·두 PC 연결은 별도 검증 대상입니다.
+`RemoteWork.Server/tests/test_notices.py`는 별도 테스트 DB에서 저장·앱 재생성 후 유지·모든 부서 조회·관리자 권한·입력 검증·감사 rollback·삭제·페이지·테이블 준비를 검사합니다. `Tests/Notices.Tests`는 C# HTTP 대역·실제 WinForms·선택적 실제 로컬 HTTP/SQLite 연계를 검사합니다. 실제 격리 MySQL·raw003은 이번 검증에 포함하며 공유 DB·두 PC는 미검증입니다.
 
 
 ## 최신 alpha 등록 반영과 PR 범위

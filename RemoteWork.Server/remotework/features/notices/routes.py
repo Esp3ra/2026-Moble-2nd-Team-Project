@@ -30,8 +30,7 @@ def require_table():
 
 
 def get_notice(notice_id, *, for_update=False):
-    # Draft defensive boundary matching the current INTEGER model/C# int.
-    # Keep existing missing-ID 404 semantics; final wire range awaits team 1.
+    # N4-02/03 accepted by member 1: signed INTEGER/C# int, missing/out-of-range 404.
     if not 1 <= notice_id <= 2147483647:
         raise AppError(404, "NOTICE_NOT_FOUND", "삭제되었거나 존재하지 않는 공지사항입니다.")
     db = get_db()

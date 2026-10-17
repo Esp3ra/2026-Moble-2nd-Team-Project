@@ -35,7 +35,10 @@ class TaskRecord(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     __table_args__ = (
-        CheckConstraint("task_status IN ('not_started','in_progress','submitted','approved','returned')",
+        # Keep SQLite's TEXT-vs-BLOB distinction and close MySQL's case/PAD SPACE equivalences.
+        CheckConstraint("task_status IN ('not_started','in_progress','submitted','approved','returned') "
+                        "AND HEX(task_status) IN (HEX('not_started'),HEX('in_progress'),"
+                        "HEX('submitted'),HEX('approved'),HEX('returned'))",
                         name="ck_tasks_draft_status"),
         CheckConstraint("current_assignment_revision > 0", name="ck_tasks_assignment_revision"),
         CheckConstraint("row_version > 0", name="ck_tasks_row_version"),

@@ -1,5 +1,11 @@
 # 공지 저장·조회 검증
 
+## 현재 검토 범위 — 2026-10-17
+
+공지 API·ID·권한은 병합된 PR #12의 N4 회신을 반영합니다. 서버의 새 `tests/test_notice_migration_draft.py`는 notices를 ORM으로 생성하지 않고 실제 예약003 SQL로 생성해 타입/FK/default·기존 행/버전·실패·백업/복원을 검사합니다. 접속은 별도 opt-in/전용 URL만 허용합니다. [SQL 검증 절차](../../RemoteWork.Server/migrations/003_notices.md)를 따릅니다.
+
+이 문서의 `run_http_check.py`는 임시 SQLite 실행기입니다. 이번 작성자는 별도 격리 MySQL과 raw003 위에서 같은 C# 검증을 추가 실행했으며 두 경로를 구분해 LOG에 기록합니다. 실제 공유 DB·두PC·SQL 최종 승인·버전 지원·팝업/확인/파일 전송 완료를 뜻하지 않습니다. 이전 수치는 아래 당시 기록으로 보존합니다.
+
 Windows/.NET 8에서 실행합니다. 기본 실행은 명시적 HTTP/서비스 대역과 실제 WinForms 메시지 루프로 동작하며 실제 DB에 연결하지 않습니다.
 
 ```powershell

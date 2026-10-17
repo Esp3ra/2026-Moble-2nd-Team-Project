@@ -1,6 +1,18 @@
 # 원격 근무용 업무 처리 확인 시스템
 
-## PR #7 R1·R2 수정 보고 — 2026-10-17
+## 현재 — 1번 N4 회신 반영·003 DDL 검토안, 2026-10-17
+
+기준 원본 alpha `c56f3c87e446adb30309c46287cd7c4aa3cff273`과 기존 공지 head `c7282d1e9e332daf3996aeb00f9a1b20c6ad2e61`을 결합했다. 원본의 업무 입력 준비·정확한 상태 CHECK·002 SQL·공통 로그인/인증/DB 코드를 보존하고 README의 양쪽 내용을 합쳤다.
+
+[병합된 PR #12의 1번 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/1번/2026-10-17_공지DB_API_DDL_협의회신.md)에서 N4-01~04·07·10의 공통 재사용·signed INTEGER/C# int `1..2147483647`·범위 밖/미존재404·현재 API/DTO·직원 전체 부서 조회·관리자 쓰기·독립 opt-in을 수용했다. 이 항목은 회신 대기가 아니다. R1/R2는 이전 검토자가 해결을 확인했으며 이번 결합본의 작성자 회귀와 새 DDL은 별도 재검토 대상이다.
+
+예약된 `003_notices.mysql.sql`과 검증·복구안을 추가했다. 실제 SQL로 새 notices 테이블을 만들고 ORM 타입/NULL/default/index/FK, 기존 공통/업무 데이터·버전1 보존, 작성자 비활성 후 snapshot, 재실행/실패, 실제 dump→새DB 복원과 API를 검사한다. **SQL 최종 검토·공통 실제/기대 버전 지원·삭제/보존 정책·공유 적용은 대기**다. version3은002→2가 먼저 승인·적용될 때의 후속안이며 실제version1·기본off를 유지한다. [003 절차](RemoteWork.Server/migrations/003_notices.md)를 따른다.
+
+최신 실행 결과·명령·검증 범위는 아래 연결된 공지 안내와 LOG의 4번 후속 검증 기록을 따른다. 팝업/확인 기록·실제 파일 전송·중지된 정렬 조정은 이번 PR에 없다. 아래 과거 회차의 수치/회신 대기 상태는 당시 기록이며 현재 상태로 재사용하지 않는다.
+
+이번 최신 결합본에서 격리 MySQL 전체 **112통과**, 실제 C#→HTTP→raw003 MySQL **37검증**, 기존 DEMO SQLite **83통과/29생략**, 앱/검증5종 Release **경고0/오류0** 및 기존 업무 HTTP 회귀를 확인했다. 명령·대역/실제DB·미실행 구분은 [공지 검증 결과](RemoteWork.Server/remotework/features/notices/README.md)를 따른다. [4번 협업/검증 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG/4번)에서 새 코드 SHA와 별도 문서 PR을 연결한다.
+
+## 이전 — PR #7 R1·R2 수정 보고, 2026-10-17
 
 기준 원본 alpha8a652ad와 공지 head7478101을 결합하고 공지 전용 routes.py·회귀만 수정했다. 기존 업무 격리 HTTP 실행기와 공통 인증/DB/관리자 가드는 보존한다.
 
@@ -38,7 +50,7 @@
 
 - 데스크톱: Windows, .NET 8 SDK, C# WinForms.
 - 서버: Python 3.11 이상, Flask/Waitress, SQLAlchemy/PyMySQL.
-- DB: 공동 사용은 MySQL. SQLite는 명시적 데모·테스트용입니다.
+- DB: 실제 구현·DB 규약·지속 관리와 주요 검증은 MySQL 기준입니다. SQLite는 DEMO용 임시 구성이며 DEMO 종료 후 삭제할 예정입니다.
 - UI 구조: `LoginForm → MainForm → 기능별 UserControl`. 기존 화면의 Designer·도구상자 편집 구조를 유지합니다.
 
 ## 실행
@@ -69,7 +81,7 @@ dotnet run --project .\RemoteWork.WinForms\RemoteWork.WinForms.csproj
 
 공지 작성·목록·상세·관리자 삭제를 공통 인증 서버와 notices 테이블에 연결합니다. 전 직원·기획팀·개발팀·디자인팀을 target으로 구분하고 사용자 결정에 따라 직원도 모든 부서를 조회합니다. 작성자·UTC 시각은 서버에서 결정하며 저장 성공 때만 작성 창을 닫고 오류 시 입력을 유지합니다. 목록/대상 필터·고정 우선·열 정렬·조회 버튼 상세를 유지합니다. 정적 샘플 공지는 제거했고 종료 후 유지 여부는 연결한 DB가 담당합니다.
 
-공지 API/DB는 1번 검토 전 개발 초안으로 **기본 off**입니다. 프로젝트 루트의 PowerShell에서 `$env:REMOTEWORK_ENABLE_NOTICE_DRAFT = "1"`을 지정하고 `& .\Start-Demo.cmd`를 실행하면 별도 SQLite 데모에 공지 테이블을 준비합니다. 기존 업무 플래그와 독립적으로 등록하며 공통 인증·스키마 버전1·업무 코드는 보존합니다. 실제 MySQL·공유 DB 적용·migration 번호·정식 활성화는 협의/검증 대기입니다. [공지 준비·API·제한](RemoteWork.Server/remotework/features/notices/README.md)을 따릅니다.
+공지 API/ID/권한은 PR #12의 1번 수용 기준이며 **기본 off**를 유지합니다. 프로젝트 루트의 PowerShell에서 `$env:REMOTEWORK_ENABLE_NOTICE_DRAFT = "1"`을 지정하고 `& .\Start-Demo.cmd`를 실행하면 별도 SQLite 데모에 공지 테이블을 준비합니다. 기존 업무 플래그와 독립적으로 등록하며 공통 인증·스키마 버전1·업무 코드는 보존합니다. 실제 격리 MySQL 검증을 수행했고 migration003은 번호 예약에 따른 SQL 검토안입니다. 공유 적용·공통 버전 지원·정식 활성화는 대기입니다. [공지 준비·API·제한](RemoteWork.Server/remotework/features/notices/README.md)을 따릅니다.
 
 첨부는 파일명 메타데이터만 저장하고 원본 절대경로·파일 본문을 서버에 보내지 않습니다. 실제 업로드/다운로드·중요 공지 자동 팝업·직원별 확인 기록과 정렬 추가 조정은 이번 DB 변경에 포함하지 않습니다.
 
@@ -83,7 +95,11 @@ dotnet run --project .\RemoteWork.WinForms\RemoteWork.WinForms.csproj
 
 같은 조회 조건으로 다시 조회하면 선택 업무를 유지합니다. 상세 실패 후에는 해당 상세만 재시도하고 F5로는 전체 목록을 다시 받습니다. 범위·상태 변경 시 선택을 초기화하며, 접속 변경 취소는 이전 데이터를 지우고 취소 안내로 구분합니다. 요청한 상태와 다른 목록 응답은 정상 결과로 표시하지 않습니다. 이 개선은 API·DB·업무 상태 전환 규칙을 변경하지 않습니다.
 
+등록·수정은 기본 입력을 확인하고, 수락은 대상 업무를 읽기 전용으로 확인하며, 마감 연장은 실제 선택 업무의 현재 마감일과 희망일·사유 입력을 준비합니다. 수정·수락·연장 버튼은 현재 상세 조회 성공 후에만 열립니다. 입력 확인은 로컬 형식 검사이며 창에 값이 유지됩니다. 확인된 제목·내용·날짜와 원본 업무 ID는 불변 로컬 입력값으로 보관하고, 입력이 바뀌면 확인값을 무효화합니다. 날짜 체크의 변경 이벤트가 없더라도 읽는 시점에 현재 입력과 다시 대조합니다. 이 값은 서버 요청 DTO나 쓰기 계약이 아닙니다. [1번의 W1 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/1번/2026-10-17_업무쓰기_공통규약_회신.md)은 수신했으며 직원 쓰기 재인증·멱등성·버전 지원은 아직 미구현입니다. 서버 등록·수락·접수·마감 변경은 해당 공통 지원과 2·3번 행동 계약 확인 후 연결합니다. 상세 범위와 담당별 요청 문서는 [입력 준비 안내](docs/TASK_INPUT_PREPARATION.md)를 따릅니다.
+
 업무 API는 서버 `REMOTEWORK_ENABLE_TASK_QUERY_DRAFT=1`로 명시적으로 활성화합니다. **삭제 가능한 개발·테스트 DB에서만** 활성화·초기화합니다. 1번이 예약한 `002_task_queries.mysql.sql`은 [검토용 DDL·검증/복구안](RemoteWork.Server/migrations/002_task_queries.md)으로 준비하며, 공유 적용 승인이나 버전2 구현을 뜻하지 않습니다. 현재 공통 버전1과 기본 비활성화를 유지합니다. 기본 서버의 미등록 업무 경로는 연결 필요로 표시합니다. 일반 실행에 업무 데이터를 자동 생성하지 않으며 업무 등록·배정·관리자 지정 저장 기능도 이번 조회 범위에는 없습니다.
+
+W1-05 요청에 따라 002 SQL과 업무 ORM의 상태 CHECK는 기존 IN과 HEX 비교를 함께 사용해 정확한 다섯 소문자 코드만 허용합니다. DB collation이 대소문자·뒤 공백을 같게 비교해도 대문자·혼합·공백 변형을 거절하고, SQLite의 TEXT와 BLOB 구분도 유지합니다. 기존 공유 DB 제약의 자동 수정이나 상태 전환 API는 추가하지 않습니다.
 
 업무 상태는 **진행전 / 진행중 / 제출완료 / 승인완료 / 반려완료**입니다. 배정→진행전, 수락→진행중, 정식 제출·재제출→제출완료, 검토 판단→승인완료/반려완료를 기준으로 합니다. 모든 정식 제출은 승인·반려를 거쳐야 하며 승인완료만 최종 완료입니다. 관리자 본인 업무도 같은 흐름을 사용하고 상위 검토자가 판단합니다.
 
@@ -121,7 +137,7 @@ python -m pytest -q
 
 실행 결과와 사용한 커밋은 [LOG](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG)에 기록합니다. 테스트 대역·로컬 메모리·공통 HTTP 통과를 실제 업무 통합 완료로 표시하지 않습니다. 서버·실제 업무 권한·두 PC·운영 DB의 검증 범위를 각각 구분합니다. 기존 Preview는 이전 화면 검토 자료이며 현재 인증 화면과 같다고 해석하지 않습니다.
 
-2번 조회는 [임시 HTTP/SQLite 통합 실행기](Tests/TaskQueries.Http.Tests/README.md)로 검증할 수 있습니다. 테스트 프로젝트를 Release 빌드한 뒤 `Tests/TaskQueries.Http.Tests/run_http_check.py`를 서버용 Python으로 실행하면 임시 DB·계정·실서버를 준비하고 직원·관리자 WinForms의 정확한 조회 집합/정렬·전체/5상태·행 선택·접속 폐기를 검사합니다. 지정 관리자 회수·재배정 후 조회 권한도 임시 fixture에서만 확인합니다. 실행 후 임시 서버·DB를 정리하며, 일반 실행의 업무 자동 생성·쓰기 API·공유 DB·MySQL/두 PC 검증을 뜻하지 않습니다.
+2번 조회는 [임시 HTTP/SQLite 통합 실행기](Tests/TaskQueries.Http.Tests/README.md)로 검증할 수 있습니다. 테스트 프로젝트를 Release 빌드한 뒤 `Tests/TaskQueries.Http.Tests/run_http_check.py`를 서버용 Python으로 실행하면 임시 DB·계정·실서버를 준비하고 직원·관리자 WinForms의 정확한 조회 집합/정렬·전체/5상태·행 선택·접속 폐기를 검사합니다. 실제 조회 업무에서 수락·연장·수정 준비 창을 열고 등록 창의 로컬 입력 확인도 검사하며 업무·배정·관리자 행과 감사 이력의 보존을 확인합니다. 지정 관리자 회수·재배정 후 조회 권한도 임시 fixture에서만 확인합니다. 실행 후 임시 서버·DB를 정리하며, 일반 실행의 업무 자동 생성·쓰기 API·공유 DB·MySQL/두 PC 검증을 뜻하지 않습니다.
 
 ## 브랜치와 게시 기준
 
