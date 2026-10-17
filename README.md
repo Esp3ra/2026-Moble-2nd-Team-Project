@@ -47,6 +47,8 @@ dotnet run --project .\RemoteWork.WinForms\RemoteWork.WinForms.csproj
 
 실제 API·오류·DB·기능 등록 방법은 [INTEGRATION](docs/INTEGRATION.md)을 따릅니다. 문서의 이전 업무 코드 블록과 새 2번 GET 개발 API를 구분합니다. 현재 조회 API와 활성화 조건은 [업무 조회 개발 계약](docs/TASK_QUERIES.md)을 따릅니다.
 
+2번 쓰기 연결용 [W1 공통 지원](docs/WRITE_SUPPORT.md)은 기본 비활성 개발 초안이며, 실제 업무 저장 API와 구분합니다.
+
 ## 공지 DB 개발 초안과 채팅 저장 범위
 
 공지 작성·목록·상세·관리자 삭제를 공통 인증 서버와 notices 테이블에 연결합니다. 전 직원·기획팀·개발팀·디자인팀을 target으로 구분하고 사용자 결정에 따라 직원도 모든 부서를 조회합니다. 작성자·UTC 시각은 서버에서 결정하며 저장 성공 때만 작성 창을 닫고 오류 시 입력을 유지합니다. 목록/대상 필터·고정 우선·열 정렬·조회 버튼 상세를 유지합니다. 정적 샘플 공지는 제거했고 종료 후 유지 여부는 연결한 DB가 담당합니다.

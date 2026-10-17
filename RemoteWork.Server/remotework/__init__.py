@@ -24,6 +24,8 @@ def create_app(test_config=None):
         database=os.getenv("MYSQL_DATABASE", "remote_work"), query={"charset": "utf8mb4"})
     app.config.from_mapping(DATABASE_URL=database_url, SECRET_KEY=os.getenv("SECRET_KEY", ""),
         ENABLE_TASK_QUERY_DRAFT=os.getenv("REMOTEWORK_ENABLE_TASK_QUERY_DRAFT") == "1",
+        ENABLE_COMMON_WRITE_DRAFT=os.getenv("REMOTEWORK_ENABLE_COMMON_WRITE_DRAFT") == "1",
+        WRITE_REQUEST_TTL_SECONDS=int(os.getenv("WRITE_REQUEST_TTL_SECONDS", "86400")),
         COMPANY_NAME=os.getenv("COMPANY_NAME", "회사명"), SESSION_HOURS=int(os.getenv("SESSION_HOURS", "8")),
         COOKIE_SECURE=os.getenv("COOKIE_SECURE", "false").lower() == "true", MAX_CONTENT_LENGTH=32 * 1024,
         SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax", SESSION_REFRESH_EACH_REQUEST=False)
@@ -104,6 +106,22 @@ def create_app(test_config=None):
     from .features.registry import get_blueprints
     for feature in get_blueprints(app.config):
         app.register_blueprint(feature)
+
+    # Independent common support; no task action or authorization is enabled here.
+    if app.config["ENABLE_COMMON_WRITE_DRAFT"]:
+        from .write_requests import bp as write_bp
+        app.register_blueprint(write_bp)
+        if app.config["ENABLE_TASK_QUERY_DRAFT"]:
+            from .task_write_support import install
+            install(app)
+
+        @app.cli.command("cleanup-write-requests")
+        def cleanup_write_requests():
+            """Remove expired receipts; signed expired keys still cannot execute."""
+            from .write_requests import WriteReceipt
+            with db.transaction() as session:
+                removed = session.execute(delete(WriteReceipt).where(WriteReceipt.expires_at <= utcnow()))
+            click.echo(f"만료된 요청 결과 정리: {removed.rowcount}건")
 
     @app.cli.command("init-db")
     def init_db_command():

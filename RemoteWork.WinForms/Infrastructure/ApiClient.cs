@@ -151,8 +151,21 @@ public sealed class ApiClient : IDisposable
     public Task<T> PostAsync<T>(string path, object body, CancellationToken ct = default) => SendAsync<T>(HttpMethod.Post, path, body, ct);
     public Task<T> PatchAsync<T>(string path, object body, CancellationToken ct = default) => SendAsync<T>(HttpMethod.Patch, path, body, ct);
 
+    public Task<T> PostIdempotentAsync<T>(string path, object body, string requestKey, CancellationToken ct = default)
+        => SendAsync<T>(HttpMethod.Post, path, body, ct, requestKey: ValidateRequestKey(requestKey));
+    public Task<T> PatchIdempotentAsync<T>(string path, object body, string requestKey, CancellationToken ct = default)
+        => SendAsync<T>(HttpMethod.Patch, path, body, ct, requestKey: ValidateRequestKey(requestKey));
+
+    private static string ValidateRequestKey(string key)
+    {
+        if (key is null || key.Length is < 32 or > 512 ||
+            key.Any(c => !char.IsAsciiLetterOrDigit(c) && c is not '-' and not '_' and not '.'))
+            throw new ArgumentException("서버에서 받은 유효한 요청 키가 필요합니다.", nameof(key));
+        return key;
+    }
+
     private async Task<T> SendAsync<T>(HttpMethod method, string path, object? body, CancellationToken ct,
-        RequestContext? context = null, bool detached = false)
+        RequestContext? context = null, bool detached = false, string? requestKey = null)
     {
         if (path.StartsWith('/') || path.Contains(":") || path.Split('/').Contains(".."))
             throw new ArgumentException("공통 API에는 상대 경로만 사용할 수 있습니다.");
@@ -161,6 +174,7 @@ public sealed class ApiClient : IDisposable
             : CancellationTokenSource.CreateLinkedTokenSource(ct, context.SessionCancellation);
         using var request = new HttpRequestMessage(method, new Uri(context.ServerUri, "api/v1/" + path));
         if (context.Token is not null) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", context.Token);
+        if (requestKey is not null) request.Headers.Add("Idempotency-Key", requestKey);
         if (body is not null) request.Content = new StringContent(JsonSerializer.Serialize(body, Json), Encoding.UTF8, "application/json");
         try
         {

@@ -35,6 +35,8 @@ internal static class Program
         scenarios.Add(("caller-cancellation", CallerCancellation));
         scenarios.Add(("server-change-cancels-login", ServerChange));
         scenarios.Add(("repeated-lifecycle", RepeatedLifecycle));
+        scenarios.Add(("idempotency-header", IdempotencyHeader));
+        scenarios.Add(("idempotency-old-session", IdempotencyOldSession));
         var selectedScenarios = scenarios.Where(x => args.Length == 0 || x.Name == args[0]).ToList();
         Check(selectedScenarios.Count > 0, "Unknown scenario");
         foreach (var scenario in selectedScenarios)
@@ -252,17 +254,67 @@ internal static class Program
         public void Complete(HttpResponseMessage response) => Response.SetResult(response);
     }
 
+    private static async Task IdempotencyHeader()
+    {
+        var handler = new Handler();
+        using var api = new ApiClient("http://localhost:5000", handler);
+        await api.LoginAsync("A", "test-password");
+        var key = new string('a', 32);
+        await api.PostIdempotentAsync<HealthResult>("probe", new { expected_row_version = "1" }, key);
+        Check(handler.LastRequestKey == key, "POST carries only explicit request key");
+        await api.PostAsync<HealthResult>("probe", new { });
+        Check(handler.LastRequestKey is null, "Header is not retained in HttpClient defaults");
+        await api.PatchIdempotentAsync<HealthResult>("probe", new { }, key);
+        Check(handler.LastRequestKey == key, "PATCH carries request key");
+        foreach (var invalid in new[] { "", "short", new string('a', 513), key + "\r\nInjected: yes", key + "한" })
+        {
+            var sent = handler.RequestCount;
+            try
+            {
+                await api.PostIdempotentAsync<HealthResult>("probe", new { }, invalid);
+                throw new InvalidOperationException("Invalid key was accepted");
+            }
+            catch (ArgumentException) { checks++; }
+            Check(handler.RequestCount == sent, "Invalid key never reaches transport");
+        }
+        var before = handler.RequestCount;
+        try { await api.PostIdempotentAsync<HealthResult>("probe/failure", new { }, key); }
+        catch (ApiException) { checks++; }
+        Check(handler.RequestCount == before + 1, "No automatic retry after write transport failure");
+    }
+
+    private static async Task IdempotencyOldSession()
+    {
+        var handler = new Handler();
+        using var api = new ApiClient("http://localhost:5000", handler);
+        int expired = 0;
+        api.AuthenticationExpired += (_, _) => expired++;
+        await api.LoginAsync("A", "test-password");
+        var old = api.PostIdempotentAsync<IdentityResult>("auth/me", new { }, new string('b', 32));
+        var pending = await handler.Next();
+        await api.LoginAsync("B", "test-password");
+        Check(handler.LastRequestKey is null, "Previous key is not sent with new login");
+        pending.Complete(Unauthorized("html"));
+        await Canceled(old);
+        Check(api.CurrentUser?.LoginId == "B" && expired == 0, "Old keyed response cannot expire new session");
+    }
+
     private sealed class Handler : HttpMessageHandler
     {
         private readonly Channel<Pending> requests = Channel.CreateUnbounded<Pending>();
         public bool DelayLogout { get; init; }
         public bool DelayLoginA { get; init; }
         public string? LastBearer { get; private set; }
+        public string? LastRequestKey { get; private set; }
+        public int RequestCount { get; private set; }
         public Task<Pending> Next() => requests.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             LastBearer = request.Headers.Authorization?.Parameter;
+            LastRequestKey = request.Headers.TryGetValues("Idempotency-Key", out var keys) ? keys.Single() : null;
+            RequestCount++;
             var route = request.RequestUri!.AbsolutePath;
+            if (route.EndsWith("probe/failure")) throw new HttpRequestException("test transport failure");
             string? account = null;
             if (route.EndsWith("auth/login"))
             {

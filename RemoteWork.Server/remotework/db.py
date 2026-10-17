@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 from flask import current_app, g
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, select
 from sqlalchemy.orm import sessionmaker
 from .models import Base, SchemaVersion, AdminGuard
 
@@ -58,7 +58,17 @@ def init_schema():
             db.add(AdminGuard(id=1))
 
 
-def check_schema():
-    if get_db().get(SchemaVersion, SCHEMA_VERSION) is None:
+def schema_status(required_versions=(SCHEMA_VERSION,)):
+    """Recorded migration evidence, not a physical-DDL or compatibility proof."""
+    required = sorted(set(required_versions))
+    if not required or any(type(v) is not int or v < 1 for v in required):
+        raise ValueError("Explicit positive required schema versions are necessary")
+    recorded = list(get_db().scalars(select(SchemaVersion.version).order_by(SchemaVersion.version)))
+    return {"required_versions": required, "recorded_versions": recorded,
+            "missing_versions": sorted(set(required) - set(recorded))}
+
+
+def check_schema(required_versions=(SCHEMA_VERSION,)):
+    if schema_status(required_versions)["missing_versions"]:
         from .common import AppError
         raise AppError(503, "DATABASE_UNAVAILABLE", "데이터베이스가 초기화되지 않았습니다. 서버의 초기화 절차를 확인해 주세요.")
