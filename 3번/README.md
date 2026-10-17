@@ -86,3 +86,5 @@
 ## 1번 후속 연결 보완·협의 제안 — 2026-10-17
 
 [1번 대표 회신](../1번/2026-10-17_3번_결과물연결_공통지원_회신.md)과 [실제 코드 사용 예시](https://github.com/jinkyu1452-cmd/Sang1/blob/37a0def0281e9ad5abd182f0520020767525a966/docs/RESULTS_INTEGRATION.md)를 확인해 주세요. 캡처한 로그인 접속·화면 취소 연결과 기능별 receipt 등록을 제공하며 제출/판단 행동·검토자 관계·첨부 API는 미구현입니다. 사용자 승인된 검토자 협의 제안은 공동 합의가 아니며 기존 W3 번호로 DB/API·권한/상태·파일안을 회신해 주세요. 기존 요청 원문은 보존합니다.
+
+게시 확인: [코드 PR #17](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/17) · [LOG PR #18](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/18) 생성 완료. 개인 포크 alpha/LOG → 원본 alpha/LOG 검토 대기이며 이번 보완의 원본 병합·공유 적용·2·3번 공동 회신은 미완료다.
