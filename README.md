@@ -99,6 +99,8 @@ python -m pytest -q
 
 실행 결과와 사용한 커밋은 [LOG](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG)에 기록합니다. 테스트 대역·로컬 메모리·공통 HTTP 통과를 실제 업무 통합 완료로 표시하지 않습니다. 서버·실제 업무 권한·두 PC·운영 DB의 검증 범위를 각각 구분합니다. 기존 Preview는 이전 화면 검토 자료이며 현재 인증 화면과 같다고 해석하지 않습니다.
 
+2번 조회는 [임시 HTTP/SQLite 통합 실행기](Tests/TaskQueries.Http.Tests/README.md)로 검증할 수 있습니다. 테스트 프로젝트를 Release 빌드한 뒤 `Tests/TaskQueries.Http.Tests/run_http_check.py`를 서버용 Python으로 실행하면 임시 DB·계정·실서버를 준비하고 직원·관리자 WinForms의 정확한 조회 집합/정렬·전체/5상태·행 선택·접속 폐기를 검사합니다. 지정 관리자 회수·재배정 후 조회 권한도 임시 fixture에서만 확인합니다. 실행 후 임시 서버·DB를 정리하며, 일반 실행의 업무 자동 생성·쓰기 API·공유 DB·MySQL/두 PC 검증을 뜻하지 않습니다.
+
 ## 브랜치와 게시 기준
 
 | 브랜치·태그 | 목적 |
