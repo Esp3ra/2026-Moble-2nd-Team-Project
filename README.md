@@ -6,6 +6,12 @@
 
 최초 기록 12개에 이어 **예시 데이터 정리와 alpha·0.0.2V 게시 완료**를 13·14번, **DOCX 문서 브랜치 분리**를 15번, **로컬 DOCX 게시 제외 기준**을 16번 문서로 추가했습니다. 태그 동기화·Word 정리·업무 조회 연결 준비의 당시 내용은 17·18·19번에 보존합니다. 이후 구현·회신·검증은 담당별 폴더와 아래 최신 항목에서 확인합니다. 푸시할 때마다 README의 목차·현재 반영 범위·확인 결과를 최신화합니다.
 
+## 2번 업무 조회 격리 HTTP 통합 실행기 — 2026-10-17
+
+[새 구현·검증 기록](2번/2026-10-17_업무조회_격리HTTP_통합검증_실행기.md)과 [alpha 8a652ad](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/8a652adaba4a8471b2fff581f1265bf27c8ff1d3)에서 확인합니다. 임시SQLite·5계정·17업무·loopback 실서버를 자동 준비해 직원/관리자 C# HTTP·WinForms의 정확한 조회 집합/정렬·전체/5상태·행 선택·접속 폐기를 검증합니다. 추가 실제HTTP는 빈 목록·401/403/404·관리자 지정 회수·재배정 뒤 권한을 확인하며 변경은 fixture 안에서만 수행합니다. 제품의 쓰기 API·상태 저장은 추가하지 않았습니다.
+
+직원36·관리자52검증, runner300검사(권한 회수11포함), 기존HTTP대역6/103·UI9/82·공통18/88을 통과했습니다. 의도적인 잘못된 기대ID 실패와 서버/임시DB 정리도 확인했습니다. 로컬5개 반영·추적156파일 일치·DOCX7개 보존, 개발/로컬 Release 경고0·오류0입니다. 새 실행기의MySQL·공유DB·두PC·웹·제출/승인·전체서버회귀는 이번에 실행하지 않았습니다. 3번 회신·정식DDL/버전 지원·저장 규격은 합의 필요입니다.
+
 ## PR #7 독립 검토·PR #8·#9 문서 병합 — 2026-10-17
 
 [이번 검토 기록](2번/2026-10-17_PR7_검토_및_PR8_PR9_문서병합.md)에서 실제 실행과 미실행 범위를 확인합니다. 코드 PR #7 head7478101은 MySQL 동시 삭제의 성공/감사 중복과 SQLite 범위 초과 ID의500을 직접 재현해 **수정 후 재검토 / Draft·미병합**으로 유지합니다. [4번 수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/4번/2026-10-17_PR7_공지DB_수정요청.md)에 P2 2건과 재검증 조건을 나눴으며 1번 공지 API·DDL 합의도 필요합니다.
@@ -132,10 +138,10 @@ alpha 3b09480, DOCX 5dac768으로 각각 별도 게시했습니다. Release 경�
 | 최초 LOG 게시 당시 | 당시 `alpha`·`0.0.2V`는 [0d06c7108ef03f1638112a858a62f8c9fa11714c](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/0d06c7108ef03f1638112a858a62f8c9fa11714c). 5개 상태·관리자 본인 화면은 로컬 반영 단계 |
 | 14번 기록의 게시본 | [36dda613ac6194015e41da70038f6d420cec85fa](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/36dda613ac6194015e41da70038f6d420cec85fa) · 문서 분리 전 폼·계획서 게시 상태 |
 | 16번 기록의 코드 | [2cd1a32724ecec8c21cd8ddd659dbbf30d43dcaf](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/2cd1a32724ecec8c21cd8ddd659dbbf30d43dcaf) · 문서 제외 정책을 alpha에 추가한 당시 상태 |
-| 현재 alpha | [5164b0c](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/5164b0c223a05b716d0f78ad722c9024bf7d5333) · 2번 협업 규약 연결·조회 수용/남은 합의 표현 보강, 실행 코드 유지,155개 파일 |
+| 현재 alpha | [8a652ad](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/8a652adaba4a8471b2fff581f1265bf27c8ff1d3) · 2번 격리 HTTP·WinForms 통합 검증 실행기, 기존 조회 계약·제품 실행 코드 유지,156개 파일 |
 | 보존한 0.0.2V | `8f09183ef992606ec4c2b7e3da79ef07983ba019`의 이전 화면·조회 준비 버전. 태그 객체 `185dd13b63b6e2d1412f7b902586e69bbe7f80ca`, 이번 작업에서 이동하지 않음 |
 | 현재 DOCX | [5dac768](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/5dac768f443b32f8ca7e989382415c4b2b628806) · 지문센서 새 용도·5번 연결 경계 반영, 문서7개와 README·Word 정본1개 |
-| 이번 LOG 추가 | [PR #7 검토·#8/#9 문서 병합](2번/2026-10-17_PR7_검토_및_PR8_PR9_문서병합.md), 기존 협업 규약·회신·DDL·지문 용도/구현 기록 보존 |
+| 이번 LOG 추가 | [업무 조회 격리 HTTP 실행기](2번/2026-10-17_업무조회_격리HTTP_통합검증_실행기.md), 기존 PR검토·협업 규약·회신·DDL·지문 용도/구현 기록 보존 |
 
 현재 alpha에는 공통 기반·로컬 공지/채팅과 2번 조회 개발 초안이 통합됐습니다. 0.0.2V는 이전 화면 버전으로 보존합니다. 실제 로그인은 HTTP 조회 서비스를 주입하지만 업무 API는 서버의 명시적 활성화가 필요합니다. 조회 계약의 1번 수용과 별개로 쓰기 계약·정식 DDL/공유 DB·상태 변경·제출/승인·두 PC 통합은 별도 합의·검증 대상입니다. 구현계획·참고자료는 DOCX 브랜치에서 관리합니다.
 
