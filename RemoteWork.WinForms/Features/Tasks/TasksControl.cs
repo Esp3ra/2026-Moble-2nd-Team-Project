@@ -34,7 +34,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             this.queryService = queryService;
             InitializeComponent();
             if (PreviewActions.IsDesignMode(this)) return;
-            btnRetryQuery.AccessibleDescription = "상세 조회 실패 시 선택한 업무만 다시 조회합니다. F5 키는 업무 목록을 다시 조회합니다.";
+            btnRetryQuery.AccessibleDescription = "상세 조회 실패 시 선택한 업무만 다시 조회합니다. 목록 정보 변경 안내 시 목록 전체를 다시 조회합니다. F5 키는 업무 목록을 다시 조회합니다.";
             new ToolTip(components!).SetToolTip(btnRetryQuery, "F5: 업무 목록 전체 다시 조회");
             lblTaskScope.Visible = role == PreviewRole.Administrator;
             cmbTaskScope.Visible = role == PreviewRole.Administrator;
@@ -196,7 +196,13 @@ namespace RemoteWork.WinForms.Features.Tasks
                 txtContent.Text = $"{summary.TaskId}\r\n\r\n업무 제목   {summary.Title}\r\n담당자      {summary.AssigneeName}"
                     + $"\r\n업무 상태   {StatusText(summary.Status)}\r\n\r\n시작일      {FormatDate(summary.StartDate)}"
                     + $"\r\n현재 마감일 {FormatDate(summary.DueDate)}\r\n\r\n상세 내용\r\n{detail.Description}";
-                lblTaskQueryStatus.Text = "상세 조회 완료";
+                bool listSummaryChanged = gridTasks.SelectedRows.Count == 1
+                    && gridTasks.SelectedRows[0].Tag is TaskSummary listedSummary
+                    && listedSummary != summary;
+                lblTaskQueryStatus.Text = listSummaryChanged
+                    ? "상세 조회 완료 · 목록 정보 변경 감지 · 목록을 다시 조회해 주세요."
+                    : "상세 조회 완료";
+                if (listSummaryChanged) btnRetryQuery.Text = "목록 새로고침";
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { }
             catch (OperationCanceledException)

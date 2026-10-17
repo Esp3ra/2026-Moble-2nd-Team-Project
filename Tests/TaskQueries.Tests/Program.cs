@@ -59,6 +59,7 @@ internal static partial class Program
             Run("latest selected detail and disposal", LatestDetailWins);
             Run("same-query refresh preserves selection and changed views reset it", RefreshSelection);
             Run("failed selected detail retries without reloading the list", RetrySelectedDetail);
+            Run("fresh detail differences explain list freshness and explicitly refresh", DetailFreshness);
             Run("service cancellation is distinct and clears previous session data", ServiceCancellation);
             Run("registration and selected-task drafts validate locally", RegistrationPreparation);
             Run("deadline inputs and acceptance target do not mutate tasks", DeadlineAndAcceptancePreparation);
@@ -440,6 +441,121 @@ internal static partial class Program
         Need(handled && retry.Text == "다시 조회" && NoFixtureDetail(page),
             "F5 from a child control refreshes the whole list after missing detail and clears the removed task");
         Need(retry.AccessibleDescription?.Contains("F5") == true, "list-refresh shortcut has an accessible explanation");
+    }
+
+    private static void DetailFreshness()
+    {
+        TaskSummary[] listed = Fixtures.Take(3)
+            .Select(task => task.Summary with { Status = TaskDisplayStatus.InProgress }).ToArray();
+        TaskSummary original = listed[1];
+        TaskDetail fresh = new(original, "Current detail from the fixture");
+        TaskListQuery? lastQuery = null;
+        var service = new ProbeService
+        {
+            List = (query, _) =>
+            {
+                lastQuery = query;
+                return Task.FromResult<IReadOnlyList<TaskSummary>>(listed);
+            },
+            Detail = (id, _) => Task.FromResult(id == original.TaskId
+                ? fresh : new TaskDetail(listed.Single(task => task.TaskId == id), "Other current detail"))
+        };
+        using var page = new TasksControl(PreviewRole.Administrator, service);
+        using var host = Host(page);
+        Wait(page.RefreshAsync());
+        Field<ComboBox>(page, "cmbTaskScope").SelectedIndex = 1;
+        Until(() => lastQuery?.Scope == TaskQueryScope.Managed && !Field<Label>(page, "lblTaskQueryStatus").Text.Contains("조회 중"));
+        Select(page, 1);
+        Until(() => PreparationId(page) == original.TaskId);
+        var status = Field<Label>(page, "lblTaskQueryStatus");
+        var retry = Field<Button>(page, "btnRetryQuery");
+        Need(status.Text == "상세 조회 완료" && retry.Text == "다시 조회",
+            "matching list and detail retain the ordinary refresh presentation");
+        const string changedNotice = "상세 조회 완료 · 목록 정보 변경 감지 · 목록을 다시 조회해 주세요.";
+        string[] oldCells = Grid(page).CurrentRow!.Cells.Cast<DataGridViewCell>()
+            .Select(cell => cell.Value?.ToString() ?? "").ToArray();
+        foreach (var changed in new[]
+        {
+            original with { Title = "Fresh title" },
+            original with { AssigneeName = "Fresh assignee label" },
+            original with { Status = TaskDisplayStatus.Submitted },
+            original with { StartDate = original.StartDate.AddDays(-1) },
+            original with { DueDate = original.DueDate.AddDays(1) }
+        })
+        {
+            fresh = new(changed, "Current detail from the fixture");
+            int lists = service.ListCalls, details = service.DetailCalls;
+            Wait(page.RefreshAsync());
+            Need(status.Text == changedNotice && retry.Text == "목록 새로고침" && retry.Enabled,
+                "each changed summary field explains the old list snapshot and offers explicit list refresh");
+            Need(service.ListCalls == lists + 1 && service.DetailCalls == details + 1,
+                "detecting a difference does not silently fetch another list or detail");
+            Need(Grid(page).CurrentRow!.Tag is TaskSummary stillListed && stillListed == original
+                && oldCells.SequenceEqual(Grid(page).CurrentRow.Cells.Cast<DataGridViewCell>()
+                    .Select(cell => cell.Value?.ToString() ?? "")),
+                "fresh detail does not rewrite the list row or its snapshot tag");
+            Need(SelectedId(page) == original.TaskId && lastQuery == new TaskListQuery(TaskQueryScope.Managed),
+                "detecting a difference preserves the selection, scope and all-status condition");
+        }
+
+        fresh = new(original, "Only the detail description has changed");
+        Wait(page.RefreshAsync());
+        Need(status.Text == "상세 조회 완료" && retry.Text == "다시 조회"
+            && Detail(page).Contains(fresh.Description),
+            "description-only changes do not falsely mark unchanged summary fields as stale");
+
+        Field<ComboBox>(page, "cmbTaskStatusFilter").SelectedIndex = 2;
+        Until(() => lastQuery == new TaskListQuery(TaskQueryScope.Managed, TaskDisplayStatus.InProgress));
+        Select(page, 1);
+        Until(() => PreparationId(page) == original.TaskId);
+        fresh = new(original with { Title = "Fresh preparation title", AssigneeName = "Fresh preparation assignee",
+            StartDate = original.StartDate.AddDays(-1), DueDate = original.DueDate.AddDays(1) },
+            "Fresh preparation description");
+        Wait(page.RefreshAsync());
+        Need(status.Text == changedNotice, "a filtered view can explain changed detail without changing its filter");
+        WithModal<TaskEditForm>(() => Field<Button>(page, "btnEditTaskPreview").PerformClick(), form =>
+        {
+            Need(Field<TextBox>(form, "txtTaskTitle").Text == fresh.Summary.Title
+                && Field<ComboBox>(form, "cmbAssignee").Text == fresh.Summary.AssigneeName
+                && Field<TextBox>(form, "txtTaskDescription").Text == fresh.Description
+                && DateOnly.FromDateTime(Field<DateTimePicker>(form, "dtpStartDate").Value) == fresh.Summary.StartDate
+                && DateOnly.FromDateTime(Field<DateTimePicker>(form, "dtpDeadline").Value) == fresh.Summary.DueDate,
+                "preparation opens from the fresh successful detail while the list snapshot stays intact");
+        });
+
+        Select(page, 0);
+        Until(() => PreparationId(page) == listed[0].TaskId);
+        Need(status.Text == "상세 조회 완료" && retry.Text == "다시 조회",
+            "another matching selection clears the previous freshness notice");
+        Select(page, 1);
+        Until(() => PreparationId(page) == original.TaskId);
+        Need(status.Text == changedNotice && retry.Text == "목록 새로고침",
+            "reselecting the changed task restores its own freshness notice");
+
+        var successfulDetail = service.Detail;
+        service.Detail = (_, _) => Task.FromException<TaskDetail>(new TaskQueryException(TaskQueryFailure.Unavailable));
+        Wait(page.RefreshAsync());
+        Need(status.Text.StartsWith("상세 조회 실패") && retry.Text == "상세 재시도",
+            "detail failure replaces the freshness action with the existing detail retry");
+        int beforeLists = service.ListCalls, beforeDetails = service.DetailCalls;
+        service.Detail = successfulDetail;
+        retry.PerformClick();
+        Until(() => status.Text == changedNotice);
+        Need(service.ListCalls == beforeLists && service.DetailCalls == beforeDetails + 1
+            && retry.Text == "목록 새로고침", "successful detail retry returns to explicit list refresh when still different");
+
+        listed = listed.Select(summary => summary.TaskId == original.TaskId ? fresh.Summary : summary).ToArray();
+        beforeLists = service.ListCalls; beforeDetails = service.DetailCalls;
+        retry.PerformClick();
+        Until(() => service.ListCalls == beforeLists + 1 && service.DetailCalls == beforeDetails + 1
+            && status.Text == "상세 조회 완료");
+        Need(retry.Text == "다시 조회" && SelectedId(page) == original.TaskId
+            && Field<ComboBox>(page, "cmbTaskScope").SelectedIndex == 1
+            && Field<ComboBox>(page, "cmbTaskStatusFilter").SelectedIndex == 2
+            && lastQuery == new TaskListQuery(TaskQueryScope.Managed, TaskDisplayStatus.InProgress),
+            "explicit list refresh reloads list and detail once, preserving matching selection and current conditions");
+        Need(Grid(page).CurrentRow!.Tag is TaskSummary refreshed && refreshed == fresh.Summary,
+            "only an explicit list refresh replaces the old row snapshot");
     }
 
     private static void ServiceCancellation()
