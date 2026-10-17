@@ -62,7 +62,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             layoutContent.GrowStyle = System.Windows.Forms.TableLayoutPanelGrowStyle.AddRows;
             layoutContent.Name = "layoutContent";
             layoutContent.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
+            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 70F));
             layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 50F));
             layoutContent.Controls.Add(layoutContent2, 0, 0);
@@ -73,7 +73,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             //
             layoutContent2.Text = "";
             layoutContent2.Location = new System.Drawing.Point(0, 0);
-            layoutContent2.Size = new System.Drawing.Size(736, 44);
+            layoutContent2.Size = new System.Drawing.Size(736, 70);
             layoutContent2.MinimumSize = new System.Drawing.Size(0, 0);
             layoutContent2.MaximumSize = new System.Drawing.Size(0, 0);
             layoutContent2.Margin = new System.Windows.Forms.Padding(0, 0, 0, 0);
@@ -89,15 +89,16 @@ namespace RemoteWork.WinForms.Features.Collaboration
             layoutContent2.AutoScroll = false;
             layoutContent2.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowOnly;
             layoutContent2.ColumnCount = 1;
-            layoutContent2.RowCount = 1;
+            layoutContent2.RowCount = 2;
             layoutContent2.GrowStyle = System.Windows.Forms.TableLayoutPanelGrowStyle.AddRows;
             layoutContent2.Name = "layoutContent2";
+            layoutContent2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 36F));
             layoutContent2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             layoutContent2.Controls.Add(lblPageTitle, 0, 0);
             //
             // lblPageTitle
             //
-            lblPageTitle.Text = "상단 고정 공지";
+            lblPageTitle.Text = "상단 고정 공지사항";
             lblPageTitle.Location = new System.Drawing.Point(0, 4);
             lblPageTitle.Size = new System.Drawing.Size(134, 28);
             lblPageTitle.MinimumSize = new System.Drawing.Size(0, 0);
@@ -117,6 +118,8 @@ namespace RemoteWork.WinForms.Features.Collaboration
             lblPageTitle.BorderStyle = System.Windows.Forms.BorderStyle.None;
             lblPageTitle.UseCompatibleTextRendering = false;
             lblPageTitle.Name = "lblPageTitle";
+            //
+            //
             //
             // panelContent
             //
@@ -245,7 +248,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             //
             // txtContent
             //
-            txtContent.Text = "대상: 전 직원\r\n등록일: 2026.10.13\r\n\r\n원격 근무 환경의 보안 점검이 예정되어 있습니다.\r\n업무 일정과 공지 내용을 확인해 주세요.";
+            txtContent.Text = "대상: 전 직원\r\n등록일: 2026.10.13\r\n\r\n원격 근무 환경의 보안 점검이 예정되어 있습니다.\r\n업무 일정과 공지사항 내용을 확인해 주세요.";
             txtContent.Location = new System.Drawing.Point(3, 37);
             txtContent.Size = new System.Drawing.Size(669, 329);
             txtContent.MinimumSize = new System.Drawing.Size(0, 56);
@@ -325,7 +328,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             //
             // ImportantNoticeForm
             //
-            Text = "상단 고정 공지";
+            Text = "상단 고정 공지사항";
             MinimumSize = new System.Drawing.Size(690, 560);
             MaximumSize = new System.Drawing.Size(0, 0);
             Margin = new System.Windows.Forms.Padding(3, 3, 3, 3);

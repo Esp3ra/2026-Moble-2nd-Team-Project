@@ -23,6 +23,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             layoutContent = new System.Windows.Forms.TableLayoutPanel();
             layoutContent2 = new System.Windows.Forms.TableLayoutPanel();
             lblPageTitle = new System.Windows.Forms.Label();
+            lblChatStatus = new System.Windows.Forms.Label();
             panelContent = new System.Windows.Forms.Panel();
             layoutContent3 = new System.Windows.Forms.TableLayoutPanel();
             layoutContent4 = new System.Windows.Forms.TableLayoutPanel();
@@ -97,7 +98,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             layoutContent.GrowStyle = System.Windows.Forms.TableLayoutPanelGrowStyle.AddRows;
             layoutContent.Name = "layoutContent";
             layoutContent.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
+            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 70F));
             layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             layoutContent.Controls.Add(layoutContent2, 0, 0);
             layoutContent.Controls.Add(panelContent, 0, 1);
@@ -106,7 +107,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             //
             layoutContent2.Text = "";
             layoutContent2.Location = new System.Drawing.Point(0, 0);
-            layoutContent2.Size = new System.Drawing.Size(1062, 44);
+            layoutContent2.Size = new System.Drawing.Size(1062, 70);
             layoutContent2.MinimumSize = new System.Drawing.Size(0, 0);
             layoutContent2.MaximumSize = new System.Drawing.Size(0, 0);
             layoutContent2.Margin = new System.Windows.Forms.Padding(0, 0, 0, 0);
@@ -122,11 +123,24 @@ namespace RemoteWork.WinForms.Features.Collaboration
             layoutContent2.AutoScroll = false;
             layoutContent2.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowOnly;
             layoutContent2.ColumnCount = 1;
-            layoutContent2.RowCount = 1;
+            layoutContent2.RowCount = 2;
             layoutContent2.GrowStyle = System.Windows.Forms.TableLayoutPanelGrowStyle.AddRows;
             layoutContent2.Name = "layoutContent2";
+            layoutContent2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0F));
             layoutContent2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             layoutContent2.Controls.Add(lblPageTitle, 0, 0);
+            layoutContent2.Controls.Add(lblChatStatus, 0, 1);
+            //
+            // lblChatStatus
+            //
+            lblChatStatus.AutoSize = false;
+            lblChatStatus.Dock = System.Windows.Forms.DockStyle.Fill;
+            lblChatStatus.Font = new System.Drawing.Font("맑은 고딕", 9F);
+            lblChatStatus.ForeColor = System.Drawing.Color.FromArgb(103, 116, 135);
+            lblChatStatus.Margin = new System.Windows.Forms.Padding(0, 4, 0, 0);
+            lblChatStatus.Name = "lblChatStatus";
+            lblChatStatus.Text = "화면 동작 예시 · 서버 미연결";
+            lblChatStatus.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             //
             // lblPageTitle
             //
@@ -135,7 +149,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             lblPageTitle.Size = new System.Drawing.Size(150, 28);
             lblPageTitle.MinimumSize = new System.Drawing.Size(0, 0);
             lblPageTitle.MaximumSize = new System.Drawing.Size(0, 0);
-            lblPageTitle.Margin = new System.Windows.Forms.Padding(0, 4, 8, 4);
+            lblPageTitle.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
             lblPageTitle.Padding = new System.Windows.Forms.Padding(0, 0, 0, 0);
             lblPageTitle.Dock = System.Windows.Forms.DockStyle.None;
             lblPageTitle.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left;
@@ -150,6 +164,8 @@ namespace RemoteWork.WinForms.Features.Collaboration
             lblPageTitle.BorderStyle = System.Windows.Forms.BorderStyle.None;
             lblPageTitle.UseCompatibleTextRendering = false;
             lblPageTitle.Name = "lblPageTitle";
+            //
+            //
             //
             // panelContent
             //
@@ -281,6 +297,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             cmbOptions.MaxDropDownItems = 8;
             cmbOptions.Name = "cmbOptions";
             cmbOptions.Items.AddRange(new object[] { "전체 대화방", "개인 대화", "그룹 대화" });
+            cmbOptions.SelectedIndexChanged += new System.EventHandler(RoomFilter_Changed);
             //
             // btnCreateRoom
             //
@@ -308,7 +325,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             btnCreateRoom.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(255, 213, 220, 231);
             btnCreateRoom.FlatAppearance.BorderSize = 1;
             btnCreateRoom.Name = "btnCreateRoom";
-            btnCreateRoom.Click += new System.EventHandler(Unavailable_Click);
+            btnCreateRoom.Click += new System.EventHandler(CreateRoom_Click);
             //
             // panelContent2
             //
@@ -410,6 +427,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             gridRooms.RowHeadersVisible = false;
             gridRooms.MultiSelect = false;
             gridRooms.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
+            gridRooms.CurrentCellChanged += new System.EventHandler(RoomSelection_Changed);
             gridRooms.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
             gridRooms.BackgroundColor = System.Drawing.Color.FromArgb(255, 255, 255, 255);
             gridRooms.BorderStyle = System.Windows.Forms.BorderStyle.None;
@@ -828,10 +846,12 @@ namespace RemoteWork.WinForms.Features.Collaboration
             txtContent3.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             txtContent3.UseSystemPasswordChar = false;
             txtContent3.WordWrap = true;
-            txtContent3.MaxLength = 32767;
-            txtContent3.AcceptsReturn = false;
+            txtContent3.MaxLength = 2000;
+            txtContent3.AcceptsReturn = true;
             txtContent3.AcceptsTab = false;
             txtContent3.Name = "txtContent3";
+            txtContent3.KeyDown += new System.Windows.Forms.KeyEventHandler(MessageInput_KeyDown);
+            txtContent3.TextChanged += new System.EventHandler(MessageInput_TextChanged);
             //
             // flowActions2
             //
@@ -912,7 +932,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             btnSendMessage.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(255, 52, 101, 224);
             btnSendMessage.FlatAppearance.BorderSize = 1;
             btnSendMessage.Name = "btnSendMessage";
-            btnSendMessage.Click += new System.EventHandler(Unavailable_Click);
+            btnSendMessage.Click += new System.EventHandler(SendMessage_Click);
             //
             // ChatControl
             //
@@ -976,6 +996,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
         private System.Windows.Forms.TableLayoutPanel layoutContent;
         private System.Windows.Forms.TableLayoutPanel layoutContent2;
         private System.Windows.Forms.Label lblPageTitle;
+        private System.Windows.Forms.Label lblChatStatus;
         private System.Windows.Forms.Panel panelContent;
         private System.Windows.Forms.TableLayoutPanel layoutContent3;
         private System.Windows.Forms.TableLayoutPanel layoutContent4;
