@@ -16,6 +16,10 @@
 
 현재 코드 기준은 alpha [c56f3c8](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/c56f3c87e446adb30309c46287cd7c4aa3cff273)입니다. 이번 W1-05는 MySQL8.2의 raw002/ORM·기존GET 두 모듈38검사를 통과했습니다. **구현·DB 규약·지속관리·주요검증은 MySQL 기준**, SQLite는 DEMO 임시 구성으로 종료 후 삭제 예정입니다. 완료된 데모검사와 이전 입력폼 검증·미실행 범위는 [최신 작업 기록](2026-10-17_W1-05_상태CHECK_수정_MySQL_검증.md)에서 구분합니다. 읽기 계약은 [docs/TASK_QUERIES.md](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/alpha/docs/TASK_QUERIES.md)를 유지합니다. `0.0.2V`는 이전 기준 `8f09183`으로 보존합니다.
 
+## 바로 전달할 2번 후속 제안
+
+[1번·3번 전달 요약과 행동별 API·사용자 선택 제안](2026-10-17_W1_후속_행동별API_사용자선택_제안.md)을 작성했습니다. 기존 W1/W3 ID와 연결한 검토안이며 신규 API·권한·버전 DTO의 공동 확정/구현이 아닙니다. 실제 공통 지원·W3 회신을 확인한 행동부터 등록/배정 → 수락 → 마감 순서로 연결합니다.
+
 ## 지금 전달할 규약 요청과 수신 상태
 
 | 담당 | 상태 | 볼 문서 |
