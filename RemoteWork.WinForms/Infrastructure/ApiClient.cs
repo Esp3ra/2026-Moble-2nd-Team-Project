@@ -15,11 +15,45 @@ public sealed class ApiClient : IDisposable
     private Uri serverUri;
     private long generation;
     private CancellationTokenSource sessionCancellation = new();
-    private sealed record RequestContext(long Generation, string? Token, Uri ServerUri,
+    internal sealed record RequestContext(long Generation, string? Token, Uri ServerUri,
         CancellationToken SessionCancellation);
     public Uri ServerUri { get { lock (identityLock) return serverUri; } }
     public UserInfo? CurrentUser { get { lock (identityLock) return currentUser; } }
     public event EventHandler? AuthenticationExpired;
+
+    /// <summary>A feature's authenticated lifetime. Never exposes the bearer token.</summary>
+    public sealed class Session
+    {
+        private readonly ApiClient owner;
+        private readonly RequestContext context;
+        internal Session(ApiClient owner, RequestContext context, UserInfo user)
+        { this.owner = owner; this.context = context; User = user; }
+        /// <summary>Display snapshot, not server authorization evidence.</summary>
+        public UserInfo User { get; }
+        public CancellationToken Cancellation => context.SessionCancellation;
+        public bool IsCurrent { get { lock (owner.identityLock) return owner.IsCurrentLocked(context); } }
+        public void ThrowIfChanged() { lock (owner.identityLock) owner.EnsureCurrentLocked(context); }
+        public Task<T> GetAsync<T>(string path, CancellationToken ct = default)
+            => owner.SendAsync<T>(HttpMethod.Get, path, null, ct, context);
+        public Task<T> PostAsync<T>(string path, object body, CancellationToken ct = default)
+            => owner.SendAsync<T>(HttpMethod.Post, path, body, ct, context);
+        public Task<T> PatchAsync<T>(string path, object body, CancellationToken ct = default)
+            => owner.SendAsync<T>(HttpMethod.Patch, path, body, ct, context);
+        public Task<T> PostIdempotentAsync<T>(string path, object body, string requestKey, CancellationToken ct = default)
+            => owner.SendAsync<T>(HttpMethod.Post, path, body, ct, context, requestKey: ValidateRequestKey(requestKey));
+        public Task<T> PatchIdempotentAsync<T>(string path, object body, string requestKey, CancellationToken ct = default)
+            => owner.SendAsync<T>(HttpMethod.Patch, path, body, ct, context, requestKey: ValidateRequestKey(requestKey));
+    }
+
+    public Session CaptureSession()
+    {
+        lock (identityLock)
+        {
+            if (currentUser is null || token is null)
+                throw new InvalidOperationException("로그인 후 기능을 연결해 주세요.");
+            return new Session(this, CaptureLocked(), currentUser);
+        }
+    }
     public static readonly JsonSerializerOptions Json = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
@@ -170,6 +204,7 @@ public sealed class ApiClient : IDisposable
         if (path.StartsWith('/') || path.Contains(":") || path.Split('/').Contains(".."))
             throw new ArgumentException("공통 API에는 상대 경로만 사용할 수 있습니다.");
         context ??= Capture();
+        if (!detached) { lock (identityLock) EnsureCurrentLocked(context); }
         using var linked = detached ? CancellationTokenSource.CreateLinkedTokenSource(ct)
             : CancellationTokenSource.CreateLinkedTokenSource(ct, context.SessionCancellation);
         using var request = new HttpRequestMessage(method, new Uri(context.ServerUri, "api/v1/" + path));

@@ -28,6 +28,36 @@ RESULT_FIELDS = frozenset(("task_id", "row_version", "assignment_revision", "tas
     "extension_id", "requested_due_date", "due_date"))
 
 
+@dataclass(frozen=True)
+class WriteAction:
+    authorize: object
+    result_fields: frozenset[str]
+
+
+def register_write_action(app, *, action, authorize, result_fields):
+    """Feature-owned startup contract; never installs a business route or grants access.
+
+    Register only after agreeing the feature's authorization and minimal result
+    schema. No raw request body, file, secret or explanation belongs in a receipt.
+    Contracts are per app and immutable after the first request.
+    """
+    if app._got_first_request:
+        raise RuntimeError("Register write actions during application setup")
+    if (not isinstance(action, str) or len(action) > 80 or
+            re.fullmatch(r"[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*", action) is None or
+            action in ACTIONS or not callable(authorize)):
+        raise ValueError("An explicit new feature action and current-access authorizer are required")
+    if not isinstance(result_fields, (set, frozenset, list, tuple)) or not result_fields:
+        raise ValueError("Explicit minimal result fields are required")
+    if any(not isinstance(field, str) or len(field) > 64 or
+           re.fullmatch(r"[a-z][a-z0-9_]*", field) is None for field in result_fields):
+        raise ValueError("Use explicit snake_case result field names")
+    contracts = app.extensions.setdefault("write_action_contracts", {})
+    if action in contracts or action in app.extensions.get("write_authorizers", {}):
+        raise ValueError("A write action cannot replace an existing contract")
+    contracts[action] = WriteAction(authorize, frozenset(result_fields))
+
+
 class WriteReceipt(Base):
     __tablename__ = "write_receipts"
     key_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -62,7 +92,9 @@ def _active():
 
 
 def _scope(action, target):
-    if (not isinstance(action, str) or action not in ACTIONS or not isinstance(target, str)
+    if (not isinstance(action, str) or
+            (action not in ACTIONS and action not in current_app.extensions.get("write_action_contracts", {})) or
+            not isinstance(target, str)
             or re.fullmatch(r"[A-Za-z0-9:_-]{1,80}", target) is None):
         raise AppError(400, "INVALID_INPUT", "쓰기 행동과 대상 식별자를 확인해 주세요.")
 
@@ -134,6 +166,12 @@ def _authorize(db, target, callback):
         raise AppError(403, "FORBIDDEN", "현재 요청을 수행할 권한이 없습니다.")
 
 
+def _check_contract_authorizer(action, authorize):
+    contract = current_app.extensions.get("write_action_contracts", {}).get(action)
+    if contract is not None and authorize is not contract.authorize:
+        raise RuntimeError("Use the registered current-access authorizer for every feature action")
+
+
 def perform_once(db, *, key, action, target, body, authorize, mutate):
     """Authorize CURRENT access before replay; check versions only in mutate.
 
@@ -142,6 +180,7 @@ def perform_once(db, *, key, action, target, body, authorize, mutate):
     on denied access; a replay is never a grant based on old permissions.
     """
     _active()
+    _check_contract_authorizer(action, authorize)
     _authorize(db, target, authorize)
     key_hash, _ = _decode(key, action, target)
     fingerprint = _fingerprint(body)
@@ -154,8 +193,10 @@ def perform_once(db, *, key, action, target, body, authorize, mutate):
     result = mutate(db)
     if not isinstance(result, WriteResult) or result.status not in (200, 201) or not isinstance(result.data, dict):
         raise RuntimeError("Mutation must return WriteResult with minimal JSON data and status200/201")
-    if set(result.data) - RESULT_FIELDS:
-        raise RuntimeError("Only minimal task/version/result fields may be retained")
+    contract = current_app.extensions.get("write_action_contracts", {}).get(action)
+    fields = contract.result_fields if contract else RESULT_FIELDS
+    if set(result.data) - fields:
+        raise RuntimeError("Only the action's declared minimal result fields may be retained")
     encoded = json.dumps(result.data, ensure_ascii=True, allow_nan=False, separators=(",", ":"))
     now = _now()
     db.add(WriteReceipt(key_hash=key_hash, user_id=g.user.id, action=action, target=target,
@@ -166,6 +207,7 @@ def perform_once(db, *, key, action, target, body, authorize, mutate):
 
 def lookup_result(db, *, key, action, target, authorize):
     _active()
+    _check_contract_authorizer(action, authorize)
     _authorize(db, target, authorize)
     key_hash, key_expires = _decode(key, action, target, allow_expired=True)
     receipt = _receipt(db, key_hash)
@@ -180,6 +222,9 @@ def lookup_result(db, *, key, action, target, authorize):
 
 
 def _authorizer(action):
+    contract = current_app.extensions.get("write_action_contracts", {}).get(action)
+    if contract is not None:
+        return contract.authorize
     callback = current_app.extensions.get("write_authorizers", {}).get(action)
     if not callable(callback):
         raise AppError(503, "WRITE_ACTION_NOT_READY", "담당 기능의 현재 권한 검사가 아직 연결되지 않았습니다.")

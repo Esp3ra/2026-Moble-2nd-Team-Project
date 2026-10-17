@@ -1,5 +1,7 @@
 # W1 실제 C# → HTTP → 전용 MySQL 검증
 
+3번 연결 보완에서는 `CaptureSession()`의 실제 서버 사용자 정보·접속 전환/로그아웃 취소와 캡처한 접속으로 보내는 GET/키 발급/중복 저장·결과 조회를 함께 검사한다. 이전 화면이 다른 사용자의 새 접속으로 쓰기를 보내지 않는지도 확인한다. 제품 제출 행동이나 검토자 정책 검증은 아니다. 사용법은 [3번 공통 연결 안내](../../docs/RESULTS_INTEGRATION.md)를 참조한다.
+
 실제 ApiClient 소스를 연결해 후보 페이지/권한·BIGINT 문맥/버전·서버 요청 키·중복 단일 효과·다른 본문 충돌·응답 유실 결과 조회를 확인한다. 서버 pytest가 소유한 loopback Waitress·전용 MySQL fixture에서만 실행하고 종료한다. 제품 업무 저장/수락 API나 전체 WinForms 사용 검증이 아니다. mutation 경로는 `test_task_write_support.py`가 시험 앱에만 등록한다.
 
 저장소 루트:

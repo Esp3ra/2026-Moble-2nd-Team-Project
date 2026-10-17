@@ -37,6 +37,11 @@ internal static class Program
         scenarios.Add(("repeated-lifecycle", RepeatedLifecycle));
         scenarios.Add(("idempotency-header", IdempotencyHeader));
         scenarios.Add(("idempotency-old-session", IdempotencyOldSession));
+        scenarios.Add(("feature-session-login-required", FeatureSessionLoginRequired));
+        scenarios.Add(("feature-session-account-switch", FeatureSessionAccountSwitch));
+        scenarios.Add(("feature-session-relogin", FeatureSessionRelogin));
+        scenarios.Add(("feature-session-expiry", FeatureSessionExpiry));
+        scenarios.Add(("feature-session-screen-cancellation", FeatureSessionScreenCancellation));
         var selectedScenarios = scenarios.Where(x => args.Length == 0 || x.Name == args[0]).ToList();
         Check(selectedScenarios.Count > 0, "Unknown scenario");
         foreach (var scenario in selectedScenarios)
@@ -297,6 +302,89 @@ internal static class Program
         pending.Complete(Unauthorized("html"));
         await Canceled(old);
         Check(api.CurrentUser?.LoginId == "B" && expired == 0, "Old keyed response cannot expire new session");
+    }
+
+    private static Task FeatureSessionLoginRequired()
+    {
+        using var api = new ApiClient("http://localhost:5000", new Handler());
+        try { api.CaptureSession(); throw new Exception("Anonymous feature session accepted"); }
+        catch (InvalidOperationException) { checks++; }
+        return Task.CompletedTask;
+    }
+
+    private static async Task FeatureSessionAccountSwitch()
+    {
+        var handler = new Handler();
+        using var api = new ApiClient("http://localhost:5000", handler);
+        await api.LoginAsync("A", "test-password");
+        var session = api.CaptureSession();
+        Check(session.User.Id == 1 && session.User.Role == "employee", "Feature receives real identity snapshot");
+        int cleared = 0;
+        using var registration = session.Cancellation.Register(() => cleared++);
+        var old = session.GetAsync<IdentityResult>("auth/me");
+        var pending = await handler.Next();
+        Check(pending.Bearer == "token-A", "Feature request binds its captured bearer");
+        await api.LoginAsync("B", "test-password");
+        Check(!session.IsCurrent && session.Cancellation.IsCancellationRequested && cleared == 1,
+            "Account change cancels feature lifetime and cleanup notification");
+        pending.Complete(JsonResponse(new IdentityResult(User("A"), DateTimeOffset.UtcNow.AddHours(1))));
+        await Canceled(old);
+        var count = handler.RequestCount;
+        await Canceled(session.PostIdempotentAsync<HealthResult>("probe", new { }, new string('a', 32)));
+        Check(handler.RequestCount == count, "Old screen never sends a write using B's identity");
+        Check(api.CaptureSession().User.Id == 2, "New feature captures B");
+    }
+
+    private static async Task FeatureSessionRelogin()
+    {
+        var handler = new Handler();
+        using var api = new ApiClient("http://localhost:5000", handler);
+        await api.LoginAsync("A", "test-password");
+        var old = api.CaptureSession();
+        await api.LoginAsync("A", "test-password");
+        Check(!old.IsCurrent && old.Cancellation.IsCancellationRequested, "Same user re-login is a new lifetime");
+        try { old.ThrowIfChanged(); throw new Exception("Stale post-processing accepted"); }
+        catch (OperationCanceledException) { checks++; }
+        var current = api.CaptureSession();
+        await current.PatchIdempotentAsync<HealthResult>("probe", new { }, new string('b', 32));
+        Check(handler.LastBearer == "token-A" && handler.LastRequestKey == new string('b', 32),
+            "Current feature retains explicit idempotency header");
+        await api.LogoutAsync();
+        Check(!current.IsCurrent && current.Cancellation.IsCancellationRequested, "Logout invalidates scope");
+    }
+
+    private static async Task FeatureSessionExpiry()
+    {
+        var handler = new Handler();
+        using var api = new ApiClient("http://localhost:5000", handler);
+        await api.LoginAsync("A", "test-password");
+        var scope = api.CaptureSession();
+        var pending = scope.GetAsync<IdentityResult>("auth/me");
+        (await handler.Next()).Complete(Unauthorized("html"));
+        await ApiError(pending, 401);
+        Check(!scope.IsCurrent && scope.Cancellation.IsCancellationRequested, "401 cancels all feature scopes");
+        Check(api.CurrentUser is null, "Feature cannot keep expired identity alive");
+    }
+
+    private static async Task FeatureSessionScreenCancellation()
+    {
+        var handler = new Handler();
+        using var api = new ApiClient("http://localhost:5000", handler);
+        await api.LoginAsync("A", "test-password");
+        var scope = api.CaptureSession();
+        using var closed = new CancellationTokenSource();
+        var read = scope.GetAsync<IdentityResult>("auth/me", closed.Token);
+        var pending = await handler.Next();
+        closed.Cancel();
+        pending.Complete(JsonResponse(new IdentityResult(User("A"), DateTimeOffset.UtcNow.AddHours(1))));
+        await Canceled(read);
+        Check(scope.IsCurrent && !scope.Cancellation.IsCancellationRequested, "Closing feature does not logout shared client");
+        var refresh = api.RefreshIdentityAsync();
+        (await handler.Next()).Complete(JsonResponse(new IdentityResult(User("A") with { Role = "admin" }, DateTimeOffset.UtcNow.AddHours(1))));
+        await refresh;
+        Check(scope.User.Role == "employee" && api.CurrentUser?.Role == "admin", "Snapshot is display data, not live authorization");
+        api.ClearIdentity();
+        Check(!scope.IsCurrent, "Explicit cleanup invalidates scope");
     }
 
     private sealed class Handler : HttpMessageHandler
