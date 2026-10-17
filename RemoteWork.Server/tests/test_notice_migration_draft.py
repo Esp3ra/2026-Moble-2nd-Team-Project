@@ -299,15 +299,15 @@ def test_real_pre_ddl_backup_restore_to_new_db_then_apply_003(owned_notice_dbs, 
         config.write_text("[client]\nprotocol=TCP\nhost="+quote(source.url.host)+"\nport="+str(source.url.port or 3306)+
             "\nuser="+quote(source.url.username or "")+"\npassword="+quote(source.url.password or "")+"\ndefault-character-set=utf8mb4\n",encoding="utf-8")
         env = os.environ.copy();env.pop("MYSQL_PWD",None)
-        result = subprocess.run([_tool("mysqldump"),"--defaults-file="+str(config),"--no-login-paths","--no-tablespaces",
+        result = subprocess.run([_tool("mysqldump"),"--defaults-file="+config.name,"--no-login-paths","--no-tablespaces",
             "--set-gtid-purged=OFF","--single-transaction","--skip-comments","--skip-add-locks","--skip-lock-tables",
-            "--result-file="+str(dump),source.url.database],env=env,capture_output=True)
+            "--result-file="+dump.name,source.url.database],cwd=tmp_path,env=env,capture_output=True)
         assert result.returncode == 0 and dump.stat().st_size > 0,"Owned fixture backup failed (output omitted)"
         _apply(source)
         with pytest.raises(DBAPIError): _apply(source)
         restored = owned_notice_dbs("restored")
-        result = subprocess.run([_tool("mysql"),"--defaults-file="+str(config),"--no-login-paths","--binary-mode=1",
-            "--database="+restored.url.database],input=dump.read_bytes(),env=env,capture_output=True)
+        result = subprocess.run([_tool("mysql"),"--defaults-file="+config.name,"--no-login-paths","--binary-mode=1",
+            "--database="+restored.url.database],cwd=tmp_path,input=dump.read_bytes(),env=env,capture_output=True)
         assert result.returncode == 0,"Restore into the new owned DB failed (output omitted)"
         assert _snapshot(restored) == before and "notices" not in inspect(restored).get_table_names()
         _apply(restored);assert _snapshot(restored) == before

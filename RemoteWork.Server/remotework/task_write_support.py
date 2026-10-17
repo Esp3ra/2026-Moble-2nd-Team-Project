@@ -90,12 +90,12 @@ def manager_candidates():
     return _candidates("manager")
 
 
-@bp.get("/<int:task_id>/write-context")
+@bp.get("/<string:task_id>/write-context")
 @login_required
 def write_context(task_id):
     with authenticated_transaction() as db:
         _query(set())
-        task, assignment, managers = _task(db, str(task_id))
+        task, assignment, managers = _task(db, task_id)
         own = assignment is not None and assignment.assignee_id == g.user.id
         managed = g.user.role == "admin" and g.user.id in managers
         if not own and not managed:

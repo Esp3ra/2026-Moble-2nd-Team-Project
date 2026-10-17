@@ -47,6 +47,8 @@ def test_real_product_preparation_routes_policy_and_minimal_fields(preparation,l
             assert context['assignment_revision']==1 and context['assignee_id']==staff_id
             assert context['manager_user_ids']==[admin_id]
         assert client.get(path,headers=outsider).status_code==403
+        for invalid in ('01','0','-1','abc','9223372036854775808','9'*100):
+            assert client.get(f'/api/v1/tasks/{invalid}/write-context',headers=admin).status_code==400
         for name in ('assignment','manager'):
             route=f'/api/v1/tasks/{name}-candidates'
             assert client.get(route,headers=staff).status_code==403
