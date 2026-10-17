@@ -6,7 +6,7 @@ Windows와 .NET 8 SDK에서 실행합니다.
 dotnet run --project .\Tests\TaskQueries.Http.Tests\TaskQueries.Http.Tests.csproj -c Release
 ```
 
-기본 실행은 명시적 `HttpMessageHandler` 테스트 대역입니다. 공통 `ApiClient`를 통과하여 상대 경로·Bearer 전달·5상태 매핑·전체 목록·빈 목록·오류 분류·잘못된 응답·취소를 검증합니다. 실제 서버·DB 연결 증거로 취급하지 않습니다. 기존 `TaskQueries.Tests`의 WinForms 조회 경계 검증과 `ApiClient.Tests`의 공통 접속 수명 검증은 별도로 실행합니다.
+기본 실행은 명시적 `HttpMessageHandler` 테스트 대역입니다. 공통 `ApiClient`를 통과하여 상대 경로·Bearer 전달·5상태 매핑·전체 목록·빈 목록·오류 분류·잘못된 응답·취소를 검증합니다. 요청 상태와 다른 단일/혼합 목록은 전체를 거절하고, 빈 필터 결과·전체5상태·목록 이후 상세 상태 변경은 허용하는지도 확인합니다. 실제 공통 ApiClient의 ClearIdentity 취소를 TasksControl까지 전달해 서버 오류로 표시하지 않는지, 이전 데이터 제거와 새 로그인 후 명시적 재시도 복구도 검사합니다. HTTP 전송은 대역이므로 실제 서버·DB 연결 증거로 취급하지 않습니다. 기존 `TaskQueries.Tests`의 WinForms 조회 경계 검증과 `ApiClient.Tests`의 공통 접속 수명 검증은 별도로 실행합니다.
 
 ## 격리 서버의 실제 HTTP 검증
 

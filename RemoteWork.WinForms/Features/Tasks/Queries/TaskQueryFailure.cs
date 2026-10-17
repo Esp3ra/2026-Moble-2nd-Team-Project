@@ -1,6 +1,6 @@
 namespace RemoteWork.WinForms.Features.Tasks.Queries;
 
-/// <summary>UI boundary failures. Mapping from a future common error envelope is not yet agreed.</summary>
+/// <summary>UI query failures mapped by the HTTP adapter. Cancellation remains OperationCanceledException.</summary>
 public enum TaskQueryFailure
 {
     NotConfigured,

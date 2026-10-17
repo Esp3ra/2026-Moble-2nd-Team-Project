@@ -36,6 +36,8 @@ public sealed class HttpTaskQueryService(ApiClient api) : ITaskQueryService
             foreach (var item in result.Items)
             {
                 TaskSummary summary = MapSummary(item);
+                if (query.Status is { } requestedStatus && summary.Status != requestedStatus)
+                    throw InvalidResponse();
                 if (!identifiers.Add(summary.TaskId)) throw InvalidResponse();
                 summaries.Add(summary);
             }

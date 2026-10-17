@@ -18,6 +18,9 @@ namespace RemoteWork.WinForms.Features.Tasks
         private bool detailLoading;
         private bool queriesDisposed;
         private string? selectedTaskId;
+        private string? preferredTaskId;
+        private string? detailRetryTaskId;
+        private TaskListQuery? currentListQuery;
 
         public TasksControl() : this(PreviewRole.Employee) { }
 
@@ -30,6 +33,8 @@ namespace RemoteWork.WinForms.Features.Tasks
             this.queryService = queryService;
             InitializeComponent();
             if (PreviewActions.IsDesignMode(this)) return;
+            btnRetryQuery.AccessibleDescription = "상세 조회 실패 시 선택한 업무만 다시 조회합니다. F5 키는 업무 목록을 다시 조회합니다.";
+            new ToolTip(components!).SetToolTip(btnRetryQuery, "F5: 업무 목록 전체 다시 조회");
             lblTaskScope.Visible = role == PreviewRole.Administrator;
             cmbTaskScope.Visible = role == PreviewRole.Administrator;
             cmbTaskScope.SelectedIndex = 0;
@@ -59,12 +64,20 @@ namespace RemoteWork.WinForms.Features.Tasks
         }
 
         /// <summary>
-        /// Refreshes the selected list and its first detail. Call on the WinForms UI thread.
+        /// Refreshes the selected list, preserving its selection when the query is unchanged.
+        /// Call on the WinForms UI thread.
         /// The injected boundary owns data access; this control does not authenticate or authorize.
         /// </summary>
         public async Task RefreshAsync()
         {
             if (initializing || queriesDisposed || PreviewActions.IsDesignMode(this)) return;
+            var query = new TaskListQuery(
+                previewRole == PreviewRole.Administrator && cmbTaskScope.SelectedIndex == 1
+                    ? TaskQueryScope.Managed : TaskQueryScope.Own,
+                SelectedStatus());
+            if (query != currentListQuery) preferredTaskId = null;
+            currentListQuery = query;
+            string? taskIdToRestore = preferredTaskId;
             long generation = ++listGeneration;
             listCancellation?.Cancel();
             listCancellation?.Dispose();
@@ -77,11 +90,6 @@ namespace RemoteWork.WinForms.Features.Tasks
             lblTaskQueryStatus.Text = "목록 조회 중…";
             gridTasks.Enabled = false;
             btnRetryQuery.Enabled = false;
-            var query = new TaskListQuery(
-                previewRole == PreviewRole.Administrator && cmbTaskScope.SelectedIndex == 1
-                    ? TaskQueryScope.Managed : TaskQueryScope.Own,
-                SelectedStatus());
-
             try
             {
                 IReadOnlyList<TaskSummary> summaries = await queryService.GetTasksAsync(query, token);
@@ -100,8 +108,13 @@ namespace RemoteWork.WinForms.Features.Tasks
                     gridTasks.CurrentCell = null;
                     if (gridTasks.Rows.Count > 0)
                     {
-                        gridTasks.CurrentCell = gridTasks.Rows[0].Cells[0];
-                        gridTasks.Rows[0].Selected = true;
+                        DataGridViewRow selectedRow = gridTasks.Rows.Cast<DataGridViewRow>()
+                            .FirstOrDefault(row => row.Tag is TaskSummary summary
+                                && string.Equals(summary.TaskId, taskIdToRestore, StringComparison.Ordinal))
+                            ?? gridTasks.Rows[0];
+                        gridTasks.CurrentCell = selectedRow.Cells[0];
+                        selectedRow.Selected = true;
+                        preferredTaskId = ((TaskSummary)selectedRow.Tag!).TaskId;
                     }
                 }
                 finally
@@ -111,11 +124,18 @@ namespace RemoteWork.WinForms.Features.Tasks
                 gridTasks.Enabled = true;
                 lblTaskQueryStatus.Text = $"조회된 업무 {summaries.Count}개";
                 if (summaries.Count == 0)
+                {
+                    preferredTaskId = null;
                     ClearDetail("조회된 업무가 없습니다.");
+                }
                 else
-                    await LoadDetailAsync(summaries[0].TaskId, generation);
+                    await LoadDetailAsync(preferredTaskId!, generation);
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+            catch (OperationCanceledException)
+            {
+                if (IsCurrentList(generation, token)) ShowCancelledQuery("목록");
+            }
             catch (Exception exception)
             {
                 if (!IsCurrentList(generation, token)) return;
@@ -157,11 +177,21 @@ namespace RemoteWork.WinForms.Features.Tasks
                 lblTaskQueryStatus.Text = "상세 조회 완료";
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+            catch (OperationCanceledException)
+            {
+                // A synchronously cancelled service can complete inside SelectionChanged.
+                // Let DataGridView finish changing its current cell before clearing rows.
+                await Task.Yield();
+                if (IsCurrentDetail(parentGeneration, generation, taskId, token))
+                    ShowCancelledQuery("상세");
+            }
             catch (Exception exception)
             {
                 if (!IsCurrentDetail(parentGeneration, generation, taskId, token)) return;
                 ClearDetail(FailureText(exception));
                 lblTaskQueryStatus.Text = "상세 조회 실패 · " + FailureText(exception);
+                detailRetryTaskId = taskId;
+                btnRetryQuery.Text = "상세 재시도";
             }
             finally
             {
@@ -232,15 +262,32 @@ namespace RemoteWork.WinForms.Features.Tasks
             ++detailGeneration;
             detailLoading = false;
             selectedTaskId = null;
+            detailRetryTaskId = null;
+            btnRetryQuery.Text = "다시 조회";
             detailCancellation?.Cancel();
             detailCancellation?.Dispose();
             detailCancellation = null;
+        }
+
+        private void ShowCancelledQuery(string operation)
+        {
+            // The common client can cancel a superseded session without cancelling our local token.
+            // Clear that session's visible data; cancellation does not mean a server failure.
+            CancelDetailRequest();
+            preferredTaskId = null;
+            ClearRows();
+            ClearDetail("업무 조회가 취소되었습니다. 다시 조회해 주세요.");
+            lblTaskQueryStatus.Text = operation + " 조회 취소 · 다시 조회해 주세요.";
+            gridTasks.Enabled = true;
+            btnRetryQuery.Enabled = true;
         }
 
         private void CancelPendingQueries()
         {
             if (queriesDisposed) return;
             queriesDisposed = true;
+            currentListQuery = null;
+            preferredTaskId = null;
             ++listGeneration;
             listCancellation?.Cancel();
             listCancellation?.Dispose();
@@ -265,6 +312,28 @@ namespace RemoteWork.WinForms.Features.Tasks
 
         private async void btnRetryQuery_Click(object? sender, EventArgs e)
         {
+            if (detailRetryTaskId is { } retryTaskId
+                && string.Equals(selectedTaskId, retryTaskId, StringComparison.Ordinal)
+                && gridTasks.SelectedRows.Count == 1
+                && gridTasks.SelectedRows[0].Tag is TaskSummary summary
+                && string.Equals(summary.TaskId, retryTaskId, StringComparison.Ordinal))
+                await LoadDetailAsync(retryTaskId, listGeneration);
+            else
+                await RefreshAsync();
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == Keys.F5 && !initializing && !queriesDisposed && !PreviewActions.IsDesignMode(this))
+            {
+                RefreshFromKeyboard();
+                return true;
+            }
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        private async void RefreshFromKeyboard()
+        {
             await RefreshAsync();
         }
 
@@ -272,10 +341,14 @@ namespace RemoteWork.WinForms.Features.Tasks
         {
             if (initializing || updatingRows || queriesDisposed || PreviewActions.IsDesignMode(this)) return;
             if (gridTasks.SelectedRows.Count == 1 && gridTasks.SelectedRows[0].Tag is TaskSummary summary)
+            {
+                preferredTaskId = summary.TaskId;
                 await LoadDetailAsync(summary.TaskId, listGeneration);
+            }
             else
             {
                 CancelDetailRequest();
+                preferredTaskId = null;
                 ClearDetail("목록에서 업무를 선택하면 상세 내용이 표시됩니다.");
                 lblTaskQueryStatus.Text = gridTasks.Rows.Count == 0 ? "조회된 업무가 없습니다." : "업무를 선택해 주세요.";
                 btnRetryQuery.Enabled = true;

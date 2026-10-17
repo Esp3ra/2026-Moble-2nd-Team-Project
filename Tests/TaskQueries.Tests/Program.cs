@@ -57,6 +57,9 @@ internal static class Program
             Run("empty list and distinct failures", EmptyAndFailures);
             Run("loading and latest list response", LatestListWins);
             Run("latest selected detail and disposal", LatestDetailWins);
+            Run("same-query refresh preserves selection and changed views reset it", RefreshSelection);
+            Run("failed selected detail retries without reloading the list", RetrySelectedDetail);
+            Run("service cancellation is distinct and clears previous session data", ServiceCancellation);
             Console.WriteLine($"PASS: {assertions} assertions; {completed.Count} scenarios. Test doubles only; HTTP, authentication, server authorization and DB were not exercised.");
             return 0;
         }
@@ -273,6 +276,249 @@ internal static class Program
         Need(page.IsDisposed, "pending detail safely completes after disposal");
     }
 
+    private static void RefreshSelection()
+    {
+        var service = PopulatedProbe();
+        using var page = new TasksControl(PreviewRole.Administrator, service);
+        using var host = Host(page);
+        Wait(page.RefreshAsync());
+        Select(page, 2);
+        Until(() => Detail(page).Contains(Fixtures[2].Description));
+        Wait(page.RefreshAsync());
+        Need(SelectedId(page) == "opaque:2" && Detail(page).Contains(Fixtures[2].Description),
+            "same query refresh restores selected row and its detail");
+
+        var pending = new List<TaskCompletionSource<IReadOnlyList<TaskSummary>>>();
+        service.List = (_, _) =>
+        {
+            var source = new TaskCompletionSource<IReadOnlyList<TaskSummary>>(TaskCreationOptions.RunContinuationsAsynchronously);
+            pending.Add(source);
+            return source.Task;
+        };
+        var older = page.RefreshAsync();
+        Until(() => pending.Count == 1);
+        var newer = page.RefreshAsync();
+        Until(() => pending.Count == 2);
+        pending[1].SetResult(Fixtures.Reverse().Select(task => task.Summary).ToArray());
+        Wait(newer);
+        pending[0].SetResult(new[] { Fixtures[0].Summary });
+        Wait(older);
+        Need(SelectedId(page) == "opaque:2" && Detail(page).Contains(Fixtures[2].Description),
+            "selection survives overlapping same-query refresh and changed row order");
+
+        service.List = (_, _) => Task.FromResult<IReadOnlyList<TaskSummary>>(new[] { Fixtures[0].Summary, Fixtures[1].Summary });
+        Wait(page.RefreshAsync());
+        Need(SelectedId(page) == "opaque:0" && Detail(page).Contains(Fixtures[0].Description),
+            "missing previous selection falls back to current first row");
+        service.List = (_, _) => Task.FromResult<IReadOnlyList<TaskSummary>>(Array.Empty<TaskSummary>());
+        Wait(page.RefreshAsync());
+        Need(Grid(page).Rows.Count == 0 && NoFixtureDetail(page) && Detail(page).Contains("없"),
+            "empty refreshed list clears the previous selection and detail");
+
+        // Repeat IDs across views deliberately: query changes must reset selection even when IDs overlap.
+        service.List = (_, _) => Task.FromResult<IReadOnlyList<TaskSummary>>(Fixtures.Select(task => task.Summary).ToArray());
+        Wait(page.RefreshAsync());
+        Select(page, 2);
+        Until(() => Detail(page).Contains(Fixtures[2].Description));
+        Field<ComboBox>(page, "cmbTaskStatusFilter").SelectedIndex = 1;
+        Until(() => SelectedId(page) == "opaque:0" && Detail(page).Contains(Fixtures[0].Description));
+        Need(SelectedId(page) == "opaque:0", "changed status query starts at its first row");
+        Select(page, 2);
+        Until(() => Detail(page).Contains(Fixtures[2].Description));
+        Field<ComboBox>(page, "cmbTaskScope").SelectedIndex = 1;
+        Until(() => SelectedId(page) == "opaque:0" && Detail(page).Contains(Fixtures[0].Description));
+        Need(SelectedId(page) == "opaque:0", "changed own/managed scope does not carry selection");
+
+        Select(page, 2);
+        Until(() => Detail(page).Contains(Fixtures[2].Description));
+        pending.Clear();
+        service.List = (_, _) =>
+        {
+            var source = new TaskCompletionSource<IReadOnlyList<TaskSummary>>(TaskCreationOptions.RunContinuationsAsynchronously);
+            pending.Add(source);
+            return source.Task;
+        };
+        older = page.RefreshAsync();
+        Until(() => pending.Count == 1);
+        Field<ComboBox>(page, "cmbTaskScope").SelectedIndex = 0;
+        Until(() => pending.Count == 2);
+        pending[1].SetResult(Fixtures.Select(task => task.Summary).ToArray());
+        Until(() => SelectedId(page) == "opaque:0" && Detail(page).Contains(Fixtures[0].Description));
+        pending[0].SetResult(Fixtures.Reverse().Select(task => task.Summary).ToArray());
+        Wait(older);
+        Need(SelectedId(page) == "opaque:0" && Detail(page).Contains(Fixtures[0].Description),
+            "late old-scope response cannot restore an old-scope selection");
+    }
+
+    private static void RetrySelectedDetail()
+    {
+        var service = PopulatedProbe();
+        using var page = new TasksControl(PreviewRole.Administrator, service);
+        using var host = Host(page);
+        Wait(page.RefreshAsync());
+        Select(page, 2);
+        Until(() => Detail(page).Contains(Fixtures[2].Description));
+        var retry = Field<Button>(page, "btnRetryQuery");
+        var status = Field<Label>(page, "lblTaskQueryStatus");
+        foreach (TaskQueryFailure failure in Enum.GetValues<TaskQueryFailure>())
+        {
+            service.Detail = (_, _) => Task.FromException<TaskDetail>(new TaskQueryException(failure));
+            Select(page, 0);
+            Until(() => status.Text.StartsWith("상세 조회 실패"));
+            Select(page, 2);
+            Until(() => status.Text.StartsWith("상세 조회 실패"));
+            Need(SelectedId(page) == "opaque:2" && retry.Text == "상세 재시도"
+                && status.Text.StartsWith("상세 조회 실패") && Grid(page).Rows.Count == Fixtures.Length,
+                "typed detail failure retains the selected list and identifies detail retry");
+            if (failure == TaskQueryFailure.NotFound)
+            {
+                Capture(page, "Detail-Retry-NotFound");
+                host.ClientSize = new Size(850, 620);
+                Application.DoEvents();
+                Capture(page, "Detail-Retry-Minimum");
+                host.ClientSize = new Size(1320, 780);
+                Application.DoEvents();
+            }
+            int listCalls = service.ListCalls;
+            int detailCalls = service.DetailCalls;
+            string? requestedId = null;
+            service.Detail = (key, _) =>
+            {
+                requestedId = key;
+                return Task.FromResult(Fixtures.Single(task => task.Summary.TaskId == key));
+            };
+            retry.PerformClick();
+            Until(() => Detail(page).Contains(Fixtures[2].Description));
+            Need(service.ListCalls == listCalls && service.DetailCalls == detailCalls + 1
+                && requestedId == "opaque:2" && SelectedId(page) == "opaque:2",
+                "detail retry calls only the selected detail service again for every typed failure");
+            Need(retry.Text == "다시 조회", "successful detail retry restores list-refresh mode");
+        }
+
+        int previousLists = service.ListCalls;
+        retry.PerformClick();
+        Until(() => service.ListCalls == previousLists + 1 && Detail(page).Contains(Fixtures[2].Description));
+        Need(SelectedId(page) == "opaque:2", "button after success refreshes the list and preserves selection");
+
+        service.Detail = (key, _) => key == "opaque:2"
+            ? Task.FromException<TaskDetail>(new TaskQueryException(TaskQueryFailure.Unavailable))
+            : Task.FromResult(Fixtures.Single(task => task.Summary.TaskId == key));
+        Wait(page.RefreshAsync());
+        Select(page, 3);
+        Until(() => Detail(page).Contains(Fixtures[3].Description));
+        previousLists = service.ListCalls;
+        retry.PerformClick();
+        Until(() => service.ListCalls == previousLists + 1 && Detail(page).Contains(Fixtures[3].Description));
+        Need(retry.Text == "다시 조회" && SelectedId(page) == "opaque:3",
+            "selecting another row discards the failed detail retry target");
+
+        Select(page, 2);
+        Until(() => status.Text.StartsWith("상세 조회 실패"));
+        Field<ComboBox>(page, "cmbTaskStatusFilter").SelectedIndex = 1;
+        Until(() => Detail(page).Contains(Fixtures[0].Description));
+        Need(retry.Text == "다시 조회" && SelectedId(page) == "opaque:0",
+            "filter changes discard the failed detail retry target");
+        Select(page, 2);
+        Until(() => status.Text.StartsWith("상세 조회 실패"));
+        Field<ComboBox>(page, "cmbTaskScope").SelectedIndex = 1;
+        Until(() => Detail(page).Contains(Fixtures[0].Description));
+        Need(retry.Text == "다시 조회" && SelectedId(page) == "opaque:0",
+            "scope changes discard the failed detail retry target");
+
+        service.Detail = (_, _) => Task.FromException<TaskDetail>(new TaskQueryException(TaskQueryFailure.NotFound));
+        Select(page, 2);
+        Until(() => status.Text.StartsWith("상세 조회 실패"));
+        previousLists = service.ListCalls;
+        service.List = (_, _) => Task.FromResult<IReadOnlyList<TaskSummary>>(Array.Empty<TaskSummary>());
+        var arguments = new object[] { Message.Create(IntPtr.Zero, 0x100, (IntPtr)Keys.F5, IntPtr.Zero), Keys.F5 };
+        bool handled = (bool)typeof(Control).GetMethod("ProcessCmdKey", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(Field<TextBox>(page, "txtContent"), arguments)!;
+        Until(() => service.ListCalls == previousLists + 1 && Grid(page).Rows.Count == 0 && Detail(page).Contains("없"));
+        Need(handled && retry.Text == "다시 조회" && NoFixtureDetail(page),
+            "F5 from a child control refreshes the whole list after missing detail and clears the removed task");
+        Need(retry.AccessibleDescription?.Contains("F5") == true, "list-refresh shortcut has an accessible explanation");
+    }
+
+    private static void ServiceCancellation()
+    {
+        var service = PopulatedProbe();
+        using var page = new TasksControl(PreviewRole.Employee, service);
+        using var host = Host(page);
+        Wait(page.RefreshAsync());
+        Select(page, 2);
+        Until(() => Detail(page).Contains(Fixtures[2].Description));
+        var status = Field<Label>(page, "lblTaskQueryStatus");
+        var retry = Field<Button>(page, "btnRetryQuery");
+        bool localTokenWasCancelled = false;
+        service.List = (_, token) =>
+        {
+            localTokenWasCancelled = token.IsCancellationRequested;
+            return Task.FromCanceled<IReadOnlyList<TaskSummary>>(new CancellationToken(true));
+        };
+        Wait(page.RefreshAsync());
+        Need(!localTokenWasCancelled && status.Text.Contains("취소")
+            && !status.Text.Contains("서버 오류") && Grid(page).Rows.Count == 0 && NoFixtureDetail(page),
+            "service-level list cancellation is distinct and clears prior session data");
+        Need(retry.Enabled && retry.Text == "다시 조회", "cancelled list allows explicit list retry");
+        service.List = (_, _) => Task.FromResult<IReadOnlyList<TaskSummary>>(Fixtures.Select(task => task.Summary).ToArray());
+        retry.PerformClick();
+        Until(() => Detail(page).Contains(Fixtures[0].Description));
+        Need(SelectedId(page) == "opaque:0", "cancelled session does not restore its previous selection");
+
+        service.Detail = (_, token) =>
+        {
+            localTokenWasCancelled = token.IsCancellationRequested;
+            return Task.FromCanceled<TaskDetail>(new CancellationToken(true));
+        };
+        Select(page, 2);
+        Until(() => status.Text.Contains("취소"));
+        Need(!localTokenWasCancelled && Grid(page).Rows.Count == 0 && NoFixtureDetail(page)
+            && !status.Text.Contains("서버 오류") && retry.Enabled && retry.Text == "다시 조회",
+            "service-level detail cancellation clears list and detail rather than retaining old identity data");
+        Capture(page, "Detail-Service-Cancellation");
+        service.Detail = (key, _) => Task.FromResult(Fixtures.Single(task => task.Summary.TaskId == key));
+        int previousLists = service.ListCalls;
+        retry.PerformClick();
+        Until(() => service.ListCalls == previousLists + 1 && Detail(page).Contains(Fixtures[0].Description));
+        Need(SelectedId(page) == "opaque:0", "detail cancellation retry reloads the list and rechecks the service");
+
+        var pending = new List<TaskCompletionSource<IReadOnlyList<TaskSummary>>>();
+        service.List = (_, _) =>
+        {
+            var source = new TaskCompletionSource<IReadOnlyList<TaskSummary>>(TaskCreationOptions.RunContinuationsAsynchronously);
+            pending.Add(source);
+            return source.Task;
+        };
+        var older = page.RefreshAsync();
+        Until(() => pending.Count == 1);
+        var newer = page.RefreshAsync();
+        Until(() => pending.Count == 2);
+        pending[1].SetResult(Fixtures.Select(task => task.Summary).ToArray());
+        Wait(newer);
+        pending[0].SetCanceled(new CancellationToken(true));
+        Wait(older);
+        Need(Grid(page).Rows.Count == Fixtures.Length && Detail(page).Contains(Fixtures[0].Description)
+            && status.Text == "상세 조회 완료", "superseded local cancellation cannot clear a newer successful query");
+
+        var cancelledDetail = new TaskCompletionSource<TaskDetail>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.Detail = (key, _) => key == "opaque:1" ? cancelledDetail.Task
+            : Task.FromResult(Fixtures.Single(task => task.Summary.TaskId == key));
+        Select(page, 1);
+        Until(() => status.Text.Contains("조회 중"));
+        Select(page, 2);
+        Until(() => Detail(page).Contains(Fixtures[2].Description));
+        cancelledDetail.SetCanceled(new CancellationToken(true));
+        Pump();
+        Need(Grid(page).Rows.Count == Fixtures.Length && Detail(page).Contains(Fixtures[2].Description)
+            && status.Text == "상세 조회 완료", "superseded detail cancellation cannot clear the latest selected detail");
+    }
+
+    private static ProbeService PopulatedProbe() => new()
+    {
+        List = (_, _) => Task.FromResult<IReadOnlyList<TaskSummary>>(Fixtures.Select(task => task.Summary).ToArray()),
+        Detail = (key, _) => Task.FromResult(Fixtures.Single(task => task.Summary.TaskId == key))
+    };
+
     private static TaskDetail Extra(string key) => new(new(key, key, "테스트 담당자", TaskDisplayStatus.InProgress,
         new DateOnly(2026, 10, 16), new DateOnly(2026, 10, 30)), key);
     private static Form Host(TasksControl page)
@@ -291,6 +537,7 @@ internal static class Program
     private static string Detail(TasksControl page) => Field<TextBox>(page, "txtContent").Text;
     private static bool NoFixtureDetail(TasksControl page) => !Fixtures.Any(x => Detail(page).Contains(x.Description));
     private static string RowId(TasksControl page, int index) => Grid(page).Rows[index].Cells[0].Value?.ToString() ?? "";
+    private static string SelectedId(TasksControl page) => Grid(page).CurrentRow?.Cells[0].Value?.ToString() ?? "";
     private static void Select(TasksControl page, int index) => Grid(page).CurrentCell = Grid(page).Rows[index].Cells[0];
     private static string AllText(Control control) => control.Text + " " + string.Join(" ", control.Controls.Cast<Control>().Select(AllText));
     private static void Wait(Task task) { Until(() => task.IsCompleted); task.GetAwaiter().GetResult(); }
@@ -337,11 +584,21 @@ internal static class Program
     private sealed class ProbeService : ITaskQueryService
     {
         public string SourceDescription => "테스트 대역 · 실제 서버 연결 아님";
+        public int ListCalls { get; private set; }
+        public int DetailCalls { get; private set; }
         public Func<TaskListQuery, CancellationToken, Task<IReadOnlyList<TaskSummary>>> List { get; set; }
             = (_, _) => Task.FromResult<IReadOnlyList<TaskSummary>>(Array.Empty<TaskSummary>());
         public Func<string, CancellationToken, Task<TaskDetail>> Detail { get; set; }
             = (key, _) => Task.FromResult(Extra(key));
-        public Task<IReadOnlyList<TaskSummary>> GetTasksAsync(TaskListQuery query, CancellationToken cancellationToken = default) => List(query, cancellationToken);
-        public Task<TaskDetail> GetTaskAsync(string taskId, CancellationToken cancellationToken = default) => Detail(taskId, cancellationToken);
+        public Task<IReadOnlyList<TaskSummary>> GetTasksAsync(TaskListQuery query, CancellationToken cancellationToken = default)
+        {
+            ListCalls++;
+            return List(query, cancellationToken);
+        }
+        public Task<TaskDetail> GetTaskAsync(string taskId, CancellationToken cancellationToken = default)
+        {
+            DetailCalls++;
+            return Detail(taskId, cancellationToken);
+        }
     }
 }

@@ -40,9 +40,11 @@ internal static class Program
                 else if (args.Length == 0)
                 {
                     Run("relative endpoints, Bearer, status mappings and complete list", Endpoints);
+                    Run("filtered response integrity and fresh detail status", FilteredResponses);
                     Run("common errors and route absence", Errors);
                     Run("mandatory fields and malformed responses", MalformedResponses);
                     Run("caller and session cancellation", Cancellation);
+                    Run("common session cancellation reaches the task screen", SessionCancellationPresentation);
                 }
                 else throw new InvalidOperationException("Use no arguments or --live.");
                 Console.WriteLine($"PASS: {scenarios} scenarios / {assertions} assertions. "
@@ -101,6 +103,37 @@ internal static class Program
         ExpectArgument(() => Wait(service.GetTasksAsync(new(TaskQueryScope.Own, (TaskDisplayStatus)99))));
         ExpectArgument(() => Wait(service.GetTaskAsync(" ")));
         Check(handler.Count == requestCount, "invalid client input is not sent");
+    }
+
+    private static void FilteredResponses()
+    {
+        using var handler = new TestHandler();
+        using var api = new ApiClient("http://localhost:5000/", handler);
+        var service = new HttpTaskQueryService(api);
+        for (int index = 0; index < StatusCodes.Length; index++)
+        {
+            var query = new TaskListQuery(TaskQueryScope.Own, (TaskDisplayStatus)index);
+            string differentStatus = StatusCodes[(index + 1) % StatusCodes.Length];
+            handler.Success(new { items = new[] { Item(1, differentStatus) } });
+            ExpectFailure(() => Wait(service.GetTasksAsync(query)), TaskQueryFailure.Unavailable);
+
+            // A valid prefix must not become a partial success when a later row violates the filter.
+            handler.Success(new { items = new[] { Item(1, StatusCodes[index]), Item(2, differentStatus) } });
+            ExpectFailure(() => Wait(service.GetTasksAsync(query)), TaskQueryFailure.Unavailable);
+            handler.Success(new { items = Array.Empty<object>() });
+            Check(Wait(service.GetTasksAsync(query)).Count == 0, "empty filtered result remains a valid result");
+        }
+
+        handler.Success(new { items = StatusCodes.Select((status, index) => Item(index + 1, status)).ToArray() });
+        Check(Wait(service.GetTasksAsync(new(TaskQueryScope.Own))).Count == 5,
+            "all filter still accepts every defined status");
+        handler.Success(new { items = new[] { Item(1, "in_progress") } });
+        var listed = Wait(service.GetTasksAsync(new(TaskQueryScope.Own, TaskDisplayStatus.InProgress))).Single();
+        handler.Success(new { task = Item(1, "submitted") });
+        var fresh = Wait(service.GetTaskAsync(listed.TaskId));
+        Check(fresh.Summary.Status == TaskDisplayStatus.Submitted,
+            "detail accepts a status changed since the list was read");
+        Check(handler.Remaining == 0, "filter validation does not retry or fetch substitute data");
     }
 
     private static void Errors()
@@ -215,6 +248,60 @@ internal static class Program
         var source = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
         token.Register(() => source.TrySetCanceled(token));
         return source.Task;
+    }
+
+    private static void SessionCancellationPresentation()
+    {
+        using var handler = new TestHandler();
+        using var api = new ApiClient("http://localhost:5000/", handler);
+        Login(api, handler);
+        using var page = new TasksControl(PreviewRole.Employee, new HttpTaskQueryService(api));
+        using var host = new Form
+        {
+            ClientSize = new Size(1320, 780), ShowInTaskbar = false,
+            StartPosition = FormStartPosition.Manual, Location = new Point(-20000, -20000)
+        };
+        page.Dock = DockStyle.Fill;
+        host.Controls.Add(page);
+        handler.Success(new { items = Array.Empty<object>() });
+        host.Show();
+        var status = Field<Label>(page, "lblTaskQueryStatus");
+        var retry = Field<Button>(page, "btnRetryQuery");
+        var grid = Field<DataGridView>(page, "gridTasks");
+        var content = Field<TextBox>(page, "txtContent");
+        Until(() => handler.Remaining == 0 && retry.Enabled);
+
+        handler.Enqueue(Pending);
+        var list = page.RefreshAsync();
+        Check(!list.IsCompleted && !retry.Enabled, "real HTTP list is pending before session cancellation");
+        api.ClearIdentity();
+        Wait(list);
+        Check(api.CurrentUser is null && status.Text.Contains("취소") && !status.Text.Contains("서버 오류"),
+            "common session list cancellation is presented as cancellation");
+        Check(retry.Enabled && grid.Enabled && grid.Rows.Count == 0,
+            "cancelled list restores controls without stale rows");
+
+        Login(api, handler);
+        handler.Success(new { items = new[] { Item(1) } });
+        handler.Enqueue(Pending);
+        var detail = page.RefreshAsync();
+        Until(() => handler.Last?.Path == "/api/v1/tasks/1" && !detail.IsCompleted);
+        Check(grid.Rows.Count == 1 && !retry.Enabled, "real HTTP detail is pending after the list");
+        api.ClearIdentity();
+        Wait(detail);
+        Check(status.Text.Contains("취소") && !status.Text.Contains("서버 오류"),
+            "common session detail cancellation is presented as cancellation");
+        Check(retry.Enabled && !content.Text.Contains("Fixture description"),
+            "cancelled detail clears old content and permits retry");
+
+        Login(api, handler);
+        handler.Success(new { items = new[] { Item(1) } });
+        handler.Success(new { task = Item(1) });
+        retry.PerformClick();
+        Until(() => status.Text == "상세 조회 완료");
+        Check(content.Text.Contains("Fixture description") && retry.Enabled,
+            "HTTP retry after a new login recovers selected detail");
+        Check(handler.Remaining == 0, "session cancellation screen test consumed only planned requests");
     }
 
     private static void LiveServer()
