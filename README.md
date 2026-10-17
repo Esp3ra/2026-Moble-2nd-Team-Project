@@ -13,16 +13,16 @@
 | [#5](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/5) | 1번 수정·검증 기록 | LOG 병합 완료 · [6ca6d8f](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/6ca6d8faafa12ff0774f93724bdb6c9957fc647b) |
 | [#6](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/6) | 1번 수정 요청 회신 | PR 병합 완료 · [2e89714](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/2e89714c2f726950a732f2308c87d42964937522) |
 
-2026-10-17에 기존 결함 4건을 재검토하고 코드 PR #1·#2를 병합했습니다. 당시 통합 alpha는 `9b8d00c`입니다. 이번 확인 시 원본 alpha는 [`5164b0c`](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/5164b0c223a05b716d0f78ad722c9024bf7d5333)이며 0.0.2V는 이전 `8f09183`으로 보존합니다. 아래 신규 PR의 검토 대기와 이전 병합 완료를 구분합니다.
+2026-10-17에 기존 결함 4건을 재검토하고 코드 PR #1·#2를 병합했습니다. 당시 통합 alpha는 `9b8d00c`입니다. 이번 확인 시 원본 alpha는 [`8a652ad`](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/8a652adaba4a8471b2fff581f1265bf27c8ff1d3)이며 0.0.2V는 이전 `8f09183`으로 보존합니다. 아래 신규 PR의 검토 대기와 이전 병합 완료를 구분합니다.
 
 ## 담당별 수정 요청
 
 | 담당 | 대상 | 재검토 결과 | 문서 |
 |---|---|---|---|
 | [1번](1번/README.md) | PR #2 | R1~R3 해결 확인(a35c972)·alpha 병합 | [공통 기반 수정 요청](1번/2026-10-16_PR2_공통기반_수정요청.md) |
-| [4번](4번/README.md) | [PR #7](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/7) · 공지 DB 연결 | **수정 후 재검토** · P2 2건 · Draft · API/DDL 합의 필요 · head7478101 | [검토자 수정 요청](4번/2026-10-17_PR7_공지DB_수정요청.md) · [작성자 보고](4번/2026-10-17_PR7_공지DB_검토상태.md) |
+| [4번](4번/README.md) | [PR #7](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/7) · 공지 DB 연결 | **재검토 대기** · R1/R2 작성자 수정·검증 · Draft · ID/API/DDL 회신 대기 · headc7282d1 | [검토자 수정 요청](4번/2026-10-17_PR7_공지DB_수정요청.md) · [작성자 보고](4번/2026-10-17_PR7_공지DB_검토상태.md) |
 
-4번의 [이전 PR #1 필터 수정](4번/2026-10-16_PR1_공지필터_수정요청.md)은 해결·병합 완료 상태로 보존합니다. 신규 [코드 PR #7](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/7)은 MySQL 동시 삭제 감사 중복과 SQLite 범위 초과 ID의 500을 직접 재현해 수정 후 재검토로 정리했습니다. [LOG PR #8](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/8)은 `066f25e`, [문서 PR #9](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/9)는 `9edcb08`로 병합 완료입니다. 문서 병합은 코드 승인·alpha 반영·API/DDL 합의 완료를 뜻하지 않습니다. [이번 독립 검토 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/2026-10-17_PR7_검토_및_PR8_PR9_문서병합.md)에서 기존 테스트 통과와 추가 결함을 구분합니다.
+4번의 [이전 PR #1 필터 수정](4번/2026-10-16_PR1_공지필터_수정요청.md)은 해결·병합 완료 상태로 보존합니다. 신규 [코드 PR #7](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/7)은 검토자 재현(head7478101) 뒤 수정 headc7282d1에서 R1/R2 작성자 회귀를 통과해 재검토 대기입니다. 검토자 독립 확인·1번 ID/오류/API/DDL 수용·원본 코드 병합은 아직 대기입니다. [LOG PR #8](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/8)은 `066f25e`, [문서 PR #9](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/9)는 `9edcb08`로 병합 완료입니다. 문서 병합은 코드 승인·alpha 반영·API/DDL 합의 완료를 뜻하지 않습니다. [이번 독립 검토 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/2026-10-17_PR7_검토_및_PR8_PR9_문서병합.md)에서 기존 테스트 통과와 추가 결함을 구분합니다.
 
 ## 수정 후 재검토
 
@@ -31,3 +31,5 @@
 새 요청 문서는 `담당번호/YYYY-MM-DD_PR번호_수정내용.md`로 작성합니다. 수정 여부·확인일·근거 커밋·실행한 검증·미실행 항목을 기록하고 푸시할 때 해당 담당 목차와 이 README를 함께 갱신합니다. 1번 a35c972와 4번 837e411은 재검토를 통과해 alpha에 병합됐습니다. 각 담당 문서에 최초 요청·담당자 보고·검토자 확인을 구분해 보존합니다. 업무 API·두 PC 등 미검증 기능까지 완료로 표시하지 않습니다.
 
 3번의 제출·재제출·제출 차수·승인/반려·파일과 5번 기능은 각 담당 범위를 유지합니다. 자동 결과 제출은 제외하고 업무 API·권한 범위·상태·날짜·페이지·자동 검토 요청은 합의 후 연결합니다.
+
+이번 확장 협의는 [LOG PR #10](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/10)으로 1번에게 전달했으며 미병합·회신 대기입니다. 규약 제안 게시를 1번 수용이나 코드 승인으로 표시하지 않습니다.
