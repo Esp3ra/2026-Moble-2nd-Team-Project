@@ -1,8 +1,8 @@
-"""Member 2 development draft, pending members 1/3 agreement.
+"""Task read model: member 1 accepted its read/type contract on 2026-10-17.
 
 These tables support task reads only. Registering their metadata does not migrate
-an existing database. Do not apply this draft to the shared database. Submission,
-reviewer selection and status transitions belong to the later shared contract.
+an existing database. DDL approval and shared application remain separate gates.
+Submission, reviewer selection and status transitions await the joint write contract.
 """
 from datetime import date, datetime
 

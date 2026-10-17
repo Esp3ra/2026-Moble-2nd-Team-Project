@@ -1,6 +1,6 @@
 # 업무 목록·상세 조회 경계
 
-최신화: 2026-10-17 · 2번 조회 개발 초안
+최신화: 2026-10-17 · 1번 수용 조회 계약 / 업무 쓰기·공유 적용은 합의 필요
 
 실제 로그인한 MainForm은 `HttpTaskQueryService(AppServices.Api)`를 주입한다. 기본 TasksControl 및 PreviewRole 미리보기 생성자는 `UnconfiguredTaskQueryService`를 유지한다. `TaskQueryTestDouble`은 테스트에서 명시적으로 주입한다. 실패 시 샘플로 대체하지 않는다.
 
@@ -24,7 +24,7 @@
 
 ## 계약과 검증 범위
 
-실제 개발 API·전체 목록 정책·명시적 상태 매핑·DB 모델·남은 합의는 [업무 조회 개발 계약](../../../../docs/TASK_QUERIES.md), 공통 규약은 [INTEGRATION](../../../../docs/INTEGRATION.md)을 따른다. 상태 코드·날짜 의미·업무 FK/migration·공유 DB 적용은 1번·3번 등 관련 담당과 합의가 필요하다. 개발 초안 구현을 공유 합의 완료로 표시하지 않는다.
+조회 API·전체 목록 정책·명시적 상태 매핑·DB 모델·남은 합의는 [업무 조회 계약](../../../../docs/TASK_QUERIES.md), 공통 규약은 [INTEGRATION](../../../../docs/INTEGRATION.md)을 따른다. 1번이 현재 경로·DTO·권한·오류·상태 문자열·DATE/DateOnly 형식과 공통 FK 기준을 수용했다. 상태 전환·마감 의미·배정/제출 쓰기 정합성은 3번과 합의 필요다. 예약된 [002 DDL·검증/복구안](../../../../RemoteWork.Server/migrations/002_task_queries.md)은 검토 초안이며 공통 버전1·기본 off를 유지한다. 공유 DB·두 PC·제출 통합 완료로 표시하지 않는다.
 
 - [기존 TaskQueries.Tests](../../../../Tests/TaskQueries.Tests/README.md): 실제 WinForms 컨트롤과 명시적 테스트 대역.
 - [TaskQueries.Http.Tests](../../../../Tests/TaskQueries.Http.Tests/README.md): 공통 HTTP 어댑터 및 명시적 격리 서버를 사용하는 opt-in 실제 HTTP 검증.

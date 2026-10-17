@@ -8,9 +8,9 @@ public enum TaskQueryScope
 }
 
 /// <summary>
-/// The five logical values displayed by this UI. These are not agreed HTTP or DB codes.
-/// HttpTaskQueryService maps the query development contract explicitly.
-/// Shared storage codes still need agreement with members 1 and 3.
+/// The five logical values displayed by this UI; enum ordinals are not wire codes.
+/// HttpTaskQueryService explicitly maps the read/type contract accepted by member 1.
+/// Write transitions and submission/deadline semantics await joint agreement with member 3.
 /// </summary>
 public enum TaskDisplayStatus
 {
