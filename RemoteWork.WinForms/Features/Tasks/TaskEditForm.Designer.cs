@@ -43,6 +43,9 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnConfirm = new System.Windows.Forms.Button();
             btnCancel = new System.Windows.Forms.Button();
             btnClose = new System.Windows.Forms.Button();
+            lblPreparationStatus = new System.Windows.Forms.Label();
+            inputErrors = new System.Windows.Forms.ErrorProvider(components);
+            ((System.ComponentModel.ISupportInitialize)inputErrors).BeginInit();
             layoutContent.SuspendLayout();
             layoutContent2.SuspendLayout();
             panelContent.SuspendLayout();
@@ -73,16 +76,32 @@ namespace RemoteWork.WinForms.Features.Tasks
             layoutContent.AutoScroll = false;
             layoutContent.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowOnly;
             layoutContent.ColumnCount = 1;
-            layoutContent.RowCount = 3;
+            layoutContent.RowCount = 4;
             layoutContent.GrowStyle = System.Windows.Forms.TableLayoutPanelGrowStyle.AddRows;
             layoutContent.Name = "layoutContent";
             layoutContent.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 50F));
             layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 72F));
             layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 50F));
             layoutContent.Controls.Add(layoutContent2, 0, 0);
             layoutContent.Controls.Add(panelContent, 0, 1);
-            layoutContent.Controls.Add(flowActions2, 0, 2);
+            layoutContent.Controls.Add(lblPreparationStatus, 0, 2);
+            layoutContent.Controls.Add(flowActions2, 0, 3);
+            //
+            // lblPreparationStatus
+            //
+            lblPreparationStatus.AutoSize = false;
+            lblPreparationStatus.Dock = System.Windows.Forms.DockStyle.Fill;
+            lblPreparationStatus.Margin = new System.Windows.Forms.Padding(0, 8, 0, 0);
+            lblPreparationStatus.Name = "lblPreparationStatus";
+            lblPreparationStatus.Text = "로컬 입력 준비 · 저장·전송되지 않습니다.";
+            lblPreparationStatus.TabIndex = 3;
+            //
+            // inputErrors
+            //
+            inputErrors.BlinkStyle = System.Windows.Forms.ErrorBlinkStyle.NeverBlink;
+            inputErrors.ContainerControl = this;
             //
             // layoutContent2
             //
@@ -302,6 +321,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             txtTaskTitle.AcceptsReturn = false;
             txtTaskTitle.AcceptsTab = false;
             txtTaskTitle.Name = "txtTaskTitle";
+            txtTaskTitle.TextChanged += new System.EventHandler(InputChanged);
             //
             // lblTaskDescription
             //
@@ -353,6 +373,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             txtTaskDescription.AcceptsReturn = false;
             txtTaskDescription.AcceptsTab = false;
             txtTaskDescription.Name = "txtTaskDescription";
+            txtTaskDescription.TextChanged += new System.EventHandler(InputChanged);
             //
             // lblAssignee
             //
@@ -379,7 +400,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             //
             // cmbAssignee
             //
-            cmbAssignee.Text = "담당자 선택";
+            cmbAssignee.Text = "담당자 조회·배정 규약 확인 필요";
             cmbAssignee.Location = new System.Drawing.Point(116, 160);
             cmbAssignee.Size = new System.Drawing.Size(603, 26);
             cmbAssignee.MinimumSize = new System.Drawing.Size(0, 0);
@@ -398,7 +419,8 @@ namespace RemoteWork.WinForms.Features.Tasks
             cmbAssignee.IntegralHeight = true;
             cmbAssignee.MaxDropDownItems = 8;
             cmbAssignee.Name = "cmbAssignee";
-            cmbAssignee.Items.AddRange(new object[] { "담당자 선택", "김직원", "이직원", "박직원", "이관리자" });
+            cmbAssignee.Enabled = false;
+            cmbAssignee.Items.AddRange(new object[] { "담당자 조회·배정 규약 확인 필요" });
             //
             // lblStartDate
             //
@@ -425,7 +447,6 @@ namespace RemoteWork.WinForms.Features.Tasks
             //
             // dtpStartDate
             //
-            dtpStartDate.Text = " 2026-10-15";
             dtpStartDate.Location = new System.Drawing.Point(116, 248);
             dtpStartDate.Size = new System.Drawing.Size(603, 23);
             dtpStartDate.MinimumSize = new System.Drawing.Size(0, 0);
@@ -442,10 +463,12 @@ namespace RemoteWork.WinForms.Features.Tasks
             dtpStartDate.TabStop = true;
             dtpStartDate.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
             dtpStartDate.CustomFormat = " yyyy-MM-dd";
-            dtpStartDate.Value = new System.DateTime(639276192000000000L);
+            dtpStartDate.ShowCheckBox = true;
+            dtpStartDate.Checked = false;
             dtpStartDate.MinDate = new System.DateTime(552877920000000000L);
             dtpStartDate.MaxDate = new System.DateTime(3155062752000000000L);
             dtpStartDate.Name = "dtpStartDate";
+            dtpStartDate.ValueChanged += new System.EventHandler(InputChanged);
             //
             // lblDeadline
             //
@@ -472,7 +495,6 @@ namespace RemoteWork.WinForms.Features.Tasks
             //
             // dtpDeadline
             //
-            dtpDeadline.Text = " 2026-10-22";
             dtpDeadline.Location = new System.Drawing.Point(116, 292);
             dtpDeadline.Size = new System.Drawing.Size(603, 23);
             dtpDeadline.MinimumSize = new System.Drawing.Size(0, 0);
@@ -489,10 +511,12 @@ namespace RemoteWork.WinForms.Features.Tasks
             dtpDeadline.TabStop = true;
             dtpDeadline.Format = System.Windows.Forms.DateTimePickerFormat.Custom;
             dtpDeadline.CustomFormat = " yyyy-MM-dd";
-            dtpDeadline.Value = new System.DateTime(639282240000000000L);
+            dtpDeadline.ShowCheckBox = true;
+            dtpDeadline.Checked = false;
             dtpDeadline.MinDate = new System.DateTime(552877920000000000L);
             dtpDeadline.MaxDate = new System.DateTime(3155062752000000000L);
             dtpDeadline.Name = "dtpDeadline";
+            dtpDeadline.ValueChanged += new System.EventHandler(InputChanged);
             //
             // lblAttachments
             //
@@ -519,7 +543,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             //
             // txtAttachments
             //
-            txtAttachments.Text = "등록된 첨부파일이 없습니다.";
+            txtAttachments.Text = "첨부파일 연결 규약 확인 필요";
             txtAttachments.Location = new System.Drawing.Point(119, 335);
             txtAttachments.Size = new System.Drawing.Size(597, 50);
             txtAttachments.MinimumSize = new System.Drawing.Size(0, 46);
@@ -625,7 +649,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             //
             // btnConfirm
             //
-            btnConfirm.Text = "등록 확인";
+            btnConfirm.Text = "입력 확인";
             btnConfirm.Location = new System.Drawing.Point(633, 10);
             btnConfirm.Size = new System.Drawing.Size(95, 35);
             btnConfirm.MinimumSize = new System.Drawing.Size(88, 34);
@@ -649,7 +673,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnConfirm.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(255, 52, 101, 224);
             btnConfirm.FlatAppearance.BorderSize = 1;
             btnConfirm.Name = "btnConfirm";
-            btnConfirm.Click += new System.EventHandler(Unavailable_Click);
+            btnConfirm.Click += new System.EventHandler(ConfirmInput_Click);
             //
             // btnCancel
             //
@@ -720,7 +744,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             BackColor = System.Drawing.Color.FromArgb(255, 242, 245, 250);
             TabIndex = 0;
             TabStop = true;
-            ClientSize = new System.Drawing.Size(780, 630);
+            ClientSize = new System.Drawing.Size(780, 700);
             FormBorderStyle = System.Windows.Forms.FormBorderStyle.Sizable;
             MinimizeBox = false;
             MaximizeBox = true;
@@ -747,6 +771,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             layoutContent2.PerformLayout();
             layoutContent.ResumeLayout(false);
             layoutContent.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)inputErrors).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -778,5 +803,7 @@ namespace RemoteWork.WinForms.Features.Tasks
         private System.Windows.Forms.Button btnConfirm;
         private System.Windows.Forms.Button btnCancel;
         private System.Windows.Forms.Button btnClose;
+        private System.Windows.Forms.Label lblPreparationStatus;
+        private System.Windows.Forms.ErrorProvider inputErrors;
     }
 }

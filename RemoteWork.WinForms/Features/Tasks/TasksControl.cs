@@ -21,6 +21,7 @@ namespace RemoteWork.WinForms.Features.Tasks
         private string? preferredTaskId;
         private string? detailRetryTaskId;
         private TaskListQuery? currentListQuery;
+        private TaskDetail? currentTaskDetail;
 
         public TasksControl() : this(PreviewRole.Employee) { }
 
@@ -40,7 +41,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             cmbTaskScope.SelectedIndex = 0;
             cmbTaskStatusFilter.SelectedIndex = 0;
             lblTaskQuerySource.Text = queryService.SourceDescription
-                + "\r\n업무 처리 창은 조회한 업무와 연결되지 않았습니다.";
+                + "\r\n등록·수정·수락·연장: 입력·대상 확인만 가능하며 저장·전송은 연결 전입니다.";
             lblTaskQueryStatus.Text = "업무 조회를 기다리고 있습니다.";
             ClearDetail("목록에서 업무를 선택하면 상세 내용이 표시됩니다.");
             UpdateViewScope();
@@ -61,6 +62,26 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnTaskRequests.Visible = managementView;
             columnGridTasks3.Visible = managementView;
             lblTaskListTitle.Text = managementView ? "관리 업무" : "내 업무";
+            UpdatePreparationActions();
+        }
+
+        private TaskDetail? PreparationDetail()
+        {
+            if (detailLoading || currentTaskDetail is not { } detail
+                || gridTasks.SelectedRows.Count != 1
+                || gridTasks.SelectedRows[0].Tag is not TaskSummary selected
+                || !string.Equals(detail.Summary.TaskId, selected.TaskId, StringComparison.Ordinal)
+                || !string.Equals(detail.Summary.TaskId, selectedTaskId, StringComparison.Ordinal))
+                return null;
+            return detail;
+        }
+
+        private void UpdatePreparationActions()
+        {
+            bool hasDetail = PreparationDetail() is not null;
+            btnEditTaskPreview.Enabled = hasDetail;
+            btnAcceptTask.Enabled = hasDetail;
+            btnDeadlineExtensionPreview.Enabled = hasDetail;
         }
 
         /// <summary>
@@ -171,6 +192,7 @@ namespace RemoteWork.WinForms.Features.Tasks
                 if (detail?.Summary is null || !string.Equals(detail.Summary.TaskId, taskId, StringComparison.Ordinal))
                     throw new TaskQueryException(TaskQueryFailure.Unavailable);
                 TaskSummary summary = detail.Summary;
+                currentTaskDetail = detail;
                 txtContent.Text = $"{summary.TaskId}\r\n\r\n업무 제목   {summary.Title}\r\n담당자      {summary.AssigneeName}"
                     + $"\r\n업무 상태   {StatusText(summary.Status)}\r\n\r\n시작일      {FormatDate(summary.StartDate)}"
                     + $"\r\n현재 마감일 {FormatDate(summary.DueDate)}\r\n\r\n상세 내용\r\n{detail.Description}";
@@ -199,6 +221,7 @@ namespace RemoteWork.WinForms.Features.Tasks
                 {
                     detailLoading = false;
                     btnRetryQuery.Enabled = true;
+                    UpdatePreparationActions();
                 }
             }
         }
@@ -251,6 +274,8 @@ namespace RemoteWork.WinForms.Features.Tasks
 
         private void ClearDetail(string message)
         {
+            currentTaskDetail = null;
+            UpdatePreparationActions();
             txtContent.Text = message;
             // File lookup belongs to member 3 and has no agreed query contract yet.
             gridTaskAttachments.Rows.Clear();
@@ -262,6 +287,8 @@ namespace RemoteWork.WinForms.Features.Tasks
             ++detailGeneration;
             detailLoading = false;
             selectedTaskId = null;
+            currentTaskDetail = null;
+            UpdatePreparationActions();
             detailRetryTaskId = null;
             btnRetryQuery.Text = "다시 조회";
             detailCancellation?.Cancel();
@@ -362,7 +389,14 @@ namespace RemoteWork.WinForms.Features.Tasks
 
         private void btnEditTaskPreview_Click(object? sender, EventArgs e)
         {
-            PreviewActions.Open(this, new TaskEditForm(true));
+            if (PreparationDetail() is { } detail)
+                PreviewActions.Open(this, new TaskEditForm(detail));
+        }
+
+        private void btnAcceptTask_Click(object? sender, EventArgs e)
+        {
+            if (PreparationDetail() is { } detail)
+                PreviewActions.Open(this, new TaskAcceptanceForm(detail));
         }
 
         private void Unavailable_Click(object? sender, EventArgs e)
@@ -377,7 +411,8 @@ namespace RemoteWork.WinForms.Features.Tasks
 
         private void btnDeadlineExtensionPreview_Click(object? sender, EventArgs e)
         {
-            PreviewActions.Open(this, new DeadlineExtensionForm(previewRole));
+            if (PreparationDetail() is { } detail)
+                PreviewActions.Open(this, new DeadlineExtensionForm(previewRole, detail));
         }
 
         private void btnCollaborationRequest_Click(object? sender, EventArgs e)

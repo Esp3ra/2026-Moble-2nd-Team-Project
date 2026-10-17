@@ -479,7 +479,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnAcceptTask.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(255, 213, 220, 231);
             btnAcceptTask.FlatAppearance.BorderSize = 1;
             btnAcceptTask.Name = "btnAcceptTask";
-            btnAcceptTask.Click += new System.EventHandler(Unavailable_Click);
+            btnAcceptTask.Click += new System.EventHandler(btnAcceptTask_Click);
             //
             // btnReviewRequestPreview
             //
