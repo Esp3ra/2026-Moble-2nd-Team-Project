@@ -2,7 +2,7 @@
 
 `PR`은 검토에서 발견한 수정 요청과 재검토 조건을 담당 번호별로 관리하는 문서 브랜치입니다. 기준일은 **2026-10-17**입니다. 구현·변경 이력은 [LOG](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG)에 남기며, 이곳의 요청 문서에서 수정 상태를 확인합니다.
 
-## 현재 병합 상태
+## 이전 병합 기록
 
 | PR | 담당·내용 | 상태 |
 |---|---|---|
@@ -13,14 +13,16 @@
 | [#5](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/5) | 1번 수정·검증 기록 | LOG 병합 완료 · [6ca6d8f](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/6ca6d8faafa12ff0774f93724bdb6c9957fc647b) |
 | [#6](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/6) | 1번 수정 요청 회신 | PR 병합 완료 · [2e89714](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/2e89714c2f726950a732f2308c87d42964937522) |
 
-2026-10-17에 기존 결함 4건의 해결을 재검토하고 코드 PR #1·#2도 병합했습니다. 현재 alpha는 `9b8d00c`이며 0.0.2V는 이전 `8f09183`으로 보존합니다. 문서 보고만으로 완료 처리한 것이 아니라 실제 검증·GitHub 병합 상태를 확인한 결과입니다.
+2026-10-17에 기존 결함 4건을 재검토하고 코드 PR #1·#2를 병합했습니다. 당시 통합 alpha는 `9b8d00c`입니다. 이번 확인 시 원본 alpha는 [`5164b0c`](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/5164b0c223a05b716d0f78ad722c9024bf7d5333)이며 0.0.2V는 이전 `8f09183`으로 보존합니다. 아래 신규 PR의 검토 대기와 이전 병합 완료를 구분합니다.
 
 ## 담당별 수정 요청
 
 | 담당 | 대상 | 재검토 결과 | 문서 |
 |---|---|---|---|
 | [1번](1번/README.md) | PR #2 | R1~R3 해결 확인(a35c972)·alpha 병합 | [공통 기반 수정 요청](1번/2026-10-16_PR2_공통기반_수정요청.md) |
-| [4번](4번/README.md) | PR #1 | 디자인팀 필터 해결 확인(837e411)·alpha 병합 | [공지 필터 수정 요청](4번/2026-10-16_PR1_공지필터_수정요청.md) |
+| [4번](4번/README.md) | [PR #7](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/7) · 공지 DB 연결 | **재검토 대기** · Draft · API/DDL 협의 대기 · head7478101 | [공지 DB 검토 상태](4번/2026-10-17_PR7_공지DB_검토상태.md) |
+
+4번의 [이전 PR #1 필터 수정](4번/2026-10-16_PR1_공지필터_수정요청.md)은 해결·병합 완료 상태로 보존합니다. 신규 [코드 PR #7](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/7)은 아직 미병합이며, [LOG PR #8](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/8)도 별도 문서 검토 중입니다. 담당자 테스트 보고를 검토자 확인이나 API/DDL 합의 완료로 표시하지 않습니다.
 
 ## 수정 후 재검토
 
