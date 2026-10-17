@@ -1,6 +1,14 @@
 # 원격 근무용 업무 처리 확인 시스템 변경 기록
 
-## 최신 — PR #12 회신 수신과 문서 충돌 해소, 2026-10-17
+## 최신 — W1-05 상태CHECK 보완·MySQL 검증·DEMO 범위, 2026-10-17
+
+[alpha c56f3c8](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/c56f3c87e446adb30309c46287cd7c4aa3cff273)에 1번 W1-05의 정확한5개 상태코드 CHECK를 ORM/검토용002 SQL에 함께 반영했습니다. [변경8파일·검증·미실행·남은 합의](2번/2026-10-17_W1-05_상태CHECK_수정_MySQL_검증.md)에서 확인합니다. 전용 MySQL 두 모듈 **38통과**, rawDDL/ORM·기존GET·실제 dump/새DB복원과 공통행 보존을 확인했습니다. 로컬8개 반영·추적162파일 일치·DOCX7개 보존·Release 경고0/오류0입니다.
+
+사용자 결정에 따라 **실제 구현·DB 규약·지속 관리·주요 검증은 MySQL 기준**입니다. SQLite는 DEMO 임시 구성으로 종료 후 삭제 예정입니다. 이미 마친 SQLite/임시HTTP 검사는 데모 참고 기록이며 별도 제품DB/스키마 관리 대상으로 확대하지 않습니다.
+
+문서 #12는697a8e3으로 병합됐고 W1/N4는 수신했습니다. W1 공통 쓰기 지원과 W3 회신은 아직 필요합니다. 코드 #7은 R1/R2 해결·N4 ID/API 수용 확인 후에도 Draft·최신README 충돌/결합재검증이 남습니다. 업무 쓰기·상태 전환·공유 DB 적용·3번 기능은 이번에 연결하지 않았습니다.
+
+## PR #12 회신 수신과 문서 충돌 해소, 2026-10-17
 
 [1번 업무 쓰기 W1 회신](1번/2026-10-17_업무쓰기_공통규약_회신.md)과 [공지 N4 회신](1번/2026-10-17_공지DB_API_DDL_협의회신.md)을 검토했습니다. W1은 **수신**, 직원 쓰기 공통 지원·버전/멱등·배정 후보 조회는 **미구현**, 3번 W3는 **회신 없음·합의 필요**입니다. 상태 CHECK의 정확한 소문자 허용 요청은 2번 후속 수정 대상으로 확인했습니다.
 
@@ -180,10 +188,10 @@ alpha 3b09480, DOCX 5dac768으로 각각 별도 게시했습니다. Release 경�
 | 최초 LOG 게시 당시 | 당시 `alpha`·`0.0.2V`는 [0d06c7108ef03f1638112a858a62f8c9fa11714c](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/0d06c7108ef03f1638112a858a62f8c9fa11714c). 5개 상태·관리자 본인 화면은 로컬 반영 단계 |
 | 14번 기록의 게시본 | [36dda613ac6194015e41da70038f6d420cec85fa](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/36dda613ac6194015e41da70038f6d420cec85fa) · 문서 분리 전 폼·계획서 게시 상태 |
 | 16번 기록의 코드 | [2cd1a32724ecec8c21cd8ddd659dbbf30d43dcaf](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/2cd1a32724ecec8c21cd8ddd659dbbf30d43dcaf) · 문서 제외 정책을 alpha에 추가한 당시 상태 |
-| 현재 alpha | [6ab86e4](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/6ab86e4efa80aba9d001dd5edbe007319ecaf18d) · 2번 로컬 입력 확인값·실제HTTP 준비 창 검증, 제품 쓰기 미연결·기존 읽기 계약 유지,162개 파일 |
+| 현재 alpha | [c56f3c8](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/c56f3c87e446adb30309c46287cd7c4aa3cff273) · W1-05 정확한 상태CHECK·MySQL 기준, 기존 로컬입력/GET 유지·제품 쓰기 미연결,162개 파일 |
 | 보존한 0.0.2V | `8f09183ef992606ec4c2b7e3da79ef07983ba019`의 이전 화면·조회 준비 버전. 태그 객체 `185dd13b63b6e2d1412f7b902586e69bbe7f80ca`, 이번 작업에서 이동하지 않음 |
 | 현재 DOCX | [5dac768](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/5dac768f443b32f8ca7e989382415c4b2b628806) · 지문센서 새 용도·5번 연결 경계 반영, 문서7개와 README·Word 정본1개 |
-| 이번 LOG 추가 | [입력 확인값·실제HTTP 준비 창](2번/2026-10-17_입력확인_스냅샷_실제HTTP_준비창검증.md)·[PR7 재검토/문서10·11 병합](2번/2026-10-17_PR7_수정재검토_PR10_PR11_문서병합.md). [2번 현재 안내](2번/README.md)·[전체 기록목록](2번/기록목록.md) 최신화·기존 원문 보존 |
+| 이번 LOG 추가 | [W1-05 CHECK·MySQL 검증](2번/2026-10-17_W1-05_상태CHECK_수정_MySQL_검증.md), [W1/N4 수신·#12 병합](2번/2026-10-17_1번_W1_N4_회신수신_PR12_병합.md), [2번 현재 안내](2번/README.md)·[전체 기록목록](2번/기록목록.md) 최신화·기존 원문 보존 |
 
 현재 alpha에는 공통 기반·로컬 공지/채팅과 2번 조회 개발 초안이 통합됐습니다. 0.0.2V는 이전 화면 버전으로 보존합니다. 실제 로그인은 HTTP 조회 서비스를 주입하지만 업무 API는 서버의 명시적 활성화가 필요합니다. 조회 계약의 1번 수용과 별개로 쓰기 계약·정식 DDL/공유 DB·상태 변경·제출/승인·두 PC 통합은 별도 합의·검증 대상입니다. 구현계획·참고자료는 DOCX 브랜치에서 관리합니다.
 
