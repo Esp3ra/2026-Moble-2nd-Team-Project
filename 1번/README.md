@@ -1,6 +1,6 @@
 # 1번 — 공통 서버·DB·인증·사용자·통신·통합
 
-작성일: 2026-10-16 · 상태: PR #3·#4 문서 LOG 병합 완료, PR #2 R1~R3 수정본 검증 완료·팀장 재검토 대기
+작성일: 2026-10-16 · 최신 확인: 2026-10-17 · 상태: PR #2 R1~R3 재검토 통과·alpha 병합, PR #5·#6 문서 병합 완료
 
 팀장 LOG의 기존 루트 `2번/` 구조에 맞춰 루트 `1번/` 아래 날짜·주제별 Markdown을 작성합니다. 기존 2번 기록과 `LOG/2026-10-16/` 기록은 보존합니다.
 
@@ -10,10 +10,12 @@
 | 공통 코드 기준 | [`a35c972`](https://github.com/jinkyu1452-cmd/Sang1/tree/a35c972f39091fec477024167e5e3e1194999b1e) · 포크 `team1/common-foundation` |
 | 코드에 포함된 규약 | [INTEGRATION.md](https://github.com/jinkyu1452-cmd/Sang1/blob/a35c972f39091fec477024167e5e3e1194999b1e/docs/INTEGRATION.md) |
 | 실행·MySQL 설정 | [SETUP.md](https://github.com/jinkyu1452-cmd/Sang1/blob/a35c972f39091fec477024167e5e3e1194999b1e/docs/SETUP.md) |
-| 최신 팀 코드 기준 | [alpha 8f09183](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/8f09183ef992606ec4c2b7e3da79ef07983ba019) |
+| 최신 팀 코드 기준 | [alpha 9b8d00c](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/9b8d00cebe3e8a2a5555e06bcc512a802cc8152b) · PR #1·#2 통합 |
 | 문서 PR | [PR #3](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/3) LOG 병합 완료 · [6348997](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/6348997d78976ad5127116ccd606aaa36fc264b5) |
 | 타 담당 전달 PR | [PR #4](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/4) LOG 병합 완료 · [831670e](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/831670e58df09d79b124d1cb0b19975bea6216b2) |
-| 코드 수정 요청 | [PR 브랜치의 1번 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/1번/2026-10-16_PR2_공통기반_수정요청.md) · R1~R3 수정본·회귀 검증 제출, 재검토 대기 |
+| 코드 수정 요청 | [PR 브랜치의 1번 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/1번/2026-10-16_PR2_공통기반_수정요청.md) · R1~R3 재검토 해결·alpha 병합 완료 |
+
+현재 코드 재검토와 실제 병합 결과는 [2번 통합 검토 기록](../2번/2026-10-17_PR1_PR2_재검토_및_PR5_PR6_병합.md)을 참조합니다. PR #2 병합은 `d27213e`, 최종 alpha는 PR #1을 합친 `9b8d00c`입니다.
 
 | 날짜·주제 | 기록 |
 |---|---|
@@ -24,7 +26,7 @@
 | [공통 구현·검증 기록](2026-10-16_공통서버_구현_검증기록.md) | 최초 2d3cc48 기준의 SQLite/MySQL/HTTP/빌드/기존 조회 기록. 최신 수정 검증은 위 별도 기록 |
 | [4번 공지·채팅 타 담당 파일 수정 전달](2026-10-16_4번_공지채팅_타담당파일_수정전달.md) | PR #1의 공통 MainForm·결과물 문구 변경, 검증과 후속 확인·앞으로의 전달 기록 기준 |
 
-공통 서버·인증·사용자 관리 구현과 검증은 위 문서에 기록된 코드 기준입니다. PR #2의 수정 전 소스에서 관리자 동시 강등·이전 접속 응답·비정상 본문 401을 재현하고 a35c972에서 수정·회귀 검증했습니다. MySQL 26개, SQLite 24개/2개 skip, C# 인증 18개 시나리오·88개 검증, 실제 HTTP 10개·기존 조회 47개가 통과했습니다. 팀장 재검토·코드 병합은 대기입니다. 업무 목록·상세 API·실제 Own/Managed 범위·업무 상태 변경·제출·승인·파일·두 PC/웹 업무 통합은 별도입니다. 업무 조회 인터페이스·DTO·대역·기존 테스트와 전체 Features 60개 파일은 원격 Git blob 해시를 비교해 보존했습니다.
+공통 서버·인증·사용자 관리 구현과 검증은 위 문서에 기록된 코드 기준입니다. PR #2의 수정 전 소스에서 관리자 동시 강등·이전 접속 응답·비정상 본문 401을 재현하고 a35c972에서 수정·회귀 검증했습니다. MySQL 26개, SQLite 24개/2개 skip, C# 인증 18개 시나리오·88개 검증, 실제 HTTP 10개·기존 조회 47개가 통과했습니다. 2026-10-17 재검토에서 R1~R3 해결을 확인해 코드·문서 병합을 완료했습니다. 통합본에서도 인증·공지/채팅·업무 조회 회귀를 확인했습니다. 업무 목록·상세 API·실제 Own/Managed 범위·업무 상태 변경·제출·승인·파일·두 PC/웹 업무 통합은 별도입니다. 기존 2번 업무 조회 인터페이스·DTO·대역·테스트는 보존했고, 조회 경계 README에는 현재 공통 통합과 과거 감사의 차이만 추가 안내했습니다. 공지·채팅은 PR #1 범위로 반영했습니다.
 
 ‘구현 확인’은 위 코드에서 확인한 동작을 뜻합니다. ‘합의 필요’는 제안이며 팀 결정이 아닙니다. PR #3·#4의 문서 병합은 PR #1·#2의 코드 병합이나 결함 수정 완료를 뜻하지 않습니다. 비밀번호·접속 증표·실제 .env·DB 데이터는 이 기록에 싣지 않습니다.
 

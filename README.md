@@ -2,7 +2,7 @@
 
 `LOG`는 표준 WinForms 디자이너·도구상자 구조로 전환한 뒤의 화면 수정과 설계 결정을 보관하는 브랜치입니다. 수정 주제마다 별도 Markdown 파일로 정리했습니다.
 
-정리일: **2026-10-16**. 아래 날짜는 기록 정리일이며 모든 변경의 실제 작업일을 뜻하지 않습니다.
+정리일: **2026-10-17**. 아래 날짜는 기록 정리일이며 모든 변경의 실제 작업일을 뜻하지 않습니다.
 
 최초 기록 12개에 이어 **예시 데이터 정리와 alpha·0.0.2V 게시 완료**를 13·14번, **DOCX 문서 브랜치 분리**를 15번, **로컬 DOCX 게시 제외 기준**을 16번 문서로 추가했습니다. 이번 태그 동기화·Word 정리·업무 조회 연결 준비는 17·18·19번에 기록합니다. 푸시할 때마다 README의 목차·현재 반영 범위·확인 결과를 최신화합니다.
 
@@ -17,7 +17,7 @@
 
 처음 보낸 [공통 규약 확인 요청서](2번/2026-10-16_1번_담당_공통규약_확인요청.md)는 보존하고, 이후 받은 [1번 공통 규약 회신](2번/2026-10-16_1번_공통규약_회신정리.md)과 전달한 [조회 인터페이스·DTO·5개 상태 정의](2번/2026-10-16_업무조회_인터페이스_DTO_전달.md)를 별도 기록했습니다. 회신으로 전달된 규약과 이 PC에서 실행·확인한 범위를 구분합니다.
 
-1번 협의·검증 문서는 [PR #3](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/3)을 통해 LOG에 병합했습니다([6348997](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/6348997d78976ad5127116ccd606aaa36fc264b5)). 공통 코드 [PR #2](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/2)는 미병합이며 R1~R3 수정 커밋 `a35c972`와 [최신 회귀 검증](1번/2026-10-16_PR2_인증결함_수정검증.md)을 제출해 팀장 재검토를 요청합니다. 공통 사용법·검증·2번 DTO 회신·미합의 항목은 [1번 기록](1번/README.md)에 있고, 수정 요청은 별도 [PR 브랜치](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/PR)에 담당별로 정리합니다. 기존 기록은 당시 자료로 보존하며 실제 업무 API·권한·저장/제출/승인과 두 PC·웹 통합은 별도입니다.
+1번 협의·검증 문서는 PR #3·#4·#5를 통해 LOG에 반영됐고, 수정 요청 회신 PR #6도 PR 브랜치에 병합됐습니다. 공통 코드 [PR #2](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/2)의 R1~R3와 [PR #1](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/1)의 디자인팀 필터를 재검토한 뒤 모두 alpha에 병합했습니다. [이번 검토·병합 기록](2번/2026-10-17_PR1_PR2_재검토_및_PR5_PR6_병합.md)에서 실제 검증과 미실행 범위를 구분합니다. 공통 사용법·합의 문서는 [1번 기록](1번/README.md), 요청·재검토 결과는 [PR 브랜치](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/PR)에 보존합니다.
 
 4번의 다른 담당 영역 수정 전달 문서는 [PR #4](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/4)를 통해 LOG에 병합했습니다([831670e](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/831670e58df09d79b124d1cb0b19975bea6216b2)). [1번 전달 기록](1번/2026-10-16_4번_공지채팅_타담당파일_수정전달.md)은 PR #1의 MainForm 연결·메뉴·결과물 샘플 문구 변경을 정리한 자료입니다. [병합 이력](2번/2026-10-16_PR4_문서병합_상태갱신.md)에서 확인 결과를 볼 수 있으며, 문서 병합은 1번 기능 구현이나 PR #1 코드 반영·필터 수정 완료를 뜻하지 않습니다.
 
@@ -65,19 +65,19 @@
 | 최초 LOG 게시 당시 | 당시 `alpha`·`0.0.2V`는 [0d06c7108ef03f1638112a858a62f8c9fa11714c](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/0d06c7108ef03f1638112a858a62f8c9fa11714c). 5개 상태·관리자 본인 화면은 로컬 반영 단계 |
 | 14번 기록의 게시본 | [36dda613ac6194015e41da70038f6d420cec85fa](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/36dda613ac6194015e41da70038f6d420cec85fa) · 문서 분리 전 폼·계획서 게시 상태 |
 | 16번 기록의 코드 | [2cd1a32724ecec8c21cd8ddd659dbbf30d43dcaf](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/2cd1a32724ecec8c21cd8ddd659dbbf30d43dcaf) · 문서 제외 정책을 alpha에 추가한 당시 상태 |
-| 현재 alpha | [8f09183ef992606ec4c2b7e3da79ef07983ba019](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/8f09183ef992606ec4c2b7e3da79ef07983ba019) · 정책과 2번 조회 연결 준비, 85개 파일 |
-| 현재 0.0.2V | 위 alpha와 같은 커밋. 태그 객체 `185dd13b63b6e2d1412f7b902586e69bbe7f80ca` |
+| 현재 alpha | [9b8d00c](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/9b8d00cebe3e8a2a5555e06bcc512a802cc8152b) · PR #1·#2 통합, 공통 인증·로컬 공지/채팅과 기존 조회 경계, 142개 파일 |
+| 보존한 0.0.2V | `8f09183ef992606ec4c2b7e3da79ef07983ba019`의 이전 화면·조회 준비 버전. 태그 객체 `185dd13b63b6e2d1412f7b902586e69bbe7f80ca`, 이번 작업에서 이동하지 않음 |
 | 현재 DOCX | [5ee0998b81c6519b60fd380ac46c719d67a63d80](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/5ee0998b81c6519b60fd380ac46c719d67a63d80) · 문서 7개와 README, Word 정본 1개 |
-| 이번 LOG 추가 | PR #4 전달 문서 병합과 [상태 갱신 기록](2번/2026-10-16_PR4_문서병합_상태갱신.md), 담당·루트 목차 최신화 |
+| 이번 LOG 추가 | [PR #1·#2 재검토와 PR #5·#6 병합](2번/2026-10-17_PR1_PR2_재검토_및_PR5_PR6_병합.md), 담당·루트 목차와 최종 alpha·로컬 반영 결과 갱신 |
 
-현재 `alpha`와 `0.0.2V`는 문서 제외 정책과 목록·상세·필터를 조회 인터페이스에 연결한 동일 수정본입니다. 공통 소스는 PR #2에서 별도로 확보·검토했지만 아직 미병합이며, 현재 alpha의 기본 업무 조회는 미연결이고 테스트 대역은 명시적으로 주입합니다. 구현계획·합의 문서와 참고자료는 `DOCX` 브랜치에 있습니다.
+현재 alpha에는 공통 인증·사용자·HTTP·DB 기반과 로컬 공지·채팅이 통합됐습니다. 0.0.2V는 이전 화면 버전으로 보존합니다. 기본 업무 조회는 계속 미연결이며 테스트 대역은 명시적으로 주입합니다. 업무 API·실제 조회 권한·상태 변경·제출/승인·두 PC 통합은 별도 합의·검증 대상입니다. 구현계획·참고자료는 DOCX 브랜치에서 관리합니다.
 
-직전 조회 연결 준비 작업에서 Debug·Release 빌드는 각각 경고·오류 0개였으며, 실제 WinForms 메시지 루프와 UI 스레드 검사로 각 6개 시나리오·47개 검증을 통과했습니다. PNG 13개를 생성하고 대표 상태·최소 크기 화면을 확인했습니다. 이전 347개·44렌더·15모달·21액션은 12·14의 화면 뼈대 검증 회차로 보존하며 이번 수치에 합산하지 않습니다. 위 조회 연결 준비 회차에서 실제 인증·HTTP·서버 조회 권한·DB·두 PC 통합 검증은 미실행이었습니다. 이후 공통 PR의 별도 검증은 아래 PR 검토 문서에서 구분합니다. Word는 최신 정본 1개의 14쪽 렌더링을 검수했습니다. 위 수치는 각 코드·문서 작업 당시의 결과입니다. 이번 PR #4 문서 병합·상태 갱신에서는 코드·Word를 변경하지 않아 빌드·UI·Word 렌더 검증을 재실행하지 않았습니다.
+직전 조회 연결 준비 작업에서 Debug·Release 빌드는 각각 경고·오류 0개였으며, 실제 WinForms 메시지 루프와 UI 스레드 검사로 각 6개 시나리오·47개 검증을 통과했습니다. PNG 13개를 생성하고 대표 상태·최소 크기 화면을 확인했습니다. 이전 347개·44렌더·15모달·21액션은 12·14의 화면 뼈대 검증 회차로 보존하며 이번 수치에 합산하지 않습니다. 위 조회 연결 준비 회차에서 실제 인증·HTTP·서버 조회 권한·DB·두 PC 통합 검증은 미실행이었습니다. 이후 공통 PR의 별도 검증은 아래 PR 검토 문서에서 구분합니다. Word는 최신 정본 1개의 14쪽 렌더링을 검수했습니다. 위 수치는 각 코드·문서 작업 당시의 결과입니다. 위 수치는 당시 회차의 기록입니다. 2026-10-17에는 새 코드·통합본을 실제 재검증했으며 결과는 아래 최신 기록에서 구분합니다. Word는 이번 작업에서 변경하지 않았습니다.
 
 ## PR 검토와 병합 후 전달
 
-[최초 1번 전달 기록](2번/2026-10-16_PR검토_병합후_1번전달사항.md)은 검토 당시 자료로 보존합니다. 현재 **PR #3·#4 문서는 LOG 병합 완료, PR #1·#2 코드는 수정 후 재검토**입니다. [병합·분리 기록](2번/2026-10-16_PR3_병합_및_수정요청_분리.md)에서 반영 결과를 확인할 수 있습니다. 수정 요청 정본은 [PR/1번](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/PR/1번)의 공통 기반 3건과 [PR/4번](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/PR/4번)의 공지 필터 1건입니다. 문서 병합은 코드 병합·결함 수정 완료를 뜻하지 않습니다. 업무 API·Own/Managed·상태 wire·날짜·페이지·두 PC는 별도 합의·검증이 필요합니다.
+[최초 1번 전달 기록](2번/2026-10-16_PR검토_병합후_1번전달사항.md)은 당시 자료로 보존합니다. 현재 **PR #1·#2 코드와 PR #3~#6 문서는 모두 병합 완료**입니다. 1번 R1~R3와 4번 필터 문제는 [재검토 기록](2번/2026-10-17_PR1_PR2_재검토_및_PR5_PR6_병합.md)에서 해결을 확인했고, PR/1번·PR/4번 요청 문서에도 완료 상태를 반영했습니다. 업무 API·Own/Managed·상태 wire·날짜·페이지·두 PC는 별도 합의·검증이 필요합니다.
 
-`0.0.2V`는 사용자 요청에 따라 같은 이름으로 갱신했습니다. 과거 초안을 비교할 때는 당시 커밋 `0d06c7108`을 사용합니다. LOG에는 기록용 Markdown만 포함합니다. 코드 브랜치의 루트 `DOCX/`는 `/DOCX/` 규칙으로 제외하고, 문서 브랜치는 사용자가 별도 게시·갱신을 요청할 때만 갱신합니다. LOG와 일반 작업 기록은 해당 브랜치 범위에 맞춰 반영합니다. 실행 소스는 [alpha](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/alpha), 구현계획과 참고 문서는 [DOCX 브랜치](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/DOCX/DOCX)에서 확인합니다.
+이전 2026-10-16 작업에서는 사용자 요청에 따라 `0.0.2V`를 같은 이름으로 갱신했습니다. 이번 2026-10-17 통합에서는 태그를 이동하지 않았습니다. 과거 초안을 비교할 때는 당시 커밋 `0d06c7108`을 사용합니다. LOG에는 기록용 Markdown만 포함합니다. 코드 브랜치의 루트 `DOCX/`는 `/DOCX/` 규칙으로 제외하고, 문서 브랜치는 사용자가 별도 게시·갱신을 요청할 때만 갱신합니다. LOG와 일반 작업 기록은 해당 브랜치 범위에 맞춰 반영합니다. 실행 소스는 [alpha](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/alpha), 구현계획과 참고 문서는 [DOCX 브랜치](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/DOCX/DOCX)에서 확인합니다.
 
-프로젝트 전체 소개는 [main README](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/main/README.md), 현재 화면 초안은 [alpha](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/alpha), 초기 코드 배치 초안은 [0.0.1V](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/0.0.1V), 최신 도구상자 초안은 [0.0.2V](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/0.0.2V)에서 확인합니다.
+프로젝트 전체 소개는 [main README](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/main/README.md), 현재 통합 개발 코드는 [alpha](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/alpha), 초기 코드 배치 초안은 [0.0.1V](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/0.0.1V), 최신 도구상자 초안은 [0.0.2V](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/0.0.2V)에서 확인합니다.
