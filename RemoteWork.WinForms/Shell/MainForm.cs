@@ -1,5 +1,6 @@
 using RemoteWork.WinForms.Ui;
 using RemoteWork.WinForms.Features.Tasks;
+using RemoteWork.WinForms.Features.Tasks.Queries;
 using RemoteWork.WinForms.Features.Results;
 using RemoteWork.WinForms.Features.Collaboration;
 using RemoteWork.WinForms.Features.Attendance;
@@ -42,7 +43,7 @@ namespace RemoteWork.WinForms.Shell
                 users.Click += (_, _) => { using var form = new UserManagementForm(); form.ShowDialog(this); };
                 footer.Controls.Add(users);
             }
-            var note = new Label { AutoSize = true, MaximumSize = new Size(460, 0), Text = "로그인 연결됨 · 업무 조회는 연결 대기, 다른 기능 화면은 예시입니다.", Padding = new Padding(5, 7, 0, 0) };
+            var note = new Label { AutoSize = true, MaximumSize = new Size(460, 0), Text = "로그인 연결됨 · 업무 조회 연결 상태는 업무 화면에서 확인하세요.", Padding = new Padding(5, 7, 0, 0) };
             footer.Controls.Add(note);
             layoutWorkspace.RowCount = 3;
             layoutWorkspace.RowStyles.Add(new RowStyle(SizeType.Absolute, 60F));
@@ -82,7 +83,9 @@ namespace RemoteWork.WinForms.Shell
 
         private void btnTasks_Click(object? sender, EventArgs e)
         {
-            ShowPage(new TasksControl(previewRole), btnTasks);
+            ShowPage(signedInUser is null
+                ? new TasksControl(previewRole)
+                : new TasksControl(previewRole, new HttpTaskQueryService(AppServices.Api)), btnTasks);
         }
 
         private void btnReviews_Click(object? sender, EventArgs e)

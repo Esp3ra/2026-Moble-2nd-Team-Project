@@ -23,6 +23,7 @@ def create_app(test_config=None):
         host=os.getenv("MYSQL_HOST", "127.0.0.1"), port=int(os.getenv("MYSQL_PORT", "3306")),
         database=os.getenv("MYSQL_DATABASE", "remote_work"), query={"charset": "utf8mb4"})
     app.config.from_mapping(DATABASE_URL=database_url, SECRET_KEY=os.getenv("SECRET_KEY", ""),
+        ENABLE_TASK_QUERY_DRAFT=os.getenv("REMOTEWORK_ENABLE_TASK_QUERY_DRAFT") == "1",
         COMPANY_NAME=os.getenv("COMPANY_NAME", "회사명"), SESSION_HOURS=int(os.getenv("SESSION_HOURS", "8")),
         COOKIE_SECURE=os.getenv("COOKIE_SECURE", "false").lower() == "true", MAX_CONTENT_LENGTH=32 * 1024,
         SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax", SESSION_REFRESH_EACH_REQUEST=False)
@@ -99,9 +100,9 @@ def create_app(test_config=None):
     app.register_blueprint(api_bp)
     app.register_blueprint(web_bp)
 
-    # Explicit integration point: add the feature blueprint to features/registry.py.
-    from .features.registry import BLUEPRINTS
-    for feature in BLUEPRINTS:
+    # Explicit integration point: feature drafts must opt in before model import.
+    from .features.registry import get_blueprints
+    for feature in get_blueprints(app.config):
         app.register_blueprint(feature)
 
     @app.cli.command("init-db")

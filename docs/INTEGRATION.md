@@ -1,6 +1,6 @@
 # 팀 공통 서버 연결 규칙
 
-팀원 1은 인증, 사용자, DB 연결, 공통 응답, 공통 이력, 자원 접근 검사 도구를 제공합니다. 팀원 2~5는 자신의 테이블·API·화면을 연결하고, 실제 업무·채팅방·파일의 접근 조건을 서비스에서 적용합니다. 현재 기능 API가 연결되지 않은 상태를 전체 업무 통합 완료로 취급하지 않습니다.
+팀원 1은 인증, 사용자, DB 연결, 공통 응답, 공통 이력, 자원 접근 검사 도구를 제공합니다. 팀원 2~5는 자신의 테이블·API·화면을 연결하고, 실제 업무·채팅방·파일의 접근 조건을 서비스에서 적용합니다. 담당별 개발 API가 추가되어도 제출·검토·장치와 원격 환경을 포함한 전체 업무 통합 완료로 취급하지 않습니다.
 
 ## 공통 주소와 응답
 
@@ -46,7 +46,7 @@
 
 ## 기능 모듈 추가
 
-예를 들어 팀원 2는 `remotework/features/tasks/`에 모델과 라우트를 만들고 `features/registry.py`의 `BLUEPRINTS`에 등록합니다. 모델 파일도 그 모듈에서 import해야 최초 `init-db`가 테이블을 발견합니다. 팀원 3~5도 같은 방법을 사용합니다. 아직 구현되지 않은 기능을 자동으로 성공시키는 예시 API는 등록하지 않았습니다.
+기능 담당자는 `remotework/features/` 아래에 모델과 라우트를 만들고 `features/registry.py`의 `get_blueprints(config)`가 반환하는 목록에 등록합니다. 2번의 업무 조회 개발 초안은 명시적 활성화일 때만 모듈을 import합니다. 모델 파일을 해당 모듈에서 import해야 최초 `init-db`가 테이블을 발견합니다. 아직 구현되지 않은 기능을 자동으로 성공시키는 예시 API는 등록하지 않습니다.
 
 다음은 복사해 변형할 수 있는 연결 예시입니다. 실제 업무 테이블과 조회는 팀원 2가 구현합니다.
 
@@ -134,6 +134,12 @@ API 경로에는 `/api/v1/`을 다시 붙이지 않습니다. 예시는 관리�
 - [Flask 애플리케이션 팩토리](https://flask.palletsprojects.com/en/stable/patterns/appfactories/)
 - [Flask 웹 보안과 쿠키·CSRF](https://flask.palletsprojects.com/en/stable/web-security/)
 - [PyMySQL 연결 설정](https://pymysql.readthedocs.io/en/latest/modules/connections.html)
+
+## 2026-10-17: 2번 조회 개발 초안 연결
+
+업무 GET 목록·상세와 공통 HTTP 어댑터는 [업무 조회 개발 계약](TASK_QUERIES.md)에 추가했습니다. 업무별 지정 관리자 정책은 사용자 확인 기준입니다. API/상태 코드/업무 DB·migration은 1번·3번 등 관련 담당과 합의가 필요하므로 `REMOTEWORK_ENABLE_TASK_QUERY_DRAFT=1`일 때만 업무 Blueprint·모델을 등록합니다. 기본 실행에는 초안을 자동 적용하지 않으며 공통 schema version 1도 변경하지 않습니다. 일반 실행에 업무 데이터를 자동 생성하지 않습니다.
+
+아래 절은 공통 PR 당시의 이전 기준(8f09183)을 설명한 기록입니다. 당시의 ‘업무 API 미등록’과 현재 개발 초안의 명시적 활성화를 구분하세요. 인증·공통 ApiClient·DB 연결 규칙은 그대로 재사용합니다.
 
 ## 2번 조회 인터페이스와 연결할 때
 

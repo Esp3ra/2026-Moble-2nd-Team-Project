@@ -2,19 +2,19 @@
 
 원격 근무 중 업무 배정·상태·마감·결과 검토와 공지·채팅·근태를 관리하는 팀 프로젝트입니다. `alpha`는 화면 초안과 담당별 구현을 통합하는 개발 브랜치입니다. C# WinForms 클라이언트와 Python 공통 서버를 포함합니다.
 
-현재 공통 로그인·사용자 관리·HTTP·DB 기반과 공지·채팅의 로컬 동작이 구현돼 있습니다. 업무 목록·상세는 조회 인터페이스와 명시적 테스트 대역까지 준비했으며 실제 업무 서버 조회는 미연결입니다. 설계·합의 사항은 [DOCX](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/DOCX/DOCX), 구현·검토 이력은 [LOG](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG), 담당별 수정 요청과 재검토 결과는 [PR](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/PR)에서 관리합니다.
+현재 공통 로그인·사용자 관리·HTTP·DB 기반과 공지·채팅의 로컬 동작이 구현돼 있습니다. 업무 목록·상세는 공통 인증을 사용하는 GET API·HTTP 서비스와 기존 화면을 연결한 2번 개발 초안입니다. 업무 API는 명시적으로 활성화한 개발 서버에서 사용하며, 기본 실행에는 미확정 업무 스키마를 적용하지 않습니다. 설계·합의 사항은 [DOCX](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/DOCX/DOCX), 구현·검토 이력은 [LOG](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG), 담당별 수정 요청과 재검토 결과는 [PR](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/PR)에서 관리합니다.
 
 ## 현재 구현 범위
 
 | 담당 | 영역 | 현재 동작 |
 |---|---|---|
 | 1번 | 공통 서버·DB·인증·사용자·통신 | 실제 로그인·역할 진입, 사용자 관리·비밀번호 변경, 접속 만료·폐기, 공통 응답·오류·트랜잭션·감사 이력, 웹 로그인·사용자 목록 |
-| 2번 | 업무·상태·마감 | 기존 화면 구조와 조회 경계 유지. 주입된 서비스의 행 선택 상세·전체/5개 상태 필터·로딩·빈 목록·오류·재시도·늦은 응답 차단 검증. 기본 서비스는 미연결 안내 |
+| 2번 | 업무·상태·마감 | 기존 화면·조회 경계를 유지한 GET 목록/상세·전체/5상태 필터·서버 본인/지정 관리자 권한·공통 HTTP 연결. 개발용 활성화 필요, 업무 저장·상태 변경은 제외 |
 | 3번 | 결과물·제출·검토·이력 | 직원·관리자 내 결과물과 관리자 검토 화면 예시. 실제 제출·파일·승인/반려·이력 저장은 미연결 |
 | 4번 | 공지·채팅 | 메모리 공지 등록·조회·관리자 삭제·4개 대상 필터·고정·정렬, 로컬 개인/그룹 방·메시지·메뉴 이동 시 저장소 유지 |
 | 5번 | 출퇴근·연차·장치 | 기존 폼과 역할별 화면 예시. 실제 근태 저장·승인·장치 인증은 미연결 |
 
-공통 권한 도우미의 동작 검증은 실제 업무·채팅·파일 API의 접근 권한 검증과 구분합니다. 실제 업무 API, Own/Managed 관리 범위, 제출·승인, 파일 전송과 두 PC·웹 업무 흐름은 후속 합의·구현·검증 대상입니다.
+업무 조회는 현재 본인 배정과 업무별 지정 관리자 조건을 서버에서 각각 검사합니다. API·DB·상태 코드·날짜·migration은 관련 담당과 합의가 필요한 개발 계약입니다. 공유 DB·운영 업무 데이터·제출/승인·파일·두 PC·웹 업무 통합은 별도입니다.
 
 ## 기술과 실행 환경
 
@@ -43,7 +43,7 @@ dotnet run --project .\RemoteWork.WinForms\RemoteWork.WinForms.csproj
 
 공통 API는 Bearer 인증, snake_case 필드와 UTC ISO 8601 기록 시각을 사용합니다. `ApiClient`는 접속 세대·서버·토큰을 요청에 연결하여 이전 접속의 늦은 응답이 새 로그인 상태를 바꾸지 않게 합니다. 현재 접속의 401은 본문 JSON 형식과 관계없이 인증 만료로 처리합니다. 공통 관리자 변경은 잠금 뒤 수행자·접속·관리자 상태를 다시 확인합니다.
 
-실제 API·오류·DB·기능 등록 방법은 [INTEGRATION](docs/INTEGRATION.md)을 따릅니다. 문서의 업무 API 예시는 실제 등록된 업무 API가 아닙니다.
+실제 API·오류·DB·기능 등록 방법은 [INTEGRATION](docs/INTEGRATION.md)을 따릅니다. 문서의 이전 업무 코드 블록과 새 2번 GET 개발 API를 구분합니다. 현재 조회 API와 활성화 조건은 [업무 조회 개발 계약](docs/TASK_QUERIES.md)을 따릅니다.
 
 ## 공지·채팅의 저장 범위
 
@@ -55,11 +55,15 @@ dotnet run --project .\RemoteWork.WinForms\RemoteWork.WinForms.csproj
 
 ## 업무 조회와 상태 기준
 
-`ITaskQueryService`·`TaskSummary`·`TaskDetail`을 조회 경계로 사용합니다. 기본 `TasksControl`은 `UnconfiguredTaskQueryService`로 **조회 연결 필요**를 표시합니다. `TaskQueryTestDouble`은 생성자에 명시적으로 주입하며 화면에 실제 서버 연결이 아닌 테스트 대역임을 표시합니다. 서버 오류를 샘플 목록으로 대체하지 않습니다.
+`ITaskQueryService`·`TaskSummary`·`TaskDetail`을 유지하고 실제 로그인 MainForm이 공통 `AppServices.Api`를 사용하는 HTTP 조회 서비스를 주입합니다. 기본 TasksControl·미리보기 생성자는 미구성 서비스를 유지하고 테스트 대역은 명시적으로 주입합니다. 서버 오류를 샘플 목록으로 대체하지 않습니다.
+
+`GET /api/v1/tasks?scope=own|managed&status=...`와 `GET /api/v1/tasks/{id}`를 제공합니다. 내 업무는 직원·관리자의 현재 본인 배정만, 관리 업무는 해당 업무에 지정된 관리자만 조회합니다. 직접 상세 접근도 서버에서 검사하며 관리자 역할만으로 전체 업무를 열람하지 않습니다. 첫 연결은 전체 목록 반환이며 페이지·검색 조건은 아직 지원하지 않습니다.
+
+업무 API는 서버 `REMOTEWORK_ENABLE_TASK_QUERY_DRAFT=1`로 명시적으로 활성화합니다. **삭제 가능한 개발·테스트 DB에서만** 활성화·초기화하고 공유 DB 적용 전에는 스키마·FK·migration·상태 코드를 관련 담당과 확인합니다. 기본 서버는 업무 모듈을 등록하지 않으므로 미등록 업무 경로는 연결 필요로 표시합니다. 일반 실행에 업무 데이터를 자동 생성하지 않으며 업무 등록·배정·관리자 지정 저장 기능도 이번 조회 범위에는 없습니다.
 
 업무 상태는 **진행전 / 진행중 / 제출완료 / 승인완료 / 반려완료**입니다. 배정→진행전, 수락→진행중, 정식 제출·재제출→제출완료, 검토 판단→승인완료/반려완료를 기준으로 합니다. 모든 정식 제출은 승인·반려를 거쳐야 하며 승인완료만 최종 완료입니다. 관리자 본인 업무도 같은 흐름을 사용하고 상위 검토자가 판단합니다.
 
-실제 업무 API·wire 필드·상태 저장 코드·날짜·정렬·페이지·조회 범위를 합의한 뒤 2번이 HTTP 구현을 연결합니다. 서버는 인증 사용자 기준으로 목록과 직접 상세 접근을 각각 검사해야 합니다. 반려 후 복귀 시점·상위 검토자 매핑·자동 검토 요청은 합의 필요입니다. **마감 경과에 따른 자동 결과 제출은 제외**합니다.
+조회 개발 계약은 [TASK_QUERIES](docs/TASK_QUERIES.md)에 정리했습니다. 상태 코드·날짜 의미·상세403/404·DB/migration·공유 DB 적용은 1번·3번 등 관련 담당과 합의가 필요합니다. 반려 후 복귀 시점·상위 검토자 매핑·자동 검토 요청은 합의 필요입니다. **마감 경과에 따른 자동 결과 제출은 제외**합니다.
 
 ## 검증
 
@@ -70,6 +74,7 @@ dotnet build .\RemoteWork.sln -c Release
 dotnet run --project .\Tests\ApiClient.Tests\ApiClient.Tests.csproj -c Release
 dotnet run --project .\Tests\Collaboration.Tests\Collaboration.Tests.csproj -c Release
 dotnet run --project .\Tests\TaskQueries.Tests\TaskQueries.Tests.csproj -c Release
+dotnet run --project .\Tests\TaskQueries.Http.Tests\TaskQueries.Http.Tests.csproj -c Release
 ```
 
 서버 테스트는 `RemoteWork.Server`에서 개발 의존성을 설치한 뒤 실행합니다. MySQL 동시성 테스트는 삭제 가능한 별도 `remote_work_test_` DB를 지정해야 합니다.
@@ -84,7 +89,8 @@ python -m pytest -q
 | [ApiClient.Tests](Tests/ApiClient.Tests/README.md) | 접속 세대·취소·이전 응답·본문 형식별 401 등 C# 인증 회귀 |
 | [Collaboration.Tests](Tests/Collaboration.Tests/README.md) | 실제 WinForms 작성·대상 필터·공지·로컬 채팅 회귀 |
 | [TaskQueries.Tests](Tests/TaskQueries.Tests/README.md) | 명시적 조회 대역과 실제 업무 화면의 목록·상세·필터·오류·응답 순서 |
-| `RemoteWork.Server/tests` | 공통 인증·사용자·권한·웹·감사 이력·MySQL 관리자 동시 변경 |
+| [TaskQueries.Http.Tests](Tests/TaskQueries.Http.Tests/README.md) | 공통 HTTP 어댑터 응답·오류·취소, opt-in 실제 HTTP와 WinForms 조회 |
+| `RemoteWork.Server/tests` | 공통 인증·사용자·권한·웹·감사 이력·MySQL 관리자 동시 변경 및 업무 조회 권한 |
 | [RemoteWork.ClientChecks](Tests/README.md) | 별도 테스트 계정으로 실행하는 실제 C#→공통 서버→DB HTTP 점검 |
 
 실행 결과와 사용한 커밋은 [LOG](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG)에 기록합니다. 테스트 대역·로컬 메모리·공통 HTTP 통과를 실제 업무 통합 완료로 표시하지 않습니다. 서버·실제 업무 권한·두 PC·운영 DB의 검증 범위를 각각 구분합니다. 기존 Preview는 이전 화면 검토 자료이며 현재 인증 화면과 같다고 해석하지 않습니다.

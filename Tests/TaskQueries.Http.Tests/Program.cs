@@ -1,0 +1,377 @@
+using System.Diagnostics;
+using System.Net;
+using System.Reflection;
+using System.Text;
+using System.Text.Json;
+using RemoteWork.WinForms.Features.Tasks;
+using RemoteWork.WinForms.Features.Tasks.Queries;
+using RemoteWork.WinForms.Infrastructure;
+using RemoteWork.WinForms.Ui;
+
+internal static class Program
+{
+    private static int assertions;
+    private static int scenarios;
+    private static readonly string[] StatusCodes =
+        ["not_started", "in_progress", "submitted", "approved", "returned"];
+
+    [STAThread]
+    private static int Main(string[] args)
+    {
+        Application.SetHighDpiMode(HighDpiMode.DpiUnawareGdiScaled);
+        Application.EnableVisualStyles();
+        Application.SetCompatibleTextRenderingDefault(false);
+        Application.SetDefaultFont(new Font("맑은 고딕", 9));
+        Control.CheckForIllegalCrossThreadCalls = true;
+        int result = 1;
+        using var coordinator = new Form
+        {
+            ShowInTaskbar = false,
+            StartPosition = FormStartPosition.Manual,
+            Location = new Point(-20000, -20000),
+            Size = new Size(1, 1)
+        };
+        coordinator.Shown += (_, _) => coordinator.BeginInvoke((Action)(() =>
+        {
+            try
+            {
+                if (args.SequenceEqual(new[] { "--live" }))
+                    Run("isolated live HTTP and TasksControl", LiveServer);
+                else if (args.Length == 0)
+                {
+                    Run("relative endpoints, Bearer, status mappings and complete list", Endpoints);
+                    Run("common errors and route absence", Errors);
+                    Run("mandatory fields and malformed responses", MalformedResponses);
+                    Run("caller and session cancellation", Cancellation);
+                }
+                else throw new InvalidOperationException("Use no arguments or --live.");
+                Console.WriteLine($"PASS: {scenarios} scenarios / {assertions} assertions. "
+                    + (args.Length == 0 ? "Explicit HTTP test handler; no server or DB tested."
+                        : "Explicit isolated live server; production and two-PC operation not tested."));
+                result = 0;
+            }
+            catch (Exception error)
+            {
+                // Test account credentials and response bodies are never written to output.
+                Console.Error.WriteLine($"FAIL after {assertions} assertions: {error.GetType().Name}: {error.Message}");
+            }
+            finally { coordinator.Close(); }
+        }));
+        Application.Run(coordinator);
+        return result;
+    }
+
+    private static void Endpoints()
+    {
+        using var handler = new TestHandler();
+        using var api = new ApiClient("http://localhost:5000/", handler);
+        Login(api, handler);
+        var service = new HttpTaskQueryService(api);
+        Check(service.SourceDescription.Contains("http://localhost:5000/")
+            && !service.SourceDescription.Contains("테스트 대역"), "real API origin is visible");
+
+        handler.Success(new { items = StatusCodes.Select((status, index) => Item(index + 1, status)).ToArray() });
+        var all = Wait(service.GetTasksAsync(new(TaskQueryScope.Own)));
+        Check(all.Count == 5, "all five statuses are returned");
+        Check(handler.Last!.Method == HttpMethod.Get && handler.Last.Path == "/api/v1/tasks?scope=own",
+            "server prefix occurs once and all omits status");
+        Check(handler.Last.Bearer == "fixture-token", "shared token is used");
+        for (int index = 0; index < StatusCodes.Length; index++)
+        {
+            handler.Success(new { items = new[] { Item(index + 1, StatusCodes[index]) } });
+            var selected = Wait(service.GetTasksAsync(new(TaskQueryScope.Managed, (TaskDisplayStatus)index)));
+            Check(selected.Single().Status == (TaskDisplayStatus)index, "explicit response status mapping");
+            Check(handler.Last!.Path == "/api/v1/tasks?scope=managed&status=" + StatusCodes[index],
+                "explicit query status mapping");
+        }
+        handler.Success(new { items = Array.Empty<object>() });
+        Check(Wait(service.GetTasksAsync(new(TaskQueryScope.Own))).Count == 0, "empty list remains empty");
+        handler.Success(new { items = Enumerable.Range(1, 137).Select(index => Item(index)).ToArray() });
+        Check(Wait(service.GetTasksAsync(new(TaskQueryScope.Own))).Count == 137, "complete list is not silently truncated");
+
+        var detailItem = Item(1);
+        detailItem["task_id"] = "opaque:one";
+        handler.Success(new { task = detailItem });
+        var detail = Wait(service.GetTaskAsync("opaque:one"));
+        Check(detail.Summary.TaskId == "opaque:one" && detail.Description == "Fixture description",
+            "opaque detail identity and description map");
+        Check(handler.Last!.Path == "/api/v1/tasks/opaque%3Aone", "detail identifier is escaped");
+        int requestCount = handler.Count;
+        ExpectArgument(() => Wait(service.GetTasksAsync(new((TaskQueryScope)99))));
+        ExpectArgument(() => Wait(service.GetTasksAsync(new(TaskQueryScope.Own, (TaskDisplayStatus)99))));
+        ExpectArgument(() => Wait(service.GetTaskAsync(" ")));
+        Check(handler.Count == requestCount, "invalid client input is not sent");
+    }
+
+    private static void Errors()
+    {
+        using var handler = new TestHandler();
+        using var api = new ApiClient("http://localhost:5000/", handler);
+        Login(api, handler);
+        var service = new HttpTaskQueryService(api);
+        int expired = 0;
+        api.AuthenticationExpired += (_, _) => expired++;
+        handler.Error(401, "AUTH_REQUIRED");
+        ExpectFailure(() => Wait(service.GetTasksAsync(new(TaskQueryScope.Own))), TaskQueryFailure.AuthenticationExpired);
+        Check(expired == 1 && api.CurrentUser is null, "common client owns authentication expiry");
+
+        foreach (var test in new[]
+        {
+            (403, "FORBIDDEN", TaskQueryFailure.Forbidden),
+            (404, "TASK_NOT_FOUND", TaskQueryFailure.NotFound),
+            (404, "HTTP_404", TaskQueryFailure.NotConfigured),
+            (404, "NOT_FOUND", TaskQueryFailure.Unavailable),
+            (500, "SERVER_ERROR", TaskQueryFailure.Unavailable),
+            (503, "DATABASE_UNAVAILABLE", TaskQueryFailure.Unavailable)
+        })
+        {
+            handler.Error(test.Item1, test.Item2);
+            ExpectFailure(() => Wait(service.GetTaskAsync("1")), test.Item3);
+        }
+        handler.Raw(502, "<html>gateway unavailable</html>");
+        ExpectFailure(() => Wait(service.GetTasksAsync(new(TaskQueryScope.Own))), TaskQueryFailure.Unavailable);
+        handler.Raw(401, "");
+        ExpectFailure(() => Wait(service.GetTaskAsync("1")), TaskQueryFailure.AuthenticationExpired);
+        handler.Enqueue((_, _) => Task.FromException<HttpResponseMessage>(new HttpRequestException("fixture network failure")));
+        ExpectFailure(() => Wait(service.GetTasksAsync(new(TaskQueryScope.Own))), TaskQueryFailure.Unavailable);
+        handler.Enqueue((_, _) => Task.FromException<HttpResponseMessage>(new TaskCanceledException()));
+        ExpectFailure(() => Wait(service.GetTasksAsync(new(TaskQueryScope.Own))), TaskQueryFailure.Unavailable);
+        Check(handler.Remaining == 0, "failures consume one request each without automatic retry");
+    }
+
+    private static void MalformedResponses()
+    {
+        using var handler = new TestHandler();
+        using var api = new ApiClient("http://localhost:5000/", handler);
+        var service = new HttpTaskQueryService(api);
+        foreach (string field in new[] { "task_id", "title", "assignee_id", "assignee_name", "task_status", "start_date", "due_date" })
+        {
+            var item = Item(1);
+            item[field] = null;
+            RejectList(handler, service, new { items = new[] { item } });
+            item.Remove(field);
+            RejectList(handler, service, new { items = new[] { item } });
+        }
+        foreach (var mutation in new (string Field, object Value)[]
+        {
+            ("task_id", " "), ("title", " "), ("assignee_name", " "), ("assignee_id", 0),
+            ("task_status", "pending"), ("task_status", 0), ("assignee_id", "1"),
+            ("start_date", "2026-1-01"), ("due_date", "2026-02-30"),
+            ("due_date", "2026-10-15"), ("start_date", "2026-10-16T00:00:00Z")
+        })
+        {
+            var item = Item(1);
+            item[mutation.Field] = mutation.Value;
+            RejectList(handler, service, new { items = new[] { item } });
+        }
+        RejectList(handler, service, new { items = new[] { Item(1), Item(1) } });
+        RejectList(handler, service, new { items = new object?[] { null } });
+        RejectList(handler, service, new { items = (object?)null });
+        RejectList(handler, service, new { });
+        handler.Raw(200, "{invalid-json");
+        ExpectFailure(() => Wait(service.GetTasksAsync(new(TaskQueryScope.Own))), TaskQueryFailure.Unavailable);
+        handler.Raw(200, "{\"ok\":true,\"data\":null}");
+        ExpectFailure(() => Wait(service.GetTasksAsync(new(TaskQueryScope.Own))), TaskQueryFailure.Unavailable);
+        handler.Success(new { task = (object?)null });
+        ExpectFailure(() => Wait(service.GetTaskAsync("1")), TaskQueryFailure.Unavailable);
+        handler.Success(new { task = Item(2) });
+        ExpectFailure(() => Wait(service.GetTaskAsync("1")), TaskQueryFailure.Unavailable);
+        var detail = Item(1);
+        detail["description"] = null;
+        handler.Success(new { task = detail });
+        ExpectFailure(() => Wait(service.GetTaskAsync("1")), TaskQueryFailure.Unavailable);
+        detail.Remove("description");
+        handler.Success(new { task = detail });
+        ExpectFailure(() => Wait(service.GetTaskAsync("1")), TaskQueryFailure.Unavailable);
+        detail["description"] = "";
+        handler.Success(new { task = detail });
+        Check(Wait(service.GetTaskAsync("1")).Description == "", "empty description is valid when present");
+    }
+
+    private static void Cancellation()
+    {
+        using var handler = new TestHandler();
+        using var api = new ApiClient("http://localhost:5000/", handler);
+        var service = new HttpTaskQueryService(api);
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+        ExpectCancelled(() => Wait(service.GetTasksAsync(new(TaskQueryScope.Own), cancelled.Token)));
+        ExpectCancelled(() => Wait(service.GetTaskAsync("1", cancelled.Token)));
+        Check(handler.Count == 0, "already cancelled queries do not make requests");
+        using var during = new CancellationTokenSource();
+        handler.Enqueue(Pending);
+        var list = service.GetTasksAsync(new(TaskQueryScope.Own), during.Token);
+        during.Cancel();
+        ExpectCancelled(() => Wait(list));
+        handler.Enqueue(Pending);
+        var detail = service.GetTaskAsync("1");
+        api.ClearIdentity();
+        ExpectCancelled(() => Wait(detail));
+        Check(handler.Count == 2, "session cancellation remains cancellation, not a server failure");
+    }
+
+    private static Task<HttpResponseMessage> Pending(HttpRequestMessage _, CancellationToken token)
+    {
+        var source = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        token.Register(() => source.TrySetCanceled(token));
+        return source.Task;
+    }
+
+    private static void LiveServer()
+    {
+        Check(Environment.GetEnvironmentVariable("REMOTEWORK_TASK_TEST_ALLOW_LIVE") == "1",
+            "explicit isolated live test opt-in is required");
+        string Required(string key) => Environment.GetEnvironmentVariable(key)
+            is { Length: > 0 } value ? value : throw new InvalidOperationException("Missing live test setting: " + key);
+        using var api = new ApiClient(Required("REMOTEWORK_TASK_TEST_URL"));
+        var identity = Wait(api.LoginAsync(Required("REMOTEWORK_TASK_TEST_LOGIN_ID"), Required("REMOTEWORK_TASK_TEST_PASSWORD")));
+        try
+        {
+            var service = new HttpTaskQueryService(api);
+            var own = Wait(service.GetTasksAsync(new(TaskQueryScope.Own)));
+            Check(own.Count > 0, "isolated own fixture is nonempty");
+            Check(Wait(service.GetTaskAsync(own[0].TaskId)).Summary.TaskId == own[0].TaskId,
+                "real HTTP selected detail identity");
+            foreach (TaskDisplayStatus status in Enum.GetValues<TaskDisplayStatus>())
+            {
+                var filtered = Wait(service.GetTasksAsync(new(TaskQueryScope.Own, status)));
+                Check(filtered.Count > 0 && filtered.All(task => task.Status == status), "live fixture covers each server status filter");
+            }
+            if (identity.User.Role == "admin")
+            {
+                var managed = Wait(service.GetTasksAsync(new(TaskQueryScope.Managed)));
+                Check(managed.Count > 0, "isolated managed fixture is nonempty");
+                Check(Wait(service.GetTaskAsync(managed[0].TaskId)).Summary.TaskId == managed[0].TaskId,
+                    "real HTTP managed detail");
+            }
+            else
+                ExpectFailure(() => Wait(service.GetTasksAsync(new(TaskQueryScope.Managed))), TaskQueryFailure.Forbidden);
+            if (Environment.GetEnvironmentVariable("REMOTEWORK_TASK_TEST_FORBIDDEN_TASK_ID") is { Length: > 0 } forbidden)
+                ExpectFailure(() => Wait(service.GetTaskAsync(forbidden)), TaskQueryFailure.Forbidden);
+
+            using var page = new TasksControl(identity.User.Role == "admin" ? PreviewRole.Administrator : PreviewRole.Employee, service);
+            using var host = new Form
+            {
+                ClientSize = new Size(1320, 780), ShowInTaskbar = false,
+                StartPosition = FormStartPosition.Manual, Location = new Point(-20000, -20000)
+            };
+            page.Dock = DockStyle.Fill;
+            host.Controls.Add(page);
+            host.Show();
+            Wait(page.RefreshAsync());
+            var grid = Field<DataGridView>(page, "gridTasks");
+            var content = Field<TextBox>(page, "txtContent");
+            var queryStatus = Field<Label>(page, "lblTaskQueryStatus");
+            Check(grid.Rows.Count == own.Count && content.Text.Contains(own[0].Title), "real HTTP list and first detail render");
+            if (grid.Rows.Count > 1)
+            {
+                grid.CurrentCell = grid.Rows[1].Cells[0];
+                Until(() => queryStatus.Text == "상세 조회 완료" && content.Text.Contains(own[1].Title));
+                Check(content.Text.Contains(own[1].TaskId), "live row selection drives detail");
+            }
+            var filter = Field<ComboBox>(page, "cmbTaskStatusFilter");
+            for (int index = 0; index < StatusCodes.Length; index++)
+            {
+                filter.SelectedIndex = index + 1;
+                Until(() => queryStatus.Text == "상세 조회 완료");
+                Check(grid.Rows.Count > 0 && grid.Rows.Cast<DataGridViewRow>()
+                    .All(row => ((TaskSummary)row.Tag!).Status == (TaskDisplayStatus)index), "live filter renders only selected status");
+            }
+            filter.SelectedIndex = 0;
+            Until(() => queryStatus.Text == "상세 조회 완료");
+            Check(grid.Rows.Count == own.Count, "live all filter restores full list");
+            if (identity.User.Role == "admin")
+            {
+                Field<ComboBox>(page, "cmbTaskScope").SelectedIndex = 1;
+                Until(() => queryStatus.Text == "상세 조회 완료");
+                Check(grid.Rows.Count > 0, "live managed UI scope renders");
+            }
+            Check(Field<DataGridView>(page, "gridTaskAttachments").Rows.Count == 0,
+                "member 3 attachments remain unconnected");
+        }
+        finally { Wait(api.LogoutAsync()); }
+    }
+
+    private static void Login(ApiClient api, TestHandler handler)
+    {
+        handler.Success(new
+        {
+            access_token = "fixture-token", token_type = "Bearer", expires_at = "2026-10-17T20:00:00Z",
+            user = new { id = 1, login_id = "fixture", display_name = "Fixture", employee_no = "TEST-1", department = "Test", role = "employee", is_active = true }
+        });
+        Wait(api.LoginAsync("fixture", "fixture-password"));
+    }
+
+    private static Dictionary<string, object?> Item(int id, string status = "in_progress") => new()
+    {
+        ["task_id"] = id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        ["title"] = "Fixture task " + id, ["assignee_id"] = 1, ["assignee_name"] = "Fixture assignee",
+        ["task_status"] = status, ["start_date"] = "2026-10-16", ["due_date"] = "2026-10-20",
+        ["description"] = "Fixture description"
+    };
+    private static void RejectList(TestHandler handler, HttpTaskQueryService service, object data)
+    {
+        handler.Success(data);
+        ExpectFailure(() => Wait(service.GetTasksAsync(new(TaskQueryScope.Own))), TaskQueryFailure.Unavailable);
+    }
+    private static void ExpectFailure(Action action, TaskQueryFailure failure)
+    {
+        try { action(); throw new InvalidOperationException("Expected typed task query failure."); }
+        catch (TaskQueryException error) { Check(error.Failure == failure, "expected task query failure classification"); }
+    }
+    private static void ExpectCancelled(Action action)
+    {
+        try { action(); throw new InvalidOperationException("Expected cancellation."); }
+        catch (OperationCanceledException) { Check(true, "cancellation is preserved"); }
+    }
+    private static void ExpectArgument(Action action)
+    {
+        try { action(); throw new InvalidOperationException("Expected argument validation."); }
+        catch (ArgumentException) { Check(true, "invalid client input rejected"); }
+    }
+    private static void Run(string name, Action action) { action(); scenarios++; Console.WriteLine("PASS " + name); }
+    private static void Check(bool condition, string message)
+    {
+        if (!condition) throw new InvalidOperationException(message);
+        assertions++;
+    }
+    private static T Field<T>(object target, string name) where T : class =>
+        (T)(target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(target)
+            ?? throw new InvalidOperationException("Missing UI field: " + name));
+    private static T Wait<T>(Task<T> task) { Wait((Task)task); return task.GetAwaiter().GetResult(); }
+    private static void Wait(Task task) { Until(() => task.IsCompleted); task.GetAwaiter().GetResult(); }
+    private static void Until(Func<bool> condition)
+    {
+        var watch = Stopwatch.StartNew();
+        while (!condition())
+        {
+            if (watch.Elapsed > TimeSpan.FromSeconds(20)) throw new TimeoutException("Task query test timed out.");
+            Application.DoEvents();
+            Thread.Sleep(5);
+        }
+        Application.DoEvents();
+    }
+
+    private sealed record RequestInfo(HttpMethod Method, string Path, string? Bearer);
+    private sealed class TestHandler : HttpMessageHandler
+    {
+        private readonly Queue<Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>> responses = new();
+        public RequestInfo? Last { get; private set; }
+        public int Count { get; private set; }
+        public int Remaining => responses.Count;
+        public void Enqueue(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> response) => responses.Enqueue(response);
+        public void Success(object data) => Raw(200, JsonSerializer.Serialize(new { ok = true, data, request_id = "fixture-request" }));
+        public void Error(int status, string code) => Raw(status, JsonSerializer.Serialize(new
+        { ok = false, error = new { code, message = "Fixture failure" }, request_id = "fixture-request" }));
+        public void Raw(int status, string content) => Enqueue((_, _) => Task.FromResult(new HttpResponseMessage((HttpStatusCode)status)
+        { Content = new StringContent(content, Encoding.UTF8, "application/json") }));
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Last = new RequestInfo(request.Method, request.RequestUri!.PathAndQuery,
+                request.Headers.Authorization?.Scheme == "Bearer" ? request.Headers.Authorization.Parameter : null);
+            Count++;
+            if (responses.Count == 0) throw new InvalidOperationException("Unexpected HTTP request in test handler.");
+            return responses.Dequeue()(request, cancellationToken);
+        }
+    }
+}

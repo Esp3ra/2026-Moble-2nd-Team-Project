@@ -9,7 +9,8 @@ public enum TaskQueryScope
 
 /// <summary>
 /// The five logical values displayed by this UI. These are not agreed HTTP or DB codes.
-/// A future adapter must map the common contract explicitly.
+/// HttpTaskQueryService maps the query development contract explicitly.
+/// Shared storage codes still need agreement with members 1 and 3.
 /// </summary>
 public enum TaskDisplayStatus
 {
