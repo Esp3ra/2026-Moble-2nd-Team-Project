@@ -8,7 +8,7 @@
 
 ## 4번 공지 DB 개발 초안 검토 — 2026-10-17
 
-[코드 Draft PR #7](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/7)에 최신 alpha `add1921` 기반 공지 DB 등록·조회·삭제18개 파일을 제안했습니다. 공지/업무의 독립 선택 등록을 보존하고 팝업·확인 기록·정렬 추가 조정은 제외합니다. 원본 alpha 반영 완료로 표시하지 않습니다.
+[코드 Draft PR #7](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/7)에 최초 alpha `add1921`에서 검증하고 최신 alpha `5164b0c`까지 결합한 공지 DB 등록·조회·삭제18개 파일을 제안했습니다. 공지/업무의 독립 선택 등록을 보존하고 팝업·확인 기록·정렬 추가 조정은 제외합니다. 원본 alpha 반영 완료로 표시하지 않습니다.
 
 [실제 작업·최신 결합 검증](LOG/2026-10-17/01_4번_공지DB_연결.md)에서 SQLite/격리 MySQL·실제 C#→HTTP→DB·명시적 대역과 환경 실패 재검증을 구분합니다. [1번 등록/API·DDL 협의 요청](1번/2026-10-17_4번_공지DB_등록_협의요청.md)은 회신 대기이며 [4번 목차](4번/README.md)에서 연결합니다. 공유 DB·두 PC·정식 활성화는 미완료입니다.
 
@@ -142,3 +142,5 @@ alpha 3b09480, DOCX 5dac768으로 각각 별도 게시했습니다. Release 경�
 이전 2026-10-16 작업에서는 사용자 요청에 따라 `0.0.2V`를 같은 이름으로 갱신했습니다. 이번 2026-10-17 통합에서는 태그를 이동하지 않았습니다. 과거 초안을 비교할 때는 당시 커밋 `0d06c7108`을 사용합니다. LOG에는 기록용 Markdown만 포함합니다. 코드 브랜치의 루트 `DOCX/`는 `/DOCX/` 규칙으로 제외하고, 문서 브랜치는 사용자가 별도 게시·갱신을 요청할 때만 갱신합니다. LOG와 일반 작업 기록은 해당 브랜치 범위에 맞춰 반영합니다. 실행 소스는 [alpha](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/alpha), 구현계획과 참고 문서는 [DOCX 브랜치](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/DOCX/DOCX)에서 확인합니다.
 
 프로젝트 전체 소개는 [main README](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/main/README.md), 현재 통합 개발 코드는 [alpha](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/alpha), 초기 코드 배치 초안은 [0.0.1V](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/0.0.1V), 최신 도구상자 초안은 [0.0.2V](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/0.0.2V)에서 확인합니다.
+
+4번 PR 브랜치 목차는 [문서 PR #9](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/9)로 최신 공지 DB PR #7의 Draft·재검토/협의 대기 상태에 맞춰 갱신 요청했습니다. 이전 PR #1 필터 해결·병합 기록은 보존했고, 이번 문서 수정에서는 링크·표·범위만 검사했으며 프로그램 테스트를 재실행하지 않았습니다.
