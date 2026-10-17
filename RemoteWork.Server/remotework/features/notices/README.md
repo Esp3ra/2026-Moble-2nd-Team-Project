@@ -1,5 +1,13 @@
 # 공지 DB 연결 (4번 로컬 구현)
 
+## 현재 통합 상태 — 2026-10-17
+
+[PR #7](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/7)은 독립 재검토 후 alpha [733b47a](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/733b47afca123ed3b161e6d96b492a8afc6e163f)로 병합했습니다. 검토 대상 head는 `d58064c`이며 R1·R2 해결을 유지합니다. 독립 검토에서는 격리 MySQL 서버 **110통과·SQLite 전용2개 제외**, 실제 C#→TCP HTTP→raw003 MySQL **37검사 통과**를 확인했습니다. 아래 작성자 검증 수치와 합산하지 않습니다.
+
+003 SQL은 개발 검토안으로 포함됐으며 정식 DDL 승인·공통 실제/기대 버전 지원·공유 DB 적용·삭제/보존 공동 정책은 별도입니다. 공통 schema version1·공지 기본off를 유지합니다. 자세한 [독립 검토·병합 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/2026-10-17_PR7_Ready_재검토_PR13_PR14_병합.md)을 따릅니다.
+
+아래는 각 작성 시점의 검증·협의 이력입니다. 과거의 재검토 대기·미병합 문구를 현재 상태로 읽지 않습니다.
+
 ## 현재 — 1번 N4 회신 반영·003 DDL 검토안, 2026-10-17
 
 기준 원본 alpha `c56f3c87e446adb30309c46287cd7c4aa3cff273`과 기존 공지 head `c7282d1e9e332daf3996aeb00f9a1b20c6ad2e61`을 결합했다. 원본의 업무 입력 준비·정확한 상태 CHECK·002 SQL·공통 로그인/인증/DB 코드를 보존하고 README의 양쪽 내용을 합쳤다.

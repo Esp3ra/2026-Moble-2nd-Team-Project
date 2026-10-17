@@ -1,35 +1,5 @@
 # 원격 근무용 업무 처리 확인 시스템
 
-## 현재 — 1번 N4 회신 반영·003 DDL 검토안, 2026-10-17
-
-기준 원본 alpha `c56f3c87e446adb30309c46287cd7c4aa3cff273`과 기존 공지 head `c7282d1e9e332daf3996aeb00f9a1b20c6ad2e61`을 결합했다. 원본의 업무 입력 준비·정확한 상태 CHECK·002 SQL·공통 로그인/인증/DB 코드를 보존하고 README의 양쪽 내용을 합쳤다.
-
-[병합된 PR #12의 1번 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/1번/2026-10-17_공지DB_API_DDL_협의회신.md)에서 N4-01~04·07·10의 공통 재사용·signed INTEGER/C# int `1..2147483647`·범위 밖/미존재404·현재 API/DTO·직원 전체 부서 조회·관리자 쓰기·독립 opt-in을 수용했다. 이 항목은 회신 대기가 아니다. R1/R2는 이전 검토자가 해결을 확인했으며 이번 결합본의 작성자 회귀와 새 DDL은 별도 재검토 대상이다.
-
-예약된 `003_notices.mysql.sql`과 검증·복구안을 추가했다. 실제 SQL로 새 notices 테이블을 만들고 ORM 타입/NULL/default/index/FK, 기존 공통/업무 데이터·버전1 보존, 작성자 비활성 후 snapshot, 재실행/실패, 실제 dump→새DB 복원과 API를 검사한다. **SQL 최종 검토·공통 실제/기대 버전 지원·삭제/보존 정책·공유 적용은 대기**다. version3은002→2가 먼저 승인·적용될 때의 후속안이며 실제version1·기본off를 유지한다. [003 절차](RemoteWork.Server/migrations/003_notices.md)를 따른다.
-
-최신 실행 결과·명령·검증 범위는 아래 연결된 공지 안내와 LOG의 4번 후속 검증 기록을 따른다. 팝업/확인 기록·실제 파일 전송·중지된 정렬 조정은 이번 PR에 없다. 아래 과거 회차의 수치/회신 대기 상태는 당시 기록이며 현재 상태로 재사용하지 않는다.
-
-이번 최신 결합본에서 격리 MySQL 전체 **112통과**, 실제 C#→HTTP→raw003 MySQL **37검증**, 기존 DEMO SQLite **83통과/29생략**, 앱/검증5종 Release **경고0/오류0** 및 기존 업무 HTTP 회귀를 확인했다. 명령·대역/실제DB·미실행 구분은 [공지 검증 결과](RemoteWork.Server/remotework/features/notices/README.md)를 따른다. [4번 협업/검증 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG/4번)에서 새 코드 SHA와 별도 문서 PR을 연결한다.
-
-## 이전 — PR #7 R1·R2 수정 보고, 2026-10-17
-
-기준 원본 alpha8a652ad와 공지 head7478101을 결합하고 공지 전용 routes.py·회귀만 수정했다. 기존 업무 격리 HTTP 실행기와 공통 인증/DB/관리자 가드는 보존한다.
-
-| 구분 | 현재 상태 |
-|---|---|
-| 구현·작성자 검증, 재검토 대기 | R1: admin_transaction 뒤 공지를 FOR UPDATE/current read·populate_existing으로 다시 확인해 삭제200/후속404·삭제 감사1건 보장. R2: 현재 INTEGER/C#int에 맞춘 개발 방어 경계1..2147483647, DB 바인딩 전 기존 미존재404로 처리. 일반 DB 예외를404로 바꾸지 않음 |
-| 추가 발견·보완 | MySQL DATETIME 저장 정밀도로 등록 응답/재조회 시각이 달라지는 경우를 재현해 flush 후 저장된 값을 refresh하여 응답. 시각 컬럼/공통 규약은 바꾸지 않음 |
-| 미합의 | 공지 전용 ID 범위·범위 밖404 유지/400 등 최종 오류, 삭제 응답·API/DTO·보존·DDL 번호/버전·공유 적용/활성화. 1번 회신 전 개발 초안이며 BIGINT 전환이나 공통 규약 확정 아님 |
-| 미실행/범위 밖 | 공유/운영DB·두PC·웹·장비·수동 전체GUI, 이번 전체MySQL/실제C#→MySQL. 팝업/확인 기록·파일 전송·중지된 정렬 추가 조정은 PR 밖 |
-
-이번 실제 결과: 서버 SQLite전체74통과/16생략(기존 MySQL2+DDL12+새 R1 MySQL2), 격리MySQL8.2 REPEATABLE-READ 표적32통과(공지 기존+R1/R2/시각/삭제rollback+공통관리자회귀), 실제 공지 C#→HTTP→임시SQLite37검증 통과. 최신 업무HTTP 프로젝트/참조앱 Release 경고0·오류0, 업무 격리 HTTP 실행기300검증·권한회수11개(실행기 내 포함; 중복 합산하지 않음), C#직원36/관리자52검증 통과. 서로 포함/반복되는 수치를 합산하지 않는다.
-
-명령: 서버 `python -m pytest -q`, MySQL 전용 DB에서 `python -m pytest -q tests/test_notice_review.py tests/test_notices.py tests/test_admin_concurrency.py`, 프로젝트 루트 `python Tests/Notices.Tests/run_http_check.py --client-dll <Notices.Tests.dll>`, `python Tests/TaskQueries.Http.Tests/run_http_check.py --client-dll <TaskQueries.Http.Tests.dll>`. MySQL은 새 소유 datadir/프로세스/임시포트·합성계정만 사용하고 종료/정리했다. 이전 전체MySQL/빌드 보고는 아래 당시 결과로 보존하며 이번 실행으로 재사용하지 않는다.
-
-새 회귀를 수정 전 코드에 적용했을 때 SQLite의 큰ID500과 MySQL 동시삭제200/200·중복감사 경고를 탐지했다. 수정 후에는 해당 회귀가 통과했으며 검토자 독립 재확인·1번 계약 회신·원본 병합/정식 적용은 별도다. REMOTEWORK_ENABLE_NOTICE_DRAFT/ENABLE_NOTICE_DRAFT의 기본off와 공통version1·업무002 예약을 유지한다.
-
-
 원격 근무 중 업무 배정·상태·마감·결과 검토와 공지·채팅·근태를 관리하는 팀 프로젝트입니다. `alpha`는 화면 초안과 담당별 구현을 통합하는 개발 브랜치입니다. C# WinForms 클라이언트와 Python 공통 서버를 포함합니다.
 
 현재 공통 로그인·사용자 관리·HTTP·DB 기반과 공지 DB 저장 연결 개발 초안, 채팅의 로컬 동작이 구현돼 있습니다. 업무 목록·상세는 공통 인증을 사용하는 GET API·HTTP 서비스와 기존 화면을 연결한 2번 개발 초안입니다. 업무 API는 명시적으로 활성화한 개발 서버에서 사용하며, 기본 실행에는 미확정 업무 스키마를 적용하지 않습니다. 설계·합의 사항은 [DOCX](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/DOCX/DOCX), 구현·검토 이력은 [LOG](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG), 담당별 수정 요청과 재검토 결과는 [PR](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/PR)에서 관리합니다.
