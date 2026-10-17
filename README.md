@@ -1,5 +1,9 @@
 # PR 수정 요청
 
+## 4번 후속 — 최신 결합본·003 검토 요청, 2026-10-17
+
+코드 #7 head [`d58064c`](https://github.com/zx234x/jang1/commit/d58064ccd30e7e718f94d5e5556d0f19c6afd88c)에 alpha `c56f3c87e446adb30309c46287cd7c4aa3cff273`의 업무 제약/입력 준비를 보존하고 README 충돌을 해소했다. N4 수용 반영·003 SQL/검증 추가 후 **새 head·SQL 재검토 대기**, 원본 미병합이다. [현재 처리 상태](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/4번/2026-10-17_PR7_공지DB_검토상태.md)·[실제 검증/남은 확인 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/4번/2026-10-17_PR7_1번회신반영_003DDL_검증.md)·[LOG 검토 자료](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG/4번)을 따른다. 아래 원문은 당시 기록으로 보존하며 Ready 여부는 GitHub #7의 현재 상태를 확인한다.
+
 > **후속 alpha 기준:** [c56f3c8](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/c56f3c87e446adb30309c46287cd7c4aa3cff273)에 W1-05 상태CHECK 보완을 반영했습니다. 실제DB/주요검증은 MySQL, SQLite는 DEMO 종료 후 삭제 예정입니다. [2번 변경·검증 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/2026-10-17_W1-05_상태CHECK_수정_MySQL_검증.md)을 참조합니다. #7과 새alpha의 충돌은 README1개이며 새업무 제약은 보존됐습니다. #12는697a8e3으로 병합, N4 ID/API 수용·R1/R2 해결 확인 상태이고 Draft/README충돌·결합재검증/Ready 확인은 남습니다.
 
 `PR`은 검토에서 발견한 수정 요청과 재검토 조건을 담당 번호별로 관리하는 문서 브랜치입니다. 기준일은 **2026-10-17**입니다. 구현·변경 이력은 [LOG](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG)에 남기며, 이곳의 요청 문서에서 수정 상태를 확인합니다.
