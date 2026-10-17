@@ -1,10 +1,15 @@
 """Opt-in feature registration; draft models stay out of normal init-db."""
+import os
 
 
 def get_blueprints(config):
-    if not config.get("ENABLE_TASK_QUERY_DRAFT", False):
-        return []
-    # Importing the draft is an explicit development/test choice. A fresh common
-    # server process without the flag does not add its tables to Base.metadata.
-    from .tasks.routes import bp as task_queries_bp
-    return [task_queries_bp]
+    blueprints = []
+    if config.get("ENABLE_TASK_QUERY_DRAFT", False):
+        # Preserve the existing task draft's independent activation boundary.
+        from .tasks.routes import bp as task_queries_bp
+        blueprints.append(task_queries_bp)
+    if config.get("ENABLE_NOTICE_DRAFT", os.getenv("REMOTEWORK_ENABLE_NOTICE_DRAFT") == "1"):
+        # Notice API/DB rollout remains a separately reviewable draft.
+        from .notices.routes import bp as notices_bp
+        blueprints.append(notices_bp)
+    return blueprints

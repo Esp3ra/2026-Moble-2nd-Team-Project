@@ -1,0 +1,61 @@
+using RemoteWork.WinForms.Infrastructure;
+
+namespace RemoteWork.WinForms.Features.Collaboration;
+
+/// <summary>Uses the shared authenticated client; never falls back to sample data.</summary>
+public sealed class HttpNoticeService(ApiClient api) : INoticeService
+{
+    private sealed record NoticeData(int Id, string Title, string Content, string Target,
+        bool IsPinned, int AuthorId, string Author, DateTimeOffset CreatedAt, string[] AttachmentNames);
+    private sealed record NoticeResult(NoticeData Notice);
+
+    private static Notice Map(NoticeData? data)
+    {
+        if (data is null || data.Id <= 0 || data.AuthorId <= 0 ||
+            string.IsNullOrWhiteSpace(data.Title) || string.IsNullOrWhiteSpace(data.Content) ||
+            string.IsNullOrWhiteSpace(data.Author) || data.CreatedAt == default ||
+            !new[] { "�� ����", "��ȹ��", "������", "��������" }.Contains(data.Target) ||
+            data.AttachmentNames is null || data.AttachmentNames.Any(string.IsNullOrWhiteSpace))
+            throw new ApiException("�������� ���� ������ �ùٸ��� �ʽ��ϴ�.");
+        return new Notice
+        {
+            Id = data.Id, Title = data.Title, Content = data.Content, Target = data.Target,
+            IsPinned = data.IsPinned, AuthorId = data.AuthorId, Author = data.Author,
+            CreatedAt = data.CreatedAt.LocalDateTime, AttachmentNames = data.AttachmentNames
+        };
+    }
+
+    public async Task<IReadOnlyList<Notice>> GetNoticesAsync(CancellationToken ct = default)
+    {
+        var result = new List<Notice>();
+        // Read all pages so existing client-side filters/sorts cover the whole list.
+        for (int page = 1; ; page++)
+        {
+            var data = await api.GetAsync<PageResult<NoticeData>>($"notices?page={page}&limit=100", ct);
+            if (data.Items is null || data.Page != page || data.Limit != 100 || data.Total < 0 ||
+                data.Items.Count > 100)
+                throw new ApiException("�������� ��� ���� ������ �ùٸ��� �ʽ��ϴ�.");
+            result.AddRange(data.Items.Select(Map));
+            if (result.Count >= data.Total) return result.DistinctBy(n => n.Id).ToArray();
+            if (data.Items.Count == 0)
+                throw new ApiException("�������� ����� ��� ���� ���߽��ϴ�. �ٽ� ��ȸ�� �ּ���.");
+        }
+    }
+
+    public async Task<Notice> GetNoticeAsync(int id, CancellationToken ct = default)
+    {
+        var data = await api.GetAsync<NoticeResult>($"notices/{id}", ct);
+        var notice = Map(data.Notice);
+        if (notice.Id != id) throw new ApiException("������ �������װ� ���� ������ ��ġ���� �ʽ��ϴ�.");
+        return notice;
+    }
+
+    public async Task<Notice> CreateNoticeAsync(CreateNoticeRequest request, CancellationToken ct = default)
+    {
+        var result = await api.PostAsync<NoticeResult>("notices", request, ct);
+        return Map(result.Notice);
+    }
+
+    public async Task DeleteNoticeAsync(int id, CancellationToken ct = default) =>
+        await api.PostAsync<MessageResult>($"notices/{id}/delete", new { }, ct);
+}

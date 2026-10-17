@@ -1,48 +1,84 @@
-using System.ComponentModel;
 using RemoteWork.WinForms.Ui;
+using RemoteWork.WinForms.Infrastructure;
 
 namespace RemoteWork.WinForms.Features.Collaboration
 {
     public partial class NoticesControl : UserControl
     {
-        // Shared for the lifetime of the application, including menu navigation.
-        private static readonly List<Notice> notices = new()
-        {
-            new Notice
-            {
-                Title = "보안 점검 안내", Target = "전 직원", IsPinned = true,
-                CreatedAt = new DateTime(2026, 10, 13),
-                Content = "원격 근무 환경의 보안 점검이 예정되어 있습니다.\r\n담당 업무와 일정을 확인해 주세요."
-            },
-            new Notice
-            {
-                Title = "주간 업무 공유", Target = "기획팀",
-                CreatedAt = new DateTime(2026, 10, 12),
-                Content = "이번 주 업무 일정과 진행 상황을 공유해 주세요."
-            },
-            new Notice
-            {
-                Title = "개발 일정 안내", Target = "개발팀",
-                CreatedAt = new DateTime(2026, 10, 11),
-                Content = "개발 일정과 담당 업무를 확인해 주세요."
-            }
-        };
+        private readonly List<Notice> notices = new();
+        private readonly INoticeService noticeService;
+        private readonly CancellationTokenSource lifetime = new();
+        private bool busy;
+        private bool lifetimeEnded;
 
         public NoticesControl() : this(PreviewRole.Employee) { }
+        public NoticesControl(PreviewRole role) : this(role, new HttpNoticeService(AppServices.Api)) { }
 
-        public NoticesControl(PreviewRole role)
+        public NoticesControl(PreviewRole role, INoticeService noticeService)
         {
+            this.noticeService = noticeService;
             previewRole = role;
             InitializeComponent();
             if (PreviewActions.IsDesignMode(this)) return;
-            InitializeSampleData(role);
+            InitializeNoticeView(role);
             cmbOptions2.SelectedIndexChanged += FilterNotices;
             gridNotices.ColumnHeaderMouseClick += SortNotices;
             InitializeDeleteMenu();
             ClearNoticeDetails();
+            Disposed += (_, _) =>
+            {
+                if (lifetimeEnded) return;
+                lifetimeEnded = true;
+                lifetime.Cancel();
+                lifetime.Dispose();
+            };
         }
 
-        private void InitializeSampleData(PreviewRole role)
+        protected override async void OnLoad(EventArgs e)
+        {
+            base.OnLoad(e);
+            if (!PreviewActions.IsDesignMode(this)) await ReloadNoticesAsync();
+        }
+
+        // Also available for explicit refresh and integration checks; no static/sample store.
+        public async Task ReloadNoticesAsync()
+        {
+            if (busy || IsDisposed) return;
+            SetBusy(true);
+            try { await LoadNoticesAsync((gridNotices.CurrentRow?.Tag as Notice)?.Id); }
+            catch (ApiException ex) { ShowLoadError(ex.Message); }
+            catch (OperationCanceledException) { if (!IsDisposed) ShowLoadError("������ ����Ǿ����ϴ�. �ٽ� �α����� �� ��ȸ�� �ּ���."); }
+            finally { if (!IsDisposed) SetBusy(false); }
+        }
+
+        private async Task LoadNoticesAsync(int? selectId = null)
+        {
+            var loaded = await noticeService.GetNoticesAsync(lifetime.Token);
+            if (IsDisposed) return;
+            notices.Clear();
+            notices.AddRange(loaded);
+            RefreshNotices(notices.FirstOrDefault(n => n.Id == selectId));
+        }
+
+        private void SetBusy(bool value)
+        {
+            busy = value;
+            UseWaitCursor = value;
+            btnQuery.Enabled = btnNewNoticePreview.Enabled = cmbOptions2.Enabled = gridNotices.Enabled = !value;
+            lblText2.Text = value ? "�������� ��� �� ó�� �ߡ�" : "�������� ���";
+        }
+
+        private void ShowLoadError(string message)
+        {
+            if (IsDisposed) return;
+            // Never show stale cached content as if a server query succeeded.
+            notices.Clear();
+            RefreshNotices();
+            lblText4.Text = "�������� ��ȸ ����";
+            txtContent.Text = message + "\r\n��ȸ ��ư�� ���� �ٽ� �õ��� �ּ���.";
+        }
+
+        private void InitializeNoticeView(PreviewRole role)
         {
             bool administrator = role == PreviewRole.Administrator;
             cmbOptions2.SelectedIndex = 0;
@@ -92,7 +128,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             if (previewRole != PreviewRole.Administrator) return;
 
             var menu = new ContextMenuStrip(components);
-            var deleteItem = new ToolStripMenuItem("삭제");
+            var deleteItem = new ToolStripMenuItem("����");
             Notice? rightClickedNotice = null;
             menu.Items.Add(deleteItem);
 
@@ -111,23 +147,33 @@ namespace RemoteWork.WinForms.Features.Collaboration
                 menu.Show(Cursor.Position);
             };
 
-            deleteItem.Click += (_, _) =>
+            deleteItem.Click += async (_, _) =>
             {
                 if (rightClickedNotice is not null)
-                    DeleteNotice(rightClickedNotice);
+                    await DeleteNotice(rightClickedNotice);
             };
         }
 
-        private void DeleteNotice(Notice notice)
+        private async Task DeleteNotice(Notice notice)
         {
-            if (previewRole != PreviewRole.Administrator) return;
-
-            int index = notices.IndexOf(notice);
-            if (index < 0) return;
-
-            notices.RemoveAt(index);
-            Notice? next = notices.Count == 0 ? null : notices[Math.Min(index, notices.Count - 1)];
-            RefreshNotices(next);
+            if (previewRole != PreviewRole.Administrator || busy || IsDisposed) return;
+            SetBusy(true);
+            try
+            {
+                await noticeService.DeleteNoticeAsync(notice.Id, lifetime.Token);
+                if (IsDisposed) return;
+                notices.RemoveAll(n => n.Id == notice.Id);
+                RefreshNotices();
+            }
+            catch (ApiException ex)
+            {
+                if (!IsDisposed) { lblText4.Text = "�������� ���� ����"; txtContent.Text = ex.Message; }
+            }
+            catch (OperationCanceledException)
+            {
+                if (!IsDisposed) { lblText4.Text = "���� ��� Ȯ�� �ʿ�"; txtContent.Text = "������ ����Ǿ����ϴ�. �ٽ� �α����� �� ����� Ȯ���� �ּ���."; }
+            }
+            finally { if (!IsDisposed) SetBusy(false); }
         }
 
         private void RefreshNotices(Notice? select = null)
@@ -135,10 +181,10 @@ namespace RemoteWork.WinForms.Features.Collaboration
             gridNotices.Rows.Clear();
             string? target = cmbOptions2.SelectedItem?.ToString() switch
             {
-                "전 직원" => "전 직원",
-                "기획팀" => "기획팀",
-                "개발팀" => "개발팀",
-                "디자인팀" => "디자인팀",
+                "�� ����" => "�� ����",
+                "��ȹ��" => "��ȹ��",
+                "������" => "������",
+                "��������" => "��������",
                 _ => null
             };
             var filteredNotices = notices.Where(notice =>
@@ -153,7 +199,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             if (gridNotices.Rows.Count > 0)
             {
                 var selectedRow = gridNotices.Rows.Cast<DataGridViewRow>()
-                    .FirstOrDefault(row => ReferenceEquals(row.Tag, select))
+                    .FirstOrDefault(row => select is not null && (row.Tag as Notice)?.Id == select.Id)
                     ?? gridNotices.Rows[0];
                 gridNotices.CurrentCell = selectedRow.Cells[0];
             }
@@ -169,24 +215,33 @@ namespace RemoteWork.WinForms.Features.Collaboration
             RefreshNotices(gridNotices.CurrentRow?.Tag as Notice);
         }
 
-        private void QueryNotice_Click(object? sender, EventArgs e)
+        private async void QueryNotice_Click(object? sender, EventArgs e)
         {
-            ShowSelectedNotice();
+            if (busy || IsDisposed) return;
+            int? selectedId = (gridNotices.CurrentRow?.Tag as Notice)?.Id;
+            SetBusy(true);
+            try
+            {
+                // Refresh from DB as well: notices written on another PC appear here.
+                await LoadNoticesAsync(selectedId);
+                if (IsDisposed) return;
+                if (gridNotices.CurrentRow?.Tag is Notice selected)
+                {
+                    var detail = await noticeService.GetNoticeAsync(selected.Id, lifetime.Token);
+                    if (!IsDisposed) { lblText4.Text = detail.Title; txtContent.Text = detail.GetDisplayText(); }
+                }
+            }
+            catch (ApiException ex) { ShowLoadError(ex.Message); }
+            catch (OperationCanceledException) { if (!IsDisposed) ShowLoadError("������ ����Ǿ����ϴ�. �ٽ� �α����� �� ��ȸ�� �ּ���."); }
+            finally { if (!IsDisposed) SetBusy(false); }
         }
 
         private void ClearNoticeDetails()
         {
-            lblText4.Text = "공지사항 상세";
+            lblText4.Text = "�������� ��";
             txtContent.Text = gridNotices.Rows.Count == 0
-                ? "조회할 공지사항이 없습니다."
-                : "목록에서 공지사항을 선택한 뒤 조회 버튼을 눌러 주세요.";
-        }
-
-        private void ShowSelectedNotice()
-        {
-            var notice = gridNotices.CurrentRow?.Tag as Notice;
-            lblText4.Text = notice?.Title ?? "공지사항 상세";
-            txtContent.Text = notice?.GetDisplayText() ?? "목록에서 공지사항을 선택한 뒤 조회 버튼을 눌러 주세요.";
+                ? "��ȸ�� ���������� �����ϴ�."
+                : "��Ͽ��� ���������� ������ �� ��ȸ ��ư�� ���� �ּ���.";
         }
 
         private void Unavailable_Click(object? sender, EventArgs e)
@@ -196,10 +251,14 @@ namespace RemoteWork.WinForms.Features.Collaboration
 
         private void btnNewNoticePreview_Click(object? sender, EventArgs e)
         {
-            using var form = new NoticeEditForm();
+            if (previewRole != PreviewRole.Administrator || busy || IsDisposed) return;
+            using var form = new NoticeEditForm(noticeService);
             if (form.ShowDialog(FindForm()) != DialogResult.OK || form.CreatedNotice is null)
                 return;
 
+            if (IsDisposed) return;
+            // CreatedNotice is the committed server response (including ID/author/date).
+            notices.RemoveAll(n => n.Id == form.CreatedNotice.Id);
             notices.Add(form.CreatedNotice);
             RefreshNotices(form.CreatedNotice);
         }
