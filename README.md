@@ -1,5 +1,9 @@
 # 원격 근무용 업무 처리 확인 시스템 변경 기록
 
+## 4번 후속 전달 — 2026-10-17
+
+코드 #7 head [`d58064c`](https://github.com/zx234x/jang1/commit/d58064ccd30e7e718f94d5e5556d0f19c6afd88c)에 최신 alpha 결합·N4 수용·예약003 SQL/검증을 반영했다. 원본 미병합·새 코드/SQL 재검토 대기다. [대표 협의 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/1번/2026-10-17_4번_공지DB_등록_협의요청.md)에서 수신 상태를, [이번 검증/1번 확인 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/4번/2026-10-17_PR7_1번회신반영_003DDL_검증.md)에서 실제 결과와 미합의·미실행을 확인한다. 아래 내용은 이전 시점의 원문이다.
+
 ## 최신 — W1-05 상태CHECK 보완·MySQL 검증·DEMO 범위, 2026-10-17
 
 [alpha c56f3c8](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/c56f3c87e446adb30309c46287cd7c4aa3cff273)에 1번 W1-05의 정확한5개 상태코드 CHECK를 ORM/검토용002 SQL에 함께 반영했습니다. [변경8파일·검증·미실행·남은 합의](2번/2026-10-17_W1-05_상태CHECK_수정_MySQL_검증.md)에서 확인합니다. 전용 MySQL 두 모듈 **38통과**, rawDDL/ORM·기존GET·실제 dump/새DB복원과 공통행 보존을 확인했습니다. 로컬8개 반영·추적162파일 일치·DOCX7개 보존·Release 경고0/오류0입니다.

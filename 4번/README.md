@@ -1,5 +1,9 @@
 # 4번 — 공지·채팅 협업 기록
 
+## 4번 후속 전달 — 2026-10-17
+
+코드 #7 head [`d58064c`](https://github.com/zx234x/jang1/commit/d58064ccd30e7e718f94d5e5556d0f19c6afd88c)에 최신 alpha 결합·N4 수용·예약003 SQL/검증을 반영했다. 원본 미병합·새 코드/SQL 재검토 대기다. [대표 협의 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/1번/2026-10-17_4번_공지DB_등록_협의요청.md)에서 수신 상태를, [이번 검증/1번 확인 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/4번/2026-10-17_PR7_1번회신반영_003DDL_검증.md)에서 실제 결과와 미합의·미실행을 확인한다. 아래 내용은 이전 시점의 원문이다.
+
 ## 4번 PR #7 R1/R2 수정·1번 협의 요청 — 2026-10-17
 
 R1/R2 코드 수정·작성자 격리 검증 완료, **재검토 대기**. 코드 head `c7282d1e9e332daf3996aeb00f9a1b20c6ad2e61`, 기준 원본 alpha `8a652adaba4a8471b2fff581f1265bf27c8ff1d3`. R1은 가드 안 current/locking read와 populate_existing으로 재확인해 삭제200/후속404·감사1건을 검증했습니다. R2는 현재 INTEGER/C#int 기준 개발 방어 경계1..2147483647와 기존 미존재404를 적용했습니다. **ID 범위·오류 응답의 최종 공지 계약은 1번 회신 대기**이며 BIGINT·공통 API/DDL 확정이 아닙니다. 추가로 MySQL 시각 저장 정밀도에 따른 등록/재조회 차이를 저장값 refresh로 보완했습니다.
