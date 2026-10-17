@@ -59,6 +59,8 @@ R1/R2 코드 수정·작성자 격리 검증 완료, **재검토 대기**. 코�
 
 ## 2026-10-17 추가 협업 요청 수신·회신
 
+게시 상태: [문서 PR #12](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/12) · head `jinkyu1452-cmd/Sang1:LOG` → base `Esp3ra/2026-Moble-2nd-Team-Project:LOG`. [최초 회신 커밋20664f6](https://github.com/jinkyu1452-cmd/Sang1/commit/20664f67fd5f54bd137d8a3095cacda8305c7ae6)의 포크 push와 PR 생성을 확인했으며 원본 병합·상대 공동 확인은 아직 대기입니다. 최신 문서 head는 해당 PR의 커밋 목록을 따릅니다.
+
 | 요청 | 1번 대표 회신 | 이번 상태·다음 담당 |
 |---|---|---|
 | 2번 W1-01~07 업무 쓰기 공통 지원 | [쓰기 규약 회신](2026-10-17_업무쓰기_공통규약_회신.md) | 인증 재확인/버전/멱등/후보조회 지원은 1번 후속 구현. 업무 정책·제출 경계는 2·3번 회신 대기 |
