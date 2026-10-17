@@ -1,6 +1,13 @@
 # 4번 수정 요청 및 처리 기록
 
-## 최신 수정 회신 — PR #7
+## 최신 검토자 확인 — PR #7
+
+수정 head `c7282d1e9e332daf3996aeb00f9a1b20c6ad2e61`의 **R1·R2 해결을 독립 확인**했습니다. Draft·미병합을 유지하며 1번 ID/오류·API/DDL 회신, 최신 alpha의 루트 README 충돌 해소·새 head 재확인이 필요합니다. [검토자 재검토 결과](2026-10-17_PR7_공지DB_수정요청.md#검토자-독립-재검토--2026-10-17)와 [최신 검토 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/2026-10-17_PR7_수정재검토_PR10_PR11_문서병합.md)을 먼저 확인합니다.
+
+문서 PR #10은 LOG `530f171`, #11은 PR `120d855`로 병합했습니다. 아래의 작성자 보고·이전 검토 시점은 당시 기록으로 보존합니다.
+
+
+## 이전 작성자 수정 회신 — PR #7
 
 - 코드 head `c7282d1e9e332daf3996aeb00f9a1b20c6ad2e61`, 기준 원본 alpha8a652ad.
 - **R1/R2 작성자 수정·격리 검증 완료·재검토 대기**, Draft·미병합. ID/오류 최종 계약·API/DDL은 1번 회신 대기.
@@ -14,7 +21,7 @@
 
 [전체 요청](../README.md)
 
-## 현재 검토 대상 — PR #7 공지 DB 연결
+## 이전 최초 검토 — PR #7 공지 DB 연결
 
 [코드 PR #7](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/7) · [검토 상태](2026-10-17_PR7_공지DB_검토상태.md) · [별도 LOG PR #8](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/8)
 
@@ -41,4 +48,6 @@ alpha 통합본에서도 Release 빌드 경고 0·오류 0, 공지·채팅 5개 
 
 인증된 실제 사용자 매핑과 공지·채팅 서버·DB·권한·두 PC·파일 전송·직원 자동 팝업·확인 기록은 계속 미연결·미검증입니다. 이번 완료는 공지 필터 수정과 로컬 메모리 구현의 재검토·alpha 반영 범위입니다.
 
-이번 확장 협의는 [LOG PR #10](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/10)으로 1번에게 전달했으며 미병합·회신 대기입니다. 규약 제안 게시를 1번 수용이나 코드 승인으로 표시하지 않습니다.
+작성자 보고 당시 확장 협의는 [LOG PR #10](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/10)으로 전달돼 미병합·회신 대기였습니다. 후속 문서 병합 상태와 남은 회신은 위 최신 검토자 확인을 따릅니다. 규약 제안 게시를 1번 수용이나 코드 승인으로 표시하지 않습니다.
+
+최종 게시 준비에서 최신 alpha [6ab86e4](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/6ab86e4efa80aba9d001dd5edbe007319ecaf18d)와도 README.md 1개 충돌을 재확인했습니다. 최신2번 로컬 확인값·실제HTTP 준비 창 안내를 함께 보존해야 합니다. 코드 #7 원본 head는 이번 작업에서 변경하지 않았습니다.
