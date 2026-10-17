@@ -1,6 +1,10 @@
 # 3번 결과물·제출·검토·업무 이력 연결 협의
 
-게시 상태: [코드 PR #15](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/15) · [LOG PR #16](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/16) 생성 완료. 포크 alpha/LOG → 원본 alpha/LOG 검토 대기이며 원본 병합·공유 적용은 미완료다.
+## 최신 검토자 확인 — PR #15·#16 병합, 2026-10-17
+
+[독립 검토·실행/미실행·병합 기록](../2번/2026-10-17_PR15_PR16_공통지원_검토_병합.md)에서 검토자 MySQL159통과와 복원2건 재실행 통과, 포함된 실제 C# HTTP12 및 별도 C# 회귀를 확인합니다. W1 공통 지원은 원본 수신 완료이며 제품 업무 쓰기·W3 미정 정책·공유 적용은 남아 있습니다. 아래의 포크/검토 대기 표현은 제출 당시 원문으로 보존합니다.
+
+게시 상태: [코드 PR #15](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/15)은 alpha `5fd99a8`, [LOG PR #16](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/16)은 LOG `54c6cd3`로 병합 완료했습니다. 공유 적용·제품 업무 쓰기는 별도입니다.
 
 ## 1번 공통 연결 현재 지원 회신 — 2026-10-17
 
