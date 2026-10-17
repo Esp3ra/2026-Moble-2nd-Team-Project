@@ -8,6 +8,7 @@ namespace RemoteWork.WinForms.Features.Tasks
 
         protected override void Dispose(bool disposing)
         {
+            if (disposing) StopPreparation();
             if (disposing && components != null)
                 components.Dispose();
             base.Dispose(disposing);
@@ -592,6 +593,15 @@ namespace RemoteWork.WinForms.Features.Tasks
             flowActions.WrapContents = true;
             flowActions.Name = "flowActions";
             flowActions.Controls.Add(btnSelectAttachment);
+            btnPrepareCandidates = new System.Windows.Forms.Button();
+            btnPrepareCandidates.Name = "btnPrepareCandidates";
+            btnPrepareCandidates.Text = "담당자 · 업무 관리자 선택";
+            btnPrepareCandidates.AutoSize = true;
+            btnPrepareCandidates.MinimumSize = new System.Drawing.Size(88, 34);
+            btnPrepareCandidates.Margin = new System.Windows.Forms.Padding(0, 0, 8, 6);
+            btnPrepareCandidates.UseVisualStyleBackColor = true;
+            btnPrepareCandidates.Click += PrepareCandidates_Click;
+            flowActions.Controls.Add(btnPrepareCandidates);
             //
             // btnSelectAttachment
             //
@@ -799,6 +809,7 @@ namespace RemoteWork.WinForms.Features.Tasks
         private System.Windows.Forms.TextBox txtAttachments;
         private System.Windows.Forms.FlowLayoutPanel flowActions;
         private System.Windows.Forms.Button btnSelectAttachment;
+        private System.Windows.Forms.Button btnPrepareCandidates;
         private System.Windows.Forms.FlowLayoutPanel flowActions2;
         private System.Windows.Forms.Button btnConfirm;
         private System.Windows.Forms.Button btnCancel;

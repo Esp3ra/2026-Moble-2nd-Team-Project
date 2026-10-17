@@ -13,6 +13,11 @@ namespace RemoteWork.WinForms.Features.Tasks
         private bool initializing = true;
         private bool datesSupported = true;
         private TaskBasicInputDraft? checkedInput;
+        private readonly ITaskPreparationService? preparationService;
+        private TaskPreparationSelection? preparedSelection;
+        private CancellationTokenRegistration preparationSessionRegistration;
+        private bool preparationStopped;
+        public TaskPreparationSelection? PreparedSelection => preparationService?.IsCurrent == true ? preparedSelection : null;
 
         // A local snapshot of the last successful input check; it does not authorize a write.
         public TaskBasicInputDraft? CheckedInput
@@ -36,14 +41,20 @@ namespace RemoteWork.WinForms.Features.Tasks
 
         public TaskEditForm() : this(false) { }
 
-        public TaskEditForm(bool editing) : this(editing, null) { }
+        public TaskEditForm(bool editing) : this(editing, null, null) { }
+
+        public TaskEditForm(bool editing, ITaskPreparationService? preparationService) : this(editing, null, preparationService) { }
 
         public TaskEditForm(TaskDetail detail)
-            : this(true, detail ?? throw new ArgumentNullException(nameof(detail))) { }
+            : this(true, detail ?? throw new ArgumentNullException(nameof(detail)), null) { }
 
-        private TaskEditForm(bool editing, TaskDetail? detail)
+        public TaskEditForm(TaskDetail detail, ITaskPreparationService? preparationService)
+            : this(true, detail ?? throw new ArgumentNullException(nameof(detail)), preparationService) { }
+
+        private TaskEditForm(bool editing, TaskDetail? detail, ITaskPreparationService? preparationService)
         {
             this.editing = editing;
+            this.preparationService = preparationService;
             sourceDetail = detail;
             InitializeComponent();
             if (PreviewActions.IsDesignMode(this)) return;
@@ -56,6 +67,8 @@ namespace RemoteWork.WinForms.Features.Tasks
             cmbAssignee.Items.Add(detail?.Summary.AssigneeName ?? "담당자 조회·배정 규약 확인 필요");
             cmbAssignee.SelectedIndex = 0;
             cmbAssignee.Enabled = false;
+            btnPrepareCandidates.Visible = preparationService is not null;
+            btnPrepareCandidates.Enabled = preparationService?.IsCurrent == true && (!editing || detail is not null);
             txtAttachments.Text = "첨부파일 연결 규약 확인 필요";
             dtpStartDate.Checked = false;
             dtpDeadline.Checked = false;
@@ -107,8 +120,58 @@ namespace RemoteWork.WinForms.Features.Tasks
                 : editing && sourceDetail is null
                     ? "목록에서 업무 상세를 조회한 뒤 수정 대상을 선택해 주세요. 저장·전송되지 않습니다."
                     : (sourceDetail is null ? "" : $"수정 대상: {sourceDetail.Summary.TaskId}\r\n")
-                        + "로컬 입력 준비 · 담당자·저장 규약 확인 필요 · 서버로 전송되지 않습니다.";
+                        + "로컬 입력 준비 · 서버로 저장·전송되지 않습니다."
+                        + (PreparedSelection is { } selection
+                            ? $"\r\n선택 담당자: {(selection.Assignee is null ? "미선택" : "#" + selection.Assignee.Id)} · 업무 관리자: {string.Join(", ", selection.ManagerUserIds.Select(id => "#" + id))}"
+                            : "\r\n담당자·관리자 선택과 저장 조건은 별도 확인이 필요합니다.");
         }
+
+        private void PrepareCandidates_Click(object? sender, EventArgs e)
+        {
+            if (preparationService?.IsCurrent != true) return;
+            using var form = new TaskPreparationForm(preparationService, sourceDetail?.Summary.TaskId);
+            if (form.ShowDialog(this) != DialogResult.OK || !preparationService.IsCurrent || form.Selection is null) return;
+            preparedSelection = form.Selection;
+            CheckedInput = null;
+            cmbAssignee.Items.Clear();
+            cmbAssignee.Items.Add(preparedSelection.Assignee?.SelectionLabel ?? "담당자 미선택");
+            cmbAssignee.SelectedIndex = 0;
+            inputErrors.Clear();
+            ResetPreparationStatus();
+        }
+
+        protected override void OnShown(EventArgs e)
+        {
+            base.OnShown(e);
+            if (preparationService is null) return;
+            preparationSessionRegistration = preparationService.SessionCancellation.Register(() =>
+            {
+                if (!preparationStopped && IsHandleCreated && !IsDisposed)
+                    try { BeginInvoke((Action)InvalidatePreparation); }
+                    catch (InvalidOperationException) { }
+            });
+            if (!preparationService.IsCurrent) InvalidatePreparation();
+        }
+        private void InvalidatePreparation()
+        {
+            if (preparationStopped || IsDisposed) return;
+            preparedSelection = null;
+            CheckedInput = null;
+            cmbAssignee.Items.Clear();
+            cmbAssignee.Items.Add("로그인 변경 · 선택 정보 다시 확인 필요");
+            cmbAssignee.SelectedIndex = 0;
+            btnPrepareCandidates.Enabled = false;
+            btnConfirm.Enabled = false;
+            lblPreparationStatus.Text = "로그인 접속이 변경되어 이전 선택 정보를 지웠습니다. 창을 닫고 업무를 다시 조회해 주세요.";
+        }
+        private void StopPreparation()
+        {
+            if (preparationStopped) return;
+            preparationStopped = true;
+            preparationSessionRegistration.Dispose();
+        }
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        { StopPreparation(); base.OnFormClosed(e); }
 
         private void ConfirmInput_Click(object? sender, EventArgs e)
         {

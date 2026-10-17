@@ -2,6 +2,7 @@ using System.Globalization;
 using RemoteWork.WinForms.Ui;
 using RemoteWork.WinForms.Features.Collaboration;
 using RemoteWork.WinForms.Features.Tasks.Queries;
+using RemoteWork.WinForms.Features.Tasks.Preparation;
 
 namespace RemoteWork.WinForms.Features.Tasks
 {
@@ -9,6 +10,7 @@ namespace RemoteWork.WinForms.Features.Tasks
     {
         private readonly PreviewRole previewRole;
         private readonly ITaskQueryService queryService;
+        private readonly ITaskPreparationService? preparationService;
         private CancellationTokenSource? listCancellation;
         private CancellationTokenSource? detailCancellation;
         private long listGeneration;
@@ -28,10 +30,14 @@ namespace RemoteWork.WinForms.Features.Tasks
         public TasksControl(PreviewRole role) : this(role, new UnconfiguredTaskQueryService()) { }
 
         public TasksControl(PreviewRole role, ITaskQueryService queryService)
+            : this(role, queryService, (queryService as ITaskPreparationSource)?.CreatePreparationService()) { }
+
+        public TasksControl(PreviewRole role, ITaskQueryService queryService, ITaskPreparationService? preparationService)
         {
             ArgumentNullException.ThrowIfNull(queryService);
             previewRole = role;
             this.queryService = queryService;
+            this.preparationService = preparationService;
             InitializeComponent();
             if (PreviewActions.IsDesignMode(this)) return;
             btnRetryQuery.AccessibleDescription = "상세 조회 실패 시 선택한 업무만 다시 조회합니다. 목록 정보 변경 안내 시 목록 전체를 다시 조회합니다. F5 키는 업무 목록을 다시 조회합니다.";
@@ -82,6 +88,8 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnEditTaskPreview.Enabled = hasDetail;
             btnAcceptTask.Enabled = hasDetail;
             btnDeadlineExtensionPreview.Enabled = hasDetail;
+            btnPrepareWrite.Visible = preparationService is not null;
+            btnPrepareWrite.Enabled = hasDetail && preparationService?.IsCurrent == true;
         }
 
         /// <summary>
@@ -390,13 +398,19 @@ namespace RemoteWork.WinForms.Features.Tasks
 
         private void btnNewTaskPreview_Click(object? sender, EventArgs e)
         {
-            PreviewActions.Open(this, new TaskEditForm());
+            PreviewActions.Open(this, new TaskEditForm(false, preparationService));
         }
 
         private void btnEditTaskPreview_Click(object? sender, EventArgs e)
         {
             if (PreparationDetail() is { } detail)
-                PreviewActions.Open(this, new TaskEditForm(detail));
+                PreviewActions.Open(this, new TaskEditForm(detail, preparationService));
+        }
+
+        private void PrepareWrite_Click(object? sender, EventArgs e)
+        {
+            if (PreparationDetail() is { } detail && preparationService?.IsCurrent == true)
+                PreviewActions.Open(this, new TaskPreparationForm(preparationService, detail.Summary.TaskId));
         }
 
         private void btnAcceptTask_Click(object? sender, EventArgs e)

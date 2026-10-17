@@ -368,6 +368,15 @@ namespace RemoteWork.WinForms.Features.Tasks
             flowActions.Controls.Add(btnDeadlineExtensionPreview);
             flowActions.Controls.Add(btnCollaborationRequest);
             flowActions.Controls.Add(btnTaskRequests);
+            btnPrepareWrite = new System.Windows.Forms.Button();
+            btnPrepareWrite.Name = "btnPrepareWrite";
+            btnPrepareWrite.Text = "업무 연결 정보";
+            btnPrepareWrite.AutoSize = true;
+            btnPrepareWrite.MinimumSize = new System.Drawing.Size(88, 34);
+            btnPrepareWrite.Margin = new System.Windows.Forms.Padding(0, 0, 8, 6);
+            btnPrepareWrite.UseVisualStyleBackColor = true;
+            btnPrepareWrite.Click += PrepareWrite_Click;
+            flowActions.Controls.Add(btnPrepareWrite);
             //
             // btnNewTaskPreview
             //
@@ -1171,6 +1180,7 @@ namespace RemoteWork.WinForms.Features.Tasks
         private System.Windows.Forms.Button btnDeadlineExtensionPreview;
         private System.Windows.Forms.Button btnCollaborationRequest;
         private System.Windows.Forms.Button btnTaskRequests;
+        private System.Windows.Forms.Button btnPrepareWrite;
         private System.Windows.Forms.TableLayoutPanel layoutContent4;
         private System.Windows.Forms.Panel panelContent2;
         private System.Windows.Forms.TableLayoutPanel layoutContent5;

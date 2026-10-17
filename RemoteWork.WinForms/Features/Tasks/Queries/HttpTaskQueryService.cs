@@ -1,5 +1,6 @@
 using System.Globalization;
 using RemoteWork.WinForms.Infrastructure;
+using RemoteWork.WinForms.Features.Tasks.Preparation;
 
 namespace RemoteWork.WinForms.Features.Tasks.Queries;
 
@@ -7,11 +8,18 @@ namespace RemoteWork.WinForms.Features.Tasks.Queries;
 /// Member 2's read-only development contract. The shared client owns authentication,
 /// transport and session cancellation; this adapter never substitutes sample data.
 /// </summary>
-public sealed class HttpTaskQueryService(ApiClient api) : ITaskQueryService
+public sealed class HttpTaskQueryService(ApiClient api) : ITaskQueryService, ITaskPreparationSource
 {
     private readonly ApiClient api = api ?? throw new ArgumentNullException(nameof(api));
 
     public string SourceDescription => $"업무 조회 서버 · {api.ServerUri}";
+
+    public ITaskPreparationService? CreatePreparationService()
+    {
+        if (api.CurrentUser is null) return null;
+        try { return new HttpTaskPreparationService(api.CaptureSession()); }
+        catch (InvalidOperationException) { return null; } // A concurrent logout won the capture.
+    }
 
     public async Task<IReadOnlyList<TaskSummary>> GetTasksAsync(
         TaskListQuery query, CancellationToken cancellationToken = default)
