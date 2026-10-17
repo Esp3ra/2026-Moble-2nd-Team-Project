@@ -18,6 +18,12 @@
 
 ## 기술과 실행 환경
 
+### 1번 W1 공통 쓰기 지원 개발 초안
+
+[공통 연결 계약](docs/WRITE_SUPPORT.md)에 직원/관리자 현재 인증 재확인·엄격한 기대 버전·최소 사용자 후보/별도 쓰기 문맥·서버 서명 요청 키/24시간 성공 결과·C# 명시적 요청 키 전송을 정리했습니다. 공통 쓰기 지원은 독립 opt-in이며 기본 off, 후보/문맥은 기존 업무 opt-in도 필요합니다. 새 저장소004는 검토용이며 공통schema version1·기존 GET/DTO는 유지합니다. HTTP에서 DDL을 자동 적용하지 않습니다.
+
+이 지원은 2번이 행동별 저장을 연결하기 위한 기반입니다. 실제 등록·수락·연장·제출/승인 API·업무 UI 저장·3번 미정 정책·공유 적용/두PC가 구현됐다는 뜻은 아닙니다. [실제 C#→HTTP→전용 MySQL 검증](Tests/WriteSupport.Http.Tests/README.md)은 시험용 mutation 경로를 사용하며 제품 업무 저장과 구분합니다.
+
 - 데스크톱: Windows, .NET 8 SDK, C# WinForms.
 - 서버: Python 3.11 이상, Flask/Waitress, SQLAlchemy/PyMySQL.
 - DB: 실제 구현·DB 규약·지속 관리와 주요 검증은 MySQL 기준입니다. SQLite는 DEMO용 임시 구성이며 DEMO 종료 후 삭제할 예정입니다.

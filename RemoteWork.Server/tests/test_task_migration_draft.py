@@ -534,10 +534,10 @@ def test_real_dump_restore_into_new_owned_db_then_retry_ddl(owned_databases, fix
         child_env = os.environ.copy()
         child_env.pop("MYSQL_PWD", None)
         dumped = subprocess.run([
-            _mysql_tool("mysqldump"), "--defaults-file=" + str(config), "--no-login-paths", "--no-tablespaces",
+            _mysql_tool("mysqldump"), "--defaults-file=" + config.name, "--no-login-paths", "--no-tablespaces",
             "--set-gtid-purged=OFF", "--single-transaction", "--skip-comments", "--skip-add-locks",
-            "--skip-lock-tables", "--result-file=" + str(dump), source.url.database,
-        ], env=child_env, capture_output=True)
+            "--skip-lock-tables", "--result-file=" + dump.name, source.url.database,
+        ], cwd=tmp_path, env=child_env, capture_output=True)
         assert dumped.returncode == 0, "Dedicated fixture backup failed (credential/output values omitted)"
         assert dump.stat().st_size > 0
         assert b"CREATE DATABASE" not in dump.read_bytes().upper()
@@ -547,9 +547,9 @@ def test_real_dump_restore_into_new_owned_db_then_retry_ddl(owned_databases, fix
         restored = owned_databases("recovery_target")
         assert inspect(restored).get_table_names() == []
         result = subprocess.run([
-            _mysql_tool("mysql"), "--defaults-file=" + str(config), "--no-login-paths", "--binary-mode=1",
+            _mysql_tool("mysql"), "--defaults-file=" + config.name, "--no-login-paths", "--binary-mode=1",
             "--database=" + restored.url.database,
-        ], env=child_env, input=dump.read_bytes(), capture_output=True)
+        ], cwd=tmp_path, env=child_env, input=dump.read_bytes(), capture_output=True)
         assert result.returncode == 0, "Restore into a new owned DB failed (credential/output values omitted)"
         assert _common_snapshot(restored) == before
         assert set(inspect(restored).get_table_names()) == {table.name for table in COMMON_TABLES}

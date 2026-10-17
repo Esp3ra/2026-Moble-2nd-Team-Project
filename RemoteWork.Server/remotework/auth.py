@@ -119,13 +119,21 @@ def revoke_all(db, user_id):
 
 
 @contextmanager
-def admin_transaction():
-    """Serialize user administration and recheck auth using current locking reads.
+def authenticated_transaction(*, roles=()):
+    """Recheck a current identity under the shared write guard, including staff.
 
     load_identity() may have established an older MySQL REPEATABLE READ snapshot.
     Refresh ORM objects too: a locking SELECT alone can reuse a cached User.
-    All user-administration writes acquire guard -> actor -> session -> target.
+    Cooperating writes acquire guard -> actor -> session before feature rows.
+    Use one parent/child order across feature services and sort target user IDs.
+    The shared guard serializes cooperating writers. Feature services must
+    check their own CURRENT relationships/versions/state before any mutation.
+    This guard grants no feature permission and must not contain network calls.
     """
+    if not getattr(g, "user", None) or not getattr(g, "auth_session", None):
+        raise AppError(401, "AUTH_REQUIRED", "로그인이 필요하거나 로그인 시간이 만료되었습니다.")
+    if getattr(g, "write_transaction_active", False):
+        raise RuntimeError("Write transactions must not be nested")
     actor_id, token_hash = g.user.id, g.auth_session.token_hash
     channel = g.auth_session.channel
     with transaction() as db:
@@ -140,9 +148,20 @@ def admin_transaction():
                 or session.user_id != actor_id or session.channel != channel
                 or session.expires_at <= utcnow()):
             raise AppError(401, "AUTH_REQUIRED", "로그인이 필요하거나 로그인 시간이 만료되었습니다.")
-        if actor.role != "admin":
+        if roles and actor.role not in roles:
             raise AppError(403, "FORBIDDEN", "접근 권한이 없습니다.")
         g.user, g.auth_session = actor, session
+        g.write_transaction_active = True
+        try:
+            yield db
+        finally:
+            g.write_transaction_active = False
+
+
+@contextmanager
+def admin_transaction():
+    """Existing admin contract, now sharing the staff-capable current-read guard."""
+    with authenticated_transaction(roles=("admin",)) as db:
         yield db
 
 
