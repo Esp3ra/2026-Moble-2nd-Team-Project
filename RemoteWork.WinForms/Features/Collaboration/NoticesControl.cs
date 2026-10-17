@@ -138,6 +138,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
                 "전 직원" => "전 직원",
                 "기획팀" => "기획팀",
                 "개발팀" => "개발팀",
+                "디자인팀" => "디자인팀",
                 _ => null
             };
             var filteredNotices = notices.Where(notice =>

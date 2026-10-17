@@ -272,7 +272,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             cmbOptions2.IntegralHeight = true;
             cmbOptions2.MaxDropDownItems = 8;
             cmbOptions2.Name = "cmbOptions2";
-            cmbOptions2.Items.AddRange(new object[] { "전체", "전 직원", "기획팀", "개발팀" });
+            cmbOptions2.Items.AddRange(new object[] { "전체", "전 직원", "기획팀", "개발팀", "디자인팀" });
             //
             // btnQuery
             //
