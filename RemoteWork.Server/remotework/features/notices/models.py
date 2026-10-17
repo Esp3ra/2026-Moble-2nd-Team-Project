@@ -4,7 +4,7 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from ...models import Base, iso, utcnow
 
-TARGETS = ("�� ����", "��ȹ��", "������", "��������")
+TARGETS = ("전 직원", "기획팀", "개발팀", "디자인팀")
 
 
 class Notice(Base):

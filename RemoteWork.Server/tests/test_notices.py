@@ -18,8 +18,8 @@ def admin(login):
 
 
 def draft(**changes):
-    return {"title": "���� �׽�Ʈ", "content": "�ٽ� �����ص� ���� ����", "target": "������",
-            "is_pinned": False, "attachment_names": ["�ȳ�.pdf"]} | changes
+    return {"title": "저장 테스트", "content": "다시 실행해도 남는 본문", "target": "개발팀",
+            "is_pinned": False, "attachment_names": ["안내.pdf"]} | changes
 
 
 def publish(client, admin, **changes):
@@ -30,8 +30,8 @@ def publish(client, admin, **changes):
 
 def test_committed_notice_survives_app_recreation_and_uses_server_identity(app, client, admin):
     n = publish(client, admin)
-    assert n["id"] > 0 and n["author"] == "������" and n["created_at"].endswith("Z")
-    assert n["attachment_names"] == ["�ȳ�.pdf"]
+    assert n["id"] > 0 and n["author"] == "관리자" and n["created_at"].endswith("Z")
+    assert n["attachment_names"] == ["안내.pdf"]
     # New Flask app + connection pool, same file/database: no process-list state.
     other = create_app({"TESTING": True, "SECRET_KEY": app.config["SECRET_KEY"],
                         "DATABASE_URL": app.config["DATABASE_URL"]})
@@ -46,11 +46,11 @@ def test_committed_notice_survives_app_recreation_and_uses_server_identity(app, 
 
 
 def test_every_target_is_readable_by_employee_with_exact_filter(client, admin, login):
-    for target in ("�� ����", "��ȹ��", "������", "��������"):
+    for target in ("전 직원", "기획팀", "개발팀", "디자인팀"):
         publish(client, admin, target=target)
     employee = login()[0]
     assert client.get("/api/v1/notices", headers=employee).json["data"]["total"] == 4
-    for target in ("�� ����", "��ȹ��", "������", "��������"):
+    for target in ("전 직원", "기획팀", "개발팀", "디자인팀"):
         r = client.get("/api/v1/notices", query_string={"target": target}, headers=employee)
         assert r.status_code == 200 and r.json["data"]["total"] == 1
         assert r.json["data"]["items"][0]["target"] == target
@@ -78,9 +78,9 @@ def test_delete_is_committed_and_audited(app, client, admin):
 
 
 @pytest.mark.parametrize("changes", [
-    {"title": " "}, {"title": "a" * 201}, {"content": "a" * 5001}, {"target": "������"},
-    {"is_pinned": "true"}, {"author": "����"}, {"author_id": 100},
-    {"attachment_names": [r"C:\private\�ȳ�.pdf"]}, {"attachment_names": ["../�ȳ�.pdf"]},
+    {"title": " "}, {"title": "a" * 201}, {"content": "a" * 5001}, {"target": "없는팀"},
+    {"is_pinned": "true"}, {"author": "위조"}, {"author_id": 100},
+    {"attachment_names": [r"C:\private\안내.pdf"]}, {"attachment_names": ["../안내.pdf"]},
     {"attachment_names": ["x"] * 21}, {"attachment_names": None}, {"title": None}])
 def test_invalid_input_never_writes(app, client, admin, changes):
     r = client.post("/api/v1/notices", json=draft(**changes), headers=admin)
@@ -93,12 +93,12 @@ def test_invalid_input_never_writes(app, client, admin, changes):
 
 def test_pagination_and_pinned_order(client, admin):
     first = publish(client, admin)
-    pinned = publish(client, admin, title="��� ����", is_pinned=True)
+    pinned = publish(client, admin, title="상단 고정", is_pinned=True)
     r = client.get("/api/v1/notices?limit=1&page=1", headers=admin)
     assert r.json["data"]["total"] == 2 and r.json["data"]["items"][0]["id"] == pinned["id"]
     r = client.get("/api/v1/notices?limit=1&page=2", headers=admin)
     assert r.json["data"]["items"][0]["id"] == first["id"]
-    for q in ("limit=101", "page=0", "page=abc", "target=������"):
+    for q in ("limit=101", "page=0", "page=abc", "target=없는팀"):
         assert client.get("/api/v1/notices?" + q, headers=admin).status_code == 400
 
 

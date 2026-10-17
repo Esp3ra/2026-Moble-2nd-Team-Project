@@ -14,9 +14,9 @@ public sealed class HttpNoticeService(ApiClient api) : INoticeService
         if (data is null || data.Id <= 0 || data.AuthorId <= 0 ||
             string.IsNullOrWhiteSpace(data.Title) || string.IsNullOrWhiteSpace(data.Content) ||
             string.IsNullOrWhiteSpace(data.Author) || data.CreatedAt == default ||
-            !new[] { "�� ����", "��ȹ��", "������", "��������" }.Contains(data.Target) ||
+            !new[] { "전 직원", "기획팀", "개발팀", "디자인팀" }.Contains(data.Target) ||
             data.AttachmentNames is null || data.AttachmentNames.Any(string.IsNullOrWhiteSpace))
-            throw new ApiException("�������� ���� ������ �ùٸ��� �ʽ��ϴ�.");
+            throw new ApiException("공지사항 응답 형식이 올바르지 않습니다.");
         return new Notice
         {
             Id = data.Id, Title = data.Title, Content = data.Content, Target = data.Target,
@@ -34,11 +34,11 @@ public sealed class HttpNoticeService(ApiClient api) : INoticeService
             var data = await api.GetAsync<PageResult<NoticeData>>($"notices?page={page}&limit=100", ct);
             if (data.Items is null || data.Page != page || data.Limit != 100 || data.Total < 0 ||
                 data.Items.Count > 100)
-                throw new ApiException("�������� ��� ���� ������ �ùٸ��� �ʽ��ϴ�.");
+                throw new ApiException("공지사항 목록 응답 형식이 올바르지 않습니다.");
             result.AddRange(data.Items.Select(Map));
             if (result.Count >= data.Total) return result.DistinctBy(n => n.Id).ToArray();
             if (data.Items.Count == 0)
-                throw new ApiException("�������� ����� ��� ���� ���߽��ϴ�. �ٽ� ��ȸ�� �ּ���.");
+                throw new ApiException("공지사항 목록을 모두 받지 못했습니다. 다시 조회해 주세요.");
         }
     }
 
@@ -46,7 +46,7 @@ public sealed class HttpNoticeService(ApiClient api) : INoticeService
     {
         var data = await api.GetAsync<NoticeResult>($"notices/{id}", ct);
         var notice = Map(data.Notice);
-        if (notice.Id != id) throw new ApiException("������ �������װ� ���� ������ ��ġ���� �ʽ��ϴ�.");
+        if (notice.Id != id) throw new ApiException("선택한 공지사항과 서버 응답이 일치하지 않습니다.");
         return notice;
     }
 

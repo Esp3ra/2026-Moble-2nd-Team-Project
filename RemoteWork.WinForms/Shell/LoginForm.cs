@@ -13,16 +13,11 @@ public partial class LoginForm : Form
         lblLoginId.Text = "아이디";
         txtLoginId.MaxLength = 50;
         txtPassword.MaxLength = 128;
-        btnLogin.Click -= Unavailable_Click;
         btnLogin.Click += Login_Click;
         btnEmployeePreview.Text = "서버 연결 설정";
         btnAdministratorPreview.Text = "웹 로그인 열기";
         AcceptButton = btnLogin;
     }
-
-    private void Unavailable_Click(object? sender, EventArgs e) => MessageBox.Show(this,
-        "지문 로그인은 팀원 5의 장치 인증 기능 연결 후 사용할 수 있습니다. 지금은 아이디와 비밀번호로 로그인해 주세요.",
-        "지문 인증 연결 대기", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
     private async void Login_Click(object? sender, EventArgs e)
     {

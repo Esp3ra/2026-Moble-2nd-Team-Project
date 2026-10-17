@@ -17,22 +17,22 @@ def init_table():
     """Explicitly create ONLY the missing notice table; preserve existing rows."""
     engine = current_app.extensions["db_engine"]
     if not inspect(engine).has_table("users"):
-        raise click.ClickException("���� ���� init-db�� users ���̺��� �غ��� �ּ���.")
+        raise click.ClickException("먼저 공통 init-db로 users 테이블을 준비해 주세요.")
     Notice.__table__.create(engine, checkfirst=True)
-    click.echo("�������� ���̺� �غ� �Ϸ� (���� ������ ����)")
+    click.echo("공지사항 테이블 준비 완료 (기존 데이터 보존)")
 
 
 def require_table():
     # No DDL during a request. Return an actionable error for an older database.
     if not inspect(current_app.extensions["db_engine"]).has_table("notices"):
         raise AppError(503, "NOTICE_SCHEMA_REQUIRED",
-                       "�������� ���̺��� �����ϴ�. �������� flask --app remotework notices init-table�� ������ �ּ���.")
+                       "공지사항 테이블이 없습니다. 서버에서 flask --app remotework notices init-table을 실행해 주세요.")
 
 
 def get_notice(notice_id):
     notice = get_db().get(Notice, notice_id)
     if notice is None:
-        raise AppError(404, "NOTICE_NOT_FOUND", "�����Ǿ��ų� �������� �ʴ� ���������Դϴ�.")
+        raise AppError(404, "NOTICE_NOT_FOUND", "삭제되었거나 존재하지 않는 공지사항입니다.")
     return notice
 
 
@@ -42,14 +42,14 @@ def list_notices():
     require_table()
     target = request.args.get("target")
     if target is not None and target not in TARGETS:
-        raise AppError(400, "INVALID_INPUT", "�������� ����� Ȯ���� �ּ���.")
+        raise AppError(400, "INVALID_INPUT", "공지사항 대상을 확인해 주세요.")
     try:
         page = int(request.args.get("page", "1"))
         limit = int(request.args.get("limit", "100"))
         if not 1 <= page <= 1000000 or not 1 <= limit <= 100:
             raise ValueError()
     except ValueError:
-        raise AppError(400, "INVALID_INPUT", "�������� ��ȸ ������ Ȯ���� �ּ���.")
+        raise AppError(400, "INVALID_INPUT", "페이지와 조회 개수를 확인해 주세요.")
     query = select(Notice)
     if target:
         query = query.where(Notice.target == target)
@@ -71,22 +71,22 @@ def detail(notice_id):
 def validate(body):
     allowed = {"title", "content", "target", "is_pinned", "attachment_names"}
     if set(body) - allowed:
-        raise AppError(400, "INVALID_INPUT", "�������� �ʴ� �������� �Է� �׸��Դϴ�.")
+        raise AppError(400, "INVALID_INPUT", "지원하지 않는 공지사항 입력 항목입니다.")
     for key, maximum in (("title", 200), ("content", 5000)):
         value = body.get(key)
         if not isinstance(value, str) or not value.strip() or len(value.strip()) > maximum:
-            raise AppError(400, "INVALID_INPUT", f"������ 200��, ������ 5000�� �̳��� �Է��� �ּ���.")
+            raise AppError(400, "INVALID_INPUT", f"제목은 200자, 내용은 5000자 이내로 입력해 주세요.")
     if body.get("target") not in TARGETS or type(body.get("is_pinned", False)) is not bool:
-        raise AppError(400, "INVALID_INPUT", "�������� ���� ���� ���θ� Ȯ���� �ּ���.")
+        raise AppError(400, "INVALID_INPUT", "공지사항 대상과 고정 여부를 확인해 주세요.")
     names = body.get("attachment_names", [])
     if not isinstance(names, list) or len(names) > 20:
-        raise AppError(400, "INVALID_INPUT", "÷������ �̸��� 20������ ������ �� �ֽ��ϴ�.")
+        raise AppError(400, "INVALID_INPUT", "첨부파일 이름은 20개까지 저장할 수 있습니다.")
     for name in names:
         if (not isinstance(name, str) or not name.strip() or len(name) > 255
                 or name in (".", "..") or ":" in name
                 or any(ord(c) < 32 for c in name)
                 or PureWindowsPath(name).name != name or PurePosixPath(name).name != name):
-            raise AppError(400, "INVALID_INPUT", "÷�������� ��� ���� ���ϸ��� ������ �ּ���.")
+            raise AppError(400, "INVALID_INPUT", "첨부파일은 경로 없이 파일명만 전달해 주세요.")
     return names
 
 
@@ -117,4 +117,4 @@ def delete_notice(notice_id):
         notice = get_notice(notice_id)
         session.delete(notice)
         audit("notice.deleted", "notice", notice_id)
-    return success({"message": "���������� �����߽��ϴ�."})
+    return success({"message": "공지사항을 삭제했습니다."})

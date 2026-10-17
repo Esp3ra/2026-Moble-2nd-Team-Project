@@ -34,8 +34,8 @@ def main():
             init_schema()
             with transaction() as session:
                 for login_id, password, name, role, department in (
-                    ("admin1", "Admin-test-2026!", "������", "admin", "���"),
-                    ("staff1", "Staff-test-2026!", "����", "employee", "������")):
+                    ("admin1", "Admin-test-2026!", "관리자", "admin", "운영팀"),
+                    ("staff1", "Staff-test-2026!", "직원", "employee", "개발팀")):
                     create_user(session, {"login_id": login_id, "password": password,
                         "display_name": name, "role": role, "department": department,
                         "employee_no": login_id})

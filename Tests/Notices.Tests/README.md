@@ -31,3 +31,5 @@ python -m pytest -q
 
 
 2026-10-17 최신 alpha add1921 + 공지 bb41248 결합 검증: C# 기본30검증, 별도 실제 HTTP/SQLite37검증 및 실제 HTTP/격리 MySQL37검증 통과. 37개에는 공통 대역/화면 검증이 재포함되므로 실행 간 합산하지 않습니다. 서버 SQLite66통과/14생략, MySQL79통과/1환경실패 후 mysqldump 경로 지정으로 실패1개 재검증 통과. Release 빌드는 경고0/오류0입니다. 실제 공유 DB·두 PC·팝업 검증을 의미하지 않습니다.
+
+그 뒤 새 alpha 3b09480의 로그인 화면·실행 안내 변경을 보존해 추가 결합했습니다. 앱과 C# 검증 프로젝트5개를 다시 Release 빌드(경고0/오류0)하고 ApiClient88·Collaboration85·Notices30·TaskQueries82·TaskQueries.Http103, 실제 HTTP/SQLite37검증을 재실행해 모두 통과했습니다. 서버 소스와 MySQL 경로는 이전 검증본과 같음을 확인했으며, 해당 전체 pytest/MySQL 수치는 위 add1921 결합본 실행 결과입니다. 최신 결합에서 실제 로그인·두 PC·장치 검증은 실행하지 않았습니다.

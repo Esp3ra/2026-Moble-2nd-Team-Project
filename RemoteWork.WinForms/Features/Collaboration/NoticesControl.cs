@@ -47,7 +47,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             SetBusy(true);
             try { await LoadNoticesAsync((gridNotices.CurrentRow?.Tag as Notice)?.Id); }
             catch (ApiException ex) { ShowLoadError(ex.Message); }
-            catch (OperationCanceledException) { if (!IsDisposed) ShowLoadError("������ ����Ǿ����ϴ�. �ٽ� �α����� �� ��ȸ�� �ּ���."); }
+            catch (OperationCanceledException) { if (!IsDisposed) ShowLoadError("접속이 변경되었습니다. 다시 로그인한 후 조회해 주세요."); }
             finally { if (!IsDisposed) SetBusy(false); }
         }
 
@@ -65,7 +65,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             busy = value;
             UseWaitCursor = value;
             btnQuery.Enabled = btnNewNoticePreview.Enabled = cmbOptions2.Enabled = gridNotices.Enabled = !value;
-            lblText2.Text = value ? "�������� ��� �� ó�� �ߡ�" : "�������� ���";
+            lblText2.Text = value ? "공지사항 목록 · 처리 중…" : "공지사항 목록";
         }
 
         private void ShowLoadError(string message)
@@ -74,8 +74,8 @@ namespace RemoteWork.WinForms.Features.Collaboration
             // Never show stale cached content as if a server query succeeded.
             notices.Clear();
             RefreshNotices();
-            lblText4.Text = "�������� ��ȸ ����";
-            txtContent.Text = message + "\r\n��ȸ ��ư�� ���� �ٽ� �õ��� �ּ���.";
+            lblText4.Text = "공지사항 조회 실패";
+            txtContent.Text = message + "\r\n조회 버튼을 눌러 다시 시도해 주세요.";
         }
 
         private void InitializeNoticeView(PreviewRole role)
@@ -128,7 +128,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             if (previewRole != PreviewRole.Administrator) return;
 
             var menu = new ContextMenuStrip(components);
-            var deleteItem = new ToolStripMenuItem("����");
+            var deleteItem = new ToolStripMenuItem("삭제");
             Notice? rightClickedNotice = null;
             menu.Items.Add(deleteItem);
 
@@ -167,11 +167,11 @@ namespace RemoteWork.WinForms.Features.Collaboration
             }
             catch (ApiException ex)
             {
-                if (!IsDisposed) { lblText4.Text = "�������� ���� ����"; txtContent.Text = ex.Message; }
+                if (!IsDisposed) { lblText4.Text = "공지사항 삭제 실패"; txtContent.Text = ex.Message; }
             }
             catch (OperationCanceledException)
             {
-                if (!IsDisposed) { lblText4.Text = "���� ��� Ȯ�� �ʿ�"; txtContent.Text = "������ ����Ǿ����ϴ�. �ٽ� �α����� �� ����� Ȯ���� �ּ���."; }
+                if (!IsDisposed) { lblText4.Text = "삭제 결과 확인 필요"; txtContent.Text = "접속이 변경되었습니다. 다시 로그인한 후 목록을 확인해 주세요."; }
             }
             finally { if (!IsDisposed) SetBusy(false); }
         }
@@ -181,10 +181,10 @@ namespace RemoteWork.WinForms.Features.Collaboration
             gridNotices.Rows.Clear();
             string? target = cmbOptions2.SelectedItem?.ToString() switch
             {
-                "�� ����" => "�� ����",
-                "��ȹ��" => "��ȹ��",
-                "������" => "������",
-                "��������" => "��������",
+                "전 직원" => "전 직원",
+                "기획팀" => "기획팀",
+                "개발팀" => "개발팀",
+                "디자인팀" => "디자인팀",
                 _ => null
             };
             var filteredNotices = notices.Where(notice =>
@@ -232,16 +232,16 @@ namespace RemoteWork.WinForms.Features.Collaboration
                 }
             }
             catch (ApiException ex) { ShowLoadError(ex.Message); }
-            catch (OperationCanceledException) { if (!IsDisposed) ShowLoadError("������ ����Ǿ����ϴ�. �ٽ� �α����� �� ��ȸ�� �ּ���."); }
+            catch (OperationCanceledException) { if (!IsDisposed) ShowLoadError("접속이 변경되었습니다. 다시 로그인한 후 조회해 주세요."); }
             finally { if (!IsDisposed) SetBusy(false); }
         }
 
         private void ClearNoticeDetails()
         {
-            lblText4.Text = "�������� ��";
+            lblText4.Text = "공지사항 상세";
             txtContent.Text = gridNotices.Rows.Count == 0
-                ? "��ȸ�� ���������� �����ϴ�."
-                : "��Ͽ��� ���������� ������ �� ��ȸ ��ư�� ���� �ּ���.";
+                ? "조회할 공지사항이 없습니다."
+                : "목록에서 공지사항을 선택한 뒤 조회 버튼을 눌러 주세요.";
         }
 
         private void Unavailable_Click(object? sender, EventArgs e)

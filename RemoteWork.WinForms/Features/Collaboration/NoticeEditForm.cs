@@ -29,7 +29,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             layoutContent2.Controls.Add(saveError, 0, 1);
             txtNoticeTitle.MaxLength = 200;
             txtNoticeBody.MaxLength = 5000;
-            txtAttachments.PlaceholderText = "���ϸ��� ����˴ϴ�. ���ε塤�ٿ�ε�� ���� ������� �ʾҽ��ϴ�.";
+            txtAttachments.PlaceholderText = "파일명만 저장됩니다. 업로드·다운로드는 아직 연결되지 않았습니다.";
             FormClosing += (_, e) =>
             {
                 // Do not suggest that closing cancels an already submitted DB commit.
@@ -56,8 +56,8 @@ namespace RemoteWork.WinForms.Features.Collaboration
         {
             using var dialog = new OpenFileDialog
             {
-                Title = "�������� ÷������ ����",
-                Filter = "��� ���� (*.*)|*.*",
+                Title = "공지사항 첨부파일 선택",
+                Filter = "모든 파일 (*.*)|*.*",
                 Multiselect = true,
                 CheckFileExists = true,
                 RestoreDirectory = true
@@ -77,7 +77,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             if (string.IsNullOrWhiteSpace(txtNoticeTitle.Text) ||
                 string.IsNullOrWhiteSpace(txtNoticeBody.Text))
             {
-                MessageBox.Show(this, "�������� ����� ������ �Է��� �ּ���.", "�������� ���",
+                MessageBox.Show(this, "공지사항 제목과 내용을 입력해 주세요.", "공지사항 등록",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
@@ -86,7 +86,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             saveError.Visible = false;
             saveError.Clear();
             btnPublishNotice.Enabled = btnClose.Enabled = panelContent.Enabled = false;
-            btnPublishNotice.Text = "���� �ߡ�";
+            btnPublishNotice.Text = "저장 중…";
             try
             {
                 var saved = await noticeService.CreateNoticeAsync(new CreateNoticeRequest(
@@ -105,7 +105,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             }
             catch (OperationCanceledException)
             {
-                if (!IsDisposed) ShowSaveError("������ ����Ǿ� ���� ����� Ȯ������ ���߽��ϴ�. �ٽ� �α����� �� ����� Ȯ���� �ּ���.");
+                if (!IsDisposed) ShowSaveError("접속이 변경되어 저장 결과를 확인하지 못했습니다. 다시 로그인한 후 목록을 확인해 주세요.");
             }
             finally
             {
@@ -113,7 +113,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
                 if (!IsDisposed)
                 {
                     btnPublishNotice.Enabled = btnClose.Enabled = panelContent.Enabled = true;
-                    btnPublishNotice.Text = "�������� ���";
+                    btnPublishNotice.Text = "공지사항 등록";
                 }
             }
         }
@@ -121,7 +121,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
         private void ShowSaveError(string message)
         {
             // Keep every input intact and do not return OK on a failed/unknown save.
-            saveError.Text = message + "\r\n�Է� ������ �����˴ϴ�. ��� ������� ���� ���� ��Ͽ��� ���� ���θ� Ȯ���� �ּ���.";
+            saveError.Text = message + "\r\n입력 내용은 유지됩니다. 통신 오류라면 재등록 전에 목록에서 저장 여부를 확인해 주세요.";
             saveError.Visible = true;
         }
 

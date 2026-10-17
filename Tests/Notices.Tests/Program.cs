@@ -16,15 +16,15 @@ internal static class Program
         if (!condition) throw new InvalidOperationException(message);
         checks++;
     }
-    private static Notice Notice(int id = 1) => new() { Id = id, AuthorId = 1, Author = "���� ������",
-        Title = "DB ����", Content = "DB ����", Target = "��������", CreatedAt = DateTime.Now };
-    private static object Wire(int id = 1) => new { id, author_id = 1, author = "���� ������",
-        title = "DB ����", content = "DB ����", target = "��������", is_pinned = true,
-        created_at = "2026-10-17T00:00:00Z", attachment_names = new[] { "�ȳ�.pdf" } };
+    private static Notice Notice(int id = 1) => new() { Id = id, AuthorId = 1, Author = "서버 관리자",
+        Title = "DB 공지", Content = "DB 본문", Target = "디자인팀", CreatedAt = DateTime.Now };
+    private static object Wire(int id = 1) => new { id, author_id = 1, author = "서버 관리자",
+        title = "DB 공지", content = "DB 본문", target = "디자인팀", is_pinned = true,
+        created_at = "2026-10-17T00:00:00Z", attachment_names = new[] { "안내.pdf" } };
     private static HttpResponseMessage Json(object data) => new(HttpStatusCode.OK) {
         Content = new StringContent(JsonSerializer.Serialize(new { ok = true, data }, ApiClient.Json), Encoding.UTF8, "application/json") };
     private static HttpResponseMessage Login() => Json(new LoginResult("test-token", "Bearer", DateTimeOffset.UtcNow.AddHours(1),
-        new UserInfo(1, "test", "�׽�Ʈ", "T1", "������", "admin", true)));
+        new UserInfo(1, "test", "테스트", "T1", "개발팀", "admin", true)));
 
     [STAThread]
     private static int Main(string[] args)
@@ -64,7 +64,7 @@ internal static class Program
             {
                 creates++;
                 using var json = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
-                Check(json.RootElement.GetProperty("attachment_names")[0].GetString() == "�ȳ�.pdf", "Filename metadata serialized");
+                Check(json.RootElement.GetProperty("attachment_names")[0].GetString() == "안내.pdf", "Filename metadata serialized");
                 Check(!json.RootElement.TryGetProperty("author", out _) && !json.RootElement.TryGetProperty("attachment_paths", out _), "No forged author or PC path sent");
                 return Json(new { notice = Wire(23) });
             }
@@ -80,9 +80,9 @@ internal static class Program
         using var api = new ApiClient("http://test.invalid:5000", handler);
         await api.LoginAsync("test", "synthetic");
         var service = new HttpNoticeService(api);
-        var saved = await service.CreateNoticeAsync(new("����", "����", "��������", true, new[] { "�ȳ�.pdf" }));
-        Check(saved.Id == 23 && saved.Author == "���� ������" && saved.AttachmentPaths.Length == 0, "Committed server identity replaces local draft");
-        Check(saved.AttachmentNames.Single() == "�ȳ�.pdf", "Filename metadata mapped");
+        var saved = await service.CreateNoticeAsync(new("제목", "본문", "디자인팀", true, new[] { "안내.pdf" }));
+        Check(saved.Id == 23 && saved.Author == "서버 관리자" && saved.AttachmentPaths.Length == 0, "Committed server identity replaces local draft");
+        Check(saved.AttachmentNames.Single() == "안내.pdf", "Filename metadata mapped");
         Check((await service.GetNoticesAsync()).Count == 101 && listPages == 2, "Every page loaded");
         Check((await service.GetNoticeAsync(23)).Id == 23, "Detail ID mapped");
         try { await service.GetNoticeAsync(999); throw new Exception("Mismatched detail accepted"); }
@@ -98,7 +98,7 @@ internal static class Program
         editor.Show(host);
         var title = Field<TextBox>(editor, "txtNoticeTitle");
         var body = Field<TextBox>(editor, "txtNoticeBody");
-        title.Text = "�Է� ����"; body.Text = "�ۼ� ���� ����";
+        title.Text = "입력 유지"; body.Text = "작성 중인 본문";
         var pending = editor.PublishAsync();
         Check(editor.CreatedNotice is null && editor.DialogResult != DialogResult.OK, "No success before commit response");
         Check(!Field<Button>(editor, "btnPublishNotice").Enabled, "Duplicate click disabled while saving");
@@ -108,7 +108,7 @@ internal static class Program
         Check(!editor.IsDisposed, "Closing does not pretend pending write was canceled");
         service.CreateCompletion.SetException(new ApiException("synthetic database failure", 503));
         await pending;
-        Check(title.Text == "�Է� ����" && body.Text == "�ۼ� ���� ����", "Save failure preserves inputs");
+        Check(title.Text == "입력 유지" && body.Text == "작성 중인 본문", "Save failure preserves inputs");
         Check(editor.CreatedNotice is null && editor.DialogResult != DialogResult.OK && !editor.IsDisposed, "Save failure keeps editor open");
         Check(Field<TextBox>(editor, "saveError").Text.Contains("synthetic database failure"), "Error is visible inline");
         Check(Field<Button>(editor, "btnPublishNotice").Enabled, "Can retry after failure");
@@ -129,9 +129,9 @@ internal static class Program
         await page.ReloadNoticesAsync();
         var grid = Field<DataGridView>(page, "gridNotices");
         Check(grid.Rows.Count == 1, "Screen reads injected service");
-        Check(Field<Label>(page, "lblText4").Text == "�������� ��", "Row selection alone leaves detail closed");
+        Check(Field<Label>(page, "lblText4").Text == "공지사항 상세", "Row selection alone leaves detail closed");
         Field<Button>(page, "btnQuery").PerformClick();
-        Check(Field<TextBox>(page, "txtContent").Text.Contains("DB ����"), "Query opens current server detail");
+        Check(Field<TextBox>(page, "txtContent").Text.Contains("DB 본문"), "Query opens current server detail");
         service.Items.Add(Notice(12));
         Field<Button>(page, "btnQuery").PerformClick();
         Check(grid.Rows.Count == 2, "Query reloads newly added server notice");
@@ -157,18 +157,18 @@ internal static class Program
         var service = new HttpNoticeService(api);
         using var editor = new NoticeEditForm(service);
         editor.Show(host);
-        Field<TextBox>(editor, "txtNoticeTitle").Text = "���� HTTP ����";
-        Field<TextBox>(editor, "txtNoticeBody").Text = "���� DB ���� ����";
-        Field<ComboBox>(editor, "cmbNoticeAudience").SelectedItem = "��ȹ��";
+        Field<TextBox>(editor, "txtNoticeTitle").Text = "실제 HTTP 공지";
+        Field<TextBox>(editor, "txtNoticeBody").Text = "실제 DB 저장 본문";
+        Field<ComboBox>(editor, "cmbNoticeAudience").SelectedItem = "기획팀";
         Field<CheckBox>(editor, "chkPinToTop").Checked = true;
         await editor.PublishAsync();
         var saved = editor.CreatedNotice ?? throw new Exception("Real editor did not save");
         Check(editor.DialogResult == DialogResult.OK, "Real editor returns OK only after HTTP commit");
-        Check(saved.Id > 0 && saved.Author == "������", "Real HTTP POST returns stored author/ID");
+        Check(saved.Id > 0 && saved.Author == "관리자", "Real HTTP POST returns stored author/ID");
         using var otherApi = new ApiClient(url);
         await otherApi.LoginAsync("staff1", "Staff-test-2026!");
         var employee = new HttpNoticeService(otherApi);
-        Check((await employee.GetNoticesAsync()).Any(n => n.Id == saved.Id && n.Target == "��ȹ��"), "Employee sees another department via real server");
+        Check((await employee.GetNoticesAsync()).Any(n => n.Id == saved.Id && n.Target == "기획팀"), "Employee sees another department via real server");
         using var page = new NoticesControl(PreviewRole.Employee, employee);
         host.Controls.Add(page); page.CreateControl();
         await WaitFor(() => Field<Button>(page, "btnQuery").Enabled);
@@ -176,7 +176,7 @@ internal static class Program
         Check(Field<DataGridView>(page, "gridNotices").Rows.Count > 0, "Real HTTP/database populates WinForms list");
         Field<Button>(page, "btnQuery").PerformClick();
         await WaitFor(() => Field<Button>(page, "btnQuery").Enabled);
-        Check(Field<TextBox>(page, "txtContent").Text.Contains("���� DB ���� ����"), "Real query button opens DB detail");
+        Check(Field<TextBox>(page, "txtContent").Text.Contains("실제 DB 저장 본문"), "Real query button opens DB detail");
         try { await employee.DeleteNoticeAsync(saved.Id); throw new Exception("Employee deletion allowed"); }
         catch (ApiException ex) { Check(ex.StatusCode == 403, "Real server rejects employee delete"); }
         await service.DeleteNoticeAsync(saved.Id);

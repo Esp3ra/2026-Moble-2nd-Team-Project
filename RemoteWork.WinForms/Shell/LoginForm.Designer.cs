@@ -27,7 +27,6 @@ namespace RemoteWork.WinForms.Shell
             lblPassword = new Label();
             txtPassword = new TextBox();
             btnLogin = new Button();
-            btnFingerprintLogin = new Button();
             layoutRoleNavigation = new TableLayoutPanel();
             btnEmployeePreview = new Button();
             btnAdministratorPreview = new Button();
@@ -47,14 +46,13 @@ namespace RemoteWork.WinForms.Shell
             layoutLogin.Controls.Add(lblPassword, 0, 6);
             layoutLogin.Controls.Add(txtPassword, 0, 7);
             layoutLogin.Controls.Add(btnLogin, 0, 9);
-            layoutLogin.Controls.Add(btnFingerprintLogin, 0, 10);
-            layoutLogin.Controls.Add(layoutRoleNavigation, 0, 12);
+            layoutLogin.Controls.Add(layoutRoleNavigation, 0, 11);
             layoutLogin.Dock = DockStyle.Fill;
             layoutLogin.Location = new Point(0, 0);
             layoutLogin.Margin = new Padding(0);
             layoutLogin.Name = "layoutLogin";
             layoutLogin.Padding = new Padding(42, 32, 42, 30);
-            layoutLogin.RowCount = 13;
+            layoutLogin.RowCount = 12;
             layoutLogin.RowStyles.Add(new RowStyle(SizeType.Absolute, 42F));
             layoutLogin.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
             layoutLogin.RowStyles.Add(new RowStyle(SizeType.Absolute, 18F));
@@ -65,7 +63,6 @@ namespace RemoteWork.WinForms.Shell
             layoutLogin.RowStyles.Add(new RowStyle(SizeType.Absolute, 38F));
             layoutLogin.RowStyles.Add(new RowStyle(SizeType.Absolute, 20F));
             layoutLogin.RowStyles.Add(new RowStyle(SizeType.Absolute, 44F));
-            layoutLogin.RowStyles.Add(new RowStyle(SizeType.Absolute, 52F));
             layoutLogin.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             layoutLogin.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
             layoutLogin.Size = new Size(560, 650);
@@ -175,25 +172,6 @@ namespace RemoteWork.WinForms.Shell
             btnLogin.TabIndex = 2;
             btnLogin.Text = "로그인";
             btnLogin.UseVisualStyleBackColor = false;
-            btnLogin.Click += Unavailable_Click;
-            // 
-            // btnFingerprintLogin
-            // 
-            btnFingerprintLogin.BackColor = Color.White;
-            btnFingerprintLogin.Cursor = Cursors.Hand;
-            btnFingerprintLogin.Dock = DockStyle.Fill;
-            btnFingerprintLogin.FlatAppearance.BorderColor = Color.FromArgb(213, 220, 231);
-            btnFingerprintLogin.FlatStyle = FlatStyle.Flat;
-            btnFingerprintLogin.Font = new Font("맑은 고딕", 9F);
-            btnFingerprintLogin.ForeColor = Color.FromArgb(30, 42, 61);
-            btnFingerprintLogin.Location = new Point(42, 378);
-            btnFingerprintLogin.Margin = new Padding(0, 8, 0, 0);
-            btnFingerprintLogin.Name = "btnFingerprintLogin";
-            btnFingerprintLogin.Size = new Size(476, 44);
-            btnFingerprintLogin.TabIndex = 3;
-            btnFingerprintLogin.Text = "지문으로 로그인";
-            btnFingerprintLogin.UseVisualStyleBackColor = false;
-            btnFingerprintLogin.Click += Unavailable_Click;
             // 
             // layoutRoleNavigation
             // 
@@ -277,7 +255,6 @@ namespace RemoteWork.WinForms.Shell
         private Label lblPassword;
         private TextBox txtPassword;
         private Button btnLogin;
-        private Button btnFingerprintLogin;
         private Button btnEmployeePreview;
         private Button btnAdministratorPreview;
     }
