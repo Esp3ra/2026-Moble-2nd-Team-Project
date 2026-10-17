@@ -120,6 +120,8 @@ dotnet build .\Tests\TaskQueries.Http.Tests\TaskQueries.Http.Tests.csproj -c Rel
 
 다음 쓰기 연결에 필요한 [2번 행동별 API·후보 사용자 선택 제안](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/2026-10-17_W1_후속_행동별API_사용자선택_제안.md)은 1번 W1·3번 W3와 같은 ID로 검토합니다. 해당 경로·DTO·권한은 합의 전 제안이며 아직 등록된 쓰기 API가 아닙니다.
 
+[3번 W3 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/3번/README.md)의 현재 로컬 구현·제안을 수신했습니다. 상태별 수정·수락 예외·제출 트랜잭션·검토자·마감/연장 조건은 공동 확인이 남아 있습니다. 1번 공통 쓰기 지원과 실제 API/DB를 연결하기 전까지 로컬 시연의 제출 조건을 서버 규약으로 사용하지 않습니다. 기존 조회 서비스·필드와 미구현 접점은 [2번 조회 연결 안내](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/2026-10-17_3번_W3_회신수신_및_조회연결안내.md)에 정리합니다.
+
 ## 브랜치와 게시 기준
 
 | 브랜치·태그 | 목적 |
