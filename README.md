@@ -1,5 +1,9 @@
 # PR 수정 요청
 
+## 최신 검토자 확인 — PR #15·#16 병합, 2026-10-17
+
+[W1 공통 지원 검토 결과](1번/2026-10-17_PR15_W1_공통지원_검토결과.md): 코드 #15는 alpha `5fd99a8`, 문서 #16은 LOG `54c6cd3`로 병합했습니다. 이번 범위에서 신규 수정 요청은 없습니다. 공통 지원 수신 완료와 제품 업무 쓰기·W3 미정 정책·공유 DDL/버전/두PC 미완료를 구분합니다. [실제 검토·검증 상세](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/2026-10-17_PR15_PR16_공통지원_검토_병합.md)를 따르며 아래 이전 대기/미구현 표현은 당시 기록입니다.
+
 ## 최신 검토자 확인 — PR #7·#13·#14 병합, 2026-10-17
 
 **코드 [PR #7](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/7)은 재검토 후 alpha에 병합했습니다.** 제출 head는 `d58064ccd30e7e718f94d5e5556d0f19c6afd88c`, 병합 커밋은 [733b47a](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/733b47afca123ed3b161e6d96b492a8afc6e163f)이며 GitHub 확인 시각은 **2026-10-17 16:42:08 KST**입니다. Ready·README 충돌·해당 head의 독립 재검토 조건은 해소됐습니다. 최종 alpha 문서 기준은 `f486758d119080511a4bf27e1b3b328d144fe530`입니다.
