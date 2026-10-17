@@ -1,5 +1,7 @@
 # 4번 — 공지·채팅 협업 기록
 
+게시 상태: [코드 PR #15](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/15) · [LOG PR #16](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/16) 생성 완료. 포크 alpha/LOG → 원본 alpha/LOG 검토 대기이며 원본 병합·공유 적용은 미완료다.
+
 ## 1번의 MySQL 복원 검증 경로 수정 전달 — 2026-10-17
 
 [원인·최소수정·재검증](2026-10-17_1번_MySQL복원_테스트경로_수정전달.md)을확인합니다. 제품공지/003SQL변경없이기존복원검증CLI의한글경로처리만보완했고, 최신결합MySQL161통과에포함했습니다. 4번수신확인을대신하지않습니다.
