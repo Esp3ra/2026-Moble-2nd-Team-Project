@@ -1,8 +1,14 @@
 # 1번 — 공통 서버·DB·인증·사용자·통신·통합
 
-작성일: 2026-10-16 · 최신 확인: 2026-10-17 · 상태: PR #2 R1~R3 재검토 통과·alpha 병합, PR #5·#6 문서 병합 완료
+작성일: 2026-10-16 · 최신 확인: 2026-10-17 · 상태: 기존 코드·문서 병합 완료, 업무 조회 1번 규약 회신 완료·공동 항목 확인 대기
 
 팀장 LOG의 기존 루트 `2번/` 구조에 맞춰 루트 `1번/` 아래 날짜·주제별 Markdown을 작성합니다. 기존 2번 기록과 `LOG/2026-10-16/` 기록은 보존합니다.
+
+## 2026-10-17 업무 조회 공통 규약 회신
+
+[1번 규약 확정 회신](2026-10-17_업무조회_API_DB_규약확정_회신.md)에서 2번의 M1-01~10에 답했습니다. 조회 API·DTO·권한·오류·상태/날짜 표현·FK 기준·기능 등록을 1번 책임 범위에서 수용하고, `002_task_queries.mysql.sql` 번호와 적용 절차를 정했습니다. 실제 DDL·버전2 지원·공유 DB 적용은 후속 작업입니다.
+
+상태 전환·상위 검토자·마감·제출 관계는 2·3번 및 팀장 확인 대기입니다. 1번 회신 게시를 다른 담당 확인이나 전체 통합 완료로 해석하지 않습니다. 사용자 지정 위치인 LOG 루트 `1번/`에 대표 회신을 두고, 기존 기록은 당시 자료로 보존합니다.
 
 | 구분 | 실제 공유 위치 |
 |---|---|
@@ -10,12 +16,12 @@
 | 공통 코드 기준 | [`a35c972`](https://github.com/jinkyu1452-cmd/Sang1/tree/a35c972f39091fec477024167e5e3e1194999b1e) · 포크 `team1/common-foundation` |
 | 코드에 포함된 규약 | [INTEGRATION.md](https://github.com/jinkyu1452-cmd/Sang1/blob/a35c972f39091fec477024167e5e3e1194999b1e/docs/INTEGRATION.md) |
 | 실행·MySQL 설정 | [SETUP.md](https://github.com/jinkyu1452-cmd/Sang1/blob/a35c972f39091fec477024167e5e3e1194999b1e/docs/SETUP.md) |
-| 최신 팀 코드 기준 | [alpha 9b8d00c](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/9b8d00cebe3e8a2a5555e06bcc512a802cc8152b) · PR #1·#2 통합 |
+| 최신 팀 코드 기준 | [alpha 329d4a3](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/329d4a32ff316ed2ae208a40e5b1ba0f743d958c) · 기존 PR #1·#2 통합과 업무 조회 개발 초안·UI 개선 |
 | 문서 PR | [PR #3](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/3) LOG 병합 완료 · [6348997](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/6348997d78976ad5127116ccd606aaa36fc264b5) |
 | 타 담당 전달 PR | [PR #4](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/4) LOG 병합 완료 · [831670e](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/831670e58df09d79b124d1cb0b19975bea6216b2) |
 | 코드 수정 요청 | [PR 브랜치의 1번 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/1번/2026-10-16_PR2_공통기반_수정요청.md) · R1~R3 재검토 해결·alpha 병합 완료 |
 
-현재 코드 재검토와 실제 병합 결과는 [2번 통합 검토 기록](../2번/2026-10-17_PR1_PR2_재검토_및_PR5_PR6_병합.md)을 참조합니다. PR #2 병합은 `d27213e`, 최종 alpha는 PR #1을 합친 `9b8d00c`입니다.
+기존 코드 재검토와 실제 병합 결과는 [2번 통합 검토 기록](../2번/2026-10-17_PR1_PR2_재검토_및_PR5_PR6_병합.md)을 참조합니다. PR #2 병합은 `d27213e`, 당시 PR #1 통합은 `9b8d00c`이며 이번 회신의 최신 코드 기준은 위 `329d4a3`입니다.
 
 | 날짜·주제 | 기록 |
 |---|---|
