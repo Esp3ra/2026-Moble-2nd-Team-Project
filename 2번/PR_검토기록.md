@@ -1,3 +1,7 @@
+<!-- team-collaboration-current:start -->
+> **1~5번 협업 최신 안내 · 2026-10-19** — [통합 현재 현황/진행 순서](공통규약.md#team-collaboration-current)와 [2번 조치](공통규약.md#collab-member2)를 먼저 확인합니다. 원문과 과거 테스트/게시 수치는 작성 당시 기록입니다. 새 협의 결과·공유 적용이나 다른 담당 구현 완료를 이 문서 최신화로 대신 선언하지 않습니다. 미확정은 모두 **협의사항**입니다.
+<!-- team-collaboration-current:end -->
+
 # PR 검토 및 병합 기록
 
 ## 최신 PR 검토 — PR38 수정 요청·PR39 병합 확인, 2026-10-19
