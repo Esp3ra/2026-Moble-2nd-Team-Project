@@ -153,11 +153,11 @@ class WindowTests(unittest.TestCase):
         self.assertEqual(self.ui.updates.qsize(), 1)
         self.assertEqual(self.ui.updates.get().observed, 9)
 
-    def test_missing_hand_and_input_stall_never_display_absence(self):
+    def test_missing_hand_and_input_stall_keep_distinct_states(self):
         self.ui.apply_update(FrameUpdate(0, 0, Evidence('HAND_NOT_DETECTED', 0, 30), observed=time.monotonic()-6))
-        self.assertIn('이석 판정 아님', self.ui.status.get())
+        self.assertEqual('자리 비움', self.ui.status.get())
         self.ui.drain()
-        self.assertIn('확인 불가', self.ui.status.get())
+        self.assertEqual('카메라 연결 지연', self.ui.status.get())
         self.assertIsNone(self.ui.photo)
 
     def test_cropped_preview_can_render_from_synthetic_pixels(self):
@@ -165,7 +165,7 @@ class WindowTests(unittest.TestCase):
         self.ui.apply_update(FrameUpdate(0, 0, Evidence('HAND_DETECTED', 1),
                                         np.zeros((64, 64, 3), dtype=np.uint8), time.monotonic()))
         self.assertIsNotNone(self.ui.photo)
-        self.assertIn('손 감지됨', self.ui.status.get())
+        self.assertEqual('활동 중', self.ui.status.get())
 
 
 if __name__ == '__main__':

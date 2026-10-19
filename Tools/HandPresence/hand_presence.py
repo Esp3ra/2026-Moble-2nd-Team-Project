@@ -140,13 +140,13 @@ class HandPresenceWindow:
         self.last_frame = None
         self.photo = None
         self.state = "STOPPED"
-        root.title("5번 · 손 검출 재석 보조 시연")
+        root.title("활동 상태 확인")
         root.geometry("860x760")
         root.minsize(820, 720)
         frame = ttk.Frame(root, padding=18)
         frame.pack(fill="both", expand=True)
-        ttk.Label(frame, text="손 검출 · 재석 보조 확인", font=("맑은 고딕", 20, "bold")).pack(anchor="w")
-        ttk.Label(frame, text="먼저 웹캠을 아래로 향해 손·책상만 찍도록 고정하고 Windows 카메라 앱을 닫으세요.",
+        ttk.Label(frame, text="활동 상태", font=("맑은 고딕", 20, "bold")).pack(anchor="w")
+        ttk.Label(frame, text="카메라는 손과 책상이 보이도록 고정하고, 다른 카메라 프로그램은 종료해 주세요.",
                   font=("맑은 고딕", 10)).pack(anchor="w", pady=(8, 12))
         row = ttk.Frame(frame)
         row.pack(fill="x")
@@ -163,7 +163,7 @@ class HandPresenceWindow:
         self.start_button.pack(side="left", padx=12)
         self.stop_button = ttk.Button(row, text="중지", command=self.stop, state="disabled")
         self.stop_button.pack(side="left")
-        region_box = ttk.LabelFrame(frame, text="분석·표시 영역 (%) · 얼굴/배경을 자동 제거하는 기능은 아닙니다", padding=10)
+        region_box = ttk.LabelFrame(frame, text="화면 범위 (%) · 얼굴과 배경은 카메라 각도로 제외해 주세요", padding=10)
         region_box.pack(fill="x", pady=12)
         self.region_values = {}
         for key, label, default in (("left", "왼쪽", 0), ("top", "위쪽", 35),
@@ -173,10 +173,10 @@ class HandPresenceWindow:
             self.region_values[key] = variable
             ttk.Entry(region_box, textvariable=variable, width=4).pack(side="left", padx=(5, 12))
         ttk.Button(region_box, text="영역 적용", command=self.apply_region).pack(side="left")
-        self.status = tk.StringVar(value="중지됨 · 시작 버튼을 누르기 전에는 카메라를 열지 않습니다.")
+        self.status = tk.StringVar(value="카메라 꺼짐")
         ttk.Label(frame, textvariable=self.status, font=("맑은 고딕", 14, "bold"),
                   wraplength=790).pack(anchor="w", pady=(2, 8))
-        self.details = tk.StringVar(value="손 검출만 지원합니다. 몸통 검출·본인인증·출퇴근 기록은 연결 전입니다.")
+        self.details = tk.StringVar(value="손 인식 기준 · 출퇴근 기록 연동 전")
         ttk.Label(frame, textvariable=self.details, wraplength=790).pack(anchor="w", pady=(0, 10))
         preview_frame = tk.Frame(frame, bg="#17212e", height=340)
         preview_frame.pack(fill="both", expand=True)
@@ -184,8 +184,8 @@ class HandPresenceWindow:
         self.preview = tk.Label(preview_frame, text="카메라 꺼짐", bg="#17212e", fg="white",
                                 font=("맑은 고딕", 16))
         self.preview.pack(fill="both", expand=True)
-        ttk.Label(frame, text="표시한 분석 영역만 검출합니다. 영상·사진·손 특징점은 저장하거나 서버로 보내지 않습니다.\n"
-                             "손 미검출은 이석/결근 판정이 아닙니다. 가만히 있는 손도 검출하는지 실제로 확인하세요.",
+        ttk.Label(frame, text="지정한 화면 범위에서 손을 확인합니다. 영상은 저장하거나 전송하지 않습니다.\n"
+                             "활동 상태 표시는 출퇴근 기록에 자동 반영되지 않습니다.",
                   wraplength=790).pack(anchor="w", pady=(12, 0))
         root.protocol("WM_DELETE_WINDOW", self.close)
         root.after(100, self.drain)
@@ -225,7 +225,7 @@ class HandPresenceWindow:
         self.region_version = 0
         self.last_frame = time.monotonic()
         self.state = "STARTING"
-        self.status.set("카메라·모델 준비 중…")
+        self.status.set("확인 대기")
         self.clear_preview("준비 중")
         self.index_box.configure(state="disabled")
         self.backend_box.configure(state="disabled")
@@ -243,10 +243,10 @@ class HandPresenceWindow:
         self.region_version += 1
         if self.worker is not None and self.worker.thread.is_alive():
             self.worker.set_region(region, self.region_version)
-            self.status.set("영역 변경 · 새 영상 대기 중")
+            self.status.set("확인 대기")
             self.last_frame = time.monotonic()
-        self.clear_preview("새 영역 대기" if self.state != "STOPPED" else "카메라 꺼짐")
-        self.details.set("새 영역의 검출 이력은 처음부터 확인합니다.")
+        self.clear_preview("화면 대기" if self.state != "STOPPED" else "카메라 꺼짐")
+        self.details.set("변경한 화면 범위를 확인 중입니다.")
 
     def stop(self):
         self.session += 1  # Discard every late image or detection from the old capture.
@@ -254,8 +254,8 @@ class HandPresenceWindow:
             self.worker.stop()
         self.state = "STOPPING"
         self.last_frame = None
-        self.status.set("중지 요청 · 카메라 입력 종료를 기다리는 중")
-        self.details.set("검출 상태를 초기화했습니다.")
+        self.status.set("카메라 종료 중")
+        self.details.set("영상 처리를 종료하고 있습니다.")
         self.clear_preview("영상 숨김")
         self.stop_button.configure(state="disabled")
         self.empty_updates()
@@ -276,16 +276,16 @@ class HandPresenceWindow:
         self.state = update.evidence.state
         evidence = update.evidence
         if self.state == "CAMERA_ERROR":
-            self.status.set("카메라/검출 오류 · 재석 여부 확인 불가")
+            self.status.set("카메라 연결 끊김" if "영상이 끊겼" in (evidence.error or "") else "카메라 확인 필요")
             self.details.set(evidence.error or "오류가 발생했습니다.")
             self.clear_preview("영상 없음")
             return
         if self.state == "HAND_DETECTED":
-            self.status.set(f"손 감지됨 · {evidence.count}개")
-            self.details.set("현재 영상에서 손이 검출됐습니다. 본인 확인이나 출퇴근 기록은 아닙니다.")
+            self.status.set("활동 중")
+            self.details.set("화면에서 손이 확인됩니다.")
         else:
-            self.status.set("손 미검출 · 이석 판정 아님")
-            self.details.set(f"연속 미검출 {evidence.seconds_without_hand:.1f}초 · 손이 영역 밖에 있거나 가려졌을 수 있습니다.")
+            self.status.set("자리 비움")
+            self.details.set(f"손이 확인되지 않은 시간: {evidence.seconds_without_hand:.1f}초")
         if update.rgb is not None:
             from PIL import Image, ImageTk
             image = Image.fromarray(update.rgb)
@@ -310,13 +310,13 @@ class HandPresenceWindow:
             self.stop_button.configure(state="disabled")
             if self.state == "STOPPING":
                 self.state = "STOPPED"
-                self.status.set("중지됨 · 카메라 입력 종료")
+                self.status.set("카메라 꺼짐")
                 self.clear_preview("카메라 꺼짐")
         if (self.last_frame is not None and self.state not in ("STOPPED", "STOPPING", "CAMERA_ERROR")
                 and time.monotonic() - self.last_frame > 5):
-            self.status.set("영상 응답 지연 · 재석 여부 확인 불가")
-            self.details.set("이전 검출값과 영상을 숨겼습니다. 중지 후 카메라 상태를 확인하세요.")
-            self.clear_preview("영상 지연")
+            self.status.set("카메라 연결 지연")
+            self.details.set("카메라를 중지한 뒤 연결 상태를 확인해 주세요.")
+            self.clear_preview("영상 대기")
         self.root.after(100, self.drain)
 
     def close(self):
