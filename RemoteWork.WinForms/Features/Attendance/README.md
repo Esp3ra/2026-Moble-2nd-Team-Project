@@ -4,6 +4,31 @@
 
 현재는 모달 확인 창을 열고 직접 시작하는 로컬 점검 기능입니다. 창을 닫으면 감지도 종료됩니다. 사용자가 확정한 최종 운영 범위는 **출근부터 퇴근까지 다른 업무 화면을 사용해도 계속 확인**하는 것이며, 출퇴근 저장·백그라운드 수명 관리·C#지문 요청/회원 일치는 후속 공동 연동입니다. 지문 요청은 현재 [기존 장치 점검 도구](../../../Tools/DeviceCheck/README.md)의 수동 버튼에서만 제공합니다. 이번 PR 게시 후 해당 후속 구현은 대기합니다.
 
+후속으로 화면과 독립적인 `ActivityMonitor`와 공유 상태 view를 준비했습니다. 기본 근태 진입은 여전히 독립 수동 점검 모드입니다. **실제 MainForm 주입·출근/퇴근 API 연결은1번/5번 공동 연결 전**이며 자동 출근이나 정오 지문 요청을 구현했다고 표시하지 않습니다. 필수 지문 시점(출근/로그인·근무 중 정오12시·퇴근/로그아웃), 지문 특징정보 탈퇴 시 삭제·인증 기록1년은 사용자 요구로 별도 전달하며 아직 실행/삭제 정책으로 연결하지 않았습니다.
+
+## 1번에게 제공하는 감지 서비스 접점
+
+`IActivityMonitor`는 `Id`, `IsRunning`, `IsStopping`, `Latest`, `Changed`, `StartAsync`, `StopAsync`, `IsCurrent`, `Dispose`를 제공합니다. 기본 `ActivityMonitor()`는 기존 카메라/조도 소스를 생성하지만 생성만으로 I/O를 시작하지 않습니다. `ActivityMonitor(IActivityCamera, ILightMotionSource)`는 대역/실제 의존성 주입을 지원합니다.
+
+1번은 MainForm의 실제 로그인 세션당 인스턴스 하나를 소유하고, **서버 출근 저장 성공과 실제 work_session_id 확인 뒤** 아래 접점을 호출합니다. 예시는 미연결 서버/DTO를 구현한 코드가 아닙니다.
+
+```csharp
+var session = AppServices.Api.CaptureSession();
+var monitor = new ActivityMonitor();
+var context = new ActivityMonitorContext(serverWorkSessionId,
+    () => session.IsCurrent, session.Cancellation);
+await monitor.StartAsync(context, cameraOptions, piBaseUri);
+var page = new AttendanceControl(role, monitor);
+// 정상 퇴근 저장 성공 또는 접속 종료: await monitor.StopAsync();
+// MainForm 최종 해제: monitor.Dispose();
+```
+
+- 메뉴마다 같은 `monitor`를 전달합니다. `AttendanceControl(role, monitor)`는 같은 서비스의 상태 창을 열고, `ActivityPresenceForm(monitor)`는 공유 상태 view입니다. 공유 view의 시작/중지는 비활성화되며 닫기/Dispose는 구독만 해제합니다. 기존 기본 생성자·카메라/조도 주입 생성자는 수동 모드의 시작/중지/닫기 수명을 유지합니다. Designer/resx·MainForm·LoginForm·공통 ApiClient는 수정하지 않았습니다.
+- 서비스는 UI 타이머 없이100ms 주기로 입력/30초 판정을 처리합니다. 수동 점검은 동일 파이프라인을 기존 화면 타이머로 호출합니다. 같은 context/설정의 중복 시작은 단일 효과, 다른 활성 context 또는 이전 정리 중 시작은 거절합니다. context는 로그인/근무 수명마다 새로 만들고 실제 서버 근무ID를 전달합니다.
+- `ActivityMonitorUpdate`는 monitor ID·generation·sequence·work_session_id·phase·상태/안내·신선한 프레임을 포함합니다. `ActivityMonitorSubscription`은 UI SynchronizationContext.Post 전과 콜백 내부에 현재 세션·인스턴스/세대·근무ID·최신 sequence·view 생존/구독을 재검사합니다. 인증 함수는 서비스 잠금 밖에서 호출해 공통 인증 잠금과의 역전을 피합니다. 취소에서 UI 동기 Invoke/Wait/Result를 사용하지 않습니다.
+- 세션 취소는 이전 세대를 즉시 무효화하고 같은 Stop Task를 공유합니다. 자동 모드에서는 IsCurrent가 거짓이 되는 것도 다음 입력 주기에 감지합니다. 정리는 카메라·조도와 입력 루프를 함께 기다리며 기본4초로 제한합니다. 기존 소유 Python의2초 유예는 유지하고, 정리 실패는 오류로 표시·소스 Dispose 후 재사용을 거절합니다. Dispose는 소유 자원을 해제하며 정상 종료에서는 StopAsync를 먼저 await합니다.
+- 최신 프레임/신호만 메모리에 유지하고 영상 저장/외부 전송·근태 DB 쓰기·지문 스캔을 추가하지 않습니다. 별도 서비스 API/이벤트는1번 연결 PR에서 대조할 후보 인터페이스이며 실제 로그인/출퇴근 통합·실장비 장시간 검증은 별도입니다.
+
 ## 실행
 
 1. 최초 한 번 저장소 `Tools/HandPresence/Setup-Hand-Presence.cmd` 실행. Windows Python 3.13과 모델/전용 가상환경이 필요합니다. 기존 설치가 있으면 재설치하지 않습니다.
