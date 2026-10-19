@@ -4,6 +4,9 @@ import os
 
 def get_blueprints(config):
     blueprints = []
+    if config.get("ENABLE_CHAT_DRAFT", os.getenv("REMOTEWORK_ENABLE_CHAT_DRAFT") == "1"):
+        from .chat.routes import bp as chat_directory_bp
+        blueprints.append(chat_directory_bp)
     if config.get("ENABLE_TASK_QUERY_DRAFT", False):
         # Preserve the existing task draft's independent activation boundary.
         from .tasks.routes import bp as task_queries_bp

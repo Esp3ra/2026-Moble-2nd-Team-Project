@@ -20,11 +20,15 @@ namespace RemoteWork.WinForms.Features.Collaboration
         // Visual Studio 디자이너에서도 사용할 수 있는 기본 생성자입니다.
         public ChatControl() : this(new InMemoryChatService(new ChatParticipant("EMP-001", "김직원", "개발팀"))) { }
 
-        internal ChatControl(IChatService chatService)
+        internal ChatControl(IChatService chatService) : this(chatService, chatService is HttpChatService) { }
+
+        // Explicit override is used only by isolated UI tests; preview stays local.
+        internal ChatControl(IChatService chatService, bool autoReceive)
         {
             this.chatService = chatService;
             InitializeComponent();
             if (PreviewActions.IsDesignMode(this)) return;
+            ConfigureAutoReceive(autoReceive);
             InitializeDeleteMenu();
             txtContent.Clear();
             txtContent2.Clear();
@@ -33,7 +37,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             ShowStatus("대화방을 불러오는 중입니다.");
             UpdateInputState();
             Load += ChatControl_Load;
-            Disposed += (_, _) => { lifetime.Cancel(); lifetime.Dispose(); };
+
         }
 
         private async void ChatControl_Load(object? sender, EventArgs e)
@@ -58,7 +62,12 @@ namespace RemoteWork.WinForms.Features.Collaboration
             finally
             {
                 loadingRooms = false;
-                if (!IsDisposed && !Disposing) UpdateInputState();
+                if (!IsDisposed && !Disposing)
+                {
+                    UpdateInputState();
+                    autoReceiveLoaded = true;
+                    UpdateAutoReceiveState();
+                }
             }
         }
 
@@ -101,6 +110,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
 
         private async Task ShowSelectedRoomAsync()
         {
+            CancelReceiveRequest();
             if (selectedRoom is not null) drafts[selectedRoom.Id] = txtContent3.Text;
             selectedRoom = gridRooms.CurrentRow?.Tag as ChatRoom;
             int version = ++selectionVersion;
@@ -149,7 +159,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
         private void InitializeDeleteMenu()
         {
             var menu = new ContextMenuStrip(components);
-            var deleteItem = new ToolStripMenuItem("삭제");
+            var deleteItem = new ToolStripMenuItem(chatService is HttpChatService ? "내 목록에서 삭제" : "삭제");
             ChatRoom? rightClickedRoom = null;
             menu.Items.Add(deleteItem);
 
@@ -186,8 +196,8 @@ namespace RemoteWork.WinForms.Features.Collaboration
                 .ElementAtOrDefault(Math.Min(rowIndex, Math.Max(0, remainingVisibleRooms.Length - 1)))?.Id;
 
             deletingRoom = true;
-            // 이미 진행 중인 대화 조회가 삭제 후 화면에 다시 나타나지 않게 합니다.
-            ++selectionVersion;
+            // Already in-flight manual or automatic responses must not restore this room.
+            InvalidateReceive();
             loadingMessages = false;
             UpdateInputState();
             ShowStatus($"'{room.Name}' 대화방을 삭제하는 중입니다.");
@@ -206,7 +216,9 @@ namespace RemoteWork.WinForms.Features.Collaboration
                 PopulateRooms(nextRoomId);
                 await ShowSelectedRoomAsync();
                 if (!IsDisposed && !Disposing)
-                    ShowStatus($"'{room.Name}' 대화방과 대화를 삭제했습니다.");
+                    ShowStatus(chatService is HttpChatService
+                        ? $"'{room.Name}' 방을 내 목록에서만 삭제했습니다. 다른 참여자의 대화는 유지됩니다."
+                        : $"'{room.Name}' 대화방과 대화를 삭제했습니다.");
             }
             catch (OperationCanceledException) when (IsDisposed || Disposing) { }
             catch (Exception ex)
@@ -232,6 +244,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
         {
             if (creatingRoom || loadingRooms || sending || deletingRoom) return;
             creatingRoom = true;
+            InvalidateReceive();
             UpdateInputState();
             bool created = false;
             try
@@ -247,7 +260,9 @@ namespace RemoteWork.WinForms.Features.Collaboration
                 finally { updatingRooms = false; }
                 PopulateRooms(room.Id);
                 await ShowSelectedRoomAsync();
-                if (!IsDisposed && !Disposing) ShowStatus($"'{room.Name}' 대화방을 임시로 만들었습니다.");
+                if (!IsDisposed && !Disposing) ShowStatus(chatService is HttpChatService
+                    ? $"'{room.Name}' 대화방을 서버에 저장했습니다."
+                    : $"'{room.Name}' 대화방을 임시로 만들었습니다.");
             }
             catch (OperationCanceledException) when (IsDisposed || Disposing) { }
             catch (Exception ex)
@@ -290,6 +305,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             string content = txtContent3.Text;
             bool saved = false;
             sending = true;
+            InvalidateReceive();
             UpdateInputState();
             try
             {
@@ -301,7 +317,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
                 var history = await chatService.GetMessagesAsync(roomId, lifetime.Token);
                 if (IsDisposed || Disposing) return;
                 RenderMessages(history);
-                ShowStatus("이 화면의 임시 대화에 추가했습니다.");
+                ShowStatus(chatService is HttpChatService ? "메시지를 서버에 저장했습니다." : "이 화면의 임시 대화에 추가했습니다.");
             }
             catch (OperationCanceledException) when (IsDisposed || Disposing) { }
             catch (Exception ex)
@@ -333,14 +349,16 @@ namespace RemoteWork.WinForms.Features.Collaboration
         {
             bool canCompose = selectedRoom is not null && !loadingRooms && !loadingMessages && !sending && !creatingRoom && !deletingRoom;
             txtContent3.Enabled = canCompose;
-            btnSendMessage.Enabled = canCompose && !string.IsNullOrWhiteSpace(txtContent3.Text);
+            btnSendMessage.Enabled = canCompose && !string.IsNullOrWhiteSpace(txtContent3.Text)
+                && ChatText.WithinLimit(txtContent3.Text.Trim(), 2000);
             gridRooms.Enabled = cmbOptions.Enabled = !loadingRooms && !sending && !creatingRoom && !deletingRoom;
             btnCreateRoom.Enabled = !loadingRooms && !sending && !creatingRoom && !deletingRoom;
         }
 
         private void ShowStatus(string text)
         {
-            lblChatStatus.Text = $"화면 동작 예시 · 서버 미연결 · 작성자: {chatService.CurrentUser.Name} | {text}";
+            string source = chatService is HttpChatService ? "서버 DB 저장" : "대화방·메시지 임시 저장";
+            lblChatStatus.Text = $"{source} · 작성자: {chatService.CurrentUser.Name} | {text}";
         }
 
         private void Unavailable_Click(object? sender, EventArgs e)
