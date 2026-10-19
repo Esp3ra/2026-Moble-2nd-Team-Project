@@ -2,6 +2,7 @@ using System.Globalization;
 using RemoteWork.WinForms.Infrastructure;
 using RemoteWork.WinForms.Features.Tasks.Preparation;
 using RemoteWork.WinForms.Features.Tasks.Creation;
+using RemoteWork.WinForms.Features.Tasks.Starting;
 
 namespace RemoteWork.WinForms.Features.Tasks.Queries;
 
@@ -9,7 +10,7 @@ namespace RemoteWork.WinForms.Features.Tasks.Queries;
 /// Member 2's read-only development contract. The shared client owns authentication,
 /// transport and session cancellation; this adapter never substitutes sample data.
 /// </summary>
-public sealed class HttpTaskQueryService(ApiClient api) : ITaskQueryService, ITaskPreparationSource, ITaskCreationSource
+public sealed class HttpTaskQueryService(ApiClient api) : ITaskQueryService, ITaskPreparationSource, ITaskCreationSource, ITaskStartSource
 {
     private readonly ApiClient api = api ?? throw new ArgumentNullException(nameof(api));
 
@@ -23,6 +24,10 @@ public sealed class HttpTaskQueryService(ApiClient api) : ITaskQueryService, ITa
     }
 
     public TaskCreationWorkflow? GetCreationWorkflow() => TaskCreationSessionStore.Get(api);
+
+    public TaskStartWorkflow? GetStartWorkflow(TaskStartKind kind, string taskId) => TaskStartSessionStore.Get(api, kind, taskId);
+
+    public TaskStartWorkflow? GetPendingStartWorkflow() => TaskStartSessionStore.FindPending(api);
 
     public async Task<IReadOnlyList<TaskSummary>> GetTasksAsync(
         TaskListQuery query, CancellationToken cancellationToken = default)

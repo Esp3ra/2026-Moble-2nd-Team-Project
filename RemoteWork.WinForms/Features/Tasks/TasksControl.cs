@@ -4,6 +4,7 @@ using RemoteWork.WinForms.Features.Collaboration;
 using RemoteWork.WinForms.Features.Tasks.Queries;
 using RemoteWork.WinForms.Features.Tasks.Preparation;
 using RemoteWork.WinForms.Features.Tasks.Creation;
+using RemoteWork.WinForms.Features.Tasks.Starting;
 
 namespace RemoteWork.WinForms.Features.Tasks
 {
@@ -14,6 +15,8 @@ namespace RemoteWork.WinForms.Features.Tasks
         private readonly ITaskPreparationService? preparationService;
         private readonly TaskCreationWorkflow? creationWorkflow;
         private bool creationFormOpen;
+        private bool startFormOpen;
+        private bool lastListQuerySucceeded;
         private string? acknowledgedCreationId;
         private string? createdTaskIdForRefresh;
         private CancellationTokenSource? listCancellation;
@@ -57,6 +60,9 @@ namespace RemoteWork.WinForms.Features.Tasks
                     ? "\r\n등록·수정·수락·연장: 입력·대상 확인만 가능하며 저장·전송은 연결 전입니다."
                     : "\r\n신규 등록: 서버 요청 연결 · 수정·수락·연장: 입력 준비만 가능하며 저장은 연결 전입니다.");
             lblTaskQueryStatus.Text = "업무 조회를 기다리고 있습니다.";
+            if (queryService is ITaskStartSource)
+                lblTaskQuerySource.Text = queryService.SourceDescription
+                    + "\r\n신규 등록·수락·재작업: 개발 서버 요청 연결 · 수정·재배정·연장: 협의사항";
             ClearDetail("목록에서 업무를 선택하면 상세 내용이 표시됩니다.");
             UpdateViewScope();
             initializing = false;
@@ -69,7 +75,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnNewTaskPreview.Visible = managementView;
             btnEditTaskPreview.Visible = managementView;
             btnCancelTask.Visible = managementView;
-            btnAcceptTask.Visible = !managementView;
+            btnAcceptTask.Visible = !managementView || PendingStartWorkflow() is not null;
             btnReviewRequestPreview.Visible = !managementView;
             btnDeadlineExtensionPreview.Visible = !managementView;
             btnCollaborationRequest.Visible = true;
@@ -96,8 +102,15 @@ namespace RemoteWork.WinForms.Features.Tasks
             bool hasDetail = detail is not null;
             btnEditTaskPreview.Enabled = hasDetail;
             bool ownView = previewRole != PreviewRole.Administrator || cmbTaskScope.SelectedIndex == 0;
+            TaskStartWorkflow? pendingStart = PendingStartWorkflow();
             btnAcceptTask.Text = detail?.Summary.Status == TaskDisplayStatus.Returned ? "재작업 시작" : "업무 수락";
             btnAcceptTask.Enabled = ownView && detail?.Summary.Status is TaskDisplayStatus.NotStarted or TaskDisplayStatus.Returned;
+            if (pendingStart is not null)
+            {
+                btnAcceptTask.Text = "수락·재작업 결과 확인";
+                btnAcceptTask.Enabled = pendingStart.IsCurrent;
+                btnAcceptTask.Visible = true;
+            }
             btnDeadlineExtensionPreview.Enabled = hasDetail;
             btnPrepareWrite.Visible = preparationService is not null;
             btnPrepareWrite.Enabled = hasDetail && preparationService?.IsCurrent == true;
@@ -111,6 +124,7 @@ namespace RemoteWork.WinForms.Features.Tasks
         public async Task RefreshAsync()
         {
             if (initializing || queriesDisposed || PreviewActions.IsDesignMode(this)) return;
+            lastListQuerySucceeded = false;
             var query = new TaskListQuery(
                 previewRole == PreviewRole.Administrator && cmbTaskScope.SelectedIndex == 1
                     ? TaskQueryScope.Managed : TaskQueryScope.Own,
@@ -140,6 +154,7 @@ namespace RemoteWork.WinForms.Features.Tasks
                 if (!IsCurrentList(generation, token)) return;
                 ArgumentNullException.ThrowIfNull(summaries);
                 listReceived = true;
+                lastListQuerySucceeded = true;
                 createdTaskVisible = createdTaskId is not null && summaries.Any(summary => summary.TaskId == createdTaskId);
                 updatingRows = true;
                 try
@@ -469,14 +484,41 @@ namespace RemoteWork.WinForms.Features.Tasks
 
         private async void btnAcceptTask_Click(object? sender, EventArgs e)
         {
-            if (!btnAcceptTask.Enabled || PreparationDetail() is not { } detail) return;
-            TaskStartKind kind = detail.Summary.Status == TaskDisplayStatus.Returned ? TaskStartKind.Rework : TaskStartKind.Accept;
-            using var form = preparationService is null ? new TaskAcceptanceForm(detail)
-                : new TaskAcceptanceForm(detail, kind, preparationService);
-            form.ShowDialog(FindForm());
-            if (form.ShouldRefreshList && !queriesDisposed && !IsDisposed && preparationService?.IsCurrent == true)
-                await RefreshAsync();
+            if (!btnAcceptTask.Enabled || startFormOpen || queriesDisposed) return;
+            TaskStartWorkflow? workflow = PendingStartWorkflow();
+            TaskDetail? detail = PreparationDetail();
+            if (workflow is null && detail is null) return;
+            bool recovering = workflow is not null;
+            TaskStartRequest? pending = workflow?.PendingRequest;
+            if (recovering && pending is null) { UpdatePreparationActions(); return; }
+            TaskStartKind kind = pending?.Kind
+                ?? (detail!.Summary.Status == TaskDisplayStatus.Returned ? TaskStartKind.Rework : TaskStartKind.Accept);
+            workflow ??= (queryService as ITaskStartSource)?.GetStartWorkflow(kind, detail!.Summary.TaskId);
+            startFormOpen = true;
+            try
+            {
+                using var form = recovering ? new TaskAcceptanceForm(workflow!, preparationService)
+                    : preparationService is null ? new TaskAcceptanceForm(detail!)
+                    : new TaskAcceptanceForm(detail!, kind, preparationService, workflow);
+                form.ShowDialog(FindForm());
+                if (form.ShouldRefreshList && !queriesDisposed && !IsDisposed && preparationService?.IsCurrent == true
+                    && (workflow is null || workflow.IsCurrent))
+                {
+                    await RefreshAsync();
+                    if (lastListQuerySucceeded && workflow?.IsCurrent == true
+                        && workflow.State == TaskStartState.Succeeded)
+                        workflow.AcknowledgeSuccess();
+                }
+            }
+            finally
+            {
+                startFormOpen = false;
+                if (!queriesDisposed && !IsDisposed) UpdatePreparationActions();
+            }
         }
+
+        private TaskStartWorkflow? PendingStartWorkflow() => queriesDisposed ? null
+            : (queryService as ITaskStartSource)?.GetPendingStartWorkflow();
 
         private void Unavailable_Click(object? sender, EventArgs e)
         {

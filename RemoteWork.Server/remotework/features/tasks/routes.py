@@ -1,4 +1,4 @@
-"""Member 2 task reads, with separately enabled development-only creation."""
+"""Member 2 reads, with separately enabled development-only task writes."""
 import os
 
 from flask import Blueprint, g, request
@@ -21,6 +21,20 @@ def register_creation(state):
     if enabled is True:
         from .creation import create_task
         state.add_url_rule("", "create", create_task, methods=["POST"])
+
+
+@bp.record_once
+def register_starting(state):
+    # The blueprint itself is installed only when task queries are enabled.
+    enabled = state.app.config.get(
+        "ENABLE_TASK_START_DRAFT", os.getenv("REMOTEWORK_ENABLE_TASK_START_DRAFT") == "1")
+    if enabled is True:
+        from .starting import accept_task, register_start_action, start_rework
+        if state.app.config.get("ENABLE_COMMON_WRITE_DRAFT"):
+            register_start_action(state.app)
+        state.add_url_rule("/<string:task_id>/accept", "accept", accept_task, methods=["POST"])
+        state.add_url_rule("/<string:task_id>/rework-start", "rework_start", start_rework,
+                           methods=["POST"])
 
 
 def _query_args(allowed):

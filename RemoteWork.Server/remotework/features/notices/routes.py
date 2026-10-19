@@ -2,7 +2,7 @@ import json
 from pathlib import PurePosixPath, PureWindowsPath
 import click
 from flask import Blueprint, current_app, request
-from sqlalchemy import func, inspect, select
+from sqlalchemy import case, func, inspect, select
 from ...auth import admin_transaction, login_required
 from ...common import AppError, audit, payload, require_role, success
 from ...db import get_db
@@ -50,24 +50,12 @@ def get_notice(notice_id, *, for_update=False):
 def list_notices():
     require_table()
     target = request.args.get("target")
-    if target is not None and target not in TARGETS:
-        raise AppError(400, "INVALID_INPUT", "공지사항 대상을 확인해 주세요.")
     try:
         page = int(request.args.get("page", "1"))
         limit = int(request.args.get("limit", "100"))
-        if not 1 <= page <= 1000000 or not 1 <= limit <= 100:
-            raise ValueError()
     except ValueError:
-        raise AppError(400, "INVALID_INPUT", "페이지와 조회 개수를 확인해 주세요.")
-    query = select(Notice)
-    if target:
-        query = query.where(Notice.target == target)
-    session = get_db()
-    total = session.scalar(select(func.count()).select_from(query.subquery()))
-    items = session.scalars(query.order_by(Notice.is_pinned.desc(), Notice.created_at.desc(),
-                                          Notice.id.desc()).offset((page - 1) * limit).limit(limit))
-    # User decision: all authenticated employees can read every department.
-    return success({"items": [n.public() for n in items], "page": page, "limit": limit, "total": total})
+        raise AppError(400, "INVALID_INPUT", "페이지와 조회 개수를 확인해 주세요.") from None
+    return success(query_notices(target, page, limit))
 
 
 @bp.get("/<int:notice_id>")
@@ -102,8 +90,43 @@ def validate(body):
 @bp.post("")
 @require_role("admin")
 def create_notice():
+    return success({"notice": create_notice_record(payload())}, 201)
+
+
+@bp.post("/<int:notice_id>/delete")
+@require_role("admin")
+def delete_notice(notice_id):
+    delete_notice_record(notice_id)
+    return success({"message": "공지사항을 삭제했습니다."})
+
+
+def query_notices(target=None, page=1, limit=100, *, sort="created_at", direction="desc"):
+    """Shared reads for API and cookie-authenticated web pages. No DDL."""
     require_table()
-    body = payload()
+    if target is not None and target not in TARGETS:
+        raise AppError(400, "INVALID_INPUT", "공지사항 대상을 확인해 주세요.")
+    if type(page) is not int or type(limit) is not int or not 1 <= page <= 1000000 or not 1 <= limit <= 100:
+        raise AppError(400, "INVALID_INPUT", "페이지와 조회 개수를 확인해 주세요.")
+    keys = {"target": Notice.target, "title": Notice.title, "author": Notice.author, "created_at": Notice.created_at}
+    if sort not in keys or direction not in ("asc", "desc"):
+        raise AppError(400, "INVALID_INPUT", "공지사항 정렬 조건을 확인해 주세요.")
+    query = select(Notice)
+    if target:
+        query = query.where(Notice.target == target)
+    db = get_db()
+    total = db.scalar(select(func.count()).select_from(query.subquery()))
+    # Pinned block stays newest-first; only the regular block follows selected sorting.
+    pinned_date = case((Notice.is_pinned.is_(True), Notice.created_at), else_=None)
+    key = case((Notice.is_pinned.is_(False), keys[sort]), else_=None)
+    order = key.asc() if direction == "asc" else key.desc()
+    rows = db.scalars(query.order_by(Notice.is_pinned.desc(), pinned_date.desc(), order,
+                                   Notice.created_at.desc(), Notice.id.desc())
+                      .offset((page - 1) * limit).limit(limit))
+    return {"items": [n.public() for n in rows], "page": page, "limit": limit, "total": total}
+
+
+def create_notice_record(body):
+    require_table()
     names = validate(body)
     # Reuse the common guard to recheck role/session before an administrator write.
     with admin_transaction() as session:
@@ -117,15 +140,12 @@ def create_notice():
         session.refresh(notice)
         audit("notice.created", "notice", notice.id, {"target": notice.target})
         result = notice.public()
-    return success({"notice": result}, 201)
+    return result
 
 
-@bp.post("/<int:notice_id>/delete")
-@require_role("admin")
-def delete_notice(notice_id):
+def delete_notice_record(notice_id):
     require_table()
     with admin_transaction() as session:
         notice = get_notice(notice_id, for_update=True)
         session.delete(notice)
         audit("notice.deleted", "notice", notice_id)
-    return success({"message": "공지사항을 삭제했습니다."})
