@@ -2,6 +2,8 @@
 
 ## 현재 — PR23 갱신·문서 게시 후 후속 대기
 
+후속 협업 기록 [PR27](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/27)(LOG→LOG), R23-01회신 [PR28](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/28)(PR→PR)을 별도 생성했다. 코드/문서 원본병합과 검토자 확인은 대기이며 후속개발을 진행하지 않는다.
+
 사용자 지시에 따라 [기존 코드PR23](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/23)을 fork alpha `dd3b3d6`로 갱신했다. 원본alpha a4424dc 결합 뒤C#156검증·Python30개·Release 경고/오류0. [최신 범위/게시 기록](2026-10-19_활동상태_30초_통합판정.md#게시-후-대기--사용자-승인과-최신-결합-검증)을 따르며 원본병합·검토자확인과 구분한다. 최종 목표인 출근~퇴근 백그라운드 감지·C#지문 요청·근태/회원 연동은 아직이며 후속개발은 대기한다. 아래 로컬/미업로드 표현은 당시 기록.
 
 ## 로컬 후속 — 손·카메라·조도30초 기준
