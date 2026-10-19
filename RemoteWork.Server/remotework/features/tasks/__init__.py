@@ -1,1 +1,4 @@
-"""Member 2 read-only task integration draft; not a shared schema agreement."""
+"""Member 2 task queries, opt-in creation and pure start preparation.
+
+Feature implementation does not approve a shared schema deployment.
+"""

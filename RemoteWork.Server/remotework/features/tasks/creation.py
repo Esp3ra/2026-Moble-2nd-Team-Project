@@ -1,7 +1,7 @@
 """Member 2 development-only initial task creation.
 
 The initial revision/version (1/1), accepted_at=None and creation response are
-an explicit member 2 development contract pending member 1 joint review.
+an explicit member 2 development contract accepted in member 1's technical reply.
 This module neither applies DDL nor enables a shared deployment. It does not
 accept tasks, restart work, submit results or select submission reviewers.
 """

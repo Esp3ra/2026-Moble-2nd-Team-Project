@@ -25,7 +25,7 @@ class TaskRecord(Base):
     task_id: Mapped[int] = mapped_column(TASK_ID_TYPE, primary_key=True, autoincrement=True)
     title: Mapped[str] = mapped_column(String(200))
     description: Mapped[str] = mapped_column(Text)
-    # No implicit default: this read-only draft does not implement task creation.
+    # The creation service supplies the initial state explicitly.
     task_status: Mapped[str] = mapped_column(String(30))
     start_date: Mapped[date] = mapped_column(Date)
     due_date: Mapped[date] = mapped_column(Date)
