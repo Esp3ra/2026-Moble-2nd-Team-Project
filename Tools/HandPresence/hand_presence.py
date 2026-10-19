@@ -94,6 +94,7 @@ class CameraWorker:
             previous_version = -1
             while not self.stopping.is_set():
                 ok, frame = camera.read()
+                observed = time.monotonic()  # Reception time, before crop/inference (R23-01).
                 if self.stopping.is_set():
                     break
                 if not ok or frame is None:
@@ -108,7 +109,6 @@ class CameraWorker:
                 rgb = cv2.cvtColor(frame[y1:y2, x1:x2].copy(), cv2.COLOR_BGR2RGB)
                 del frame  # Full frame is never queued, displayed, written or transmitted.
                 boxes = detector.detect(rgb)
-                observed = time.monotonic()
                 evidence = tracker.observe(len(boxes), observed)
                 for left, top, right, bottom in boxes:
                     cv2.rectangle(rgb, (left, top), (right, bottom), (30, 220, 100), 2)
@@ -279,6 +279,11 @@ class HandPresenceWindow:
             self.status.set("카메라 연결 끊김" if "영상이 끊겼" in (evidence.error or "") else "카메라 확인 필요")
             self.details.set(evidence.error or "오류가 발생했습니다.")
             self.clear_preview("영상 없음")
+            return
+        if time.monotonic() - update.observed > 5:
+            self.status.set("카메라 연결 지연")
+            self.details.set("최신 영상을 기다리고 있습니다.")
+            self.clear_preview("영상 대기")
             return
         if self.state == "HAND_DETECTED":
             self.status.set("활동 중")

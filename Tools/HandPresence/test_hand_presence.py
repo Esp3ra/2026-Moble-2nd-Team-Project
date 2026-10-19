@@ -108,6 +108,24 @@ class WorkerTests(unittest.TestCase):
         factory.assert_not_called()
         detector.close.assert_called_once()
 
+    def test_slow_inference_preserves_frame_reception_time(self):
+        import numpy as np
+        camera = Mock()
+        camera.isOpened.return_value = True
+        camera.read.side_effect = [(True, np.zeros((64, 64, 3), dtype=np.uint8)), (False, None)]
+        updates = []
+        detector = Mock()
+        with patch('hand_presence.time.monotonic', return_value=100) as clock:
+            def slow_detect(rgb):
+                clock.return_value = 110
+                return []
+            detector.detect.side_effect = slow_detect
+            worker = CameraWorker(1, 0, 'DSHOW', Region(0, 0, 100, 100), updates.append,
+                                  camera_factory=lambda *_: camera, detector_factory=lambda: detector, interval=0)
+            worker.run()
+        self.assertEqual(updates[0].observed, 100)
+        self.assertEqual(updates[0].evidence.state, 'HAND_NOT_DETECTED')
+
 
 class WindowTests(unittest.TestCase):
     def setUp(self):
@@ -155,10 +173,24 @@ class WindowTests(unittest.TestCase):
 
     def test_missing_hand_and_input_stall_keep_distinct_states(self):
         self.ui.apply_update(FrameUpdate(0, 0, Evidence('HAND_NOT_DETECTED', 0, 30), observed=time.monotonic()-6))
-        self.assertEqual('자리 비움', self.ui.status.get())
+        self.assertEqual('카메라 연결 지연', self.ui.status.get())
         self.ui.drain()
         self.assertEqual('카메라 연결 지연', self.ui.status.get())
         self.assertIsNone(self.ui.photo)
+
+    def test_slow_inference_and_queue_delay_hide_old_images_then_recover(self):
+        import numpy as np
+        pixels = np.zeros((64, 64, 3), dtype=np.uint8)
+        self.ui.apply_update(FrameUpdate(0, 0, Evidence('HAND_DETECTED', 1), pixels, time.monotonic()))
+        self.assertIsNotNone(self.ui.photo)
+        old = FrameUpdate(0, 0, Evidence('HAND_DETECTED', 1), pixels, time.monotonic() - 10)
+        self.ui.offer(old)
+        self.ui.drain()
+        self.assertEqual('카메라 연결 지연', self.ui.status.get())
+        self.assertIsNone(self.ui.photo)
+        self.ui.apply_update(FrameUpdate(0, 0, Evidence('HAND_DETECTED', 1), pixels, time.monotonic()))
+        self.assertEqual('활동 중', self.ui.status.get())
+        self.assertIsNotNone(self.ui.photo)
 
     def test_cropped_preview_can_render_from_synthetic_pixels(self):
         import numpy as np

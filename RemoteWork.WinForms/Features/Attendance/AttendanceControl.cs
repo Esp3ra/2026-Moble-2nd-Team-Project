@@ -61,5 +61,10 @@ namespace RemoteWork.WinForms.Features.Attendance
             PreviewActions.Open(this, new LeaveDecisionForm());
         }
 
+        private void btnActivityPresence_Click(object? sender, EventArgs e)
+        {
+            PreviewActions.Open(this, new ActivityPresenceForm());
+        }
+
     }
 }
