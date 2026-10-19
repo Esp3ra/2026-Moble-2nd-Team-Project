@@ -8,7 +8,7 @@ using System.Text;
 using RemoteWork.WinForms.Features.Attendance;
 using RemoteWork.WinForms.Ui;
 
-internal static class Program
+internal static partial class Program
 {
     private static int checks;
     private static int scenarios;
@@ -48,13 +48,16 @@ internal static class Program
             {
                 await UiFlow();
                 await FailureAndClose();
+                await OwnerCloseRegression();
+                await AuthenticationExpiryUi();
+                await ForcedOwnerClose();
                 await Transport();
                 PresenceRules();
                 await LightHttp();
                 await CombinedUi();
                 Protocol();
                 AttendanceEntry();
-                Console.WriteLine($"PASS: {checks} assertions; {scenarios} scenarios. Synthetic images, injected camera, real Python stdio and loopback HTTP. No physical camera/external devices/common server/DB.");
+                Console.WriteLine($"PASS: {checks} assertions; {scenarios} scenarios. Synthetic images, injected camera, real Python stdio and loopback HTTP/auth fixtures. No physical camera/external devices/real common server/DB.");
                 exit = 0;
             }
             catch (Exception error) { Console.Error.WriteLine(error); }
@@ -142,6 +145,7 @@ internal static class Program
         Check(!form.IsDisposed, "Close waits for cleanup without blocking UI");
         fake.StopCompletion.SetResult();
         await Until(() => form.IsDisposed, "Close during pending stop");
+        Check(fake.Stops == 2, "Closing reuses the pending stop after the earlier error cleanup");
         scenarios++;
     }
 
@@ -452,6 +456,7 @@ internal static class Program
     {
         public bool Running, Disposed;
         public int Stops;
+        public TaskCompletionSource? StopCompletion;
         public LightMotionSample? Next;
         public Func<LightMotionSample> Factory = () => new(true, Guid.NewGuid().ToString());
         public void Start(Uri uri) { Running = true; Next = null; }
@@ -460,7 +465,7 @@ internal static class Program
             if (!Running) return null;
             var sample = Next ?? Factory(); Next = null; return sample;
         }
-        public Task StopAsync() { Running = false; Stops++; return Task.CompletedTask; }
+        public async Task StopAsync() { Stops++; if (StopCompletion is not null) await StopCompletion.Task; Running = false; }
         public void Dispose() { Running = false; Disposed = true; }
     }
 }

@@ -32,6 +32,7 @@
 - 전용 stdin/stdout JSON line v2: 손/영상 움직임·마지막 감지 경과 시간·수신 시각/QPC·오류·잘린 JPEG를 메모리로 전달합니다. 중간 프레임이 생략돼도 마지막 감지 시각을 보존합니다. v1은 오류로 처리하며 무감지로 대체하지 않습니다. C#은 별도 읽기 전용 클라이언트로 Pi GET /motion을1초 간격 조회하며 공통 Bearer/회원 정보를 보내지 않습니다. HTTP proxy·redirect를 사용하지 않고 응답/취소/크기를 제한합니다. 영상 저장·공통 서버 업로드는 없습니다.
 - CPython 3.13 `time.monotonic()`과 Windows .NET `Stopwatch`의 QPC 시각으로 파이프 전달 전 지연도 계산합니다. 근거: [Python time](https://docs.python.org/3.13/library/time.html#time.monotonic), [Microsoft QPC/.NET 설명](https://learn.microsoft.com/en-us/windows/win32/sysinfo/acquiring-high-resolution-time-stamps). 절대 시각/UTC 근태 기록 계약과는 별도입니다.
 - 중지 시 제어 메시지를 보내고 2초 내 종료하지 않으면 이 창이 시작한 프로세스 트리만 종료합니다. 타 Python/카메라 프로그램을 종료하지 않습니다. 창 종료와 직접 Dispose에서도 자원을 해제합니다.
+- 닫기·중지·오류가 겹쳐도 같은 정리 작업을 기다립니다. 정리 중 부모 창 종료 요청이 들어오면 카메라·조도 해제 후 부모 종료를 이어갑니다. 일반 활동 창 닫기는 메인을 유지하며, 기존 인증 만료 종료는 로그인 화면으로 복귀합니다. 공통 로그인 코드를 바꾸거나 카메라를 인증 수단으로 연결한 것은 아닙니다.
 - Designer.cs/resx·기존 공개 생성자·MainForm·인증·업무 API/DB 유지. 문서 D5-01~05 신원·장치 신뢰·제품 정책·저장 합의는 여전히 대기입니다.
 - 소스 체크아웃과 준비된 Python 환경에서 실행하는 로컬 연결입니다. Python/모델을 포함한 배포 패키지는 제공하지 않습니다.
 

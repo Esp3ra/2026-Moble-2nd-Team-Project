@@ -16,6 +16,8 @@ public partial class ActivityPresenceForm : Form
     private bool stopping;
     private bool closing;
     private bool allowClose;
+    private Form? closingOwner;
+    private Task? sourceStop;
 
     public ActivityPresenceForm() : this(new ProcessActivityCamera()) { }
 
@@ -49,6 +51,7 @@ public partial class ActivityPresenceForm : Form
             options.Validate();
             var piUri = LightMotionClient.ParseBaseUri(txtPiAddress.Text);
             presence.Reset();
+            sourceStop = null;
             camera.Start(options);
             cameraStarted = true;
             light.Start(piUri);
@@ -64,7 +67,7 @@ public partial class ActivityPresenceForm : Form
             {
                 stopping = true;
                 SetControls();
-                try { await Task.WhenAll(camera.StopAsync(), light.StopAsync()); }
+                try { await StopSourcesAsync(); }
                 finally { stopping = false; SetControls(); }
             }
             SetStatus("카메라 확인 필요", error.Message, true);
@@ -82,7 +85,7 @@ public partial class ActivityPresenceForm : Form
         presence.Reset();
         SetStatus("카메라 종료 중", "영상 처리를 종료하고 있습니다.", true);
         SetControls();
-        try { await Task.WhenAll(camera.StopAsync(), light.StopAsync()); }
+        try { await StopSourcesAsync(); }
         finally
         {
             stopping = false;
@@ -172,7 +175,7 @@ public partial class ActivityPresenceForm : Form
     {
         stopping = true;
         SetControls();
-        try { await Task.WhenAll(camera.StopAsync(), light.StopAsync()); }
+        try { await StopSourcesAsync(); }
         finally { stopping = false; if (!IsDisposed) SetControls(); }
     }
 
@@ -195,16 +198,27 @@ public partial class ActivityPresenceForm : Form
     private async void ActivityPresenceForm_FormClosing(object? sender, FormClosingEventArgs e)
     {
         if (allowClose) return;
+        // WinForms propagates a child's cancellation to its owner. Remember the
+        // owner request even when an earlier child.Close() is still cleaning up.
+        if (e.CloseReason == CloseReason.FormOwnerClosing) closingOwner ??= Owner;
         e.Cancel = true;
         if (closing) return;
         closing = true;
         refreshTimer.Stop();
         SetControls();
-        await Task.WhenAll(camera.StopAsync(), light.StopAsync());
+        await StopSourcesAsync();
         allowClose = true;
-        // A synchronously completed Stop must not re-enter a modal FormClosing event.
-        if (!IsDisposed) BeginInvoke((Action)Close);
+        // Queue even synchronous completion to leave the original closing event.
+        if (!IsDisposed) BeginInvoke((Action)(() =>
+        {
+            var owner = closingOwner;
+            closingOwner = null;
+            if (!IsDisposed) Close();
+            if (owner is { IsDisposed: false, Disposing: false }) owner.Close();
+        }));
     }
+
+    private Task StopSourcesAsync() => sourceStop ??= Task.WhenAll(camera.StopAsync(), light.StopAsync());
 
     private void ReleaseCamera()
     {
