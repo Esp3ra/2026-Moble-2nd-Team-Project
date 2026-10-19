@@ -15,4 +15,6 @@ def get_blueprints(config):
         # Notice API/DB rollout remains a separately reviewable draft.
         from .notices.routes import bp as notices_bp
         blueprints.append(notices_bp)
+        from .notices.web import bp as notice_web_bp
+        blueprints.append(notice_web_bp)
     return blueprints

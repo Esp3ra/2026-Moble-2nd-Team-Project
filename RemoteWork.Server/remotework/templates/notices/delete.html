@@ -1,0 +1,7 @@
+{% extends 'notices/layout.html' %}
+{% block notices_content %}
+<p class="eyebrow">WORKSPACE</p><h1>공지사항 삭제</h1>
+<section class="card notice-editor"><h2>{{ notice.title }}</h2><p>이 공지사항을 삭제하시겠습니까?</p><p class="muted">모든 사용자의 공지 목록에서 삭제됩니다.</p>
+<form method="post" data-notice-write action="{{ url_for('notice_web.delete', notice_id=notice.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="notice-actions"><a class="notice-button notice-neutral" href="{{ url_for('notice_web.index', selected=notice.id) }}">취소</a><button class="notice-danger" type="submit">삭제</button></div></form></section>
+{% endblock %}
