@@ -8,6 +8,7 @@ from tkinter import messagebox, ttk
 
 from download_model import MODEL_PATH, verify_model
 from presence_core import Evidence, EvidenceTracker, Region
+from frame_motion import FrameMotion
 
 
 class HandDetector:
@@ -46,6 +47,9 @@ class FrameUpdate:
     evidence: Evidence
     rgb: object = None
     observed: float = 0
+    camera_motion: bool | None = None
+    motion_fraction: float | None = None
+    seconds_since_camera_motion: float | None = None
 
 
 class CameraWorker:
@@ -98,7 +102,10 @@ class CameraWorker:
             if self.progress:
                 self.progress("카메라에서 첫 영상을 기다리는 중")
             tracker = EvidenceTracker()
+            movement = FrameMotion()
             previous_version = -1
+            previous_observed = None
+            last_camera_motion = None
             first_image = True
             while not self.stopping.is_set():
                 ok, frame = camera.read()
@@ -111,11 +118,20 @@ class CameraWorker:
                     region, version = self.region, self.region_version
                 if version != previous_version:
                     tracker = EvidenceTracker()
+                    movement = FrameMotion()
+                    last_camera_motion = None
                     previous_version = version
+                if previous_observed is not None and observed - previous_observed > 5:
+                    movement = FrameMotion()
+                    last_camera_motion = None
+                previous_observed = observed
                 height, width = frame.shape[:2]
                 x1, y1, x2, y2 = region.bounds(width, height)
                 rgb = cv2.cvtColor(frame[y1:y2, x1:x2].copy(), cv2.COLOR_BGR2RGB)
                 del frame  # Full frame is never queued, displayed, written or transmitted.
+                camera_motion, motion_fraction = movement.observe(rgb)
+                if camera_motion:
+                    last_camera_motion = observed
                 if first_image and self.progress:
                     self.progress("첫 영상 분석 중")
                 first_image = False
@@ -124,7 +140,9 @@ class CameraWorker:
                 for left, top, right, bottom in boxes:
                     cv2.rectangle(rgb, (left, top), (right, bottom), (30, 220, 100), 2)
                 if not self.stopping.is_set():
-                    self.publish(FrameUpdate(self.session, version, evidence, rgb, observed))
+                    self.publish(FrameUpdate(self.session, version, evidence, rgb, observed,
+                                             camera_motion, motion_fraction,
+                                             None if last_camera_motion is None else observed - last_camera_motion))
                 self.stopping.wait(self.interval)
         except Exception as error:
             if not self.stopping.is_set():
@@ -300,8 +318,8 @@ class HandPresenceWindow:
             self.status.set("활동 중")
             self.details.set("화면에서 손이 확인됩니다.")
         else:
-            self.status.set("자리 비움")
-            self.details.set(f"손이 확인되지 않은 시간: {evidence.seconds_without_hand:.1f}초")
+            self.status.set("확인 대기")
+            self.details.set(f"손 감지 없음: {evidence.seconds_without_hand:.1f}초 · 30초 통합 판정은 C# 화면에서 확인합니다.")
         if update.rgb is not None:
             from PIL import Image, ImageTk
             image = Image.fromarray(update.rgb)

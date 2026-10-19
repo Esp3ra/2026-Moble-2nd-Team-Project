@@ -172,6 +172,8 @@ class WindowTests(unittest.TestCase):
         self.assertEqual(self.ui.updates.get().observed, 9)
 
     def test_missing_hand_and_input_stall_keep_distinct_states(self):
+        self.ui.apply_update(FrameUpdate(0, 0, Evidence('HAND_NOT_DETECTED', 0, 31), observed=time.monotonic()))
+        self.assertEqual('확인 대기', self.ui.status.get())  # Tk has no Pi/fused decision.
         self.ui.apply_update(FrameUpdate(0, 0, Evidence('HAND_NOT_DETECTED', 0, 30), observed=time.monotonic()-6))
         self.assertEqual('카메라 연결 지연', self.ui.status.get())
         self.ui.drain()

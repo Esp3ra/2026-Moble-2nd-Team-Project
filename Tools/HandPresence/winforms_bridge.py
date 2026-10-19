@@ -16,10 +16,13 @@ def packet(update, now=None):
     import cv2
     age = max(0.0, (time.monotonic() if now is None else now) - update.observed)
     evidence = update.evidence
-    result = {"version": 1, "state": evidence.state, "age_seconds": age,
+    result = {"version": 2, "state": evidence.state, "age_seconds": age,
               "observed_seconds": update.observed,
               "seconds_without_hand": evidence.seconds_without_hand,
-              "error": evidence.error, "jpeg": None}
+              "error": evidence.error, "jpeg": None,
+              "camera_motion": update.camera_motion, "motion_fraction": update.motion_fraction,
+              "seconds_since_hand": evidence.seconds_since_hand,
+              "seconds_since_camera_motion": update.seconds_since_camera_motion}
     if evidence.state not in ("CAMERA_ERROR", "STARTING") and age > 5:
         result["state"] = "STALE"
     elif update.rgb is not None:

@@ -25,6 +25,9 @@ public sealed record ActivityCameraFrame(string State, double AgeSeconds = 0,
     public long ReceivedAt { get; init; } = Stopwatch.GetTimestamp();
     // CPython 3.13 monotonic and .NET Stopwatch use the same Windows QPC clock.
     public double? ObservedSeconds { get; init; }
+    public bool? MotionDetected { get; init; } = false;
+    public double? SecondsSinceHand { get; init; }
+    public double? SecondsSinceMovement { get; init; }
     public double CurrentAge => Math.Max(AgeSeconds + Stopwatch.GetElapsedTime(ReceivedAt).TotalSeconds,
         ObservedSeconds.HasValue ? Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency - ObservedSeconds.Value : 0);
 
@@ -33,13 +36,17 @@ public sealed record ActivityCameraFrame(string State, double AgeSeconds = 0,
         if (line.Length > 600_000) throw new InvalidDataException("카메라 응답이 너무 큽니다.");
         using var document = JsonDocument.Parse(line);
         var root = document.RootElement;
-        if (root.GetProperty("version").GetInt32() != 1)
+        if (root.GetProperty("version").GetInt32() != 2)
             throw new InvalidDataException("카메라 응답 버전을 확인해 주세요.");
         var state = root.GetProperty("state").GetString()!;
         if (state is not ("HAND_DETECTED" or "HAND_NOT_DETECTED" or "CAMERA_ERROR" or "STALE" or "STARTING"))
             throw new InvalidDataException("카메라 상태를 확인할 수 없습니다.");
         var age = root.GetProperty("age_seconds").GetDouble();
         var observed = root.GetProperty("observed_seconds").GetDouble();
+        bool? movement = root.TryGetProperty("camera_motion", out var motion) && motion.ValueKind is JsonValueKind.True or JsonValueKind.False
+            ? motion.GetBoolean() : null;
+        if (state is "HAND_DETECTED" or "HAND_NOT_DETECTED" && movement is null)
+            throw new InvalidDataException("카메라 움직임 응답이 없습니다. 프로그램을 다시 실행해 주세요.");
         double? missing = root.TryGetProperty("seconds_without_hand", out var value) &&
             value.ValueKind == JsonValueKind.Number ? value.GetDouble() : null;
         if (!double.IsFinite(age) || age < 0 || !double.IsFinite(observed) || observed < 0 ||
@@ -51,7 +58,18 @@ public sealed record ActivityCameraFrame(string State, double AgeSeconds = 0,
         byte[]? jpeg = state is "CAMERA_ERROR" or "STALE" || age > 5 ? null :
             root.TryGetProperty("jpeg", out value) && value.ValueKind == JsonValueKind.String
                 ? Convert.FromBase64String(value.GetString()!) : null;
-        return new(state, age, missing, jpeg, error is { Length: > 500 } ? error[..500] : error) { ObservedSeconds = observed };
+        double? ReadAge(string name)
+        {
+            if (!root.TryGetProperty(name, out var item) || item.ValueKind == JsonValueKind.Null) return null;
+            double seconds = item.GetDouble();
+            if (!double.IsFinite(seconds) || seconds < 0) throw new InvalidDataException("움직임 경과 시간이 올바르지 않습니다.");
+            return seconds;
+        }
+        return new(state, age, missing, jpeg, error is { Length: > 500 } ? error[..500] : error)
+        {
+            ObservedSeconds = observed, MotionDetected = movement,
+            SecondsSinceHand = ReadAge("seconds_since_hand"), SecondsSinceMovement = ReadAge("seconds_since_camera_motion")
+        };
     }
 }
 

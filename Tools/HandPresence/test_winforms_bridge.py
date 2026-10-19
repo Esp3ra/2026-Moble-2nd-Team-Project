@@ -15,6 +15,7 @@ class BridgeTests(unittest.TestCase):
         frame = FrameUpdate(1, 0, Evidence('HAND_DETECTED', 1),
                             np.zeros((1000, 1000, 3), dtype=np.uint8), 100)
         fresh = packet(frame, now=101)
+        self.assertEqual(fresh['version'], 2)
         self.assertEqual(fresh['state'], 'HAND_DETECTED')
         import base64
         import cv2
@@ -30,6 +31,15 @@ class BridgeTests(unittest.TestCase):
         result = packet(FrameUpdate(1, 0, Evidence('CAMERA_ERROR', error='unplugged'), observed=100), now=110)
         self.assertEqual(result['state'], 'CAMERA_ERROR')
         self.assertIsNone(result['jpeg'])
+
+    def test_camera_pulse_age_is_carried_even_after_movement_stops(self):
+        frame = FrameUpdate(1, 0, Evidence('HAND_NOT_DETECTED', 0, 5, 5),
+                            np.zeros((64, 64, 3), np.uint8), 100,
+                            camera_motion=False, motion_fraction=0, seconds_since_camera_motion=2)
+        result = packet(frame, now=101)
+        self.assertFalse(result['camera_motion'])
+        self.assertEqual(result['seconds_since_camera_motion'], 2)
+        self.assertEqual(result['seconds_since_hand'], 5)
 
     def test_progress_packet_keeps_stage_and_has_no_image(self):
         result = packet(FrameUpdate(1, 0, Evidence('STARTING', error='model loading'), observed=100), now=101)
