@@ -846,7 +846,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             txtContent3.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             txtContent3.UseSystemPasswordChar = false;
             txtContent3.WordWrap = true;
-            txtContent3.MaxLength = 2000;
+            txtContent3.MaxLength = 4000;
             txtContent3.AcceptsReturn = true;
             txtContent3.AcceptsTab = false;
             txtContent3.Name = "txtContent3";
