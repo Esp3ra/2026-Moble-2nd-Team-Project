@@ -181,13 +181,13 @@ internal static partial class Program
         Wait(page.RefreshAsync());
         Need(PreparationId(page) == Fixtures[0].Summary.TaskId && PreparationButtons(page).All(button => button.Enabled),
             "only a successful selected detail enables target preparation");
-        Select(page, 2);
-        Until(() => PreparationId(page) == Fixtures[2].Summary.TaskId);
+        Select(page, 4);
+        Until(() => PreparationId(page) == Fixtures[4].Summary.TaskId);
         int lists = service.ListCalls, details = service.DetailCalls;
         WithModal<TaskAcceptanceForm>(() => Field<Button>(page, "btnAcceptTask").PerformClick(),
-            form => Need(AllText(form).Contains(Fixtures[2].Summary.TaskId), "acceptance button forwards the selected successful detail"));
+            form => Need(AllText(form).Contains(Fixtures[4].Summary.TaskId) && AllText(form).Contains("재작업"), "returned task forwards the selected successful detail to rework preparation"));
         WithModal<DeadlineExtensionForm>(() => Field<Button>(page, "btnDeadlineExtensionPreview").PerformClick(),
-            form => Need(Field<TextBox>(form, "txtTaskSummary").Text.Contains(Fixtures[2].Summary.TaskId),
+            form => Need(Field<TextBox>(form, "txtTaskSummary").Text.Contains(Fixtures[4].Summary.TaskId),
                 "extension button forwards the selected successful detail"));
         Need(service.ListCalls == lists && service.DetailCalls == details, "opening preparation dialogs performs no extra queries");
         Field<ComboBox>(page, "cmbTaskScope").SelectedIndex = 1;

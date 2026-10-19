@@ -92,9 +92,12 @@ namespace RemoteWork.WinForms.Features.Tasks
 
         private void UpdatePreparationActions()
         {
-            bool hasDetail = PreparationDetail() is not null;
+            TaskDetail? detail = PreparationDetail();
+            bool hasDetail = detail is not null;
             btnEditTaskPreview.Enabled = hasDetail;
-            btnAcceptTask.Enabled = hasDetail;
+            bool ownView = previewRole != PreviewRole.Administrator || cmbTaskScope.SelectedIndex == 0;
+            btnAcceptTask.Text = detail?.Summary.Status == TaskDisplayStatus.Returned ? "재작업 시작" : "업무 수락";
+            btnAcceptTask.Enabled = ownView && detail?.Summary.Status is TaskDisplayStatus.NotStarted or TaskDisplayStatus.Returned;
             btnDeadlineExtensionPreview.Enabled = hasDetail;
             btnPrepareWrite.Visible = preparationService is not null;
             btnPrepareWrite.Enabled = hasDetail && preparationService?.IsCurrent == true;
@@ -464,10 +467,15 @@ namespace RemoteWork.WinForms.Features.Tasks
                 PreviewActions.Open(this, new TaskPreparationForm(preparationService, detail.Summary.TaskId));
         }
 
-        private void btnAcceptTask_Click(object? sender, EventArgs e)
+        private async void btnAcceptTask_Click(object? sender, EventArgs e)
         {
-            if (PreparationDetail() is { } detail)
-                PreviewActions.Open(this, new TaskAcceptanceForm(detail));
+            if (!btnAcceptTask.Enabled || PreparationDetail() is not { } detail) return;
+            TaskStartKind kind = detail.Summary.Status == TaskDisplayStatus.Returned ? TaskStartKind.Rework : TaskStartKind.Accept;
+            using var form = preparationService is null ? new TaskAcceptanceForm(detail)
+                : new TaskAcceptanceForm(detail, kind, preparationService);
+            form.ShowDialog(FindForm());
+            if (form.ShouldRefreshList && !queriesDisposed && !IsDisposed && preparationService?.IsCurrent == true)
+                await RefreshAsync();
         }
 
         private void Unavailable_Click(object? sender, EventArgs e)

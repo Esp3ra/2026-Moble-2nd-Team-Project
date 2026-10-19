@@ -9,16 +9,18 @@
 | 담당 | 영역 | 현재 동작 |
 |---|---|---|
 | 1번 | 공통 서버·DB·인증·사용자·통신 | 실제 로그인·역할 진입, 사용자 관리·비밀번호 변경, 접속 만료·폐기, 공통 응답·오류·트랜잭션·감사 이력, 웹 로그인·사용자 목록, 개발용 W1 직원 쓰기 guard·후보/문맥·버전·중복 요청 공통 지원 |
-| 2번 | 업무·상태·마감 | GET 목록/상세·전체/5상태 필터·서버 본인/지정 관리자 권한. 별도 opt-in 신규 등록 API와 WinForms 명시적 등록·결과 확인·같은 요청 재전송·성공 후 재조회 연결. 수정·수락/재작업/마감 변경은 준비 단계 |
+| 2번 | 업무·상태·마감 | GET 목록/상세·전체/5상태 필터·서버 본인/지정 관리자 권한. 별도 opt-in 신규 등록 API와 WinForms 명시적 등록·결과 확인·같은 요청 재전송·성공 후 재조회 연결. 수락/재작업은 현재 본인 배정·상태·버전을 읽어 대상만 확인하며, 수정·수락/재작업/마감 저장은 미연결 |
 | 3번 | 결과물·제출·검토·이력 | 직원·관리자 내 결과물과 관리자 검토 화면 예시. 실제 제출·파일·승인/반려·이력 저장은 미연결 |
 | 4번 | 공지·채팅 | 명시적 개발 활성화 시 공지 DB 등록·조회·관리자 삭제, 대상 필터·고정·정렬. 채팅은 기존 로컬 메모리·메뉴 이동 중 저장소 유지 |
 | 5번 | 출퇴근·연차·장치 | 독립 라파 지문·조도 API, 메가 A0 송신, Windows 장치 점검 도구와 자동 실행 예제. 기존 근태 폼·공통 회원/인증·DB 저장 연결은 별도 |
 
 업무 조회는 현재 본인 배정과 업무별 지정 관리자 조건을 서버에서 각각 검사합니다. 2026-10-17 [1번 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/1번/2026-10-17_업무조회_API_DB_규약확정_회신.md)으로 조회 API·DTO·권한·오류와 상태/날짜 표현·공통 FK 기준을 수용했습니다. 상태 흐름의 사용자 확정 사항과 별도로 세부 쓰기 계약·마감 의미·제출 연결은 1·3번과 합의 필요입니다. 공통 실제/요구 버전 비교 도구는 있으며, 정식 migration·전역 스키마 버전 변경·공유 DB 적용·두 PC 통합은 별도입니다.
 
-W1 공통 쓰기 지원은 [WRITE_SUPPORT](docs/WRITE_SUPPORT.md)를 따릅니다. 명시적 개발 활성화에서 직원 쓰기 세션 재검사·사용자 후보/업무 문맥·서명 요청 키와 성공 결과 보관·C# 명시적 키 전송을 제공합니다. 2번의 [신규 등록 API·WinForms 연결](docs/TASK_CREATION.md)은 이 공통 지원을 재사용합니다. 수락·재작업·수정·연장은 상태/마감 계약 확인 후 연결합니다. 공통 schema version1·기본 비활성화를 유지하며 공유 DB 적용과 구분합니다.
+W1 공통 쓰기 지원은 [WRITE_SUPPORT](docs/WRITE_SUPPORT.md)를 따릅니다. 명시적 개발 활성화에서 직원 쓰기 세션 재검사·사용자 후보/업무 문맥·서명 요청 키와 성공 결과 보관·C# 명시적 키 전송을 제공합니다. 2번의 [신규 등록 API·WinForms 연결](docs/TASK_CREATION.md)은 이 공통 지원을 재사용합니다. 수락·재작업·수정·연장의 실제 저장은 상태/마감 계약 확인 후 연결합니다. 공통 schema version1·기본 비활성화를 유지하며 공유 DB 적용과 구분합니다.
 
 2번은 W1에 [후보·쓰기 준비 연결](docs/TASK_WRITE_PREPARATION.md)을 추가했습니다. 현재 업무의 ID·버전·배정 정보와 담당자/업무 관리자 검색·페이지·선택을 실제 HTTP로 조회합니다. 선택과 입력 확인만으로 저장하지 않으며, 신규 업무는 확인 후 별도 등록 버튼을 눌러 서버에 전송합니다.
+
+[수락·재작업 대상 확인](docs/TASK_START_PREPARATION.md)은 기존 `write-context` GET으로 현재 본인 배정·상태·버전을 읽습니다. 진행전은 업무 수락, 반려완료는 재작업 시작 대상을 확인하며 관리자 본인도 같은 기준을 사용합니다. 상세와 현재 조회의 상태가 다르면 확인을 막고 목록·상세를 다시 조회하도록 안내합니다. `대상 확인`은 별도 불변 `CheckedTarget`만 보관하며 업무 POST·키 발급·결과 조회나 상태 변경은 하지 않습니다. 날짜·시간대·행동별 버전/action·오류 계약은 합의 필요입니다.
 
 신규 업무의 관리자 기준은 **최소 1명·등록자 자동 포함·최초 등록 시 등록자 제외 불가**입니다(2026-10-19 사용자 확정). 선택 준비 화면에 등록자를 필수 관리자로 표시하고 해제를 막습니다. 추가 관리자는 기존 후보에서 선택하며 제출 검토자는 별도입니다. 명시적 등록 시 서버가 현재 후보·등록자를 다시 검사하고 DB에 저장합니다. 응답이 불확실하면 같은 공통 클라이언트·로그인 세션의 요청을 메모리에 보관해 등록 창과 업무 메뉴를 다시 열어도 이어갑니다. 사용자가 `처리 결과 확인`으로 `not_recorded`를 확인했을 때만 같은 키·본문으로 재전송할 수 있습니다. POST의 키 만료 응답도 보관된 결과를 먼저 확인하며, 앱 종료·로그인 변경 후의 복구 저장소는 제공하지 않습니다. 자동 재등록은 하지 않습니다. 기존 업무의 관리자 변경은 별도 합의 대상입니다. 반려 후 흐름은 **반려완료 → 재작업 시작 → 진행중 → 재제출 성공 → 제출완료**로 확정했습니다. 재작업 시작에서는 제출 회차를 올리지 않습니다. [3번 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/2026-10-19_3번_재작업상태_확정_및_연결회신.md)의 담당 경계를 따르며 실제 재작업/제출 API와 마감·검토자 정책은 별도 구현·합의가 필요합니다.
 
@@ -105,6 +107,7 @@ dotnet run --project .\Tests\Notices.Tests\Notices.Tests.csproj -c Release
 dotnet run --project .\Tests\TaskQueries.Tests\TaskQueries.Tests.csproj -c Release
 dotnet run --project .\Tests\TaskQueries.Http.Tests\TaskQueries.Http.Tests.csproj -c Release
 dotnet run --project .\Tests\TaskCreation.Tests\TaskCreation.Tests.csproj -c Release
+dotnet run --project .\Tests\TaskStartPreparation.Tests\TaskStartPreparation.Tests.csproj -c Release
 ```
 
 서버 테스트는 `RemoteWork.Server`에서 개발 의존성을 설치한 뒤 실행합니다. MySQL 동시성 테스트는 삭제 가능한 별도 `remote_work_test_` DB를 지정해야 합니다.
@@ -118,6 +121,7 @@ python -m pytest -q
 |---|---|
 | [TaskCreation.Tests](Tests/TaskCreation.Tests/README.md) | 등록 HTTP·요청 복구·실제 WinForms 제어 검사, 별도 owned MySQL에서 실제 UI 등록/GET·응답 유실/명시 재전송·저장 행 검증 |
 | [TaskPreparation.Tests](Tests/TaskPreparation.Tests/README.md) | W1 후보·쓰기 문맥·키/결과 연결, 접속 변경·응답 순서·실제 후보 선택 화면. 별도 명시적 새 소유 MySQL 실행기 제공 |
+| [TaskStartPreparation.Tests](Tests/TaskStartPreparation.Tests/) | 수락·재작업 대상의 본인/상태 확인, 실제 WinForms·통제 HTTP와 별도 MySQL/HTTP 읽기 검사. 업무 쓰기·키 발급·결과 조회를 하지 않는 경계 |
 | [ApiClient.Tests](Tests/ApiClient.Tests/README.md) | 접속 세대·취소·이전 응답·본문 형식별 401 등 C# 인증 회귀 |
 | [Collaboration.Tests](Tests/Collaboration.Tests/README.md) | 실제 WinForms 작성·대상 필터·공지·로컬 채팅 회귀 |
 | [Notices.Tests](Tests/Notices.Tests/README.md) | 공지 HTTP 대역·비동기 저장·WinForms, 선택적 격리 HTTP/SQLite 실행기 |

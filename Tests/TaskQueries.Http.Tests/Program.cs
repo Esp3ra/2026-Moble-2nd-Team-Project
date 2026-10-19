@@ -439,14 +439,19 @@ internal static class Program
     {
         if (!management)
         {
-            WithLiveDialog<TaskAcceptanceForm>(() => Field<Button>(page, "btnAcceptTask").PerformClick(), form =>
+            if (expected.Status is TaskDisplayStatus.NotStarted or TaskDisplayStatus.Returned)
             {
-                Check(Field<TextBox>(form, "txtTaskId").Text == expected.TaskId,
-                    "real HTTP selected task reaches the acceptance target");
-                Check(Field<TextBox>(form, "txtTaskId").ReadOnly
-                    && Field<TextBox>(form, "txtTaskStatus").ReadOnly,
-                    "acceptance preparation is read-only");
-            });
+                WithLiveDialog<TaskAcceptanceForm>(() => Field<Button>(page, "btnAcceptTask").PerformClick(), form =>
+                {
+                    Check(Field<TextBox>(form, "txtTaskId").Text == expected.TaskId,
+                        "real HTTP selected task reaches the matching acceptance/rework target");
+                    Check(Field<TextBox>(form, "txtTaskId").ReadOnly
+                        && Field<TextBox>(form, "txtTaskStatus").ReadOnly,
+                        "acceptance/rework preparation is read-only");
+                });
+            }
+            else Check(!Field<Button>(page, "btnAcceptTask").Enabled,
+                "other task states do not expose acceptance/rework target actions");
             WithLiveDialog<DeadlineExtensionForm>(() => Field<Button>(page, "btnDeadlineExtensionPreview").PerformClick(), form =>
             {
                 Check(Field<TextBox>(form, "txtTaskSummary").Text.Contains(expected.TaskId)
