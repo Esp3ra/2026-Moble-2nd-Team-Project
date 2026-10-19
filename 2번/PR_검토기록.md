@@ -1,3 +1,14 @@
+<a id="pr43-doc-review"></a>
+## 최신 — 1번 PR43 문서 검토·병합과4번 회신 대조, 2026-10-19
+
+[PR43](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/43) head `70c02577860c48b9196b86590270875ffdb7ac3b`,base LOG `f9203446a6111c2e7f1f3207e33d16d2e0f7f395`를 직접/독립 정적 검토했습니다. Markdown5개·208추가/삭제0,기존 원문/헤딩 보존,14답변·새 상대 링크15개/고정 코드 경로13개·명시 앵커·diff 검사를 확인했습니다. 차단 수정 없음으로 기존 자동병합 지시에 따라 LOG `ad75eed13b37e6cc9f985041646e26e32848cfc1`에 병합했고,사전/실제 tree는 모두 `51194b516be94fb006ffc8602c51756371d9e6f9`로 일치했습니다. 제품/DDL 변경이나 등록된 CI는 없습니다.
+
+최신 alpha `41bbe82`의 auth/api·write_contract·업무 모델/시작 응답·chat paging·ActivityMonitorContext/IActivityMonitor/공유 view·UI Subscription과 대조했습니다. 역할/활성 변경의 접속 폐기와 부서 변경 차이,배정INTEGER/BIGINT문자열 구분·로그인/공통 쓰기 잠금 순서·제공된 감지 서비스와 실제 MainForm 미연결·보고된 사용자 요구/상세 협의 구분이 정확했습니다. PR40/41의 과거107/31·294/30·빌드 수치를 이번 실행으로 사용하지 않습니다.
+
+[4번24개 회신의 취합](공통규약.md#member4-reply-technical-review): C08/X02 assignment_revision 문자열 표기를 기존 JSON정수로 정정하고,배정차수만으로 관리자변경/취소를 검출하지 못함·현재 없는 due_revision/새 알림 계약·로그인 counter의 전체 잠금 검토를 명시했습니다. 실제4번 원문은 보존하고 상단에 명확화 안내를 연결합니다. 알림 시각/주기·협업 열람/상태·파일/보존·공유 운영은 계속 협의사항이며1번이나 팀장의 일괄 정책 승인으로 표시하지 않습니다.
+
+이번 실제 검증은 문서/정적 소스·키/링크/경로·게시범위·tree 비교입니다. 프로그램/빌드/MySQL·실제 본인확인·근태/MainForm·파일·공유서버/두PC/장시간 부하는 재실행하지 않았습니다. 새 회신 MD/PR을 만들거나3번 기능·다른 담당 제품을 변경하지 않습니다. LOG/2번8개 구조를 유지합니다.
+
 <a id="pr40-pr41-pr42-review"></a>
 ## 최신 검토 — PR40·41 코드 / PR42 회신 병합, 2026-10-19
 
