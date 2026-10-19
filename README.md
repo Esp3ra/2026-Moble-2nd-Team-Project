@@ -154,7 +154,7 @@ dotnet build .\Tests\TaskQueries.Http.Tests\TaskQueries.Http.Tests.csproj -c Rel
 
 ## 2026-10-19 PR 검토 상태
 
-코드 #25(DB 검증)·#21(채팅 저장/자동 갱신), 문서 #26·#27·#28·#29를 병합했습니다. #29의 C08은4번 수용 확인이며 C09 공지 확장 정책은 제안 수신 단계입니다. 문서 #30·#31은 LOG·PR에 수신·병합했습니다. 코드 #23(head8191b43)의 R23-01 지연 방어와 R23-02 종료 동작은 확인했지만, 원본 C# 회귀의 만료 안내 닫기 실패로 R23-03 검사 안정성 수정 요청·미병합입니다. 안내 닫기를 조정한 검토용 복사본260/11 통과를 제출 원본의 통과로 표시하지 않습니다. 활동 확인 창의 작성자 보고를 현재 alpha의 기능으로 표시하지 않습니다. [검토 결과·실제 테스트와 미실행](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md) 및 [5번 수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/5번/2026-10-19_PR23_과거프레임_지연검사_수정요청.md)을 확인합니다. 등록된 CI 결과는 없으며 독립 로컬 검증을 기록했습니다.
+코드 #21(채팅)·#25(DB 검증)에 이어 [#23(활동 상태 확인)](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/23)도 재검토 후 alpha `5d9602d`로 병합했습니다. 새 head7af259d에서 R23-01~03 해결을 확인했고, 수정된 원본 C#264검증/11시나리오·Python30개·독립 지연 검사·Release 경고/오류0을 직접 확인했습니다. 검증본과 실제 병합 tree도 일치합니다. 관련 문서 #32·#33은 LOG·PR에 수신·병합했습니다. [검토 결과·실제 테스트·미실행](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md)과 [5번 해결 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/5번/2026-10-19_PR23_과거프레임_지연검사_수정요청.md)을 따릅니다. 활동 확인은 사용자가 직접 여는 모달 기능이며, 실제 장비·회원/근태 저장·출근~퇴근 백그라운드 감지와 공유 DB·다른PC는 별도 검증/구현입니다. 등록된 CI 결과 대신 독립 로컬 검증을 기록했습니다. #29의 C09 공지 확장 정책도 계속 제안 수신 단계입니다.
 
 ## 브랜치와 게시 기준
 
