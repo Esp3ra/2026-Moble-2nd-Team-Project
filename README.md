@@ -1,5 +1,7 @@
 # 원격 근무용 업무 처리 확인 시스템
 
+팀원 병행 개발용 [공통 점검·지문 메시지 초안/가상 fixture·화면 요청 취소 도구](docs/TEAM_INTEGRATION_SUPPORT.md)를 제공합니다. 실행 중 서버/DB를 변경하거나 실제 장치·출퇴근·MainForm을 연결하는 기능은 아닙니다.
+
 원격 근무 중 업무 배정·상태·마감·결과 검토와 공지·채팅·근태를 관리하는 팀 프로젝트입니다. `alpha`는 화면 초안과 담당별 구현을 통합하는 개발 브랜치입니다. C# WinForms 클라이언트와 Python 공통 서버를 포함합니다.
 
 현재 공통 로그인·사용자 관리·HTTP·DB 기반과 공지·채팅의 별도 개발 활성화에 따른 DB 저장과 채팅 화면 자동 갱신이 구현돼 있습니다. 업무 목록·상세는 공통 인증을 사용하는 GET API·HTTP 서비스와 기존 화면을 연결한 2번 개발 초안입니다. 업무 API는 명시적으로 활성화한 개발 서버에서 사용하며, 기본 실행에는 미확정 업무 스키마를 적용하지 않습니다. 설계·합의 사항은 [DOCX](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/DOCX/DOCX), 구현·검토 이력은 [LOG](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG), 담당별 수정 요청과 재검토 결과는 [PR](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/PR)에서 관리합니다.
