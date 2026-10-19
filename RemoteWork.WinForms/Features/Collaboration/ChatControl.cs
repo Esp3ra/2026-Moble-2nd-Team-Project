@@ -20,11 +20,15 @@ namespace RemoteWork.WinForms.Features.Collaboration
         // Visual Studio 디자이너에서도 사용할 수 있는 기본 생성자입니다.
         public ChatControl() : this(new InMemoryChatService(new ChatParticipant("EMP-001", "김직원", "개발팀"))) { }
 
-        internal ChatControl(IChatService chatService)
+        internal ChatControl(IChatService chatService) : this(chatService, chatService is HttpChatService) { }
+
+        // Explicit override is used only by isolated UI tests; preview stays local.
+        internal ChatControl(IChatService chatService, bool autoReceive)
         {
             this.chatService = chatService;
             InitializeComponent();
             if (PreviewActions.IsDesignMode(this)) return;
+            ConfigureAutoReceive(autoReceive);
             InitializeDeleteMenu();
             txtContent.Clear();
             txtContent2.Clear();
@@ -33,7 +37,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             ShowStatus("대화방을 불러오는 중입니다.");
             UpdateInputState();
             Load += ChatControl_Load;
-            Disposed += (_, _) => { lifetime.Cancel(); lifetime.Dispose(); };
+
         }
 
         private async void ChatControl_Load(object? sender, EventArgs e)
@@ -58,7 +62,12 @@ namespace RemoteWork.WinForms.Features.Collaboration
             finally
             {
                 loadingRooms = false;
-                if (!IsDisposed && !Disposing) UpdateInputState();
+                if (!IsDisposed && !Disposing)
+                {
+                    UpdateInputState();
+                    autoReceiveLoaded = true;
+                    UpdateAutoReceiveState();
+                }
             }
         }
 
@@ -101,6 +110,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
 
         private async Task ShowSelectedRoomAsync()
         {
+            CancelReceiveRequest();
             if (selectedRoom is not null) drafts[selectedRoom.Id] = txtContent3.Text;
             selectedRoom = gridRooms.CurrentRow?.Tag as ChatRoom;
             int version = ++selectionVersion;
@@ -186,8 +196,8 @@ namespace RemoteWork.WinForms.Features.Collaboration
                 .ElementAtOrDefault(Math.Min(rowIndex, Math.Max(0, remainingVisibleRooms.Length - 1)))?.Id;
 
             deletingRoom = true;
-            // 이미 진행 중인 대화 조회가 삭제 후 화면에 다시 나타나지 않게 합니다.
-            ++selectionVersion;
+            // Already in-flight manual or automatic responses must not restore this room.
+            InvalidateReceive();
             loadingMessages = false;
             UpdateInputState();
             ShowStatus($"'{room.Name}' 대화방을 삭제하는 중입니다.");
@@ -234,6 +244,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
         {
             if (creatingRoom || loadingRooms || sending || deletingRoom) return;
             creatingRoom = true;
+            InvalidateReceive();
             UpdateInputState();
             bool created = false;
             try
@@ -294,6 +305,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             string content = txtContent3.Text;
             bool saved = false;
             sending = true;
+            InvalidateReceive();
             UpdateInputState();
             try
             {

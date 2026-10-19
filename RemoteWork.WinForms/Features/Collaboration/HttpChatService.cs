@@ -14,6 +14,7 @@ internal sealed class HttpChatService : IChatService
     private (string Key, string Id)? pendingRoom;
     private readonly Dictionary<string, (string Content, string Id)> pendingMessages = new();
     public ChatParticipant CurrentUser { get; }
+    internal bool IsSessionCurrent => session.IsCurrent;
 
     private sealed record ParticipantData(int Id, string Name, string Department);
     private sealed record RoomData(string Id, string Name, bool? IsGroup, ParticipantData[] Participants);

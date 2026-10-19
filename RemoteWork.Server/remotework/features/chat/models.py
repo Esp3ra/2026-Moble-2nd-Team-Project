@@ -1,4 +1,4 @@
-"""Local development schema proposal. Formal migration numbering is pending."""
+"""Development schema aligned with member 1 reviewed migration 005; no shared deployment approval."""
 from datetime import datetime
 from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
@@ -7,6 +7,7 @@ from ...models import Base, utcnow
 
 class ChatRoom(Base):
     __tablename__ = "chat_rooms"
+    __table_args__ = {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_unicode_ci"}
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     title: Mapped[str] = mapped_column(String(60))
     is_group: Mapped[bool] = mapped_column(Boolean)
@@ -21,7 +22,7 @@ class ChatMember(Base):
     display_name: Mapped[str] = mapped_column(String(80))
     department: Mapped[str] = mapped_column(String(80))
     hidden_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    __table_args__ = (Index("ix_chat_members_user_hidden", "user_id", "hidden_at", "room_id"),)
+    __table_args__ = (Index("ix_chat_members_user_hidden", "user_id", "hidden_at", "room_id"), {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_unicode_ci"})
 
 
 class ChatMessage(Base):
@@ -34,4 +35,4 @@ class ChatMessage(Base):
     sender_name: Mapped[str] = mapped_column(String(80))
     content: Mapped[str] = mapped_column(Text)
     sent_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
-    __table_args__ = (Index("ix_chat_messages_room_seq", "room_id", "seq"),)
+    __table_args__ = (Index("ix_chat_messages_room_seq", "room_id", "seq"), {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_unicode_ci"})
