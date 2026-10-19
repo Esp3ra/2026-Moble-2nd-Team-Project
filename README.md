@@ -32,6 +32,8 @@ W1 공통 쓰기 지원은 [WRITE_SUPPORT](docs/WRITE_SUPPORT.md)를 따릅니�
 
 [장치 설치·실행·API·검증 범위](Devices/RaspberryPi/README.md)에 지문 센서·SH1106 OLED·메가 조도 송신과 systemd 자동 실행 예제를 정리했습니다. [Windows 점검 도구](Tools/DeviceCheck/README.md)는 공통 WinForms와 별도로 실행하며 조도 조회와 수동 지문 요청을 제공합니다. 실제 표시 이름 설정·센서 이벤트 CSV·장치 원본 데이터는 게시하지 않습니다.
 
+[Windows USB 웹캠 손 검출](Tools/HandPresence/README.md)은 [C# 활동 상태 확인 창](RemoteWork.WinForms/Features/Attendance/README.md)에서도 실행할 수 있습니다. 손·화면 움직임·라파 조도 변화가 모두 없는 정상 관찰이30초 이어지면 자리 비움을 표시하며, 하나라도 감지되면 다시30초부터 확인합니다. 연결 문제는 확인 필요로 구분합니다. 같은 PC의 Python이 선택 영역 미리보기·신호를 C#에 전달하며 Pi는 읽기 전용 조회만 합니다. 영상 저장·외부 전송·얼굴 식별·자동 근태 기록은 없으며 몸통 검출과 근태/회원 연결은 남아 있습니다.
+
 가림 감지와 최근 변화 이력을 구분하며 손가락 그림자로 움직임을 모의실험합니다. 재석/이석·출퇴근을 자동 판정하지 않습니다. 센서 슬롯과 로그인 회원의 연결·장치 신뢰·인증 시점·공통 API/DB는 1번·5번 및 팀장과 합의 후 통합합니다. 이 장치 API의 시각/응답 형식은 독립 시연용이고 기존 공통 인증·UTC·업무 계약을 대체하지 않습니다.
 
 ## 기술과 실행 환경
@@ -150,7 +152,7 @@ dotnet build .\Tests\TaskQueries.Http.Tests\TaskQueries.Http.Tests.csproj -c Rel
 
 ## 2026-10-19 PR 검토 상태
 
-코드 #25(DB 검증)·#21(채팅 저장/자동 갱신), 문서 #26·#27·#28·#29를 병합했습니다. #29의 C08은4번 수용 확인이며 C09 공지 확장 정책은 제안 수신 단계입니다. 문서 #30·#31은 LOG·PR에 수신·병합했습니다. 코드 #23(head8191b43)의 R23-01 지연 방어와 R23-02 종료 동작은 확인했지만, 원본 C# 회귀의 만료 안내 닫기 실패로 R23-03 검사 안정성 수정 요청·미병합입니다. 안내 닫기를 조정한 검토용 복사본260/11 통과를 제출 원본의 통과로 표시하지 않습니다. 활동 확인 창의 작성자 보고를 현재 alpha의 기능으로 표시하지 않습니다. [검토 결과·실제 테스트와 미실행](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md) 및 [5번 수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/5번/2026-10-19_PR23_과거프레임_지연검사_수정요청.md)을 확인합니다. 등록된 CI 결과는 없으며 독립 로컬 검증을 기록했습니다.
+코드 #21(채팅)·#25(DB 검증)에 이어 [#23(활동 상태 확인)](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/23)도 재검토 후 alpha `5d9602d`로 병합했습니다. 새 head7af259d에서 R23-01~03 해결을 확인했고, 수정된 원본 C#264검증/11시나리오·Python30개·독립 지연 검사·Release 경고/오류0을 직접 확인했습니다. 검증본과 실제 병합 tree도 일치합니다. 관련 문서 #32·#33은 LOG·PR에 수신·병합했습니다. [검토 결과·실제 테스트·미실행](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md)과 [5번 해결 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/5번/2026-10-19_PR23_과거프레임_지연검사_수정요청.md)을 따릅니다. 활동 확인은 사용자가 직접 여는 모달 기능이며, 실제 장비·회원/근태 저장·출근~퇴근 백그라운드 감지와 공유 DB·다른PC는 별도 검증/구현입니다. 등록된 CI 결과 대신 독립 로컬 검증을 기록했습니다. #29의 C09 공지 확장 정책도 계속 제안 수신 단계입니다.
 
 ## 브랜치와 게시 기준
 
