@@ -1,4 +1,6 @@
-"""Member 2 GET-only development contract; no submission/status mutation API."""
+"""Member 2 task reads, with separately enabled development-only creation."""
+import os
+
 from flask import Blueprint, g, request
 
 from ...auth import login_required
@@ -8,6 +10,17 @@ from .queries import get_task, list_tasks
 
 
 bp = Blueprint("task_queries", __name__, url_prefix="/api/v1/tasks")
+
+
+@bp.record_once
+def register_creation(state):
+    # Keep creation out of ordinary query/preparation deployments. This callback
+    # runs only when the existing task-query blueprint is explicitly enabled.
+    enabled = state.app.config.get(
+        "ENABLE_TASK_CREATE_DRAFT", os.getenv("REMOTEWORK_ENABLE_TASK_CREATE_DRAFT") == "1")
+    if enabled is True:
+        from .creation import create_task
+        state.add_url_rule("", "create", create_task, methods=["POST"])
 
 
 def _query_args(allowed):

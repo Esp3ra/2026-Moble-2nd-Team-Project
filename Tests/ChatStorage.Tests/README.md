@@ -1,5 +1,11 @@
 # PR21 채팅 세션·문자 수 회귀
 
+## R21-04 배치 환경 격리
+
+Windows에서 `python Tests/ChatStorage.Tests/check_init_chat_scope.py`를 실행한다. 제품 Init-Chat.cmd를 소유 임시 한글/공백 경로에 복사하고 Flask 명령만 무작업 배치로 교체해 실제 cmd.exe의 call/setlocal/exit 흐름을 검사한다. DB/서버/실제 가상환경은 실행하지 않는다. 호출자의 미설정/0/1과 CLI성공/실패/가상환경누락9조합에서 원래 값과 종료코드를 확인한다. `--batch`로 수정 전 파일을 명시하면 누출 재현에 사용할 수 있고 `--report`는 지정한 로컬 JSON에 결과를 기록한다.
+
+2026-10-19 R21-04 후속 검증: 수정 전5통과/4실패로 누출 재현, 수정 후9통과. 최신 alpha3558b05 결합 Release 경고0/오류0, C#대역40·실제WinForms대역47·cold등록경계9통과. 이번에는 실제MySQL/HTTP저장검사를재실행하지않았으며 아래저장검증과이전52cc086결과를구분한다.
+
 실제 제품 ApiClient/HttpChatService/HttpChatParticipantDirectory/ChatText 소스를 링크하는 .NET 8 실행기다. 대체 구현을 복사해 테스트하지 않는다.
 
 ```powershell

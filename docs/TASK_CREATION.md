@@ -1,0 +1,84 @@
+# 2번 개발용 신규 업무 등록
+
+2026-10-19. 기존 공통 W1과 업무 3테이블을 사용하는 개발용 API입니다. 사용자 확정인 등록자 필수 관리자 기준을 적용합니다. 최초 배정/버전 1/1과 POST 입력·결과는 **2번 개발 계약**이며, 1번의 공동 기술 검토·정식 migration·공유 서버 적용 완료를 뜻하지 않습니다.
+
+[팀장 공통규약·담당별 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md) · [공통 쓰기 지원](WRITE_SUPPORT.md) · [입력/후보 준비](TASK_WRITE_PREPARATION.md)
+
+## 활성화와 저장 경계
+
+기본 서버에는 등록 POST 경로가 없습니다. **삭제 가능한 별도 개발 MySQL DB**의 공통 테이블·검토용 002/004 구조를 준비하고 별도 프로세스에 다음 세 옵션을 명시합니다. 기존 사용자 `.env`나 공유 서버에 일괄 적용하지 않습니다.
+
+```text
+REMOTEWORK_ENABLE_TASK_QUERY_DRAFT=1
+REMOTEWORK_ENABLE_COMMON_WRITE_DRAFT=1
+REMOTEWORK_ENABLE_TASK_CREATE_DRAFT=1
+```
+
+테스트 config의 `ENABLE_TASK_CREATE_DRAFT=True`도 지원합니다. query 활성화가 없으면 업무 Blueprint가 등록되지 않습니다. create만 켰다고 공통 receipt 모델을 자동 등록하지 않습니다. HTTP 요청 중 테이블 생성·열 변경·전역 스키마 버전 변경을 하지 않습니다.
+
+현재 WinForms 등록 창은 입력 확인·후보 선택 단계입니다. 이 API를 호출하는 저장 버튼·응답 유실 안내는 다음 단계입니다. 수락·재작업·연장·결과 제출·검토 API와 3번 기능은 이번 범위에 없습니다.
+
+## 요청과 성공 결과
+
+1. 활성 admin이 기존 `POST /api/v1/write-requests/keys`에 `{"action":"task.created","target":"new"}`를 보내 요청 키를 받습니다.
+2. `POST /api/v1/tasks`에 Bearer 토큰과 `Idempotency-Key` 헤더, 아래 여섯 필드만 보냅니다. 예시 사용자 ID는 실제 후보 조회 결과로 교체합니다.
+
+```json
+{
+  "title": "개발용 업무",
+  "description": "",
+  "start_date": "2026-10-19",
+  "due_date": "2026-10-23",
+  "assignee_id": 2,
+  "manager_user_ids": []
+}
+```
+
+- 제목은 Unicode 코드 포인트 200개까지이며 공백만인 제목은 거절합니다. 설명은 문자열이며 빈 값도 허용합니다. 원문의 앞뒤 공백을 임의로 자르지 않습니다. 공통 요청 크기 32KiB가 적용됩니다.
+- 날짜는 유효한 `YYYY-MM-DD`·1000~9999년·시작일≤마감일입니다. 현재 날짜와 비교한 별도 수락·마감 정책은 넣지 않았습니다.
+- 담당자는 현재 활성 employee/admin 1명, 관리자는 현재 활성 admin이어야 합니다. ID는 양의 JSON 정수이며 관리자 중복은 거절합니다.
+- 인증된 등록자는 서버에서 관리자에 자동 포함합니다. 요청 관리자 목록이 비어도 등록자 1명은 저장됩니다. 요청의 상태·수행자·버전·시각 위조 필드는 거절합니다.
+
+성공은 공통 envelope의 HTTP 201입니다. `data`의 필수 필드는 다음과 같습니다.
+
+```json
+{
+  "task_id": "123",
+  "row_version": "1",
+  "assignment_revision": 1,
+  "task_status": "not_started",
+  "updated_at": "2026-10-19T02:00:00Z"
+}
+```
+
+업무 ID와 row_version은 양의 정규 BIGINT 문자열입니다. 최초 업무는 진행전, 배정 차수·row_version은 명시적 1/1, 수락 시각은 NULL입니다. 전역 schema version 1과 업무 row_version은 별개입니다.
+
+## 권한·원자성·재요청
+
+기존 `authenticated_transaction(roles=("admin",))`과 현재 `task.created/new` authorizer를 재사용합니다. 같은 요청 Session에서 사용자 정렬 잠금·후보의 활성/역할 검사·업무·최초 배정·관리자·`task.created` 감사·공통 receipt를 함께 저장합니다. 개별 commit이나 외부 파일/네트워크 동작을 끼우지 않습니다.
+
+최초 후보 검사는 mutate 안에서 합니다. 성공 뒤 후보가 비활성화돼도 같은 원문 본문·키는 기존 성공을 재응답하며, 현재 요청 수행자의 권한은 재검사합니다. 같은 키로 다른 본문을 보내면 409 `IDEMPOTENCY_KEY_REUSED`입니다. 관리자 ID의 요청 순서까지 포함한 원문 JSON 값이 비교되므로 실패·응답 유실 뒤 본문을 임의로 바꾸지 않습니다.
+
+응답 유실은 같은 action/target/key로 기존 결과 조회를 사용하고 업무를 재조회합니다. 새 키로 자동 생성 요청을 반복하지 않습니다. 만료·공통 결과 보관·현재 권한 재검사는 W1 계약을 따릅니다.
+
+| 상황 | 응답 |
+|---|---|
+| 로그인 필요·만료 | 401 |
+| 현재 직원의 생성 | 403 |
+| 입력·날짜·중복 관리자·위조 필드 | 400 `INVALID_INPUT` |
+| 현재 담당자 후보 불가 | 409 `ASSIGNEE_UNAVAILABLE` |
+| 현재 관리자 후보 불가 | 409 `TASK_MANAGER_UNAVAILABLE` |
+| 요청 크기 초과 | 공통 413 |
+| 공통 쓰기 비활성화 | 503 `WRITE_SUPPORT_DISABLED` |
+| 생성 권한 함수 미연결 | 503 `WRITE_ACTION_NOT_READY` |
+| 업무/receipt 구조 누락·DB 실패 | 기존 공통 DB/스키마 503 |
+
+## 검증
+
+`RemoteWork.Server/tests/test_task_creation.py`는 별도 `remote_work_test_` MySQL DB를 요구합니다. MySQL URL 없이 실행하면 명시적으로 건너뛰며 SQLite로 대신 검증하지 않습니다. 기존 fixture는 지정 테스트 DB를 정리하므로 공유·운영 DB를 지정하지 않습니다.
+
+```text
+python -m pytest -q tests/test_task_creation.py
+```
+
+실제 실행 환경·건수·회귀와 미실행 범위는 [LOG 구현·검증](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md)에 기록합니다. 공통 감사가 저장됐다는 사실을 3번의 화면용 업무 이력 기능 완료로 표시하지 않습니다.

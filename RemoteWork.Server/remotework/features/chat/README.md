@@ -69,3 +69,7 @@ chat_storage.mysql.sql은 **번호 미지정 개발 검토안**이다. 공동 mi
 최초 테스트에서 비활성 후보의 기존409 응답을400으로 잘못 기대한 검증 코드를 정정하고 MySQL28개를 재실행했다. SQLite의 동시성409를 MySQL 행 잠금 성공으로 취급하지 않고 해당 검사를 MySQL 전용으로 한정했다. 제품 오류를 숨기기 위해 응답 계약을 바꾸지 않았다.
 
 미합의/미실행: 1번 API·DDL/독립flag 공동 수용·정식번호·공유DB 적용·백업/복구, 물리적두PC·운영서버·수동전체GUI·장시간 부하. 새 접속 세대까지 UUID 재시도 정보를 영구 복원하는 기능은 없으며 기존 설명대로 세션 내 구현이다. 원본 병합/검토자 확인 완료로 표시하지 않는다.
+
+## R21-04 배치 환경 지역화
+
+Init-Chat.cmd 시작의 setlocal과 성공 종료 endlocal을 사용한다. 실패 exit /b도 배치 지역 환경을 해제한다. 호출자의 REMOTEWORK_ENABLE_CHAT_DRAFT 미설정/0/1은 CLI 성공/실패와 가상환경 누락 시에도 보존한다. 초기화 후 서버 채팅 활성화는 별도로 명시해야 한다. DB 실행 없이 Flask 명령만 대역으로 바꾼 실제 cmd.exe 회귀는 Tests/ChatStorage.Tests/check_init_chat_scope.py를 따른다. 이것은 실제 DB 초기화 실행 검증이 아니다.

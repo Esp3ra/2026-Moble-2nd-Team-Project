@@ -1,4 +1,5 @@
 @echo off
+setlocal EnableExtensions
 chcp 65001 >nul
 cd /d "%~dp0RemoteWork.Server"
 if not exist ".venv\Scripts\python.exe" (
@@ -15,3 +16,5 @@ if errorlevel 1 (
 )
 echo 채팅 테이블 준비가 끝났습니다. 서버와 클라이언트를 다시 실행해 주세요.
 pause
+endlocal
+exit /b 0
