@@ -10,24 +10,81 @@ namespace RemoteWork.WinForms.Features.Tasks.Queries;
 /// Member 2's read-only development contract. The shared client owns authentication,
 /// transport and session cancellation; this adapter never substitutes sample data.
 /// </summary>
-public sealed class HttpTaskQueryService(ApiClient api) : ITaskQueryService, ITaskPreparationSource, ITaskCreationSource, ITaskStartSource
+public sealed class HttpTaskQueryService : ITaskQueryService, ITaskPreparationSource, ITaskCreationSource, ITaskStartSource
 {
-    private readonly ApiClient api = api ?? throw new ArgumentNullException(nameof(api));
+    private readonly ApiClient api;
+    private readonly ApiClient.Session? session;
+
+    public HttpTaskQueryService(ApiClient api) : this(api, null) { }
+
+    private HttpTaskQueryService(ApiClient api, ApiClient.Session? session)
+    {
+        this.api = api ?? throw new ArgumentNullException(nameof(api));
+        this.session = session;
+    }
 
     public string SourceDescription => $"업무 조회 서버 · {api.ServerUri}";
 
+    // A page captures all its optional task services together. The public adapter
+    // remains reusable after login, while this view's adapter cannot move to it.
+    internal TaskQuerySession? CaptureViewSession()
+    {
+        session?.ThrowIfChanged();
+        ApiClient.Session captured;
+        try { captured = session ?? api.CaptureSession(); }
+        catch (InvalidOperationException) { return null; }
+        var query = new HttpTaskQueryService(api, captured);
+        var preparation = new HttpTaskPreparationService(captured);
+        TaskCreationWorkflow? creation = query.GetCreationWorkflow();
+        captured.ThrowIfChanged();
+        return new(captured, query, preparation, creation);
+    }
+
     public ITaskPreparationService? CreatePreparationService()
     {
+        if (session is not null)
+        {
+            session.ThrowIfChanged();
+            var preparation = new HttpTaskPreparationService(session);
+            session.ThrowIfChanged();
+            return preparation;
+        }
         if (api.CurrentUser is null) return null;
         try { return new HttpTaskPreparationService(api.CaptureSession()); }
         catch (InvalidOperationException) { return null; } // A concurrent logout won the capture.
     }
 
-    public TaskCreationWorkflow? GetCreationWorkflow() => TaskCreationSessionStore.Get(api);
+    public TaskCreationWorkflow? GetCreationWorkflow() =>
+        InCurrentSession(() => TaskCreationSessionStore.Get(api));
 
-    public TaskStartWorkflow? GetStartWorkflow(TaskStartKind kind, string taskId) => TaskStartSessionStore.Get(api, kind, taskId);
+    public TaskStartWorkflow? GetStartWorkflow(TaskStartKind kind, string taskId) =>
+        InCurrentSession(() => TaskStartSessionStore.Get(api, kind, taskId));
 
-    public TaskStartWorkflow? GetPendingStartWorkflow() => TaskStartSessionStore.FindPending(api);
+    public TaskStartWorkflow? GetPendingStartWorkflow() =>
+        InCurrentSession(() => TaskStartSessionStore.FindPending(api));
+
+    private T InCurrentSession<T>(Func<T> get)
+    {
+        session?.ThrowIfChanged();
+        T value = get();
+        session?.ThrowIfChanged();
+        return value;
+    }
+
+    private ApiClient.Session? CaptureRequestSession()
+    {
+        if (session is not null)
+        {
+            session.ThrowIfChanged();
+            return session;
+        }
+        // Direct anonymous callers remain useful for explicit HTTP doubles. A
+        // logged-in request must keep the identity it started with throughout DTO mapping.
+        if (api.CurrentUser is null) return null;
+        try { return api.CaptureSession(); }
+        catch (InvalidOperationException)
+        { throw new OperationCanceledException("이전 접속의 업무 조회를 취소했습니다."); }
+    }
 
     public async Task<IReadOnlyList<TaskSummary>> GetTasksAsync(
         TaskListQuery query, CancellationToken cancellationToken = default)
@@ -45,7 +102,10 @@ public sealed class HttpTaskQueryService(ApiClient api) : ITaskQueryService, ITa
 
         try
         {
-            var result = await api.GetAsync<TaskListResponse>(path, cancellationToken);
+            ApiClient.Session? requestSession = CaptureRequestSession();
+            var result = requestSession is null
+                ? await api.GetAsync<TaskListResponse>(path, cancellationToken)
+                : await requestSession.GetAsync<TaskListResponse>(path, cancellationToken);
             if (result.Items is null) throw InvalidResponse();
             var identifiers = new HashSet<string>(StringComparer.Ordinal);
             var summaries = new List<TaskSummary>(result.Items.Count);
@@ -57,6 +117,7 @@ public sealed class HttpTaskQueryService(ApiClient api) : ITaskQueryService, ITa
                 if (!identifiers.Add(summary.TaskId)) throw InvalidResponse();
                 summaries.Add(summary);
             }
+            requestSession?.ThrowIfChanged();
             return summaries;
         }
         catch (ApiException error) { throw MapFailure(error); }
@@ -69,13 +130,18 @@ public sealed class HttpTaskQueryService(ApiClient api) : ITaskQueryService, ITa
         cancellationToken.ThrowIfCancellationRequested();
         try
         {
-            var result = await api.GetAsync<TaskDetailResponse>(
-                "tasks/" + Uri.EscapeDataString(taskId), cancellationToken);
+            ApiClient.Session? requestSession = CaptureRequestSession();
+            string path = "tasks/" + Uri.EscapeDataString(taskId);
+            var result = requestSession is null
+                ? await api.GetAsync<TaskDetailResponse>(path, cancellationToken)
+                : await requestSession.GetAsync<TaskDetailResponse>(path, cancellationToken);
             TaskSummary summary = MapSummary(result.Task);
             if (!string.Equals(summary.TaskId, taskId, StringComparison.Ordinal)
                 || result.Task!.Description is null)
                 throw InvalidResponse();
-            return new TaskDetail(summary, result.Task.Description);
+            var detail = new TaskDetail(summary, result.Task.Description);
+            requestSession?.ThrowIfChanged();
+            return detail;
         }
         catch (ApiException error) { throw MapFailure(error); }
     }

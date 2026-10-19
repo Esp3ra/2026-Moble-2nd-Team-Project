@@ -5,6 +5,8 @@ using System.Text;
 using System.Text.Json;
 using RemoteWork.WinForms.Features.Tasks;
 using RemoteWork.WinForms.Features.Tasks.Queries;
+using RemoteWork.WinForms.Features.Tasks.Preparation;
+using RemoteWork.WinForms.Features.Tasks.Creation;
 using RemoteWork.WinForms.Infrastructure;
 using RemoteWork.WinForms.Ui;
 
@@ -45,6 +47,12 @@ internal static class Program
                     Run("mandatory fields and malformed responses", MalformedResponses);
                     Run("caller and session cancellation", Cancellation);
                     Run("common session cancellation reaches the task screen", SessionCancellationPresentation);
+                    Run("idle logout clears task data and explicit new-login refresh recaptures services", IdleSessionInvalidation);
+                    Run("completed list transport cannot publish after session invalidation", () => CompletedResponseInvalidation(false));
+                    Run("completed detail transport cannot publish after session invalidation", () => CompletedResponseInvalidation(true));
+                    Run("queued old invalidation and old rows cannot affect a new session", QueuedInvalidationAfterLogin);
+                    Run("logout immediately before row selection safely clears the grid", LogoutBeforeRowSelection);
+                    Run("disposed task screen ignores completed response continuations", DisposedResponseContinuation);
                 }
                 else throw new InvalidOperationException("Use no arguments or --live.");
                 Console.WriteLine($"PASS: {scenarios} scenarios / {assertions} assertions. "
@@ -304,6 +312,209 @@ internal static class Program
         Check(handler.Remaining == 0, "session cancellation screen test consumed only planned requests");
     }
 
+    private static void IdleSessionInvalidation()
+    {
+        WithTaskPage((api, handler, page, host) =>
+        {
+            var grid = Field<DataGridView>(page, "gridTasks");
+            var content = Field<TextBox>(page, "txtContent");
+            var retry = Field<Button>(page, "btnRetryQuery");
+            var previousPreparation = Field<ITaskPreparationService>(page, "preparationService");
+            var previousCreation = Field<TaskCreationWorkflow>(page, "creationWorkflow");
+            handler.Success(new { task = Item(2) });
+            SelectRow(grid, 1);
+            Until(() => content.Text.Contains("Fixture task 2"));
+            int beforeLogout = handler.Count;
+            api.ClearIdentity();
+            DrainUi(host);
+            Check(grid.Rows.Count == 0 && !content.Text.Contains("Fixture description"),
+                "idle logout clears the previous account list and detail without another request");
+            Check(handler.Count == beforeLogout && !previousPreparation.IsCurrent && !previousCreation.IsCurrent,
+                "logout invalidates borrowed preparation and creation without performing HTTP");
+            Check(!Field<Button>(page, "btnPrepareWrite").Enabled
+                && !Field<Button>(page, "btnAcceptTask").Enabled,
+                "previous account actions cannot be enabled by retained detail");
+
+            Login(api, handler, userId: 2, role: "admin");
+            Check(grid.Rows.Count == 0 && handler.Count == beforeLogout + 1,
+                "new login does not implicitly query or restore the previous account data");
+            handler.Success(new { items = new[] { Item(3, assigneeId: 2), Item(2, assigneeId: 2) } });
+            handler.Success(new { task = Item(3, assigneeId: 2) });
+            retry.PerformClick();
+            Until(() => Field<Label>(page, "lblTaskQueryStatus").Text == "상세 조회 완료");
+            Check(grid.Rows.Count == 2 && ((TaskSummary)grid.SelectedRows[0].Tag!).TaskId == "3",
+                "explicit new-login retry selects the fresh first row instead of an old account selection");
+            var preparation = Field<ITaskPreparationService>(page, "preparationService");
+            var creation = Field<TaskCreationWorkflow>(page, "creationWorkflow");
+            Check(preparation.IsCurrent && preparation.UserId == 2 && !ReferenceEquals(preparation, previousPreparation),
+                "explicit refresh captures the current account preparation context");
+            Check(creation.IsCurrent && creation.UserId == 2 && creation.CanCreate
+                && !ReferenceEquals(creation, previousCreation),
+                "explicit refresh captures the current account creation workflow");
+            Check(Field<ComboBox>(page, "cmbTaskScope").Visible,
+                "explicit refresh follows the current administrator role rather than the original employee preview");
+            Check(handler.Last?.Path == "/api/v1/tasks/3" && handler.Last.Bearer == "fixture-token-2"
+                && handler.Remaining == 0,
+                "fresh selection uses only the new session transport");
+        });
+    }
+
+    private static void CompletedResponseInvalidation(bool detail)
+    {
+        WithTaskPage((api, handler, page, host) =>
+        {
+            var grid = Field<DataGridView>(page, "gridTasks");
+            var content = Field<TextBox>(page, "txtContent");
+            var response = new ObservedResponse(detail
+                ? new { task = Item(1) } : new { items = new[] { Item(1), Item(2) } });
+            var pending = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (detail) handler.Success(new { items = new[] { Item(1) } });
+            handler.Enqueue((_, _) => pending.Task); // Intentionally ignores cancellation: late transport fixture.
+            var previousContext = SynchronizationContext.Current;
+            using var callbacks = new QueuedSynchronizationContext();
+            Task refresh;
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(callbacks);
+                refresh = page.RefreshAsync();
+                Check(!refresh.IsCompleted, "screen awaits the deliberately held HTTP response");
+                pending.SetResult(response);
+                callbacks.RunNext(); // ApiClient receives, validates and disposes the response.
+                Check(response.Disposed, "common transport has completed before logout");
+                callbacks.RunNext(); // HttpTaskQueryService maps and completes before the view resumes.
+                Check(!refresh.IsCompleted && callbacks.Pending > 0,
+                    "mapped query completion remains queued before the screen continuation");
+                int completedTransportCount = handler.Count;
+                api.ClearIdentity();
+                DrainUi(host);
+                while (!refresh.IsCompleted) callbacks.RunNext();
+                refresh.GetAwaiter().GetResult();
+                DrainUi(host);
+                Check(grid.Rows.Count == 0 && !content.Text.Contains("Fixture description"),
+                    "completed previous-session response cannot repopulate visible rows or detail");
+                Check(handler.Count == completedTransportCount && handler.Remaining == 0,
+                    "previous-session list cannot issue a follow-up detail request after logout");
+            }
+            finally { SynchronizationContext.SetSynchronizationContext(previousContext); }
+        });
+    }
+
+    private static void QueuedInvalidationAfterLogin()
+    {
+        WithTaskPage((api, handler, page, host) =>
+        {
+            var grid = Field<DataGridView>(page, "gridTasks");
+            var content = Field<TextBox>(page, "txtContent");
+            Task.Run(api.ClearIdentity).GetAwaiter().GetResult(); // Queue A's invalidation without pumping UI.
+            LoginWithoutPumping(api, handler, 2);
+            int beforeOldRow = handler.Count;
+            Check(grid.Rows.Count == 2, "old account row fixture remains pending before queued invalidation dispatch");
+            SelectRow(grid, 1); // Old A row must not become a detail request using B's bearer.
+            Check(handler.Count == beforeOldRow, "an old account row cannot request detail through the new account");
+            handler.Success(new { items = new[] { Item(3, assigneeId: 2), Item(2, assigneeId: 2) } });
+            handler.Success(new { task = Item(3, assigneeId: 2) });
+            Task refresh = page.RefreshAsync();
+            Check(refresh.IsCompleted, "new account fixture completes before queued old invalidation is dispatched");
+            refresh.GetAwaiter().GetResult();
+            DrainUi(host);
+            Check(grid.Rows.Count == 2 && ((TaskSummary)grid.SelectedRows[0].Tag!).TaskId == "3"
+                && content.Text.Contains("Fixture task 3"),
+                "queued previous-session invalidation cannot clear a completed new-session refresh");
+            Check(Field<ITaskPreparationService>(page, "preparationService").UserId == 2
+                && Field<TaskCreationWorkflow>(page, "creationWorkflow").IsCurrent && handler.Remaining == 0,
+                "new-session services survive old callback dispatch");
+        });
+    }
+
+    private static void LogoutBeforeRowSelection()
+    {
+        WithTaskPage((api, handler, page, host) =>
+        {
+            var grid = Field<DataGridView>(page, "gridTasks");
+            int beforeLogout = handler.Count;
+            api.ClearIdentity();
+            Check(grid.Rows.Count == 2, "logout invalidation is queued before immediate row selection");
+            // SelectionChanged is raised inside DataGridView.CurrentCell's own
+            // transition. Clearing rows on that stack would throw/reenter it.
+            SelectRow(grid, 1);
+            DrainUi(host);
+            Check(grid.Rows.Count == 0 && handler.Count == beforeLogout
+                && !Field<TextBox>(page, "txtContent").Text.Contains("Fixture description"),
+                "immediate old-row selection clears after the current-cell transition without HTTP or stale detail");
+        });
+    }
+
+    private static void DisposedResponseContinuation()
+    {
+        WithTaskPage((api, handler, page, host) =>
+        {
+            var pending = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var response = new ObservedResponse(new { items = new[] { Item(1) } });
+            handler.Enqueue((_, _) => pending.Task);
+            var previousContext = SynchronizationContext.Current;
+            using var callbacks = new QueuedSynchronizationContext();
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(callbacks);
+                Task refresh = page.RefreshAsync();
+                pending.SetResult(response);
+                callbacks.RunNext();
+                callbacks.RunNext();
+                Check(response.Disposed && !refresh.IsCompleted && callbacks.Pending > 0,
+                    "disposed-screen fixture holds a completed query before the view continuation");
+                int count = handler.Count;
+                page.Dispose();
+                while (!refresh.IsCompleted) callbacks.RunNext();
+                refresh.GetAwaiter().GetResult();
+                Check(page.IsDisposed && handler.Count == count && handler.Remaining == 0,
+                    "disposed screen ignores the completed response without detail requests or continuation errors");
+            }
+            finally { SynchronizationContext.SetSynchronizationContext(previousContext); }
+        });
+    }
+
+    private static void WithTaskPage(Action<ApiClient, TestHandler, TasksControl, Form> check)
+    {
+        using var handler = new TestHandler();
+        using var api = new ApiClient("http://localhost:5000/", handler);
+        Login(api, handler);
+        using var page = new TasksControl(PreviewRole.Employee, new HttpTaskQueryService(api));
+        using var host = new Form
+        {
+            ClientSize = new Size(1320, 780), ShowInTaskbar = false,
+            StartPosition = FormStartPosition.Manual, Location = new Point(-20000, -20000)
+        };
+        page.Dock = DockStyle.Fill;
+        host.Controls.Add(page);
+        handler.Success(new { items = new[] { Item(1), Item(2) } });
+        handler.Success(new { task = Item(1) });
+        host.Show();
+        Until(() => Field<Label>(page, "lblTaskQueryStatus").Text == "상세 조회 완료");
+        check(api, handler, page, host);
+    }
+
+    private static void SelectRow(DataGridView grid, int index)
+    {
+        if (grid.Rows.Count <= index) return; // Session invalidation may already have safely removed the rows.
+        grid.ClearSelection();
+        grid.CurrentCell = grid.Rows[index].Cells[0];
+        grid.Rows[index].Selected = true;
+    }
+
+    private static void DrainUi(Control host)
+    {
+        bool reached = false;
+        host.BeginInvoke((Action)(() => reached = true));
+        var watch = Stopwatch.StartNew();
+        while (!reached)
+        {
+            if (watch.Elapsed > TimeSpan.FromSeconds(20)) throw new TimeoutException("UI callback barrier timed out.");
+            Application.DoEvents();
+            Thread.Yield();
+        }
+        Application.DoEvents();
+    }
+
     private static void LiveServer()
     {
         Check(Environment.GetEnvironmentVariable("REMOTEWORK_TASK_TEST_ALLOW_LIVE") == "1",
@@ -521,20 +732,35 @@ internal static class Program
         Check(grid.Rows.Cast<DataGridViewRow>().Select(row => ((TaskSummary)row.Tag!).TaskId)
             .SequenceEqual(expected.Select(task => task.TaskId)), message);
 
-    private static void Login(ApiClient api, TestHandler handler)
+    private static void Login(ApiClient api, TestHandler handler, int userId = 1, string role = "employee")
     {
-        handler.Success(new
-        {
-            access_token = "fixture-token", token_type = "Bearer", expires_at = "2026-10-17T20:00:00Z",
-            user = new { id = 1, login_id = "fixture", display_name = "Fixture", employee_no = "TEST-1", department = "Test", role = "employee", is_active = true }
-        });
+        QueueLogin(handler, userId, role);
         Wait(api.LoginAsync("fixture", "fixture-password"));
     }
 
-    private static Dictionary<string, object?> Item(int id, string status = "in_progress") => new()
+    private static void LoginWithoutPumping(ApiClient api, TestHandler handler, int userId)
+    {
+        QueueLogin(handler, userId);
+        Task<LoginResult> login = api.LoginAsync("fixture", "fixture-password");
+        Check(login.IsCompleted, "synthetic new login completes without dispatching old UI callbacks");
+        login.GetAwaiter().GetResult();
+    }
+
+    private static void QueueLogin(TestHandler handler, int userId, string role = "employee")
+    {
+        handler.Success(new
+        {
+            access_token = userId == 1 ? "fixture-token" : "fixture-token-" + userId,
+            token_type = "Bearer", expires_at = "2026-10-17T20:00:00Z",
+            user = new { id = userId, login_id = "fixture", display_name = "Fixture", employee_no = "TEST-" + userId,
+                department = "Test", role, is_active = true }
+        });
+    }
+
+    private static Dictionary<string, object?> Item(int id, string status = "in_progress", int assigneeId = 1) => new()
     {
         ["task_id"] = id.ToString(System.Globalization.CultureInfo.InvariantCulture),
-        ["title"] = "Fixture task " + id, ["assignee_id"] = 1, ["assignee_name"] = "Fixture assignee",
+        ["title"] = "Fixture task " + id, ["assignee_id"] = assigneeId, ["assignee_name"] = "Fixture assignee",
         ["task_status"] = status, ["start_date"] = "2026-10-16", ["due_date"] = "2026-10-20",
         ["description"] = "Fixture description"
     };
@@ -579,6 +805,51 @@ internal static class Program
             Thread.Sleep(5);
         }
         Application.DoEvents();
+    }
+
+    // Each callback is executed without the captured context so the next await
+    // continuation must be queued rather than inlined. No wall-clock sleep is
+    // used to choose the logout/dispose point between transport, mapping and UI.
+    private sealed class QueuedSynchronizationContext : SynchronizationContext, IDisposable
+    {
+        private readonly Queue<(SendOrPostCallback Callback, object? State)> callbacks = new();
+        private readonly AutoResetEvent posted = new(false);
+        public int Pending { get { lock (callbacks) return callbacks.Count; } }
+        public override void Post(SendOrPostCallback callback, object? state)
+        {
+            lock (callbacks) callbacks.Enqueue((callback, state));
+            posted.Set();
+        }
+        public void RunNext()
+        {
+            (SendOrPostCallback Callback, object? State) next;
+            while (true)
+            {
+                lock (callbacks)
+                    if (callbacks.Count > 0) { next = callbacks.Dequeue(); break; }
+                if (!posted.WaitOne(TimeSpan.FromSeconds(20)))
+                    throw new TimeoutException("Expected queued task continuation did not arrive.");
+            }
+            var previous = SynchronizationContext.Current;
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(null);
+                next.Callback(next.State);
+            }
+            finally { SynchronizationContext.SetSynchronizationContext(previous); }
+        }
+        public void Dispose() => posted.Dispose();
+    }
+
+    private sealed class ObservedResponse : HttpResponseMessage
+    {
+        public bool Disposed { get; private set; }
+        public ObservedResponse(object data) : base(HttpStatusCode.OK)
+        {
+            Content = new StringContent(JsonSerializer.Serialize(new { ok = true, data, request_id = "fixture-request" }),
+                Encoding.UTF8, "application/json");
+        }
+        protected override void Dispose(bool disposing) { Disposed = true; base.Dispose(disposing); }
     }
 
     private sealed record RequestInfo(HttpMethod Method, string Path, string? Bearer);

@@ -5,6 +5,7 @@ using RemoteWork.WinForms.Features.Tasks.Queries;
 using RemoteWork.WinForms.Features.Tasks.Preparation;
 using RemoteWork.WinForms.Features.Tasks.Creation;
 using RemoteWork.WinForms.Features.Tasks.Starting;
+using RemoteWork.WinForms.Infrastructure;
 
 namespace RemoteWork.WinForms.Features.Tasks
 {
@@ -12,8 +13,17 @@ namespace RemoteWork.WinForms.Features.Tasks
     {
         private readonly PreviewRole previewRole;
         private readonly ITaskQueryService queryService;
-        private readonly ITaskPreparationService? preparationService;
-        private readonly TaskCreationWorkflow? creationWorkflow;
+        private ITaskPreparationService? preparationService;
+        private TaskCreationWorkflow? creationWorkflow;
+        private readonly bool followQueryPreparation;
+        private PreviewRole viewRole;
+        private TaskQuerySession? viewSession;
+        private FeatureUiScope? listUiScope;
+        private FeatureUiScope? detailUiScope;
+        private FeatureUiScope.Operation? listOperation;
+        private FeatureUiScope.Operation? detailOperation;
+        private CancellationTokenRegistration sessionRegistration;
+        private bool viewSessionInvalidated;
         private bool creationFormOpen;
         private bool startFormOpen;
         private bool lastListQuerySucceeded;
@@ -38,12 +48,18 @@ namespace RemoteWork.WinForms.Features.Tasks
         public TasksControl(PreviewRole role) : this(role, new UnconfiguredTaskQueryService()) { }
 
         public TasksControl(PreviewRole role, ITaskQueryService queryService)
-            : this(role, queryService, (queryService as ITaskPreparationSource)?.CreatePreparationService()) { }
+            : this(role, queryService, (queryService as ITaskPreparationSource)?.CreatePreparationService(), true) { }
 
         public TasksControl(PreviewRole role, ITaskQueryService queryService, ITaskPreparationService? preparationService)
+            : this(role, queryService, preparationService, false) { }
+
+        private TasksControl(PreviewRole role, ITaskQueryService queryService,
+            ITaskPreparationService? preparationService, bool followQueryPreparation)
         {
             ArgumentNullException.ThrowIfNull(queryService);
             previewRole = role;
+            viewRole = role;
+            this.followQueryPreparation = followQueryPreparation;
             this.queryService = queryService;
             this.preparationService = preparationService;
             creationWorkflow = (queryService as ITaskCreationSource)?.GetCreationWorkflow();
@@ -70,8 +86,10 @@ namespace RemoteWork.WinForms.Features.Tasks
 
         private void UpdateViewScope()
         {
-            // PreviewRole only arranges the UI. A future server must authorize each request.
-            bool managementView = previewRole == PreviewRole.Administrator && cmbTaskScope.SelectedIndex == 1;
+            // The role only arranges the UI. The server authorizes each request.
+            bool managementView = viewRole == PreviewRole.Administrator && cmbTaskScope.SelectedIndex == 1;
+            lblTaskScope.Visible = viewRole == PreviewRole.Administrator;
+            cmbTaskScope.Visible = viewRole == PreviewRole.Administrator;
             btnNewTaskPreview.Visible = managementView;
             btnEditTaskPreview.Visible = managementView;
             btnCancelTask.Visible = managementView;
@@ -87,7 +105,7 @@ namespace RemoteWork.WinForms.Features.Tasks
 
         private TaskDetail? PreparationDetail()
         {
-            if (detailLoading || currentTaskDetail is not { } detail
+            if (!HasCurrentQuerySession || detailLoading || currentTaskDetail is not { } detail
                 || gridTasks.SelectedRows.Count != 1
                 || gridTasks.SelectedRows[0].Tag is not TaskSummary selected
                 || !string.Equals(detail.Summary.TaskId, selected.TaskId, StringComparison.Ordinal)
@@ -101,7 +119,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             TaskDetail? detail = PreparationDetail();
             bool hasDetail = detail is not null;
             btnEditTaskPreview.Enabled = hasDetail;
-            bool ownView = previewRole != PreviewRole.Administrator || cmbTaskScope.SelectedIndex == 0;
+            bool ownView = viewRole != PreviewRole.Administrator || cmbTaskScope.SelectedIndex == 0;
             TaskStartWorkflow? pendingStart = PendingStartWorkflow();
             btnAcceptTask.Text = detail?.Summary.Status == TaskDisplayStatus.Returned ? "재작업 시작" : "업무 수락";
             btnAcceptTask.Enabled = ownView && detail?.Summary.Status is TaskDisplayStatus.NotStarted or TaskDisplayStatus.Returned;
@@ -114,6 +132,66 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnDeadlineExtensionPreview.Enabled = hasDetail;
             btnPrepareWrite.Visible = preparationService is not null;
             btnPrepareWrite.Enabled = hasDetail && preparationService?.IsCurrent == true;
+            btnNewTaskPreview.Enabled = HasCurrentQuerySession;
+        }
+
+        private bool HasCurrentQuerySession => queryService is not HttpTaskQueryService
+            || viewSession?.Session.IsCurrent == true;
+
+        // A new login is adopted only by an explicit list refresh. Detail selection
+        // and preparation continue to use the session that produced the list.
+        private void BindQuerySession()
+        {
+            if (queryService is not HttpTaskQueryService http) return;
+            bool previousIsCurrent = viewSession?.Session.IsCurrent == true;
+            sessionRegistration.Dispose();
+            listUiScope?.Dispose();
+            detailUiScope?.Dispose();
+            listOperation = detailOperation = null;
+            viewSession = null;
+            viewSessionInvalidated = false;
+            listUiScope = detailUiScope = null;
+            if (!previousIsCurrent)
+            {
+                preferredTaskId = null;
+                createdTaskIdForRefresh = acknowledgedCreationId = null;
+            }
+            if (followQueryPreparation) preparationService = null;
+            creationWorkflow = null;
+            TaskQuerySession? captured = http.CaptureViewSession();
+            if (captured is null) throw new TaskQueryException(TaskQueryFailure.AuthenticationExpired);
+            viewSession = captured;
+            if (followQueryPreparation) preparationService = captured.PreparationService;
+            creationWorkflow = captured.CreationWorkflow;
+            viewRole = captured.Session.User.Role == "admin" ? PreviewRole.Administrator : PreviewRole.Employee;
+            listUiScope = new FeatureUiScope(captured.Session, PostToView, () => !queriesDisposed && !IsDisposed);
+            detailUiScope = new FeatureUiScope(captured.Session, PostToView, () => !queriesDisposed && !IsDisposed);
+            sessionRegistration = captured.Session.Cancellation.Register(() =>
+                PostToView(() => InvalidateQuerySession(captured)));
+            captured.Session.ThrowIfChanged();
+        }
+
+        private void PostToView(Action update)
+        {
+            // Never synchronously invoke from an ApiClient cancellation callback.
+            if (queriesDisposed || IsDisposed || !IsHandleCreated) return;
+            try { BeginInvoke(update); }
+            catch (ObjectDisposedException) { }
+            catch (InvalidOperationException) { }
+        }
+
+        private void InvalidateQuerySession(TaskQuerySession captured)
+        {
+            if (queriesDisposed || IsDisposed || viewSessionInvalidated || !ReferenceEquals(viewSession, captured)
+                || captured.Session.IsCurrent) return;
+            viewSessionInvalidated = true;
+            ++listGeneration;
+            listCancellation?.Cancel();
+            listUiScope?.Dispose();
+            detailUiScope?.Dispose();
+            lastListQuerySucceeded = false;
+            createdTaskIdForRefresh = acknowledgedCreationId = null;
+            ShowCancelledQuery("접속 변경·인증 만료로 업무");
         }
 
         /// <summary>
@@ -125,32 +203,43 @@ namespace RemoteWork.WinForms.Features.Tasks
         {
             if (initializing || queriesDisposed || PreviewActions.IsDesignMode(this)) return;
             lastListQuerySucceeded = false;
-            var query = new TaskListQuery(
-                previewRole == PreviewRole.Administrator && cmbTaskScope.SelectedIndex == 1
-                    ? TaskQueryScope.Managed : TaskQueryScope.Own,
-                SelectedStatus());
-            if (query != currentListQuery) preferredTaskId = null;
-            currentListQuery = query;
-            string? taskIdToRestore = preferredTaskId;
-            string? createdTaskId = createdTaskIdForRefresh;
-            createdTaskIdForRefresh = null;
-            bool listReceived = false;
-            bool createdTaskVisible = false;
+            // Cancel the previous UI operation before replacing its session binding.
             long generation = ++listGeneration;
             listCancellation?.Cancel();
             listCancellation?.Dispose();
             listCancellation = new CancellationTokenSource();
             CancellationToken token = listCancellation.Token;
             CancelDetailRequest();
-            UpdateViewScope();
             ClearRows();
             ClearDetail("업무 목록을 불러오는 중입니다.");
             lblTaskQueryStatus.Text = "목록 조회 중…";
             gridTasks.Enabled = false;
             btnRetryQuery.Enabled = false;
+            bool listReceived = false;
+            bool createdTaskVisible = false;
+            string? createdTaskId = null;
             try
             {
-                IReadOnlyList<TaskSummary> summaries = await queryService.GetTasksAsync(query, token);
+                BindQuerySession();
+                listOperation = listUiScope?.BeginOperation();
+                if (listOperation is not null)
+                {
+                    listCancellation.Dispose();
+                    listCancellation = CancellationTokenSource.CreateLinkedTokenSource(listOperation.Cancellation);
+                    token = listCancellation.Token;
+                }
+                var query = new TaskListQuery(
+                    viewRole == PreviewRole.Administrator && cmbTaskScope.SelectedIndex == 1
+                        ? TaskQueryScope.Managed : TaskQueryScope.Own,
+                    SelectedStatus());
+                if (query != currentListQuery) preferredTaskId = null;
+                currentListQuery = query;
+                string? taskIdToRestore = preferredTaskId;
+                createdTaskId = createdTaskIdForRefresh;
+                createdTaskIdForRefresh = null;
+                UpdateViewScope();
+                ITaskQueryService queries = viewSession?.QueryService ?? queryService;
+                IReadOnlyList<TaskSummary> summaries = await queries.GetTasksAsync(query, token);
                 if (!IsCurrentList(generation, token)) return;
                 ArgumentNullException.ThrowIfNull(summaries);
                 listReceived = true;
@@ -195,13 +284,21 @@ namespace RemoteWork.WinForms.Features.Tasks
                 else
                     await LoadDetailAsync(preferredTaskId!, generation);
             }
-            catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                if (viewSession is { } captured && !captured.Session.IsCurrent)
+                    InvalidateQuerySession(captured);
+            }
             catch (OperationCanceledException)
             {
+                if (viewSession is { } captured && !captured.Session.IsCurrent)
+                    InvalidateQuerySession(captured);
                 if (IsCurrentList(generation, token)) ShowCancelledQuery("목록");
             }
             catch (Exception exception)
             {
+                if (viewSession is { } captured && !captured.Session.IsCurrent)
+                    InvalidateQuerySession(captured);
                 if (!IsCurrentList(generation, token)) return;
                 ClearRows();
                 ClearDetail("업무 상세를 표시할 수 없습니다.");
@@ -225,6 +322,11 @@ namespace RemoteWork.WinForms.Features.Tasks
 
         private async Task LoadDetailAsync(string taskId, long parentGeneration)
         {
+            if (!HasCurrentQuerySession)
+            {
+                await InvalidateChangedSessionAfterSelectionAsync();
+                return;
+            }
             CancelDetailRequest();
             selectedTaskId = taskId;
             long generation = detailGeneration;
@@ -236,7 +338,15 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnRetryQuery.Enabled = false;
             try
             {
-                TaskDetail detail = await queryService.GetTaskAsync(taskId, token);
+                detailOperation = detailUiScope?.BeginOperation();
+                if (detailOperation is not null)
+                {
+                    detailCancellation.Dispose();
+                    detailCancellation = CancellationTokenSource.CreateLinkedTokenSource(detailOperation.Cancellation);
+                    token = detailCancellation.Token;
+                }
+                ITaskQueryService queries = viewSession?.QueryService ?? queryService;
+                TaskDetail detail = await queries.GetTaskAsync(taskId, token);
                 if (!IsCurrentDetail(parentGeneration, generation, taskId, token)) return;
                 if (detail?.Summary is null || !string.Equals(detail.Summary.TaskId, taskId, StringComparison.Ordinal))
                     throw new TaskQueryException(TaskQueryFailure.Unavailable);
@@ -253,17 +363,23 @@ namespace RemoteWork.WinForms.Features.Tasks
                     : "상세 조회 완료";
                 if (listSummaryChanged) btnRetryQuery.Text = "목록 새로고침";
             }
-            catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                await InvalidateChangedSessionAfterSelectionAsync();
+            }
             catch (OperationCanceledException)
             {
                 // A synchronously cancelled service can complete inside SelectionChanged.
                 // Let DataGridView finish changing its current cell before clearing rows.
                 await Task.Yield();
+                if (viewSession is { } captured && !captured.Session.IsCurrent)
+                    InvalidateQuerySession(captured);
                 if (IsCurrentDetail(parentGeneration, generation, taskId, token))
                     ShowCancelledQuery("상세");
             }
             catch (Exception exception)
             {
+                await InvalidateChangedSessionAfterSelectionAsync();
                 if (!IsCurrentDetail(parentGeneration, generation, taskId, token)) return;
                 ClearDetail(FailureText(exception));
                 lblTaskQueryStatus.Text = "상세 조회 실패 · " + FailureText(exception);
@@ -279,6 +395,15 @@ namespace RemoteWork.WinForms.Features.Tasks
                     UpdatePreparationActions();
                 }
             }
+        }
+
+        private async Task InvalidateChangedSessionAfterSelectionAsync()
+        {
+            if (viewSession is not { } captured || captured.Session.IsCurrent) return;
+            // SelectionChanged can still be moving CurrentCell. Row removal must
+            // run after that stack unwinds, even when cancellation is synchronous.
+            await Task.Yield();
+            InvalidateQuerySession(captured);
         }
 
         private TaskDisplayStatus? SelectedStatus() => cmbTaskStatusFilter.SelectedIndex switch
@@ -314,10 +439,12 @@ namespace RemoteWork.WinForms.Features.Tasks
             };
 
         private bool IsCurrentList(long generation, CancellationToken token) =>
-            !queriesDisposed && !IsDisposed && generation == listGeneration && !token.IsCancellationRequested;
+            !queriesDisposed && !IsDisposed && generation == listGeneration && !token.IsCancellationRequested
+            && (listOperation?.IsCurrent ?? true);
 
         private bool IsCurrentDetail(long parentGeneration, long generation, string taskId, CancellationToken token) =>
             IsCurrentList(parentGeneration, token) && generation == detailGeneration
+            && (detailOperation?.IsCurrent ?? true)
             && string.Equals(selectedTaskId, taskId, StringComparison.Ordinal);
 
         private void ClearRows()
@@ -349,6 +476,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             detailCancellation?.Cancel();
             detailCancellation?.Dispose();
             detailCancellation = null;
+            detailOperation = null;
         }
 
         private void ShowCancelledQuery(string operation)
@@ -370,6 +498,9 @@ namespace RemoteWork.WinForms.Features.Tasks
             queriesDisposed = true;
             // The login session owns pending creation, including across menu navigation.
             currentListQuery = null;
+            sessionRegistration.Dispose();
+            listUiScope?.Dispose();
+            detailUiScope?.Dispose();
             preferredTaskId = null;
             ++listGeneration;
             listCancellation?.Cancel();
@@ -440,21 +571,22 @@ namespace RemoteWork.WinForms.Features.Tasks
 
         private async void btnNewTaskPreview_Click(object? sender, EventArgs e)
         {
-            if (creationFormOpen || queriesDisposed) return;
-            if (creationWorkflow is null)
+            if (creationFormOpen || queriesDisposed || !HasCurrentQuerySession) return;
+            TaskCreationWorkflow? workflow = creationWorkflow;
+            if (workflow is null)
             {
                 PreviewActions.Open(this, new TaskEditForm(false, preparationService));
                 return;
             }
-            if (creationWorkflow.State == TaskCreationState.Succeeded
-                && creationWorkflow.CreatedResult?.TaskId == acknowledgedCreationId)
-                creationWorkflow.ResetAfterSuccess();
+            if (workflow.State == TaskCreationState.Succeeded
+                && workflow.CreatedResult?.TaskId == acknowledgedCreationId)
+                workflow.ResetAfterSuccess();
             creationFormOpen = true;
             try
             {
-                using var form = new TaskEditForm(preparationService, creationWorkflow);
+                using var form = new TaskEditForm(preparationService, workflow);
                 if (form.ShowDialog(FindForm()) == DialogResult.OK && form.CreatedResult is { } result
-                    && !queriesDisposed && creationWorkflow.IsCurrent)
+                    && !queriesDisposed && workflow.IsCurrent)
                     await RefreshAfterCreationAsync(result);
             }
             finally { creationFormOpen = false; }
@@ -493,7 +625,11 @@ namespace RemoteWork.WinForms.Features.Tasks
             if (recovering && pending is null) { UpdatePreparationActions(); return; }
             TaskStartKind kind = pending?.Kind
                 ?? (detail!.Summary.Status == TaskDisplayStatus.Returned ? TaskStartKind.Rework : TaskStartKind.Accept);
-            workflow ??= (queryService as ITaskStartSource)?.GetStartWorkflow(kind, detail!.Summary.TaskId);
+            if (workflow is null)
+            {
+                try { workflow = CurrentStartSource()?.GetStartWorkflow(kind, detail!.Summary.TaskId); }
+                catch (OperationCanceledException) { return; }
+            }
             startFormOpen = true;
             try
             {
@@ -517,8 +653,15 @@ namespace RemoteWork.WinForms.Features.Tasks
             }
         }
 
-        private TaskStartWorkflow? PendingStartWorkflow() => queriesDisposed ? null
-            : (queryService as ITaskStartSource)?.GetPendingStartWorkflow();
+        private ITaskStartSource? CurrentStartSource() => !HasCurrentQuerySession ? null
+            : (viewSession?.QueryService ?? queryService) as ITaskStartSource;
+
+        private TaskStartWorkflow? PendingStartWorkflow()
+        {
+            if (queriesDisposed) return null;
+            try { return CurrentStartSource()?.GetPendingStartWorkflow(); }
+            catch (OperationCanceledException) { return null; }
+        }
 
         private void Unavailable_Click(object? sender, EventArgs e)
         {
