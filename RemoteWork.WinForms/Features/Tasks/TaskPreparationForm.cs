@@ -65,7 +65,9 @@ public partial class TaskPreparationForm : Form
             assignee = context is null ? null : new(context.AssigneeId, "현재 담당자", "현재 담당자 · #" + context.AssigneeId);
             if (context is not null)
                 foreach (int id in context.ManagerUserIds) managers.Add(id, "업무 관리자 · #" + id);
-            lblContext.Text = context is null ? "새 업무의 담당자·업무 관리자 선택 준비입니다. 아직 업무가 생성되지 않았습니다."
+            if (taskId == null && manage)
+                managers.Add(service.UserId, "등록자 · #" + service.UserId);
+            lblContext.Text = context is null ? "새 업무의 담당자·업무 관리자 선택 준비입니다. 아직 업무가 생성되지 않았습니다.\r\n관리자는 1명 이상이며 등록자는 자동 포함됩니다. 최초 등록에서는 등록자를 제외할 수 없습니다.\r\n업무 관리자는 제출 검토자와 별개입니다."
                 : $"업무 {context.TaskId} · 현재 담당자 #{context.AssigneeId}\r\n업무 버전 {context.RowVersion} · 배정 차수 {context.AssignmentRevision} · 현재 상태 {StatusText(context.Status)}\r\n업무 관리자는 제출 검토자와 별개이며, 조회 결과는 최종 저장 허용을 뜻하지 않습니다.";
             RenderSelection();
             busy = false;
@@ -141,8 +143,21 @@ public partial class TaskPreparationForm : Form
         btnPrevious.Enabled = edit && pageReady && page > 1;
         btnNext.Enabled = edit && pageReady && (long)page * 20 < total;
         btnChoose.Enabled = edit && pageReady && gridCandidates.SelectedRows.Count == 1;
-        btnRemove.Enabled = edit && listSelected.SelectedItem is SelectionItem;
-        btnConfirm.Enabled = edit && pageReady;
+        SelectionItem? selected = listSelected.SelectedItem as SelectionItem;
+        btnRemove.Enabled = edit && selected != null && !IsRequiredCreator(selected);
+        btnConfirm.Enabled = edit && pageReady && HasRequiredManagers();
+    }
+    private bool IsRequiredCreator(SelectionItem item)
+    {
+        if (taskId != null || service == null) return false;
+        return item.Manager && item.Id == service.UserId;
+    }
+    private bool HasRequiredManagers()
+    {
+        // This policy applies to initial creation. Later manager changes need their own policy.
+        if (taskId != null) return true;
+        if (service == null || !service.CanSelectCandidates) return false;
+        return managers.Count >= 1 && managers.ContainsKey(service.UserId);
     }
     private void ClearSelection()
     {
@@ -180,7 +195,13 @@ public partial class TaskPreparationForm : Form
     {
         listSelected.Items.Clear();
         if (assignee is not null) listSelected.Items.Add(new SelectionItem(false, assignee.Id, "담당자: " + assignee.SelectionLabel));
-        foreach (var item in managers) listSelected.Items.Add(new SelectionItem(true, item.Key, "업무 관리자: " + item.Value));
+        foreach (KeyValuePair<int, string> item in managers)
+        {
+            string label = "업무 관리자: " + item.Value;
+            if (taskId == null && service != null && item.Key == service.UserId)
+                label += " (등록자 · 필수)";
+            listSelected.Items.Add(new SelectionItem(true, item.Key, label));
+        }
         SetState();
     }
     private void ChooseClick(object? sender, EventArgs e)
@@ -193,12 +214,19 @@ public partial class TaskPreparationForm : Form
     private void RemoveClick(object? sender, EventArgs e)
     {
         if (!btnRemove.Enabled || listSelected.SelectedItem is not SelectionItem selected) return;
+        if (IsRequiredCreator(selected)) return;
         if (selected.Manager) managers.Remove(selected.Id); else assignee = null;
         RenderSelection();
     }
     private void ConfirmClick(object? sender, EventArgs e)
     {
         if (!btnConfirm.Enabled || service?.IsCurrent != true) return;
+        if (!HasRequiredManagers())
+        {
+            lblStatus.Text = "등록자를 포함한 업무 관리자 1명 이상이 필요합니다. 정보를 다시 조회해 주세요.";
+            SetState();
+            return;
+        }
         Selection = new(context, assignee, Array.AsReadOnly(managers.Keys.ToArray()));
         DialogResult = DialogResult.OK; // Local selection only; the calling form remains unsaved.
         Close();
