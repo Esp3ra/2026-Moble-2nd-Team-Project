@@ -1,0 +1,16 @@
+[Unit]
+Description=Attendance fingerprint and light sensor API
+After=network.target
+
+[Service]
+Type=simple
+User=CHANGE_ME_USER
+WorkingDirectory=CHANGE_ME_WORKING_DIRECTORY
+ExecStart=CHANGE_ME_VENV_PYTHON -u CHANGE_ME_SCRIPT_PATH
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=45
+
+[Install]
+WantedBy=multi-user.target
