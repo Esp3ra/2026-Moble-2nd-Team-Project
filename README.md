@@ -156,6 +156,8 @@ dotnet build .\Tests\TaskQueries.Http.Tests\TaskQueries.Http.Tests.csproj -c Rel
 
 ## 2026-10-19 PR 검토 상태
 
+[웹 공지 코드PR38](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/38)은2페이지 조회 form의 page 누락으로 다른 공지 상세를 표시하는 R38-01 P2를 재현해 미병합입니다. 소유 MySQL 기존65통과와 독립 회귀1실패를 구분합니다. [4번 수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/4번/2026-10-19_PR38_웹공지_페이지선택_수정요청.md)을 따르며 현재alpha의 웹 공지 연결 완료로 표시하지 않습니다. 문서PR39는 LOG `754a6ea` 병합 상태/동일트리를 확인했습니다. 회원/장치 서버·DB/MainForm은1번,Pi/PC 중계·감지/근태는5번의 역할 회신이고 상대 확인·제품 구현은 별도입니다.
+
 잘못 올라온 **PR35는 사용자 지시로 CLOSED·미병합** 처리했습니다. 문서 [PR37](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/37)은 1번의 기술 의견/협의 자료로 LOG `c2e8d95`에 수신·병합했습니다. 닫힌 PR35 요청을 웹 작업·공통 파일 수정 승인으로 사용하지 않으며 후속 유효 범위는 별도 확인합니다. 공개 벡터2개와 추가 상대링크18개를 검증했고 제품 코드/DB 검증을 새로 실행하지 않았습니다. 상세는 [검토 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md)을 따릅니다.
 
 문서 [PR34](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/34)와 [PR36](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/36)은 수정 필수 사항 없이 검토해 LOG에 병합했습니다.1번의 시작 API 기술 수용과5번 장치·근태 협의안 수신을 실제 구현/공동 정책/공유 적용과 구분합니다. 담당별 남은 [협의사항·회신 형식](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#담당별-협의사항과-회신-방법)을 확인합니다.
