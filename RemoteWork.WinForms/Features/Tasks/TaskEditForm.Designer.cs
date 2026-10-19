@@ -44,6 +44,9 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnConfirm = new System.Windows.Forms.Button();
             btnCancel = new System.Windows.Forms.Button();
             btnClose = new System.Windows.Forms.Button();
+            btnCreateTask = new System.Windows.Forms.Button();
+            btnCheckCreationResult = new System.Windows.Forms.Button();
+            btnRetryCreation = new System.Windows.Forms.Button();
             lblPreparationStatus = new System.Windows.Forms.Label();
             inputErrors = new System.Windows.Forms.ErrorProvider(components);
             ((System.ComponentModel.ISupportInitialize)inputErrors).BeginInit();
@@ -84,7 +87,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 50F));
             layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 72F));
-            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 50F));
+            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize, 0F));
             layoutContent.Controls.Add(layoutContent2, 0, 0);
             layoutContent.Controls.Add(panelContent, 0, 1);
             layoutContent.Controls.Add(lblPreparationStatus, 0, 2);
@@ -653,6 +656,9 @@ namespace RemoteWork.WinForms.Features.Tasks
             flowActions2.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
             flowActions2.WrapContents = true;
             flowActions2.Name = "flowActions2";
+            flowActions2.Controls.Add(btnCreateTask);
+            flowActions2.Controls.Add(btnRetryCreation);
+            flowActions2.Controls.Add(btnCheckCreationResult);
             flowActions2.Controls.Add(btnConfirm);
             flowActions2.Controls.Add(btnCancel);
             flowActions2.Controls.Add(btnClose);
@@ -741,6 +747,50 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnClose.Name = "btnClose";
             btnClose.Click += new System.EventHandler(ClosePreview_Click);
             //
+            // btnCreateTask
+            //
+            btnCreateTask.Name = "btnCreateTask";
+            btnCreateTask.Text = "등록";
+            btnCreateTask.AutoSize = true;
+            btnCreateTask.MinimumSize = new System.Drawing.Size(88, 34);
+            btnCreateTask.Margin = new System.Windows.Forms.Padding(0, 0, 8, 6);
+            btnCreateTask.Padding = new System.Windows.Forms.Padding(12, 4, 12, 4);
+            btnCreateTask.BackColor = System.Drawing.Color.FromArgb(52, 101, 224);
+            btnCreateTask.ForeColor = System.Drawing.Color.White;
+            btnCreateTask.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            btnCreateTask.TabIndex = 3;
+            btnCreateTask.Visible = false;
+            btnCreateTask.Enabled = false;
+            btnCreateTask.Click += CreateTask_Click;
+            //
+            // btnCheckCreationResult
+            //
+            btnCheckCreationResult.Name = "btnCheckCreationResult";
+            btnCheckCreationResult.Text = "처리 결과 확인";
+            btnCheckCreationResult.AutoSize = true;
+            btnCheckCreationResult.MinimumSize = new System.Drawing.Size(112, 34);
+            btnCheckCreationResult.Margin = new System.Windows.Forms.Padding(0, 0, 8, 6);
+            btnCheckCreationResult.Padding = new System.Windows.Forms.Padding(10, 4, 10, 4);
+            btnCheckCreationResult.UseVisualStyleBackColor = true;
+            btnCheckCreationResult.TabIndex = 4;
+            btnCheckCreationResult.Visible = false;
+            btnCheckCreationResult.Enabled = false;
+            btnCheckCreationResult.Click += CheckCreationResult_Click;
+            //
+            // btnRetryCreation
+            //
+            btnRetryCreation.Name = "btnRetryCreation";
+            btnRetryCreation.Text = "같은 요청 다시 전송";
+            btnRetryCreation.AutoSize = true;
+            btnRetryCreation.MinimumSize = new System.Drawing.Size(140, 34);
+            btnRetryCreation.Margin = new System.Windows.Forms.Padding(0, 0, 8, 6);
+            btnRetryCreation.Padding = new System.Windows.Forms.Padding(10, 4, 10, 4);
+            btnRetryCreation.UseVisualStyleBackColor = true;
+            btnRetryCreation.TabIndex = 5;
+            btnRetryCreation.Visible = false;
+            btnRetryCreation.Enabled = false;
+            btnRetryCreation.Click += RetryCreation_Click;
+            //
             // TaskEditForm
             //
             Text = "업무 등록";
@@ -814,6 +864,9 @@ namespace RemoteWork.WinForms.Features.Tasks
         private System.Windows.Forms.Button btnConfirm;
         private System.Windows.Forms.Button btnCancel;
         private System.Windows.Forms.Button btnClose;
+        private System.Windows.Forms.Button btnCreateTask;
+        private System.Windows.Forms.Button btnCheckCreationResult;
+        private System.Windows.Forms.Button btnRetryCreation;
         private System.Windows.Forms.Label lblPreparationStatus;
         private System.Windows.Forms.ErrorProvider inputErrors;
     }

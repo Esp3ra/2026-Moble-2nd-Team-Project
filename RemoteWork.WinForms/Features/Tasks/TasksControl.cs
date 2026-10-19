@@ -3,6 +3,7 @@ using RemoteWork.WinForms.Ui;
 using RemoteWork.WinForms.Features.Collaboration;
 using RemoteWork.WinForms.Features.Tasks.Queries;
 using RemoteWork.WinForms.Features.Tasks.Preparation;
+using RemoteWork.WinForms.Features.Tasks.Creation;
 
 namespace RemoteWork.WinForms.Features.Tasks
 {
@@ -11,6 +12,10 @@ namespace RemoteWork.WinForms.Features.Tasks
         private readonly PreviewRole previewRole;
         private readonly ITaskQueryService queryService;
         private readonly ITaskPreparationService? preparationService;
+        private readonly TaskCreationWorkflow? creationWorkflow;
+        private bool creationFormOpen;
+        private string? acknowledgedCreationId;
+        private string? createdTaskIdForRefresh;
         private CancellationTokenSource? listCancellation;
         private CancellationTokenSource? detailCancellation;
         private long listGeneration;
@@ -38,6 +43,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             previewRole = role;
             this.queryService = queryService;
             this.preparationService = preparationService;
+            creationWorkflow = (queryService as ITaskCreationSource)?.GetCreationWorkflow();
             InitializeComponent();
             if (PreviewActions.IsDesignMode(this)) return;
             btnRetryQuery.AccessibleDescription = "상세 조회 실패 시 선택한 업무만 다시 조회합니다. 목록 정보 변경 안내 시 목록 전체를 다시 조회합니다. F5 키는 업무 목록을 다시 조회합니다.";
@@ -47,7 +53,9 @@ namespace RemoteWork.WinForms.Features.Tasks
             cmbTaskScope.SelectedIndex = 0;
             cmbTaskStatusFilter.SelectedIndex = 0;
             lblTaskQuerySource.Text = queryService.SourceDescription
-                + "\r\n등록·수정·수락·연장: 입력·대상 확인만 가능하며 저장·전송은 연결 전입니다.";
+                + (creationWorkflow is null
+                    ? "\r\n등록·수정·수락·연장: 입력·대상 확인만 가능하며 저장·전송은 연결 전입니다."
+                    : "\r\n신규 등록: 서버 요청 연결 · 수정·수락·연장: 입력 준비만 가능하며 저장은 연결 전입니다.");
             lblTaskQueryStatus.Text = "업무 조회를 기다리고 있습니다.";
             ClearDetail("목록에서 업무를 선택하면 상세 내용이 표시됩니다.");
             UpdateViewScope();
@@ -84,9 +92,12 @@ namespace RemoteWork.WinForms.Features.Tasks
 
         private void UpdatePreparationActions()
         {
-            bool hasDetail = PreparationDetail() is not null;
+            TaskDetail? detail = PreparationDetail();
+            bool hasDetail = detail is not null;
             btnEditTaskPreview.Enabled = hasDetail;
-            btnAcceptTask.Enabled = hasDetail;
+            bool ownView = previewRole != PreviewRole.Administrator || cmbTaskScope.SelectedIndex == 0;
+            btnAcceptTask.Text = detail?.Summary.Status == TaskDisplayStatus.Returned ? "재작업 시작" : "업무 수락";
+            btnAcceptTask.Enabled = ownView && detail?.Summary.Status is TaskDisplayStatus.NotStarted or TaskDisplayStatus.Returned;
             btnDeadlineExtensionPreview.Enabled = hasDetail;
             btnPrepareWrite.Visible = preparationService is not null;
             btnPrepareWrite.Enabled = hasDetail && preparationService?.IsCurrent == true;
@@ -107,6 +118,10 @@ namespace RemoteWork.WinForms.Features.Tasks
             if (query != currentListQuery) preferredTaskId = null;
             currentListQuery = query;
             string? taskIdToRestore = preferredTaskId;
+            string? createdTaskId = createdTaskIdForRefresh;
+            createdTaskIdForRefresh = null;
+            bool listReceived = false;
+            bool createdTaskVisible = false;
             long generation = ++listGeneration;
             listCancellation?.Cancel();
             listCancellation?.Dispose();
@@ -124,6 +139,8 @@ namespace RemoteWork.WinForms.Features.Tasks
                 IReadOnlyList<TaskSummary> summaries = await queryService.GetTasksAsync(query, token);
                 if (!IsCurrentList(generation, token)) return;
                 ArgumentNullException.ThrowIfNull(summaries);
+                listReceived = true;
+                createdTaskVisible = createdTaskId is not null && summaries.Any(summary => summary.TaskId == createdTaskId);
                 updatingRows = true;
                 try
                 {
@@ -138,6 +155,9 @@ namespace RemoteWork.WinForms.Features.Tasks
                     if (gridTasks.Rows.Count > 0)
                     {
                         DataGridViewRow selectedRow = gridTasks.Rows.Cast<DataGridViewRow>()
+                            .FirstOrDefault(row => row.Tag is TaskSummary summary
+                                && string.Equals(summary.TaskId, createdTaskId, StringComparison.Ordinal))
+                            ?? gridTasks.Rows.Cast<DataGridViewRow>()
                             .FirstOrDefault(row => row.Tag is TaskSummary summary
                                 && string.Equals(summary.TaskId, taskIdToRestore, StringComparison.Ordinal))
                             ?? gridTasks.Rows[0];
@@ -178,6 +198,12 @@ namespace RemoteWork.WinForms.Features.Tasks
                 {
                     gridTasks.Enabled = true;
                     btnRetryQuery.Enabled = !detailLoading;
+                    if (createdTaskId is not null)
+                    {
+                        string prefix = "업무 #" + createdTaskId + " 등록 완료 · ";
+                        if (listReceived && !createdTaskVisible) prefix += "현재 조회 범위/상태 필터에는 없음 · ";
+                        lblTaskQueryStatus.Text = prefix + lblTaskQueryStatus.Text;
+                    }
                 }
             }
         }
@@ -327,6 +353,7 @@ namespace RemoteWork.WinForms.Features.Tasks
         {
             if (queriesDisposed) return;
             queriesDisposed = true;
+            // The login session owns pending creation, including across menu navigation.
             currentListQuery = null;
             preferredTaskId = null;
             ++listGeneration;
@@ -396,9 +423,36 @@ namespace RemoteWork.WinForms.Features.Tasks
             }
         }
 
-        private void btnNewTaskPreview_Click(object? sender, EventArgs e)
+        private async void btnNewTaskPreview_Click(object? sender, EventArgs e)
         {
-            PreviewActions.Open(this, new TaskEditForm(false, preparationService));
+            if (creationFormOpen || queriesDisposed) return;
+            if (creationWorkflow is null)
+            {
+                PreviewActions.Open(this, new TaskEditForm(false, preparationService));
+                return;
+            }
+            if (creationWorkflow.State == TaskCreationState.Succeeded
+                && creationWorkflow.CreatedResult?.TaskId == acknowledgedCreationId)
+                creationWorkflow.ResetAfterSuccess();
+            creationFormOpen = true;
+            try
+            {
+                using var form = new TaskEditForm(preparationService, creationWorkflow);
+                if (form.ShowDialog(FindForm()) == DialogResult.OK && form.CreatedResult is { } result
+                    && !queriesDisposed && creationWorkflow.IsCurrent)
+                    await RefreshAfterCreationAsync(result);
+            }
+            finally { creationFormOpen = false; }
+        }
+
+        private async Task RefreshAfterCreationAsync(TaskCreationResult result)
+        {
+            if (queriesDisposed || IsDisposed) return;
+            // Keep the current scope/filter and old selection when the new row is outside it.
+            createdTaskIdForRefresh = result.TaskId;
+            await RefreshAsync();
+            if (!queriesDisposed && !IsDisposed && creationWorkflow?.IsCurrent == true)
+                acknowledgedCreationId = result.TaskId;
         }
 
         private void btnEditTaskPreview_Click(object? sender, EventArgs e)
@@ -413,10 +467,15 @@ namespace RemoteWork.WinForms.Features.Tasks
                 PreviewActions.Open(this, new TaskPreparationForm(preparationService, detail.Summary.TaskId));
         }
 
-        private void btnAcceptTask_Click(object? sender, EventArgs e)
+        private async void btnAcceptTask_Click(object? sender, EventArgs e)
         {
-            if (PreparationDetail() is { } detail)
-                PreviewActions.Open(this, new TaskAcceptanceForm(detail));
+            if (!btnAcceptTask.Enabled || PreparationDetail() is not { } detail) return;
+            TaskStartKind kind = detail.Summary.Status == TaskDisplayStatus.Returned ? TaskStartKind.Rework : TaskStartKind.Accept;
+            using var form = preparationService is null ? new TaskAcceptanceForm(detail)
+                : new TaskAcceptanceForm(detail, kind, preparationService);
+            form.ShowDialog(FindForm());
+            if (form.ShouldRefreshList && !queriesDisposed && !IsDisposed && preparationService?.IsCurrent == true)
+                await RefreshAsync();
         }
 
         private void Unavailable_Click(object? sender, EventArgs e)
