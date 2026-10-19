@@ -13,11 +13,13 @@ internal static partial class Program
     // These native calls address only a dialog owned by this test's MainForm on
     // this UI thread. They never dismiss windows belonging to another program.
     private delegate bool WindowVisitor(IntPtr window, IntPtr state);
+    private const uint WmClose = 0x0010;
     [DllImport("user32.dll")] private static extern bool EnumThreadWindows(uint thread, WindowVisitor visitor, IntPtr state);
     [DllImport("kernel32.dll")] private static extern uint GetCurrentThreadId();
     [DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr window, uint command);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr window, StringBuilder name, int length);
     [DllImport("user32.dll")] private static extern bool PostMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll")] private static extern bool IsWindow(IntPtr window);
 
     private static IntPtr OwnedMessage(IntPtr owner)
     {
@@ -98,7 +100,9 @@ internal static partial class Program
                         await Until(() => child.DialogResult != DialogResult.None && !camera.IsRunning && !light.Running,
                             label + ": cleanup finishes before dismissing notice");
                     }
-                    Check(PostMessage(notice, 0x111, (IntPtr)1, IntPtr.Zero), label + ": dismiss own expiry notice");
+                    Check(OwnedMessage(mainHandle) == notice && PostMessage(notice, WmClose, IntPtr.Zero, IntPtr.Zero),
+                        label + ": request own expiry notice close");
+                    await Until(() => !IsWindow(notice), label + ": expiry notice actually closed");
                     if (delayed && dismissEarly)
                     {
                         await Task.Delay(60);
@@ -117,7 +121,8 @@ internal static partial class Program
                 catch (Exception error) { failure = error; }
                 finally
                 {
-                    if (notice != IntPtr.Zero) PostMessage(notice, 0x111, (IntPtr)1, IntPtr.Zero);
+                    if (notice != IntPtr.Zero && OwnedMessage(mainHandle) == notice)
+                        PostMessage(notice, WmClose, IntPtr.Zero, IntPtr.Zero);
                     camera.StopCompletion?.TrySetResult(); light.StopCompletion?.TrySetResult();
                     child.Dispose(); main.Dispose();
                     finished.TrySetResult();
