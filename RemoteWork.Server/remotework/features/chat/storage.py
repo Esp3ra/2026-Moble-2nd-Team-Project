@@ -22,7 +22,7 @@ def _uuid(value):
 
 
 def _text(value, maximum, label):
-    if not isinstance(value, str) or not value.strip() or len(value.strip()) > maximum:
+    if not isinstance(value, str) or not value.strip() or len(value.strip()) > maximum or any(0xD800 <= ord(c) <= 0xDFFF for c in value):
         raise AppError(400, "INVALID_INPUT", f"{label}은(는) 1~{maximum}자 이내로 입력해 주세요.")
     return value.strip()
 

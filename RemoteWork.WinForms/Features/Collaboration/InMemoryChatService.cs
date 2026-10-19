@@ -133,7 +133,7 @@ internal sealed class InMemoryChatService : IChatService
         cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrWhiteSpace(content))
             throw new ArgumentException("메시지를 입력해 주세요.", nameof(content));
-        if (content.Length > MaxMessageLength)
+        if (!ChatText.WithinLimit(content, MaxMessageLength))
             throw new ArgumentException($"메시지는 {MaxMessageLength:N0}자까지 입력할 수 있습니다.", nameof(content));
         lock (sync)
         {

@@ -7,7 +7,7 @@ namespace RemoteWork.WinForms.Features.Collaboration;
 // The authenticated path persists rooms and messages on the configured server DB.
 internal sealed class HttpChatService : IChatService
 {
-    private readonly ApiClient api;
+    private readonly ApiClient.Session session;
     private readonly int userId;
     private readonly IChatParticipantDirectory directory;
     private readonly object pendingLock = new();
@@ -25,25 +25,21 @@ internal sealed class HttpChatService : IChatService
 
     public HttpChatService(ApiClient api, UserInfo user)
     {
-        this.api = api;
+        session = api.CaptureSession();
+        if (session.User.Id != user.Id) throw new OperationCanceledException("로그인이 변경되었습니다.");
         userId = user.Id;
         CurrentUser = new ChatParticipant(user.Id.ToString(CultureInfo.InvariantCulture), user.DisplayName, user.Department);
         directory = new HttpChatParticipantDirectory(api, user.Id);
+        session.ThrowIfChanged();
     }
 
-    private UserInfo Identity()
+    private ApiClient.Session Identity()
     {
-        var user = api.CurrentUser;
-        if (user is null || user.Id != userId)
-            throw new OperationCanceledException("로그인이 변경되었습니다. 채팅 화면을 다시 열어 주세요.");
-        return user;
+        session.ThrowIfChanged();
+        return session;
     }
 
-    private void SameIdentity(UserInfo identity)
-    {
-        if (!ReferenceEquals(identity, api.CurrentUser))
-            throw new OperationCanceledException("접속 정보가 변경되었습니다. 채팅을 다시 조회해 주세요.");
-    }
+    private static void SameIdentity(ApiClient.Session identity) => identity.ThrowIfChanged();
 
     private static string RoomId(string id)
     {
@@ -71,7 +67,7 @@ internal sealed class HttpChatService : IChatService
     {
         if (message is null || message.Id == Guid.Empty || message.RoomId != roomId || message.SenderId <= 0
             || string.IsNullOrWhiteSpace(message.SenderName) || string.IsNullOrWhiteSpace(message.Content)
-            || message.Content.Length > 2000 || message.SentAt == default)
+            || !ChatText.WithinLimit(message.Content, 2000) || message.SentAt == default)
             throw new ApiException("메시지 응답 형식이 올바르지 않습니다.");
         return new ChatMessage(message.Id, roomId, message.SenderId.ToString(CultureInfo.InvariantCulture),
             message.SenderName, message.Content, message.SentAt);
@@ -90,7 +86,7 @@ internal sealed class HttpChatService : IChatService
         {
             cancellationToken.ThrowIfCancellationRequested();
             string path = "chat/rooms?limit=100" + (cursor is null ? "" : "&after=" + cursor);
-            var page = await api.GetAsync<CursorPage<RoomData>>(path, cancellationToken);
+            var page = await identity.GetAsync<CursorPage<RoomData>>(path, cancellationToken);
             SameIdentity(identity);
             if (page.Items is null || page.Items.Length > 100)
                 throw new ApiException("대화방 목록 응답이 올바르지 않습니다.");
@@ -128,7 +124,7 @@ internal sealed class HttpChatService : IChatService
         }
         try
         {
-            var response = await api.PostAsync<RoomResult>("chat/rooms", new { room_id = id, title,
+            var response = await identity.PostAsync<RoomResult>("chat/rooms", new { room_id = id, title,
                 is_group = request.IsGroup, participant_ids = ids }, cancellationToken);
             SameIdentity(identity);
             var room = Map(response.Room);
@@ -149,7 +145,7 @@ internal sealed class HttpChatService : IChatService
     public async Task DeleteRoomAsync(string roomId, CancellationToken cancellationToken = default)
     {
         var identity = Identity();
-        await api.PostAsync<MessageResult>($"chat/rooms/{RoomId(roomId)}/hide", new { }, cancellationToken);
+        await identity.PostAsync<MessageResult>($"chat/rooms/{RoomId(roomId)}/hide", new { }, cancellationToken);
         SameIdentity(identity);
     }
 
@@ -163,7 +159,7 @@ internal sealed class HttpChatService : IChatService
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var page = await api.GetAsync<CursorPage<MessageData>>($"chat/rooms/{roomId}/messages?limit=100&after={cursor}", cancellationToken);
+            var page = await identity.GetAsync<CursorPage<MessageData>>($"chat/rooms/{roomId}/messages?limit=100&after={cursor}", cancellationToken);
             SameIdentity(identity);
             if (page.Items is null || page.Items.Length > 100)
                 throw new ApiException("메시지 목록 응답이 올바르지 않습니다.");
@@ -186,7 +182,7 @@ internal sealed class HttpChatService : IChatService
         RoomId(roomId);
         var identity = Identity();
         string text = content.Trim();
-        if (text.Length is < 1 or > 2000) throw new ArgumentException("메시지는 1~2000자로 입력해 주세요.");
+        if (text.Length == 0 || !ChatText.WithinLimit(text, 2000)) throw new ArgumentException("메시지는 1~2000자로 입력해 주세요.");
         string id;
         lock (pendingLock)
         {
@@ -196,7 +192,7 @@ internal sealed class HttpChatService : IChatService
         }
         try
         {
-            var response = await api.PostAsync<MessageResultData>($"chat/rooms/{roomId}/messages",
+            var response = await identity.PostAsync<MessageResultData>($"chat/rooms/{roomId}/messages",
                 new { message_id = id, content = text }, cancellationToken);
             SameIdentity(identity);
             var message = Map(response.Message, roomId);

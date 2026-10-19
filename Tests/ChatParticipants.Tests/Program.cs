@@ -76,6 +76,20 @@ internal static class Program
         Check(Items(Prop(room,"Participants")).Any(p=>(string)Prop(p,"Id")==chosen),"Selected ID retained");
         await Call(store,"SendMessageAsync",Prop(room,"Id"),"기존 로컬 메시지",CancellationToken.None);
         Check(Items(await Call(store,"GetMessagesAsync",Prop(room,"Id"),CancellationToken.None)).Length==1,"Existing local messages preserved");
+        using (var chat=(UserControl)New("ChatControl",store))
+        {
+            var text=Field<TextBox>(chat,"txtContent3");
+            var send=Field<Button>(chat,"btnSendMessage");
+            chat.GetType().GetField("selectedRoom",Hidden)!.SetValue(chat,room);
+            Check(text.MaxLength==4000,"UI allows 2,000 supplementary code points");
+            foreach(var unit in new[]{"a","가","😀"})
+            {
+                text.Text=string.Concat(Enumerable.Repeat(unit,2000));
+                Check(send.Enabled,"UI accepts 2,000 code points: "+unit);
+                text.Text=string.Concat(Enumerable.Repeat(unit,2001));
+                Check(!send.Enabled,"UI rejects 2,001 code points: "+unit);
+            }
+        }
         if (baseUrl is null)
         {
             fake.RemoveId=int.Parse(chosen);

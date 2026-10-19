@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+    <ChatSourceRoot Condition="'$(ChatSourceRoot)' == ''">../../RemoteWork.WinForms</ChatSourceRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(ChatSourceRoot)/Infrastructure/ApiClient.cs" Link="Product/ApiClient.cs" />
+    <Compile Include="$(ChatSourceRoot)/Infrastructure/ApiModels.cs" Link="Product/ApiModels.cs" />
+    <Compile Include="$(ChatSourceRoot)/Features/Collaboration/ChatModels.cs" Link="Product/ChatModels.cs" />
+    <Compile Include="$(ChatSourceRoot)/Features/Collaboration/IChatService.cs" Link="Product/IChatService.cs" />
+    <Compile Include="$(ChatSourceRoot)/Features/Collaboration/HttpChatService.cs" Link="Product/HttpChatService.cs" />
+    <Compile Include="$(ChatSourceRoot)/Features/Collaboration/HttpChatParticipantDirectory.cs" Link="Product/HttpChatParticipantDirectory.cs" />
+    <Compile Include="$(ChatSourceRoot)/Features/Collaboration/ChatText.cs" Link="Product/ChatText.cs" Condition="Exists('$(ChatSourceRoot)/Features/Collaboration/ChatText.cs')" />
+  </ItemGroup>
+</Project>

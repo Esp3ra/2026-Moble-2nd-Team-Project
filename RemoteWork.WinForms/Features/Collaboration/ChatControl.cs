@@ -337,7 +337,8 @@ namespace RemoteWork.WinForms.Features.Collaboration
         {
             bool canCompose = selectedRoom is not null && !loadingRooms && !loadingMessages && !sending && !creatingRoom && !deletingRoom;
             txtContent3.Enabled = canCompose;
-            btnSendMessage.Enabled = canCompose && !string.IsNullOrWhiteSpace(txtContent3.Text);
+            btnSendMessage.Enabled = canCompose && !string.IsNullOrWhiteSpace(txtContent3.Text)
+                && ChatText.WithinLimit(txtContent3.Text.Trim(), 2000);
             gridRooms.Enabled = cmbOptions.Enabled = !loadingRooms && !sending && !creatingRoom && !deletingRoom;
             btnCreateRoom.Enabled = !loadingRooms && !sending && !creatingRoom && !deletingRoom;
         }

@@ -6,6 +6,7 @@ if not exist ".venv\Scripts\python.exe" (
     pause
     exit /b 1
 )
+set "REMOTEWORK_ENABLE_CHAT_DRAFT=1"
 ".venv\Scripts\python.exe" -m flask --app remotework chat init-tables
 if errorlevel 1 (
     echo 채팅 테이블 준비에 실패했습니다. 위 오류와 .env의 DB 설정을 확인해 주세요.

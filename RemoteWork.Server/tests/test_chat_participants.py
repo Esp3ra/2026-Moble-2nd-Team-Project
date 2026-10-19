@@ -1,3 +1,9 @@
+import pytest
+
+@pytest.fixture(autouse=True)
+def enable_chat(monkeypatch):
+    monkeypatch.setenv("REMOTEWORK_ENABLE_CHAT_DRAFT", "1")
+
 from sqlalchemy import select
 from remotework.db import transaction
 from remotework.models import User
