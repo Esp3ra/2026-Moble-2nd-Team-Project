@@ -11,7 +11,7 @@ namespace RemoteWork.WinForms.Shell
     public partial class MainForm : Form
     {
         private readonly PreviewRole previewRole;
-        // Keep the local chat store when navigating between pages.
+        // Keep the current user chat service when navigating between pages.
         private readonly IChatService? chatService;
         private UserControl? currentPage;
         private readonly System.Windows.Forms.Timer identityTimer = new() { Interval = 30000 };
@@ -26,6 +26,7 @@ namespace RemoteWork.WinForms.Shell
         public MainForm(UserInfo user) : this(user.Role == "admin" ? PreviewRole.Administrator : PreviewRole.Employee)
         {
             signedInUser = user;
+            chatService = new HttpChatService(AppServices.Api, user);
             lblPreviewIdentity.Text = $"{user.DisplayName} | {(user.Role == "admin" ? "관리자" : "직원")}\n{user.Department}\n사번 {user.EmployeeNo}";
             btnBackToLogin.Text = "로그아웃";
             AppServices.Api.AuthenticationExpired += AuthenticationExpired;

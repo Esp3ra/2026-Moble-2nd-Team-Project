@@ -8,8 +8,11 @@ namespace RemoteWork.WinForms.Features.Tasks
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing && components != null)
-                components.Dispose();
+            if (disposing)
+            {
+                StopRequests();
+                if (components != null) components.Dispose();
+            }
             base.Dispose(disposing);
         }
 
@@ -34,9 +37,14 @@ namespace RemoteWork.WinForms.Features.Tasks
             txtStartDate = new System.Windows.Forms.TextBox();
             lblDeadline = new System.Windows.Forms.Label();
             txtDeadline = new System.Windows.Forms.TextBox();
+            lblWriteContext = new System.Windows.Forms.Label();
+            txtWriteContext = new System.Windows.Forms.TextBox();
+            lblSourceNotice = new System.Windows.Forms.Label();
             lblPreparationStatus = new System.Windows.Forms.Label();
             flowActions = new System.Windows.Forms.FlowLayoutPanel();
             btnClose = new System.Windows.Forms.Button();
+            btnReloadContext = new System.Windows.Forms.Button();
+            btnConfirmTarget = new System.Windows.Forms.Button();
             layoutContent.SuspendLayout();
             panelContent.SuspendLayout();
             layoutDetails.SuspendLayout();
@@ -50,8 +58,8 @@ namespace RemoteWork.WinForms.Features.Tasks
             layoutContent.RowCount = 4;
             layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 54F));
             layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 72F));
-            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 48F));
+            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             layoutContent.Dock = System.Windows.Forms.DockStyle.Fill;
             layoutContent.Margin = new System.Windows.Forms.Padding(0);
             layoutContent.Name = "layoutContent";
@@ -86,13 +94,15 @@ namespace RemoteWork.WinForms.Features.Tasks
             layoutDetails.Dock = System.Windows.Forms.DockStyle.Top;
             layoutDetails.Margin = new System.Windows.Forms.Padding(0);
             layoutDetails.Name = "layoutDetails";
-            layoutDetails.RowCount = 6;
+            layoutDetails.RowCount = 8;
             layoutDetails.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 64F));
             layoutDetails.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 88F));
             layoutDetails.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 64F));
             layoutDetails.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
             layoutDetails.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
             layoutDetails.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
+            layoutDetails.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 132F));
+            layoutDetails.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             layoutDetails.Controls.Add(lblTaskId, 0, 0);
             layoutDetails.Controls.Add(txtTaskId, 1, 0);
             layoutDetails.Controls.Add(lblTaskTitle, 0, 1);
@@ -105,6 +115,10 @@ namespace RemoteWork.WinForms.Features.Tasks
             layoutDetails.Controls.Add(txtStartDate, 1, 4);
             layoutDetails.Controls.Add(lblDeadline, 0, 5);
             layoutDetails.Controls.Add(txtDeadline, 1, 5);
+            layoutDetails.Controls.Add(lblWriteContext, 0, 6);
+            layoutDetails.Controls.Add(txtWriteContext, 1, 6);
+            layoutDetails.Controls.Add(lblSourceNotice, 0, 7);
+            layoutDetails.SetColumnSpan(lblSourceNotice, 2);
             //
             // lblTaskId
             //
@@ -203,9 +217,39 @@ namespace RemoteWork.WinForms.Features.Tasks
             txtDeadline.Name = "txtDeadline";
             txtDeadline.ReadOnly = true;
             //
+            // lblWriteContext
+            //
+            lblWriteContext.Dock = System.Windows.Forms.DockStyle.Fill;
+            lblWriteContext.Margin = new System.Windows.Forms.Padding(0, 4, 8, 4);
+            lblWriteContext.Name = "lblWriteContext";
+            lblWriteContext.Text = "최신 확인 정보";
+            lblWriteContext.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            lblWriteContext.Visible = false;
+            //
+            // txtWriteContext
+            //
+            txtWriteContext.Dock = System.Windows.Forms.DockStyle.Fill;
+            txtWriteContext.Margin = new System.Windows.Forms.Padding(0, 4, 0, 4);
+            txtWriteContext.Multiline = true;
+            txtWriteContext.Name = "txtWriteContext";
+            txtWriteContext.ReadOnly = true;
+            txtWriteContext.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            txtWriteContext.Visible = false;
+            //
+            // lblSourceNotice
+            //
+            lblSourceNotice.AutoSize = true;
+            lblSourceNotice.Dock = System.Windows.Forms.DockStyle.Fill;
+            lblSourceNotice.Margin = new System.Windows.Forms.Padding(0, 8, 0, 12);
+            lblSourceNotice.Name = "lblSourceNotice";
+            lblSourceNotice.Text = "위 제목·담당자명·상태·날짜는 상세 조회 당시의 정보입니다. 최신 확인 정보는 별도 요청으로 조회하므로 같은 시점의 정보라고 보장하지 않습니다.\r\n수락·재작업 처리 규약과 마감 조건은 합의 필요입니다. 실행 권한 확인과 실제 상태 변경은 아직 연결하지 않았습니다.";
+            lblSourceNotice.Visible = false;
+            //
             // lblPreparationStatus
             //
             lblPreparationStatus.Dock = System.Windows.Forms.DockStyle.Fill;
+            lblPreparationStatus.AutoSize = true;
+            lblPreparationStatus.MinimumSize = new System.Drawing.Size(0, 64);
             lblPreparationStatus.Margin = new System.Windows.Forms.Padding(0, 8, 0, 0);
             lblPreparationStatus.Name = "lblPreparationStatus";
             lblPreparationStatus.Text = "대상 업무 선택 필요 · 수락 처리 규약 확인 필요 · 상태 미변경";
@@ -213,11 +257,15 @@ namespace RemoteWork.WinForms.Features.Tasks
             // flowActions
             //
             flowActions.Dock = System.Windows.Forms.DockStyle.Fill;
+            flowActions.AutoSize = true;
+            flowActions.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             flowActions.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
             flowActions.Margin = new System.Windows.Forms.Padding(0);
             flowActions.Name = "flowActions";
             flowActions.Padding = new System.Windows.Forms.Padding(0, 8, 0, 0);
             flowActions.Controls.Add(btnClose);
+            flowActions.Controls.Add(btnConfirmTarget);
+            flowActions.Controls.Add(btnReloadContext);
             //
             // btnClose
             //
@@ -229,6 +277,30 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnClose.Padding = new System.Windows.Forms.Padding(12, 4, 12, 4);
             btnClose.Text = "닫기";
             btnClose.Click += new System.EventHandler(Close_Click);
+            //
+            // btnConfirmTarget
+            //
+            btnConfirmTarget.AutoSize = true;
+            btnConfirmTarget.Enabled = false;
+            btnConfirmTarget.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
+            btnConfirmTarget.MinimumSize = new System.Drawing.Size(104, 34);
+            btnConfirmTarget.Name = "btnConfirmTarget";
+            btnConfirmTarget.Padding = new System.Windows.Forms.Padding(12, 4, 12, 4);
+            btnConfirmTarget.Text = "대상 확인";
+            btnConfirmTarget.Visible = false;
+            btnConfirmTarget.Click += new System.EventHandler(ConfirmTarget_Click);
+            //
+            // btnReloadContext
+            //
+            btnReloadContext.AutoSize = true;
+            btnReloadContext.Enabled = false;
+            btnReloadContext.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
+            btnReloadContext.MinimumSize = new System.Drawing.Size(144, 34);
+            btnReloadContext.Name = "btnReloadContext";
+            btnReloadContext.Padding = new System.Windows.Forms.Padding(12, 4, 12, 4);
+            btnReloadContext.Text = "최신 정보 다시 조회";
+            btnReloadContext.Visible = false;
+            btnReloadContext.Click += new System.EventHandler(ReloadContext_Click);
             //
             // TaskAcceptanceForm
             //
@@ -276,8 +348,13 @@ namespace RemoteWork.WinForms.Features.Tasks
         private System.Windows.Forms.TextBox txtStartDate;
         private System.Windows.Forms.Label lblDeadline;
         private System.Windows.Forms.TextBox txtDeadline;
+        private System.Windows.Forms.Label lblWriteContext;
+        private System.Windows.Forms.TextBox txtWriteContext;
+        private System.Windows.Forms.Label lblSourceNotice;
         private System.Windows.Forms.Label lblPreparationStatus;
         private System.Windows.Forms.FlowLayoutPanel flowActions;
         private System.Windows.Forms.Button btnClose;
+        private System.Windows.Forms.Button btnReloadContext;
+        private System.Windows.Forms.Button btnConfirmTarget;
     }
 }
