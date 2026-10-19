@@ -155,4 +155,4 @@ dotnet build .\Tests\TaskQueries.Http.Tests\TaskQueries.Http.Tests.csproj -c Rel
 
 PR21 후속 수정: 채팅 기본 off. 개발 서버 .env의 REMOTEWORK_ENABLE_CHAT_DRAFT=1과 명시적 Init-Chat이 필요하다. 정상 사용자 정보 갱신을 세션 교체와 구분하고, 메시지는 서버와 동일한 Unicode code point 2,000자 기준으로 검사한다. 공동 API/DDL 수용·공유 적용은 대기다.
 
-PR21 수정 검증: Release 경고/오류0, C# HTTP대역40·실제WinForms대역47, 격리MySQL 서버28, 별도 실제C#→TCP→MySQL15 검사를 직접 통과했습니다. 두PC·공유DB 적용·1번 공동 API/DDL 수용은 여전히 대기입니다. [재현 명령과 검증 구분](Tests/ChatStorage.Tests/README.md)을 확인합니다.
+PR21 수정 검증: Release 경고/오류0, C# HTTP대역40·실제WinForms대역47, 서버28(실제MySQL18+등록/CLI 경계10), 별도 실제C#→TCP→MySQL15 검사를 직접 통과했습니다. 두PC·공유DB 적용·1번 공동 API/DDL 수용은 여전히 대기입니다. [재현 명령과 검증 구분](Tests/ChatStorage.Tests/README.md)을 확인합니다.

@@ -62,7 +62,7 @@ chat_storage.mysql.sql은 **번호 미지정 개발 검토안**이다. 공동 mi
 - Release 솔루션 및 ChatStorage/ChatParticipants 검증 프로젝트: 경고0·오류0.
 - 실제 제품 소스를 링크한 C# HTTP 대역40시나리오 통과. 이전 head832478e에는 동일 실행기에서21실패/19통과로 문제를 재현했다.
 - 실제 WinForms/HTTP 대역47검사 통과(UI 문자 수 경계 포함). 실제 서버 검증과 구분한다.
-- 격리 소유 MySQL8.2 REPEATABLE READ: raw 채팅 DDL 적용 후 서버28검사 통과. 동시 같은 메시지200/201·원본/감사1건, Unicode 저장/재조회, 재시작 앱 컨텍스트·본인 숨김/상대 유지 포함.
+- 서버 suite28통과: 실제 소유 MySQL8.2 REPEATABLE READ 검사18개 + cold-process MySQL mock/SQLite 등록·CLI 경계10개. raw 채팅 DDL도 별도 실제 적용했다. 동시 같은 메시지200/201·원본/감사1건, Unicode 저장/재조회, 재시작 앱 컨텍스트·본인 숨김/상대 유지 포함.
 - 별도 소유 MySQL/TCP 서버에서 실제 ApiClient·채팅서비스를 사용한 C# HTTP15검사 통과. 두 계정을 같은 PC에서 사용했으며 물리적 두 PC 검증은 아니다.
 - 보조 데모 SQLite 저장 회귀21통과/1생략(MySQL 전용 동시성). 콜드 프로세스8플래그 조합/명시적CLI3테이블·공통 보존은 SQLite/MySQL mock 경계 검사이며 실제 MySQL 결과와 구분한다.
 
