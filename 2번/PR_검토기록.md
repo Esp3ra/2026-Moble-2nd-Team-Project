@@ -4,6 +4,28 @@
 
 # PR 검토 및 병합 기록
 
+## 최신 독립 재검토 — R38-01 해결·PR38 병합, 2026-10-19
+
+사용자의 “38번 재작업” 요청에서 최신 제출 head `8b57ed1cd74ffcc80a66e53784061874b86af149`에4번 수정이 이미 반영된 것을 확인하고, 기준 alpha `cd763c8392b5103acb5a86573b8045d36da44244`와 결합해 직접 재검증했습니다. **R38-01 해결·새 차단 문제 없음**으로 [PR38](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/38)을 alpha `8cfdfea21425c2cd43f05907c618098b34a56dd7`에 병합했습니다. 검증본/실제 병합 tree는 `bfc9afbeb0ad8da028b36e99f7d613bf6fe1586b`로 일치합니다.
+
+수정본은 page·list_target을 실제 조회 폼에 포함하고, 대상 필터 변경은 서버에서1페이지로 초기화합니다. 정렬 링크도1페이지로 시작하며, 오래되거나 삭제된 선택은 다른 공지 본문으로 대체하지 않습니다. 마지막 빈 페이지와 빈 목록도 처리합니다. 수정은4번의 web.py/index.html/웹 회귀/WEB.md에 반영됐고, 검토자는 제출 제품 코드를 추가 수정하지 않았습니다.
+
+| 이번 직접 검증 | 결과 |
+|---|---|
+| 원본 웹/공지/API 회귀 | 소유 MySQL8.2/RR에서 **75통과·실패/skip0,112.30초**. 페이지2/3의 첫·중간·마지막 선택6건, 필터/정렬·삭제/빈목록, 쿠키/API·CSRF·권한·rollback·동시삭제·콜드 등록 조합 |
+| 이전 실패의 독립 재현 | 실제 렌더된 form 값을 그대로 제출하는 같은 검사 **1통과,2.31초**. 기대/실제 모두review-notice-20, page 보존True |
+| 정적 범위 | PR14파일, Python AST5파일·상대 문서링크5개. 공통 auth/common/db/models/app factory·WinForms·2번 업무 소스 보존 |
+| 실행 환경 정리 | 새 소유 DB/프로세스/datadir/임시 경로 정리 확인. 공유 DB/기존 .env/계정/서버 설정 사용 없음 |
+
+수정 전 독립 재현은 review-notice-20 대신00을 표시했지만 같은 재현이 이번에는20의 본문과 제목을 표시합니다. 입력에는 `direction,list_target,page,selected,sort,target`이 실제 렌더돼 있으며 테스트가 누락 필드를 만들어 넣지 않습니다. 이전65통과·별도1실패, 작성자75/73·SQLite브라우저 보고를 이번 결과에 합산하지 않습니다.
+
+고정 Python3.12.14와 기존 검토 venv로 Flask test client+실제 소유 MySQL을 사용했습니다. 이번에는 실제 브라우저→MySQL·키보드/JS 브라우저 자동화·공유 DB·두PC·부하·WinForms 빌드/전체GUI를 실행하지 않았습니다. 등록 콜드프로세스의 메모리DB 설정은 모델/경로 대조이며 별도 제품SQLite 회귀가 아닙니다. 웹 팝업/확인 저장·실제 첨부·마감 알림·C09 정책은 여전히 별도입니다.
+
+이제 웹 공지 목록·상세·관리자 작성/삭제는 **기존 notice opt-in을 켠 개발 서버에서 사용 가능한 alpha 코드**입니다. 기본off·003/현재 DB·전역schema1·쿠키/Bearer 채널·전역CSRF/CSP·전체32KiB를 유지합니다. 닫힌PR35를 승인 근거로 삼지 않고 사용자의 재작업·기존 문제없으면 병합 지시에 따라 이번 제출 코드를 판정했습니다.
+
+근거: `ES/tmp/remote_work_pr38_rework_20261019/audit/`의 `owned-review-summary.json`, `server-mysql.txt`, `pagination-regression.txt`, `pagination-repro.json`, `scope-verification.json`, `test_pagination_review.py`. 기존 실패 근거와 원문은 아래에 보존합니다. 다른 제작 채팅의 협업 문서/2번 코드와 LOG/2번8개도 유지합니다.
+
+
 ## 최신 PR 검토 — PR38 수정 요청·PR39 병합 확인, 2026-10-19
 
 코드 [PR38](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/38)은 **R38-01 P2: 2페이지 선택→조회 시 page 누락으로 다른 상세 표시**를 실제 MySQL에서 재현해 미병합입니다. 기존65통과·별도 회귀1실패입니다. 문서 [PR39](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/39)는 검토 도중 LOG `754a6ea`에 병합된 상태를 확인했고 독립 문서 검증에서도 차단 문제를 찾지 못했습니다. 1번이 회원/장치 본인 확인 서버·DB/MainForm,5번이Pi/PC 중계·감지/근태를 작성한다는 역할 회신이며5번 확인·제품 구현은 대기입니다. [4번 수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/4번/2026-10-19_PR38_웹공지_페이지선택_수정요청.md)을 따릅니다. PR35는 CLOSED·미병합을 유지합니다.
