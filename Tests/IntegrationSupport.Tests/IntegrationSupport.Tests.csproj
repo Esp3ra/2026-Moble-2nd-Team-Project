@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../RemoteWork.WinForms/Infrastructure/ApiClient.cs" Link="ApiClient.cs" />
+    <Compile Include="../../RemoteWork.WinForms/Infrastructure/ApiModels.cs" Link="ApiModels.cs" />
+    <Compile Include="../../RemoteWork.WinForms/Infrastructure/FeatureUiScope.cs" Link="FeatureUiScope.cs" />
+    <None Include="../Fixtures/device_protocol_draft.json" Link="device_protocol_draft.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
