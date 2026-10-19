@@ -209,13 +209,14 @@ def test_row_choice_does_not_show_detail_until_query(client):
     assert "업무 마감 알림은 아직 연결되지 않았습니다" in detail.text
 
 
-def test_query_new_filter_uses_matching_row_instead_of_previous_department(client):
+def test_stale_selection_does_not_load_another_department(client):
     token = web_login(client)
     first=client.post("/notices/new",data=fields(token,target="기획팀",content="기획 상세"))
     second=client.post("/notices/new",data=fields(token,target="개발팀",content="개발 상세"))
     previous=int(first.location.split("choice=")[1])
     result=client.get(f"/notices?target=개발팀&selected={previous}")
-    assert result.status_code==200 and "개발 상세" in result.text and "기획 상세" not in result.text
+    assert result.status_code==200 and "개발 상세" not in result.text and "기획 상세" not in result.text
+    assert "조회 버튼을 눌러 주세요" in result.text
 
 
 @pytest.mark.parametrize("operation", ["create", "delete"])
@@ -297,3 +298,91 @@ def test_cold_registration_combinations_preserve_other_features(notice, task, ch
     assert ("/api/v1/tasks" in data["routes"]) == task
     assert ("/api/v1/chat/rooms" in data["routes"]) == chat
     assert "notice_confirmations" not in data["models"]
+
+
+class NoticePageParser(__import__("html.parser", fromlist=["HTMLParser"]).HTMLParser):
+    """Read real rendered controls rather than supplying missing query fields."""
+    def __init__(self, html):
+        super().__init__()
+        self.form = {}; self.action = None; self.in_form = False
+        self.select = None; self.link = None; self.links = {}; self.feed(html)
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "form" and attrs.get("class") == "notice-toolbar":
+            self.in_form = True; self.action = attrs["action"]
+        if self.in_form and tag == "input" and attrs.get("name"):
+            self.form[attrs["name"]] = attrs.get("value", "")
+        if self.in_form and tag == "select": self.select = attrs.get("name")
+        if self.select and tag == "option" and ("selected" in attrs or self.select not in self.form):
+            self.form[self.select] = attrs.get("value", "")
+        if tag == "a": self.link = [attrs.get("href", ""), ""]
+    def handle_data(self, data):
+        if self.link is not None: self.link[1] += data
+    def handle_endtag(self, tag):
+        if tag == "form": self.in_form = False
+        if tag == "select": self.select = None
+        if tag == "a" and self.link is not None:
+            self.links[self.link[1].strip()] = self.link[0]; self.link = None
+
+
+def seed_paged_notices(app, size=60):
+    with app.app_context(), transaction() as db:
+        actor = db.scalar(select(User).where(User.login_id == "admin1"))
+        for i in range(size):
+            db.add(Notice(title=f"paged-{i:02}", content=f"unique-body-{i:02}",
+                          target="기획팀" if i < 6 else "개발팀", author_id=actor.id,
+                          author=actor.display_name, is_pinned=False))
+
+
+@pytest.mark.parametrize("page,index", [(2,20),(2,30),(2,39),(3,40),(3,50),(3,59)])
+def test_rendered_query_form_preserves_page_and_exact_selection(app, client, page, index):
+    seed_paged_notices(app)
+    web_login(client)
+    listing = NoticePageParser(client.get(f"/notices?page={page}&sort=title&direction=asc").text)
+    # Following the real row link is also the no-JS/keyboard anchor path.
+    selected_page = client.get(listing.links[f"paged-{index:02}"])
+    assert "unique-body-" not in selected_page.text
+    controls = NoticePageParser(selected_page.text)
+    submitted = client.get(controls.action, query_string=controls.form)
+    assert f"unique-body-{index:02}" in submitted.text
+    assert f"{page} / 3 페이지" in submitted.text
+    assert "unique-body-00" not in submitted.text
+
+
+def test_rendered_filter_change_resets_page_without_loading_another_notice(app, client):
+    seed_paged_notices(app)
+    web_login(client)
+    controls = NoticePageParser(client.get("/notices?page=3&sort=title&direction=asc").text)
+    controls.form["target"] = "기획팀"
+    result = client.get(controls.action, query_string=controls.form)
+    assert result.status_code == 200 and "총 6건" in result.text and "paged-00" in result.text
+    assert 'name="page" value="1"' in result.text and "unique-body-" not in result.text
+
+
+def test_sort_link_resets_page_and_keeps_selection_only(app, client):
+    seed_paged_notices(app)
+    web_login(client)
+    controls = NoticePageParser(client.get("/notices?page=3&sort=title&direction=asc&target=개발팀").text)
+    result = client.get(controls.links["제목"])
+    assert 'name="page" value="1"' in result.text and "paged-59" in result.text
+    assert "unique-body-" not in result.text
+
+
+def test_deleted_selection_never_displays_replacement_body(app, client):
+    seed_paged_notices(app, 21)
+    token = web_login(client)
+    controls = NoticePageParser(client.get("/notices?page=2&sort=title&direction=asc").text)
+    chosen = controls.form["selected"]
+    assert client.post(f"/notices/{chosen}/delete", data={"csrf_token":token}).status_code == 303
+    result = client.get(controls.action, query_string=controls.form)
+    assert result.status_code == 200 and 'name="page" value="1"' in result.text
+    assert "unique-body-" not in result.text
+
+
+def test_empty_list_after_deletion_keeps_detail_empty(app, client):
+    seed_paged_notices(app, 1)
+    token = web_login(client)
+    controls = NoticePageParser(client.get("/notices").text)
+    client.post(f"/notices/{controls.form['selected']}/delete", data={"csrf_token":token})
+    result = client.get(controls.action, query_string=controls.form)
+    assert "조회할 공지사항이 없습니다" in result.text and "unique-body-" not in result.text

@@ -35,22 +35,29 @@ def index():
     target = request.args.get("target") or None
     page = number(request.args.get("page", "1"), "페이지")
     sort, direction = request.args.get("sort", "created_at"), request.args.get("direction", "desc")
+    # The rendered form carries its original filter even when JavaScript is off.
+    filter_changed = "list_target" in request.args and request.args["list_target"] != (target or "")
+    if filter_changed:
+        page = 1
     data = query_notices(target, page, 20, sort=sort, direction=direction)
+    pages = max(1, (data["total"] + 19) // 20)
+    # A deletion can remove the last row of the last page. Keep navigation usable.
+    if page > pages:
+        data = query_notices(target, pages, 20, sort=sort, direction=direction)
     selected = None
     chosen_id = data["items"][0]["id"] if data["items"] else None
-    # Selecting a row (choice) never loads detail. Only the query form sends selected.
-    wanted = request.args.get("selected") or request.args.get("choice")
+    wanted = None if filter_changed else (request.args.get("selected") or request.args.get("choice"))
     if wanted:
         wanted_id = number(wanted, "공지사항 ID")
         if not 1 <= wanted_id <= 2147483647:
             raise AppError(404, "NOTICE_NOT_FOUND", "삭제되었거나 존재하지 않는 공지사항입니다.")
         if any(n["id"] == wanted_id for n in data["items"]):
             chosen_id = wanted_id
-    if request.args.get("selected") and chosen_id is not None:
-        selected = get_notice(chosen_id).public()
+            # Never substitute the first row's body for a stale/deleted selection.
+            if request.args.get("selected"):
+                selected = get_notice(wanted_id).public()
     return render_template("notices/index.html", data=data, selected=selected, chosen_id=chosen_id, targets=TARGETS,
-                           target=target or "", sort=sort, direction=direction,
-                           pages=max(1, (data["total"] + 19) // 20))
+                           target=target or "", sort=sort, direction=direction, pages=pages)
 
 
 def form(values=None, error=None, status=200):
