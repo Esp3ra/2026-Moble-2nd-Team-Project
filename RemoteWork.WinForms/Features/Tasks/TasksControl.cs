@@ -491,7 +491,9 @@ namespace RemoteWork.WinForms.Features.Tasks
         private void btnDeadlineExtensionPreview_Click(object? sender, EventArgs e)
         {
             if (PreparationDetail() is { } detail)
-                PreviewActions.Open(this, new DeadlineExtensionForm(previewRole, detail));
+                PreviewActions.Open(this, preparationService is null
+                    ? new DeadlineExtensionForm(previewRole, detail)
+                    : new DeadlineExtensionForm(previewRole, detail, preparationService));
         }
 
         private void btnCollaborationRequest_Click(object? sender, EventArgs e)

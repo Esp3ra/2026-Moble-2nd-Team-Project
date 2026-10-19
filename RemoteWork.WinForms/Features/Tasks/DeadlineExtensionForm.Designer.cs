@@ -8,6 +8,7 @@ namespace RemoteWork.WinForms.Features.Tasks
 
         protected override void Dispose(bool disposing)
         {
+            if (disposing) StopPreparation();
             if (disposing && components != null)
                 components.Dispose();
             base.Dispose(disposing);

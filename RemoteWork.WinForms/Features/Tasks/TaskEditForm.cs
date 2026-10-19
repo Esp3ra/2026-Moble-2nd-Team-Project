@@ -18,19 +18,26 @@ namespace RemoteWork.WinForms.Features.Tasks
         private TaskPreparationSelection? preparedSelection;
         private CancellationTokenRegistration preparationSessionRegistration;
         private bool preparationStopped;
+        private bool preparationInvalidated;
         private readonly TaskCreationWorkflow? creationWorkflow;
         private readonly CancellationTokenSource creationLifetime = new();
         private TaskCreationRequest? checkedCreationRequest;
         private bool creationOperation;
         public TaskCreationResult? CreatedResult { get; private set; }
-        public TaskPreparationSelection? PreparedSelection => preparationService?.IsCurrent == true
-            && (creationWorkflow is null || creationWorkflow.IsCurrent) ? preparedSelection : null;
+        private bool HasCurrentPreparation => !preparationStopped && !preparationInvalidated && !IsDisposed
+            && (preparationService is null || (preparationService.IsCurrent
+                && !preparationService.SessionCancellation.IsCancellationRequested))
+            && (creationWorkflow is null || creationWorkflow.IsCurrent);
+        public TaskPreparationSelection? PreparedSelection => HasCurrentPreparation && preparationService?.IsCurrent == true
+            ? preparedSelection : null;
 
         // A local snapshot of the last successful input check; it does not authorize a write.
         public TaskBasicInputDraft? CheckedInput
         {
             get
             {
+                if (!HasCurrentPreparation)
+                { checkedInput = null; return null; }
                 // Programmatic checkbox changes may not raise ValueChanged.
                 if (checkedInput is not null
                     && (!datesSupported || (editing && sourceDetail is null)
@@ -130,6 +137,9 @@ namespace RemoteWork.WinForms.Features.Tasks
             CheckedInput = null;
             checkedCreationRequest = null;
             if (initializing) return;
+            if (preparationInvalidated || preparationStopped) return;
+            if (!HasCurrentPreparation)
+            { if (!preparationStopped) InvalidatePreparation(); return; }
             inputErrors.Clear();
             ResetPreparationStatus();
         }
@@ -181,16 +191,24 @@ namespace RemoteWork.WinForms.Features.Tasks
                         try { BeginInvoke((Action)InvalidatePreparation); }
                         catch (InvalidOperationException) { }
                 });
-                if (!preparationService.IsCurrent) InvalidatePreparation();
+                if (!HasCurrentPreparation) InvalidatePreparation();
             }
             ShowCreationState();
         }
         private void InvalidatePreparation()
         {
             if (preparationStopped || IsDisposed) return;
+            preparationInvalidated = true;
             preparedSelection = null;
             CheckedInput = null;
             checkedCreationRequest = null;
+            txtTaskTitle.Clear();
+            txtTaskDescription.Clear();
+            txtTaskTitle.Enabled = txtTaskDescription.Enabled = false;
+            dtpStartDate.Checked = dtpDeadline.Checked = false;
+            dtpStartDate.CustomFormat = dtpDeadline.CustomFormat = "'—'";
+            dtpStartDate.Enabled = dtpDeadline.Enabled = false;
+            inputErrors.Clear();
             cmbAssignee.Items.Clear();
             cmbAssignee.Items.Add("로그인 변경 · 선택 정보 다시 확인 필요");
             cmbAssignee.SelectedIndex = 0;
@@ -205,7 +223,10 @@ namespace RemoteWork.WinForms.Features.Tasks
         {
             if (preparationStopped) return;
             preparationStopped = true;
-            preparationSessionRegistration.Dispose();
+            preparedSelection = null;
+            checkedInput = null;
+            checkedCreationRequest = null;
+            preparationSessionRegistration.Unregister();
             if (creationWorkflow is not null) creationWorkflow.StateChanged -= CreationStateChanged;
             creationLifetime.Cancel();
             creationLifetime.Dispose();
@@ -219,7 +240,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             checkedCreationRequest = null;
             inputErrors.Clear();
             UpdateCreationButtons();
-            if (!btnConfirm.Enabled || !CanEditCreation() || (editing && sourceDetail is null) || !datesSupported) return;
+            if (!HasCurrentPreparation || !btnConfirm.Enabled || !CanEditCreation() || (editing && sourceDetail is null) || !datesSupported) return;
             Control? firstInvalid = null;
             void Reject(Control control, string message)
             {
@@ -283,9 +304,9 @@ namespace RemoteWork.WinForms.Features.Tasks
             UpdateCreationButtons();
         }
 
-        private bool CanEditCreation() => creationWorkflow is null
+        private bool CanEditCreation() => HasCurrentPreparation && (creationWorkflow is null
             || (!creationOperation && !creationWorkflow.IsBusy && creationWorkflow.IsCurrent
-                && creationWorkflow.CanCreate && creationWorkflow.State == TaskCreationState.Editing);
+                && creationWorkflow.CanCreate && creationWorkflow.State == TaskCreationState.Editing));
 
         private bool HasCreationSelection()
         {
@@ -325,7 +346,7 @@ namespace RemoteWork.WinForms.Features.Tasks
         private void UpdateCreationButtons()
         {
             if (creationWorkflow is null) return;
-            bool current = !preparationStopped && creationWorkflow.IsCurrent && preparationService?.IsCurrent == true;
+            bool current = HasCurrentPreparation && creationWorkflow.IsCurrent && preparationService?.IsCurrent == true;
             bool editable = current && CanEditCreation();
             txtTaskTitle.Enabled = txtTaskDescription.Enabled = editable;
             dtpStartDate.Enabled = dtpDeadline.Enabled = editable && datesSupported;
