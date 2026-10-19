@@ -154,6 +154,8 @@ dotnet build .\Tests\TaskQueries.Http.Tests\TaskQueries.Http.Tests.csproj -c Rel
 
 ## 2026-10-19 PR 검토 상태
 
+잘못 올라온 **PR35는 사용자 지시로 CLOSED·미병합** 처리했습니다. 문서 [PR37](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/37)은 1번의 기술 의견/협의 자료로 LOG `c2e8d95`에 수신·병합했습니다. 닫힌 PR35 요청을 웹 작업·공통 파일 수정 승인으로 사용하지 않으며 후속 유효 범위는 별도 확인합니다. 공개 벡터2개와 추가 상대링크18개를 검증했고 제품 코드/DB 검증을 새로 실행하지 않았습니다. 상세는 [검토 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md)을 따릅니다.
+
 코드 #21(채팅)·#25(DB 검증)에 이어 [#23(활동 상태 확인)](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/23)도 재검토 후 alpha `5d9602d`로 병합했습니다. 새 head7af259d에서 R23-01~03 해결을 확인했고, 수정된 원본 C#264검증/11시나리오·Python30개·독립 지연 검사·Release 경고/오류0을 직접 확인했습니다. 검증본과 실제 병합 tree도 일치합니다. 관련 문서 #32·#33은 LOG·PR에 수신·병합했습니다. [검토 결과·실제 테스트·미실행](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md)과 [5번 해결 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/5번/2026-10-19_PR23_과거프레임_지연검사_수정요청.md)을 따릅니다. 활동 확인은 사용자가 직접 여는 모달 기능이며, 실제 장비·회원/근태 저장·출근~퇴근 백그라운드 감지와 공유 DB·다른PC는 별도 검증/구현입니다. 등록된 CI 결과 대신 독립 로컬 검증을 기록했습니다. #29의 C09 공지 확장 정책도 계속 제안 수신 단계입니다.
 
 ## 브랜치와 게시 기준
