@@ -1,0 +1,4 @@
+user_names.local.json
+light_motion_events*.csv
+.test-venv/
+attendance-device.service
