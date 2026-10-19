@@ -60,6 +60,8 @@ DateOnly의 범위는 WinForms DateTimePicker보다 넓다. 조회 날짜가 Pic
 
 ## 규약 수신과 구현 순서
 
+2026-10-19 팀장 답변: 업무 수정·담당자 변경과 마감 연장은 모두3번과 협의 후 결정합니다. 아직 확정되지 않은 모든 정책/API/DB 연결 내용은 **협의사항**으로 남기며 실제 저장에 연결하지 않습니다.
+
 - [1번 업무 쓰기 공통 규약 확인 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#r011): 사용자 선택·버전/차수 DTO·직원 쓰기 세션 검사·트랜잭션/잠금·재시도·오류·감사·migration.
 - [3번 수락/상태/마감 연결 규약 확인 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#r016): 상태 갱신 책임·수락/제출 원자성·제출 이후 수정/배정·마감/연장 의미·참조/FK.
 
