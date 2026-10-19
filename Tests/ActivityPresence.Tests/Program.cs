@@ -55,6 +55,7 @@ internal static partial class Program
                 PresenceRules();
                 await LightHttp();
                 await CombinedUi();
+                await MonitorLifecycle();
                 Protocol();
                 AttendanceEntry();
                 Console.WriteLine($"PASS: {checks} assertions; {scenarios} scenarios. Synthetic images, injected camera, real Python stdio and loopback HTTP/auth fixtures. No physical camera/external devices/real common server/DB.");

@@ -4,6 +4,11 @@ namespace RemoteWork.WinForms.Features.Attendance
 {
     public partial class AttendanceControl : UserControl
     {
+        private readonly IActivityMonitor? activityMonitor;
+
+        public AttendanceControl(PreviewRole role, IActivityMonitor activityMonitor) : this(role)
+        { this.activityMonitor = activityMonitor ?? throw new ArgumentNullException(nameof(activityMonitor)); }
+
         public AttendanceControl() : this(PreviewRole.Employee) { }
 
         public AttendanceControl(PreviewRole role)
@@ -63,7 +68,7 @@ namespace RemoteWork.WinForms.Features.Attendance
 
         private void btnActivityPresence_Click(object? sender, EventArgs e)
         {
-            PreviewActions.Open(this, new ActivityPresenceForm());
+            PreviewActions.Open(this, activityMonitor is null ? new ActivityPresenceForm() : new ActivityPresenceForm(activityMonitor));
         }
 
     }
