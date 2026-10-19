@@ -1,3 +1,37 @@
+<a id="pr40-pr41-pr42-review"></a>
+## 최신 검토 — PR40·41 코드 / PR42 회신 병합, 2026-10-19
+
+[PR40](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/40) 1번 공통 지원은 alpha `7073817`, [PR41](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/41) 5번 독립 감지 서비스/공유 view는 alpha `763f11e`에 검토 후 병합했습니다. 새 차단 수정 요청은 없습니다. 직접 검증은40번 Python107·C#31,41번 C#294/12시나리오·Python30, 결합 Release 경고0/오류0이며 실제 병합 tree와 일치합니다. [PR42](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/42) 4번24개 통합 회신은 기존2문서/원문·링크/앵커를 검토해 LOG `2e6a439`에 병합했습니다. 문서 검토 때문에 제품/DB 시험을 추가 실행한 것은 아닙니다.
+
+40번은 독립 읽기 점검/바이트 초안/화면 요청 수명 도구이고41번은 소유자가 주입할 서비스 준비입니다. 실제 본인 확인 서버·근태 저장·출근~퇴근 MainForm 연결·실장비/공유DB/두PC는 아직 구현/검증 대상입니다. 회신 수신을 제안 정책의 확정으로 확대하지 않습니다. 아래의 이전 대기/미연결은 해당 시점 기록입니다.
+
+| 대상 | 고정 제출 / 병합 / 검증 tree |
+|---|---|
+| PR40 | head `831e59d874773768f8c9f33692c8372653c6a815`, base alpha `c7fcca27ae51ea5706166e64b4d091ac6a360452`; merge `707381756af8df159fef28e018e466cc0b20358b`; tree `71782ce50670c2919952ef6137169437efe9c393` |
+| PR41 | head `f4b20d0393e784fd38b18e985d509d7e8d50bffc`,40번과 결합 후 merge `763f11e6cb23e471d798926ae106d0bad575f5b6`; tree `b710340bf114620eec6e44d59575b1ac5bb1816b` |
+| PR42 | head `b6989bc0f1396ae26dbbb60c69874e43b5b02a39`, base LOG `aab4edbc00b0b55b135587789554f1e138cb3afc`; merge `2e6a4395e9924ad496f3e4a4c82b172e5f5c5691`; tree `a85cd123459f1f66338573f81dd7998555689372` |
+
+### 검토자 직접 실행
+
+- 40번 Python: `test_device_protocol_draft.py`, `test_integration_readiness.py`, `test_task_query_readiness.py`, `test_auth.py`, `test_web.py` **107통과·실패/skip0,45.84초**. 새 소유 MySQL8.2/RR을 사용했으며 바이트53개 등 단위/대역도 포함되어107개 전체가 DB 시험은 아닙니다. 기본 DB 미접속, 읽기전용 SQL/누락 열·테이블 무수정, feature 등록과 민감 오류 비노출을 확인했습니다.
+- 40번 C#: `dotnet run --project Tests/IntegrationSupport.Tests -c Release` **31검사 통과**. 공개 가상 벡터와 합성 HTTP/UI큐의 선택 변경·동일계정 재로그인·로그아웃·401·Dispose·1000회 세대 교대를 검사합니다. 실제 장치 서명/인증 API가 아닙니다.
+- 41번 C#: `dotnet run --project Tests/ActivityPresence.Tests -c Release` **294검사/12시나리오 통과**. 화면 없는 감지·공유 view 닫기/재개·구세대/접속 콜백 억제·취소와 공유 Stop·이전 정리 중 재시작 거절·정리 제한 오류·기존R23-01~03/로그인 복귀 회귀를 포함합니다. 합성 영상/입력·소유 Python stdio·loopback HTTP/인증 대역입니다.
+- 41번 Python: `unittest discover -s Tools/HandPresence -p 'test_*.py'` **30통과,2.215초**. 실제 카메라/Pi/모델 다운로드 없음.
+- 결합본: `dotnet build RemoteWork.sln -c Release --nologo` **경고0·오류0**. 40·41 순차 병합 후 실제 Git tree가 각각 검증본과 같은지 확인했습니다.
+- 42번 문서: 기존 Markdown2개·삭제0/기존 줄 보존,24개 답변 키·추가 상대 링크/앵커2개와 채팅 페이지/seq·문자수·수신 주기 코드를 대조했습니다. 실제 정책/새 코드 승인이나 제품 시험 수치로 합산하지 않습니다.
+
+검토 환경은 Windows / .NET SDK10.0.401·Desktop8.0.31 / Python3.12.14입니다. 작성자10.0.302/8.0.28·Python3.13/3.14 보고와 구분하며 위 수치는 제출 원본을 직접 재실행한 결과입니다. 소유 DB/프로세스/datadir/임시 경로 정리를 확인했습니다. 기존 공유 DB/사용자 계정/.env/서버/장치 설정은 사용하거나 바꾸지 않았습니다.
+
+### 코드·회신·후속 경계
+
+40번11파일과41번7파일의 변경을 확인했습니다. 기존 공통 ApiClient/LoginForm/MainForm,2번 업무·3번 제출·4번 웹/채팅 소스와 서버 등록/모델/DDL은 변경하지 않습니다. 40번의 새 Infrastructure helper는 아직 기존 화면에 채택하지 않았습니다. 41번 기존 기본 생성자는 수동 점검 모드이며 창 닫기 시 정리하고, 공유 view만 외부 소유 서비스를 유지합니다. 최종 MainForm의 생성/주입·서버 출근 성공 ID·로그아웃/만료/정상 퇴근 정리는1번 후속 작성/대조 대상입니다.
+
+1번14개 답변은 [기존1번 질문서](../1번/2026-10-19_공통규약_사전협의요청.md#member1-reply-pr40),5번21개 답변은 [기존5번 회신서](../5번/2026-10-19_C10_C11_회원장치_근태연결_협의회신_초안.md#member5-reply-pr41),4번24개 답변은 [기존4번 회신서](../4번/2026-10-19_C08_C09_채팅공지_협의회신.md#member4-unified-answer)에 취합/수신합니다. 5번은 정정 분담을 수락했으므로 과거 '5번 분담 확인 대기'는 최신 수신 전 이력입니다. 5번이 전달한 필수 지문 시점/탈퇴 삭제/인증1년 보관 요구는 공통 수명 순서와 세부 정책·운영 구현의 대조가 남습니다. 4번의 팝업/확인·협업·기한 알림의 주기/권한/DTO·새 모델은 제안/협의사항입니다. 3번의 실제 제출/검토·파일과2번 수정/배정/연장 협의는 별도이며 새 장치 조건을 업무 권한에 추가하지 않습니다.
+
+미실행: 실제 지문/웹캠/Pi, 실제 본인 확인 키/매핑·challenge/완료 API, 실제 MainForm/출퇴근·연차 저장/정오 요청/보존 작업, 공유 MySQL·실계정·두PC·장시간 부하·전체 수동GUI. 이번 병합만으로 이 범위의 완료를 선언하지 않습니다.
+
+근거: `ES/tmp/remote_work_pr40_41_review_20261019/audit/`의 `pr40-server-tests.txt`, `owned-review-summary.json`, `pr40-tested-tree.txt`, `doc42-verification.json`과 검토 실행 출력. 팀장 기존 지시에 따라 기존 PR/LOG/README만 갱신하며 협의 답변용 추가 PR/새 LOG 문서를 요구하지 않습니다. LOG/2번8개 구조와 과거 원문을 보존합니다.
+
 <!-- team-collaboration-current:start -->
 > **1~5번 협업 최신 안내 · 2026-10-19** — [통합 현재 현황/진행 순서](공통규약.md#team-collaboration-current)와 [2번 조치](공통규약.md#collab-member2)를 먼저 확인합니다. 원문과 과거 테스트/게시 수치는 작성 당시 기록입니다. 새 협의 결과·공유 적용이나 다른 담당 구현 완료를 이 문서 최신화로 대신 선언하지 않습니다. 미확정은 모두 **협의사항**입니다.
 <!-- team-collaboration-current:end -->
