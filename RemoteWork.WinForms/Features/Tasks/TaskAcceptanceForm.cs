@@ -1,6 +1,7 @@
 using System.Globalization;
 using RemoteWork.WinForms.Features.Tasks.Preparation;
 using RemoteWork.WinForms.Features.Tasks.Queries;
+using RemoteWork.WinForms.Features.Tasks.Starting;
 using RemoteWork.WinForms.Ui;
 
 namespace RemoteWork.WinForms.Features.Tasks
@@ -21,10 +22,15 @@ namespace RemoteWork.WinForms.Features.Tasks
         private TaskStartTarget? checkedTarget;
 
         public TaskStartTarget? CheckedTarget => !stopped && !busy && HasCurrentSession
+            && (startWorkflow is null || startWorkflow.State == TaskStartState.Editing)
             && checkedTarget?.UserId == preparationService?.UserId ? checkedTarget : null;
         public bool ShouldRefreshList { get; private set; }
-        private bool HasCurrentSession => !accessBlocked && preparationService?.IsCurrent == true
-            && !preparationService.SessionCancellation.IsCancellationRequested;
+        private bool HasCurrentSession => !accessBlocked
+            && (startWorkflow is null
+                ? preparationService?.IsCurrent == true && !preparationService.SessionCancellation.IsCancellationRequested
+                : startWorkflow.IsCurrent && !startWorkflow.SessionCancellation.IsCancellationRequested
+                    && (preparationService is null || preparationService.IsCurrent
+                        && !preparationService.SessionCancellation.IsCancellationRequested));
 
         public TaskAcceptanceForm() : this(null, TaskStartKind.Accept, null, false) { }
 
@@ -36,13 +42,23 @@ namespace RemoteWork.WinForms.Features.Tasks
         public TaskAcceptanceForm(TaskDetail detail, TaskStartKind kind, ITaskPreparationService? prep)
             : this(detail ?? throw new ArgumentNullException(nameof(detail)), kind, prep, true) { }
 
+        public TaskAcceptanceForm(TaskDetail detail, TaskStartKind kind, ITaskPreparationService? prep,
+            TaskStartWorkflow? workflow)
+            : this(detail ?? throw new ArgumentNullException(nameof(detail)), kind, prep, true, workflow) { }
+
+        public TaskAcceptanceForm(TaskStartWorkflow workflow, ITaskPreparationService? prep)
+            : this(null, (workflow ?? throw new ArgumentNullException(nameof(workflow))).PendingRequest?.Kind ?? TaskStartKind.Accept,
+                prep, true, workflow, true) { }
+
         private TaskAcceptanceForm(TaskDetail? detail, TaskStartKind kind,
-            ITaskPreparationService? prep, bool connected)
+            ITaskPreparationService? prep, bool connected, TaskStartWorkflow? workflow = null, bool recovery = false)
         {
             this.source = detail;
             this.kind = kind;
             this.preparationService = prep;
             this.connected = connected;
+            startWorkflow = workflow;
+            recoveryOnly = recovery;
             InitializeComponent();
             if (PreviewActions.IsDesignMode(this)) return;
             if (!connected)
@@ -71,6 +87,7 @@ namespace RemoteWork.WinForms.Features.Tasks
                 lblAssignee.Text = "조회 당시 담당자";
                 txtWriteContext.Text = "최신 정보를 아직 조회하지 않았습니다.";
             }
+            InitializeStartMode();
             if (detail is null) return;
             TaskSummary task = detail.Summary;
             Text = lblPageTitle.Text = kind == TaskStartKind.Rework ? "재작업 시작 대상 확인" : "업무 수락 대상 확인";
@@ -83,6 +100,11 @@ namespace RemoteWork.WinForms.Features.Tasks
             lblPreparationStatus.Text = connected
                 ? "최신 배정과 상태를 조회할 준비 중입니다. 수락·재작업 시작은 저장하지 않습니다."
                 : "조회한 대상 정보만 표시합니다. 서버 전송·배정 수락·재작업 시작·상태 변경은 하지 않습니다.";
+            if (startWorkflow is not null)
+            {
+                Text = lblPageTitle.Text = kind == TaskStartKind.Rework ? "재작업 시작" : "업무 수락";
+                lblPreparationStatus.Text = "현재 배정·상태를 조회한 뒤 대상을 확인하고 별도 실행 버튼을 눌러 주세요.";
+            }
             SetButtons();
         }
 
@@ -90,6 +112,9 @@ namespace RemoteWork.WinForms.Features.Tasks
         {
             base.OnShown(e);
             if (!connected || stopped) return;
+            AttachStartWorkflow();
+            if (startWorkflow is not null && (recoveryOnly || startWorkflow.State != TaskStartState.Editing))
+            { ShowStartWorkflow(); return; }
             if (preparationService is null)
             {
                 Fail(new TaskPreparationException(TaskPreparationFailure.NotConfigured));
@@ -107,6 +132,8 @@ namespace RemoteWork.WinForms.Features.Tasks
         /// <summary>Read the latest target on the WinForms UI thread. No task action is sent.</summary>
         public async Task RefreshContextAsync()
         {
+            if (startWorkflow is not null && startWorkflow.State != TaskStartState.Editing)
+            { ShowStartWorkflow(); return; }
             if (!connected || stopped || IsDisposed || source is null || accessBlocked) return;
             if (preparationService is null)
             { Fail(new TaskPreparationException(TaskPreparationFailure.NotConfigured)); return; }
@@ -132,7 +159,9 @@ namespace RemoteWork.WinForms.Features.Tasks
                     + $"\r\n서버 변경 시각 {context.UpdatedAt.ToString("yyyy-MM-dd HH:mm:ss 'UTC'", CultureInfo.InvariantCulture)}";
                 readyTarget = check.Target;
                 if (check.Outcome == TaskStartTargetOutcome.Matched)
-                    lblPreparationStatus.Text = "본인 배정과 대상 상태를 조회했습니다. ‘대상 확인’을 눌러 확인값을 보관할 수 있습니다.\r\n실행 권한·마감 조건은 확정하지 않으며 수락·재작업 시작을 저장하지 않습니다.";
+                    lblPreparationStatus.Text = startWorkflow is null
+                        ? "본인 배정과 대상 상태를 조회했습니다. ‘대상 확인’을 눌러 확인값을 보관할 수 있습니다.\r\n실행 권한·마감 조건은 확정하지 않으며 수락·재작업 시작을 저장하지 않습니다."
+                        : "본인 배정과 대상 상태를 조회했습니다. 먼저 ‘대상 확인’을 눌러 주세요.\r\n수락·재작업 실행 시 서버가 현재 권한·버전·한국 시간 기간을 다시 검사합니다.";
                 else if (check.Outcome == TaskStartTargetOutcome.NotCurrentAssignee)
                 {
                     ShouldRefreshList = true;
@@ -170,6 +199,7 @@ namespace RemoteWork.WinForms.Features.Tasks
         private void SetButtons()
         {
             if (!connected || stopped) return;
+            if (startWorkflow is not null) { SetStartButtons(); return; }
             bool current = HasCurrentSession;
             btnReloadContext.Enabled = current && !busy;
             btnConfirmTarget.Enabled = current && !busy && readyTarget is not null;
@@ -204,14 +234,29 @@ namespace RemoteWork.WinForms.Features.Tasks
             busy = false;
             accessBlocked = true;
             txtWriteContext.Clear();
-            lblPreparationStatus.Text = "로그인이 만료되었거나 접속이 변경되었습니다. 다시 로그인한 뒤 업무를 조회해 주세요.\r\n수락·재작업 시작과 상태 변경은 하지 않았습니다.";
+            if (startWorkflow is not null)
+            {
+                txtTaskId.Clear(); txtTaskTitle.Clear(); txtAssignee.Clear();
+                txtTaskStatus.Clear(); txtStartDate.Clear(); txtDeadline.Clear();
+            }
+            lblPreparationStatus.Text = startWorkflow is null
+                ? "로그인이 만료되었거나 접속이 변경되었습니다. 다시 로그인한 뒤 업무를 조회해 주세요.\r\n수락·재작업 시작과 상태 변경은 하지 않았습니다."
+                : startWorkflow.Failure == TaskStartFailure.Forbidden
+                    ? "현재 로그인에는 이 업무를 시작할 권한이 없습니다. 이 창의 이전 요청 정보를 지웠습니다.\r\n권한과 서버 처리 내역을 확인한 뒤 다시 로그인해 주세요."
+                    : "로그인이 만료되었거나 접속이 변경되어 이전 요청 정보를 지웠습니다.\r\n다시 로그인한 뒤 서버의 업무 상태와 처리 내역을 확인해 주세요.";
             SetButtons();
         }
 
-        private async void ReloadContext_Click(object? sender, EventArgs e) => await RefreshContextAsync();
-
-        private void ConfirmTarget_Click(object? sender, EventArgs e)
+        private async void ReloadContext_Click(object? sender, EventArgs e)
         {
+            if (startWorkflow is not null && startWorkflow.CanCheckResult)
+                await RunStartOperationAsync(() => startWorkflow.CheckResultAsync());
+            else await RefreshContextAsync();
+        }
+
+        private async void ConfirmTarget_Click(object? sender, EventArgs e)
+        {
+            if (startWorkflow is not null) { await ConfirmStartAsync(); return; }
             if (stopped || busy || !HasCurrentSession || readyTarget is null) return;
             checkedTarget = readyTarget;
             lblPreparationStatus.Text = "대상 확인값을 이 창에 보관했습니다. 수락·재작업 시작을 실행한 것은 아닙니다.\r\n업무 상태·제출 회차는 변경하지 않았으며 서버에 저장하지 않았습니다.";
@@ -227,6 +272,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             requestCancellation?.Cancel();
             requestCancellation?.Dispose();
             requestCancellation = null;
+            DetachStartWorkflow();
         }
 
         protected override void OnFormClosed(FormClosedEventArgs e)
