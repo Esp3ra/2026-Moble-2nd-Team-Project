@@ -29,6 +29,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             btnQuery = new Button();
             btnLeaveApplicationPreview = new Button();
             btnLeaveDecision = new Button();
+            btnActivityPresence = new Button();
             lblBalance = new Label();
             layoutRecords = new TableLayoutPanel();
             panelAttendance = new Panel();
@@ -101,6 +102,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             flowActions.Controls.Add(btnQuery);
             flowActions.Controls.Add(btnLeaveApplicationPreview);
             flowActions.Controls.Add(btnLeaveDecision);
+            flowActions.Controls.Add(btnActivityPresence);
             flowActions.Controls.Add(lblBalance);
             cmbOptions.DropDownStyle = ComboBoxStyle.DropDownList;
             cmbOptions.Items.AddRange(new object[] { "2026년 10월", "2026년 9월" });
@@ -133,6 +135,11 @@ namespace RemoteWork.WinForms.Features.Attendance
             btnLeaveDecision.Margin = new Padding(0, 0, 10, 0);
             btnLeaveDecision.Name = "btnLeaveDecision";
             btnLeaveDecision.Click += new System.EventHandler(btnLeaveDecision_Click);
+            btnActivityPresence.Name = "btnActivityPresence";
+            btnActivityPresence.Text = "활동 상태 확인";
+            btnActivityPresence.Size = new Size(130, 34);
+            btnActivityPresence.Margin = new Padding(0, 0, 10, 0);
+            btnActivityPresence.Click += new System.EventHandler(btnActivityPresence_Click);
             lblBalance.AutoSize = true;
             lblBalance.Font = new Font("맑은 고딕", 11F, FontStyle.Bold);
             lblBalance.ForeColor = Color.FromArgb(52, 101, 224);
@@ -323,6 +330,7 @@ namespace RemoteWork.WinForms.Features.Attendance
         private Button btnQuery;
         private Button btnLeaveApplicationPreview;
         private Button btnLeaveDecision;
+        private Button btnActivityPresence;
         private Label lblBalance;
         private TableLayoutPanel layoutRecords;
         private Panel panelAttendance;
