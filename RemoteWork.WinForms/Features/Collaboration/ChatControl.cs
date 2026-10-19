@@ -149,7 +149,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
         private void InitializeDeleteMenu()
         {
             var menu = new ContextMenuStrip(components);
-            var deleteItem = new ToolStripMenuItem("삭제");
+            var deleteItem = new ToolStripMenuItem(chatService is HttpChatService ? "내 목록에서 삭제" : "삭제");
             ChatRoom? rightClickedRoom = null;
             menu.Items.Add(deleteItem);
 
@@ -206,7 +206,9 @@ namespace RemoteWork.WinForms.Features.Collaboration
                 PopulateRooms(nextRoomId);
                 await ShowSelectedRoomAsync();
                 if (!IsDisposed && !Disposing)
-                    ShowStatus($"'{room.Name}' 대화방과 대화를 삭제했습니다.");
+                    ShowStatus(chatService is HttpChatService
+                        ? $"'{room.Name}' 방을 내 목록에서만 삭제했습니다. 다른 참여자의 대화는 유지됩니다."
+                        : $"'{room.Name}' 대화방과 대화를 삭제했습니다.");
             }
             catch (OperationCanceledException) when (IsDisposed || Disposing) { }
             catch (Exception ex)
@@ -247,7 +249,9 @@ namespace RemoteWork.WinForms.Features.Collaboration
                 finally { updatingRooms = false; }
                 PopulateRooms(room.Id);
                 await ShowSelectedRoomAsync();
-                if (!IsDisposed && !Disposing) ShowStatus($"'{room.Name}' 대화방을 임시로 만들었습니다.");
+                if (!IsDisposed && !Disposing) ShowStatus(chatService is HttpChatService
+                    ? $"'{room.Name}' 대화방을 서버에 저장했습니다."
+                    : $"'{room.Name}' 대화방을 임시로 만들었습니다.");
             }
             catch (OperationCanceledException) when (IsDisposed || Disposing) { }
             catch (Exception ex)
@@ -301,7 +305,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
                 var history = await chatService.GetMessagesAsync(roomId, lifetime.Token);
                 if (IsDisposed || Disposing) return;
                 RenderMessages(history);
-                ShowStatus("이 화면의 임시 대화에 추가했습니다.");
+                ShowStatus(chatService is HttpChatService ? "메시지를 서버에 저장했습니다." : "이 화면의 임시 대화에 추가했습니다.");
             }
             catch (OperationCanceledException) when (IsDisposed || Disposing) { }
             catch (Exception ex)
@@ -340,7 +344,8 @@ namespace RemoteWork.WinForms.Features.Collaboration
 
         private void ShowStatus(string text)
         {
-            lblChatStatus.Text = $"화면 동작 예시 · 서버 미연결 · 작성자: {chatService.CurrentUser.Name} | {text}";
+            string source = chatService is HttpChatService ? "서버 DB 저장" : "대화방·메시지 임시 저장";
+            lblChatStatus.Text = $"{source} · 작성자: {chatService.CurrentUser.Name} | {text}";
         }
 
         private void Unavailable_Click(object? sender, EventArgs e)

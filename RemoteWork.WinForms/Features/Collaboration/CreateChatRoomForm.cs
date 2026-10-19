@@ -9,6 +9,7 @@ public partial class CreateChatRoomForm : Form
     private bool loading = true;
     private bool saving;
     private bool updatingChecks;
+    private bool lifetimeEnded;
     internal ChatRoom? CreatedRoom { get; private set; }
 
     // 기본 생성자를 유지해 Visual Studio 디자이너에서 열 수 있습니다.
@@ -23,7 +24,13 @@ public partial class CreateChatRoomForm : Form
         UpdateSelectionState();
         Load += LoadParticipantsAsync;
         FormClosing += ConfirmClosing;
-        Disposed += (_, _) => { lifetime.Cancel(); lifetime.Dispose(); };
+        Disposed += (_, _) =>
+        {
+            if (lifetimeEnded) return;
+            lifetimeEnded = true;
+            lifetime.Cancel();
+            lifetime.Dispose();
+        };
     }
 
     private async void LoadParticipantsAsync(object? sender, EventArgs e)
@@ -36,7 +43,7 @@ public partial class CreateChatRoomForm : Form
             foreach (var participant in participants.Where(p => p.Id != chatService.CurrentUser.Id)
                 .OrderBy(p => p.Department).ThenBy(p => p.Name))
                 lstParticipants.Items.Add(new ParticipantItem(participant));
-            lblError.Text = participants.Count == 0 ? "선택할 수 있는 참여자가 없습니다." : "";
+            lblError.Text = lstParticipants.Items.Count == 0 ? "선택할 수 있는 참여자가 없습니다." : "";
         }
         catch (OperationCanceledException) when (IsDisposed || Disposing) { }
         catch (Exception ex)
@@ -153,6 +160,6 @@ public partial class CreateChatRoomForm : Form
 
     private sealed record ParticipantItem(ChatParticipant Participant)
     {
-        public override string ToString() => $"{Participant.Name} · {Participant.Department}";
+        public override string ToString() => $"{Participant.Name} · {Participant.Department} (#{Participant.Id})";
     }
 }

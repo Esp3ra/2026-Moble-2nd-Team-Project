@@ -1,13 +1,14 @@
 namespace RemoteWork.WinForms.Features.Collaboration;
 
-// 현재는 화면 동작을 위한 메모리 저장소입니다. 네트워크 전송과 DB 저장은 하지 않습니다.
+// 방과 메시지는 메모리에 보관합니다. 실제 로그인 경로의 초대 목록만 서버에서 조회합니다.
 internal sealed class InMemoryChatService : IChatService
 {
     public const int MaxMessageLength = 2000;
     public const int MaxRoomTitleLength = 60;
     private readonly object sync = new();
     private readonly List<ChatRoom> rooms;
-    private readonly IReadOnlyList<ChatParticipant> availableParticipants;
+    private IReadOnlyList<ChatParticipant> availableParticipants;
+    private readonly IChatParticipantDirectory? participantDirectory;
     private readonly Dictionary<string, List<ChatMessage>> messages;
 
     public ChatParticipant CurrentUser { get; }
@@ -34,6 +35,16 @@ internal sealed class InMemoryChatService : IChatService
         AddSample("development", kim, "개발 진행 상황과 확인할 내용을 공유해 주세요.", 10, 30);
     }
 
+    // Authenticated screens use real candidates and start with no sample rooms.
+    public InMemoryChatService(ChatParticipant currentUser, IChatParticipantDirectory participantDirectory)
+    {
+        CurrentUser = currentUser;
+        this.participantDirectory = participantDirectory;
+        availableParticipants = Array.Empty<ChatParticipant>();
+        rooms = new List<ChatRoom>();
+        messages = new Dictionary<string, List<ChatMessage>>();
+    }
+
     public Task<IReadOnlyList<ChatRoom>> GetRoomsAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -41,13 +52,20 @@ internal sealed class InMemoryChatService : IChatService
             return Task.FromResult<IReadOnlyList<ChatRoom>>(Array.AsReadOnly(rooms.ToArray()));
     }
 
-    public Task<IReadOnlyList<ChatParticipant>> GetAvailableParticipantsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<ChatParticipant>> GetAvailableParticipantsAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(availableParticipants);
+        if (participantDirectory is null) return availableParticipants;
+        var loaded = await participantDirectory.GetParticipantsAsync(cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (sync)
+        {
+            availableParticipants = Array.AsReadOnly(loaded.ToArray());
+            return availableParticipants;
+        }
     }
 
-    public Task<ChatRoom> CreateRoomAsync(CreateChatRoomRequest request, CancellationToken cancellationToken = default)
+    public async Task<ChatRoom> CreateRoomAsync(CreateChatRoomRequest request, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(request);
@@ -61,6 +79,9 @@ internal sealed class InMemoryChatService : IChatService
             throw new ArgumentException(request.IsGroup ? "그룹 대화는 상대방을 2명 이상 선택해 주세요."
                 : "개인 대화는 상대방을 1명 선택해 주세요.");
 
+        // Recheck active candidates before creating the still-local room.
+        if (participantDirectory is not null)
+            await GetAvailableParticipantsAsync(cancellationToken);
         var participants = new List<ChatParticipant> { CurrentUser };
         foreach (string id in ids)
         {
@@ -76,7 +97,7 @@ internal sealed class InMemoryChatService : IChatService
                 participants.AsReadOnly());
             rooms.Add(room);
             messages.Add(room.Id, new List<ChatMessage>());
-            return Task.FromResult(room);
+            return room;
         }
     }
 
