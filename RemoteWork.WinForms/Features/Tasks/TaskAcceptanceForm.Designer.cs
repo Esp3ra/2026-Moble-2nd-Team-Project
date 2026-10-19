@@ -242,7 +242,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             lblSourceNotice.Dock = System.Windows.Forms.DockStyle.Fill;
             lblSourceNotice.Margin = new System.Windows.Forms.Padding(0, 8, 0, 12);
             lblSourceNotice.Name = "lblSourceNotice";
-            lblSourceNotice.Text = "위 제목·담당자명·상태·날짜는 상세 조회 당시의 정보입니다. 최신 확인 정보는 별도 요청으로 조회하므로 같은 시점의 정보라고 보장하지 않습니다.\r\n수락·재작업 처리 규약과 마감 조건은 합의 필요입니다. 실행 권한 확인과 실제 상태 변경은 아직 연결하지 않았습니다.";
+            lblSourceNotice.Text = "위 제목·담당자명·상태·날짜는 상세 조회 당시의 정보입니다. 최신 확인 정보는 별도 요청으로 조회하므로 같은 시점의 정보라고 보장하지 않습니다.\r\n수락·재작업 시작의 날짜 기준은 한국시간 시작일~마감일 당일입니다. 위 날짜만으로 현재 실행 자격을 판단하지 않습니다.\r\n수락·재작업 실행 규약은 합의 필요이며, 실행 시점의 서버 재검사와 실제 상태 저장은 아직 연결하지 않았습니다.";
             lblSourceNotice.Visible = false;
             //
             // lblPreparationStatus
