@@ -1,5 +1,11 @@
 # 4번 수정 요청 및 처리 기록
 
+## 현재 — PR #21 채팅 코드 수정 요청, 2026-10-19
+
+[R21-01~03 수정 요청](2026-10-19_PR21_채팅저장_수정요청.md)에서 같은 세션의 정보 갱신을 로그인 변경으로 오인하는 문제, 공통 초기화에 미확정 채팅 DDL이 포함되는 문제, 서버/C# 메시지 길이 불일치의 P2 3건을 확인합니다. 정확한 head `832478e`의 HTTP 대역·MySQL mock DDL 재현이며 실제 MySQL 저장 검증은 아닙니다. 코드 #21은 Draft·미병합입니다.
+
+협의 문서 [PR #22](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/22)만 LOG `0339b29`로 병합했습니다. 수정 후 새 head 검토, 1번 API/DDL 회신, 저장 통합 검증과 Ready 확인이 남아 있습니다. 아래 과거 완료/대기 기록과 별개인 신규 요청입니다.
+
 ## 최신 검토자 확인 — PR #7·#13·#14 병합, 2026-10-17
 
 **코드 [PR #7](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/7)은 재검토 후 alpha에 병합했습니다.** 제출 head는 `d58064ccd30e7e718f94d5e5556d0f19c6afd88c`, 병합 커밋은 [733b47a](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/733b47afca123ed3b161e6d96b492a8afc6e163f)이며 GitHub 확인 시각은 **2026-10-17 16:42:08 KST**입니다. Ready·README 충돌·해당 head의 독립 재검토 조건은 해소됐습니다. 최종 alpha 문서 기준은 `f486758d119080511a4bf27e1b3b328d144fe530`입니다.
