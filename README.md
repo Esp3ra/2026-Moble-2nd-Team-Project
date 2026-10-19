@@ -160,6 +160,8 @@ dotnet build .\Tests\TaskQueries.Http.Tests\TaskQueries.Http.Tests.csproj -c Rel
 
 ## 2026-10-19 PR 검토 상태
 
+[PR40](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/40) 공통 읽기 점검/공개 바이트 초안/FeatureUiScope와 [PR41](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/41) 독립 감지 서비스/공유 상태 view를 검토 후 alpha7073817/763f11e에 병합했습니다. Python107·C#31, 감지C#294/12·Python30, 결합 Release 경고0/오류0과 검증/병합 tree 일치를 확인했습니다. 기존 기본 진입은 수동 점검이며 실제 MainForm 소유/출퇴근 저장·본인 확인 API/DB·실물/공유/두PC는 후속입니다. [PR42](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/42)는4번24개 통합 회신으로 LOG2e6a439에 수신했고 제안 정책은 협의사항입니다. [상세 검토](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr40-pr41-pr42-review)를 따릅니다.
+
 [웹 공지PR38](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/38)은4번 수정본8b57ed1의 페이지 선택 오류R38-01 해결을 확인해 alpha `8cfdfea`에 병합했습니다. 소유MySQL 원본75검사·이전 실패 재현1검사 통과, 검증/병합 tree 일치를 확인했습니다. [최종 검토](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/4번/2026-10-19_PR38_웹공지_페이지선택_수정요청.md)와 [LOG 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md)을 따릅니다. 아래PR38미병합/실패 설명은 이전 검토 회차의 기록입니다.
 
 [웹 공지 코드PR38](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/38)은2페이지 조회 form의 page 누락으로 다른 공지 상세를 표시하는 R38-01 P2를 재현해 미병합입니다. 소유 MySQL 기존65통과와 독립 회귀1실패를 구분합니다. [4번 수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/4번/2026-10-19_PR38_웹공지_페이지선택_수정요청.md)을 따르며 현재alpha의 웹 공지 연결 완료로 표시하지 않습니다. 문서PR39는 LOG `754a6ea` 병합 상태/동일트리를 확인했습니다. 회원/장치 서버·DB/MainForm은1번,Pi/PC 중계·감지/근태는5번의 역할 회신이고 상대 확인·제품 구현은 별도입니다.
