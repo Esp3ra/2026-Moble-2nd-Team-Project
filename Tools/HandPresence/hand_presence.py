@@ -62,6 +62,7 @@ class CameraWorker:
         self.config_lock = threading.Lock()
         self.region = region
         self.region_version = 0
+        self.progress = None
         self.thread = threading.Thread(target=self.run, daemon=True, name="local-hand-camera")
 
     def start(self):
@@ -79,19 +80,26 @@ class CameraWorker:
         version = 0
         try:
             import cv2
+            if self.progress:
+                self.progress("인식 모델 준비 중")
             detector = self.detector_factory()
             if self.stopping.is_set():
                 return
             backend = {"DSHOW": cv2.CAP_DSHOW, "MSMF": cv2.CAP_MSMF}[self.backend]
             factory = self.camera_factory or cv2.VideoCapture
             # One explicitly selected camera only: never scan other devices.
+            if self.progress:
+                self.progress("카메라 연결 중")
             camera = factory(self.index, backend)
             if not camera.isOpened():
                 raise RuntimeError("카메라를 열 수 없습니다. 카메라 앱을 닫고 번호·연결·권한을 확인하세요.")
             camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
             camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            if self.progress:
+                self.progress("카메라에서 첫 영상을 기다리는 중")
             tracker = EvidenceTracker()
             previous_version = -1
+            first_image = True
             while not self.stopping.is_set():
                 ok, frame = camera.read()
                 observed = time.monotonic()  # Reception time, before crop/inference (R23-01).
@@ -108,6 +116,9 @@ class CameraWorker:
                 x1, y1, x2, y2 = region.bounds(width, height)
                 rgb = cv2.cvtColor(frame[y1:y2, x1:x2].copy(), cv2.COLOR_BGR2RGB)
                 del frame  # Full frame is never queued, displayed, written or transmitted.
+                if first_image and self.progress:
+                    self.progress("첫 영상 분석 중")
+                first_image = False
                 boxes = detector.detect(rgb)
                 evidence = tracker.observe(len(boxes), observed)
                 for left, top, right, bottom in boxes:

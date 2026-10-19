@@ -31,6 +31,12 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(result['state'], 'CAMERA_ERROR')
         self.assertIsNone(result['jpeg'])
 
+    def test_progress_packet_keeps_stage_and_has_no_image(self):
+        result = packet(FrameUpdate(1, 0, Evidence('STARTING', error='model loading'), observed=100), now=101)
+        self.assertEqual(result['state'], 'STARTING')
+        self.assertEqual(result['error'], 'model loading')
+        self.assertIsNone(result['jpeg'])
+
     def test_encoding_delay_drops_image(self):
         frame = FrameUpdate(1, 0, Evidence('HAND_DETECTED', 1), np.zeros((64, 64, 3), np.uint8), 100)
         with patch('winforms_bridge.time.monotonic', side_effect=[101, 110]):

@@ -36,7 +36,7 @@ public sealed record ActivityCameraFrame(string State, double AgeSeconds = 0,
         if (root.GetProperty("version").GetInt32() != 1)
             throw new InvalidDataException("카메라 응답 버전을 확인해 주세요.");
         var state = root.GetProperty("state").GetString()!;
-        if (state is not ("HAND_DETECTED" or "HAND_NOT_DETECTED" or "CAMERA_ERROR" or "STALE"))
+        if (state is not ("HAND_DETECTED" or "HAND_NOT_DETECTED" or "CAMERA_ERROR" or "STALE" or "STARTING"))
             throw new InvalidDataException("카메라 상태를 확인할 수 없습니다.");
         var age = root.GetProperty("age_seconds").GetDouble();
         var observed = root.GetProperty("observed_seconds").GetDouble();

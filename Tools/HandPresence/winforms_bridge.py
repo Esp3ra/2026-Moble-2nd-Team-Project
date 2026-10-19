@@ -7,8 +7,8 @@ import sys
 import threading
 import time
 
-from hand_presence import CameraWorker
-from presence_core import Region
+from hand_presence import CameraWorker, FrameUpdate
+from presence_core import Region, Evidence
 
 
 def packet(update, now=None):
@@ -20,7 +20,7 @@ def packet(update, now=None):
               "observed_seconds": update.observed,
               "seconds_without_hand": evidence.seconds_without_hand,
               "error": evidence.error, "jpeg": None}
-    if evidence.state != "CAMERA_ERROR" and age > 5:
+    if evidence.state not in ("CAMERA_ERROR", "STARTING") and age > 5:
         result["state"] = "STALE"
     elif update.rgb is not None:
         # The worker supplies only the selected crop. Bound IPC image size too.
@@ -55,6 +55,8 @@ def run(index, backend, region, source=sys.stdin, output=sys.stdout, worker_fact
             updates.put_nowait(update)
 
     worker = worker_factory(1, index, backend, region, offer)
+    worker.progress = lambda detail: offer(FrameUpdate(1, 0, Evidence("STARTING", error=detail),
+                                                       observed=time.monotonic()))
 
     def read_commands():
         # EOF means the owning C# process/window has gone away.
@@ -99,6 +101,9 @@ def main():
     region = Region(args.left, args.top, args.right, args.bottom)
     # Explicit UTF-8 protocol; native model diagnostics remain on stderr.
     sys.stdout.reconfigure(encoding="utf-8")
+    # On Windows, initialize NumPy/OpenCV before a thread blocks reading stdin.
+    # Loading their native DLLs concurrently with that read can stall startup.
+    import cv2  # noqa: F401 - startup ordering, not camera access
     run(args.index, args.backend, region)
 
 

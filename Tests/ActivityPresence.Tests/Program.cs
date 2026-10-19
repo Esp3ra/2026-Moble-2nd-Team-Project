@@ -76,6 +76,9 @@ internal static class Program
         Field<NumericUpDown>(form, "numRight").Value = 100;
         Click(form, "btnStart");
         Check(fake.Starts == 1 && Status(form) == "확인 대기", "Explicit Start");
+        fake.Frame = new("STARTING", Error: "인식 모델 준비 중"); Poll(form);
+        Check(Status(form) == "확인 대기" && Field<Label>(form, "lblDetails").Text == "인식 모델 준비 중",
+            "Startup stage is shown without a preview");
         Check(!Field<FlowLayoutPanel>(form, "regionOptions").Enabled, "Changing crop requires Stop");
         fake.Frame = new("HAND_DETECTED", Jpeg: jpeg); Poll(form);
         Check(Status(form) == "활동 중" && Field<PictureBox>(form, "preview").Image is not null, "Fresh frame renders");
@@ -136,6 +139,25 @@ internal static class Program
 
     private static async Task Transport()
     {
+        // A cold child is essential: importing NumPy in this process or test doubles masked
+        // the Windows native import/stdin-reader startup stall in the initial tests.
+        var tools = Path.GetDirectoryName(Python("").FileName)!.Replace(".venv\\Scripts", "");
+        string coldScript = "import sys,runpy\n" +
+            $"sys.path.insert(0,{JsonSerializer.Serialize(tools)})\n" +
+            "import hand_presence\nOriginal=hand_presence.CameraWorker\n" +
+            "class Camera:\n def isOpened(self): return False\n def release(self): pass\n" +
+            "class Detector:\n def close(self): pass\n" +
+            "hand_presence.CameraWorker=lambda *args,**kw: Original(*args,**kw,camera_factory=lambda *a:Camera(),detector_factory=Detector)\n" +
+            $"runpy.run_path({JsonSerializer.Serialize(Path.Combine(tools, "winforms_bridge.py"))},run_name='__main__')\n";
+        using (var cold = new ProcessActivityCamera(_ => Python(coldScript)))
+        {
+            cold.Start(new());
+            ActivityCameraFrame? result = null;
+            await Until(() => { result = cold.TakeLatest() ?? result; return result?.State == "CAMERA_ERROR"; },
+                "Cold production bridge initializes native libraries before stdin thread; fake camera fails promptly", 8000);
+            Check(result!.Error!.Contains("카메라를 열 수 없습니다"), "Cold child returned worker error, not a parser/exit error");
+            await cold.StopAsync();
+        }
         string script = "import sys,json,time\nsys.stderr.write('x'*100000);sys.stderr.flush()\n" +
             $"image='{Convert.ToBase64String(jpeg)}'\n" +
             "for i in range(30):\n print(json.dumps(dict(version=1,state='HAND_NOT_DETECTED',age_seconds=0,observed_seconds=time.monotonic(),seconds_without_hand=i,jpeg=image)),flush=True)\n" +

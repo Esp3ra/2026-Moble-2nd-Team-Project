@@ -54,7 +54,7 @@ Windows Python3.13이 필요합니다. 이 PC에서는 Python3.13.15로 설치�
 .\.venv\Scripts\python.exe -m py_compile hand_presence.py presence_core.py download_model.py
 ```
 
-자동 테스트23개 통과: 기존16개와 R23-01 추론 지연·queue 지연/복구, WinForms용 JPEG/오래된 영상 제외·encoding 지연·소유 프로세스 EOF/중지·stdio 합성 프레임 검증. 물리 카메라는 열지 않습니다.
+자동 테스트24개 통과: 기존16개와 R23-01 추론 지연·queue 지연/복구, WinForms용 JPEG/오래된 영상 제외·encoding 지연·소유 프로세스 EOF/중지·stdio 합성 프레임·시작 단계 전달 검증. 물리 카메라는 열지 않습니다. C# 회귀에는 별도 새 Python 프로세스의 실제 bridge CLI 초기화 검사를 포함합니다.
 
 실제 공식 모델을 로드해 합성 검은 영상 추론에서 손0개 반환을 확인했습니다. 사용자는 실제 카메라 인식이 정상이라고 확인했습니다. 정지 손·손 제거·조명/가림·USB 분리 정확도를 각각 확인했다는 근거는 아직 없으며 작성자가 실제 카메라 영상을 열어 검사하지 않았습니다. 카메라를 자동으로 켜 사용자 영상을 수집하지 않았습니다.
 

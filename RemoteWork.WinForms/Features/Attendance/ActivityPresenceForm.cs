@@ -86,6 +86,11 @@ public partial class ActivityPresenceForm : Form
         if (frame is not null)
         {
             shownFrame = frame;
+            if (frame.State == "STARTING")
+            {
+                SetStatus("확인 대기", frame.Error ?? "카메라를 준비하고 있습니다.", true);
+                return;
+            }
             if (frame.State == "CAMERA_ERROR")
             {
                 active = false;
@@ -115,7 +120,9 @@ public partial class ActivityPresenceForm : Form
             }
         }
         else if (shownFrame is not null ? shownFrame.CurrentAge > 5 : Stopwatch.GetElapsedTime(waitingSince).TotalSeconds > 5)
-            SetStatus("카메라 연결 지연", "최신 영상을 기다리고 있습니다.", true);
+            SetStatus("카메라 연결 지연", shownFrame?.State == "STARTING" ?
+                $"{shownFrame.Error}. 카메라 번호와 다른 카메라 프로그램의 실행 여부를 확인해 주세요." :
+                "최신 영상을 기다리고 있습니다.", true);
     }
 
     private async Task FinishErrorAsync()
