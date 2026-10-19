@@ -29,4 +29,3 @@
 실제 dump/새 DB 복원 검사는 기존002 검증의 안전한 소유 DB/보호 설정 파일 도구를 재사용한다. 별도로 `MYSQL_MIGRATION_TEST_URL`의 폐기 가능한 loopback MySQL과 `REMOTEWORK_RUN_TASK_MIGRATION_DRAFT_TESTS=1`, mysql/mysqldump 도구가 필요하다. 실제 채팅 본문·본인 숨김·FK·collation과 공통 사용자/감사/버전을 복원 후 비교한다. 공유 백업을 대신 검증한 것은 아니다.
 
 채팅 자체의 C#·HTTP/MySQL 재검증은 PR21의 고정 코드 복사본에서 별도로 실행했다. 작성자와1번 검토자의 테스트 결과·최초 collation 대조 실패·005 재실행 결과를 LOG/1번 기술 회신에 구분한다. 코드 PR·LOG PR·원본 병합·운영 적용은 각각 별도 단계다.
-

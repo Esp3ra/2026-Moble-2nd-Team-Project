@@ -39,4 +39,3 @@ CREATE TABLE chat_messages (
     FOREIGN KEY (sender_id) REFERENCES users(id),
     INDEX ix_chat_messages_room_seq (room_id, seq)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
