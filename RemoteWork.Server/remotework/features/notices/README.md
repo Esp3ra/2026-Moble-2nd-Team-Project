@@ -4,7 +4,7 @@
 
 [PR #7](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/7)은 독립 재검토 후 alpha [733b47a](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/733b47afca123ed3b161e6d96b492a8afc6e163f)로 병합했습니다. 검토 대상 head는 `d58064c`이며 R1·R2 해결을 유지합니다. 독립 검토에서는 격리 MySQL 서버 **110통과·SQLite 전용2개 제외**, 실제 C#→TCP HTTP→raw003 MySQL **37검사 통과**를 확인했습니다. 아래 작성자 검증 수치와 합산하지 않습니다.
 
-003 SQL은 개발 검토안으로 포함됐으며 정식 DDL 승인·공통 실제/기대 버전 지원·공유 DB 적용·삭제/보존 공동 정책은 별도입니다. 공통 schema version1·공지 기본off를 유지합니다. 자세한 [독립 검토·병합 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/2026-10-17_PR7_Ready_재검토_PR13_PR14_병합.md)을 따릅니다.
+003 SQL은 개발 검토안으로 포함됐으며 정식 DDL 승인·공통 실제/기대 버전 지원·공유 DB 적용·삭제/보존 공동 정책은 별도입니다. 공통 schema version1·공지 기본off를 유지합니다. 자세한 [독립 검토·병합 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#r021)을 따릅니다.
 
 아래는 각 작성 시점의 검증·협의 이력입니다. 과거의 재검토 대기·미병합 문구를 현재 상태로 읽지 않습니다.
 

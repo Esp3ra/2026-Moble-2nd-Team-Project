@@ -26,7 +26,9 @@ internal static class Program
                 else
                 {
                     capture = args.FirstOrDefault();
-                    Wire(); Malformed(); Receipts(); SessionChanges(); CandidateScreen(); LateResponses(); ParentDialog();
+                    Wire(); Malformed(); Receipts(); SessionChanges(); CandidateScreen();
+                    NewTaskManagers(); NewTaskInvalidation(); NonAdminNewTask(); ExistingTaskManagerRemoval();
+                    LateResponses(); ParentDialog();
                 }
                 Console.WriteLine($"PASS: {checks} preparation checks. " + (args.SequenceEqual(new[] { "--live" }) ? "Actual HTTP/MySQL fixture; no product writes." : "Controlled HTTP and actual WinForms; no server/DB."));
                 exit = 0;
@@ -168,6 +170,156 @@ internal static class Program
         Check(form.Selection?.Assignee?.Id == 1 && form.Selection.ManagerUserIds.SequenceEqual(new[] { 2 }), "Local selection preserves exact IDs without saving");
         Check(stub.KeyCalls == 0, "Candidate screen never issues keys or product mutations");
     }
+    private static int SelectedItemIndex(ListBox list, bool manager, int id)
+    {
+        for (int index = 0; index < list.Items.Count; index++)
+        {
+            object item = list.Items[index];
+            Type type = item.GetType();
+            bool itemManager = (bool)type.GetProperty("Manager")!.GetValue(item)!;
+            int itemId = (int)type.GetProperty("Id")!.GetValue(item)!;
+            if (itemManager == manager && itemId == id) return index;
+        }
+        return -1;
+    }
+    private static void ChooseCandidate(TaskPreparationForm form, int id)
+    {
+        var grid = Field<DataGridView>(form, "gridCandidates");
+        for (int index = 0; index < grid.Rows.Count; index++)
+        {
+            if ((int)grid.Rows[index].Cells[0].Value! != id) continue;
+            grid.ClearSelection();
+            grid.CurrentCell = grid.Rows[index].Cells[0];
+            grid.Rows[index].Selected = true;
+            Field<Button>(form, "btnChoose").PerformClick();
+            return;
+        }
+        throw new InvalidOperationException("Expected candidate is missing: " + id);
+    }
+    private static void NoScreenWrites(Stub stub)
+    {
+        Check(stub.KeyCalls == 0 && stub.ResultCalls == 0,
+            "Selection preparation never issues a request key or looks up a write result");
+    }
+    private static void NewTaskManagers()
+    {
+        using var stub = new Stub();
+        using var form = new TaskPreparationForm(stub, null);
+        Show(form);
+        var grid = Field<DataGridView>(form, "gridCandidates");
+        var list = Field<ListBox>(form, "listSelected");
+        var kind = Field<ComboBox>(form, "cmbKind");
+        var remove = Field<Button>(form, "btnRemove");
+        PumpUntil(() => grid.Rows.Count == 20 && Field<Button>(form, "btnConfirm").Enabled);
+        int creatorIndex = SelectedItemIndex(list, true, stub.UserId);
+        Check(list.Items.Count == 1 && creatorIndex >= 0,
+            "A new admin task includes its creator as the first required manager");
+        string creatorLabel = list.Items[creatorIndex].ToString()!;
+        Check(creatorLabel.Contains("등록자") && creatorLabel.Contains("필수"),
+            "The required creator manager is explained in the selection list");
+        list.SelectedIndex = creatorIndex;
+        Check(!remove.Enabled, "The creator manager cannot be removed during initial registration");
+        remove.PerformClick();
+        Check(SelectedItemIndex(list, true, stub.UserId) >= 0,
+            "Clicking the disabled remove action preserves the creator manager");
+
+        ChooseCandidate(form, 1);
+        kind.SelectedIndex = 1;
+        PumpUntil(() => grid.Rows.Count == 20 && Field<Button>(form, "btnSearch").Enabled);
+        ChooseCandidate(form, 3);
+        list.SelectedIndex = SelectedItemIndex(list, true, 3);
+        Check(remove.Enabled, "An additional new-task manager can be removed");
+        remove.PerformClick();
+        Check(SelectedItemIndex(list, true, 3) == -1 && SelectedItemIndex(list, true, stub.UserId) >= 0,
+            "Removing an optional manager preserves the required creator");
+        ChooseCandidate(form, 3);
+        Field<Button>(form, "btnNext").PerformClick();
+        PumpUntil(() => grid.Rows.Count == 1);
+        Check(SelectedItemIndex(list, true, stub.UserId) >= 0 && SelectedItemIndex(list, true, 3) >= 0,
+            "Both manager selections survive candidate paging");
+        Field<TextBox>(form, "txtSearch").Text = "empty";
+        Field<Button>(form, "btnSearch").PerformClick();
+        PumpUntil(() => grid.Rows.Count == 0 && Field<Button>(form, "btnConfirm").Enabled);
+        kind.SelectedIndex = 0;
+        PumpUntil(() => grid.Rows.Count == 0 && Field<Button>(form, "btnConfirm").Enabled);
+        Check(SelectedItemIndex(list, false, 1) >= 0 && SelectedItemIndex(list, true, stub.UserId) >= 0
+            && SelectedItemIndex(list, true, 3) >= 0,
+            "An empty search and candidate-kind change preserve the local selections");
+        Field<Button>(form, "btnRefreshContext").PerformClick();
+        PumpUntil(() => Field<Button>(form, "btnConfirm").Enabled);
+        Check(list.Items.Count == 1 && SelectedItemIndex(list, true, stub.UserId) >= 0,
+            "Refreshing a new-task context restores its required creator after clearing old choices");
+        Check(stub.ContextCalls == 0, "New-task preparation never fetches an existing-task write context");
+        Field<TextBox>(form, "txtSearch").Clear();
+        Field<Button>(form, "btnSearch").PerformClick();
+        PumpUntil(() => grid.Rows.Count == 20);
+        ChooseCandidate(form, 1);
+        Capture(form, "New-Task-Required-Creator");
+        Field<Button>(form, "btnConfirm").PerformClick();
+        Check(form.Selection is not null && form.Selection.Context is null && form.Selection.Assignee?.Id == 1
+            && form.Selection.ManagerUserIds.Count == 1 && form.Selection.ManagerUserIds[0] == stub.UserId,
+            "Confirming new-task preparation returns at least its creator manager without creating a task");
+        NoScreenWrites(stub);
+    }
+    private static void NewTaskInvalidation()
+    {
+        foreach (TaskPreparationFailure failure in new[] {
+            TaskPreparationFailure.Forbidden, TaskPreparationFailure.AuthenticationExpired })
+        {
+            using var stub = new Stub();
+            using var form = new TaskPreparationForm(stub, null);
+            Show(form);
+            var list = Field<ListBox>(form, "listSelected");
+            PumpUntil(() => Field<Button>(form, "btnConfirm").Enabled);
+            Check(SelectedItemIndex(list, true, stub.UserId) >= 0, "Creator is present before access is lost");
+            stub.Next = _ => Task.FromException<TaskCandidatePage>(new TaskPreparationException(failure));
+            Wait(form.LoadCandidatesAsync(1).ContinueWith(_ => true));
+            Check(list.Items.Count == 0 && form.Selection is null && !Field<Button>(form, "btnConfirm").Enabled,
+                "An authentication or permission error clears the required creator along with all preparation");
+            NoScreenWrites(stub);
+            form.Close();
+        }
+        using var revokedStub = new Stub();
+        using var revokedForm = new TaskPreparationForm(revokedStub, null);
+        Show(revokedForm);
+        PumpUntil(() => Field<Button>(revokedForm, "btnConfirm").Enabled);
+        revokedStub.Revoke();
+        PumpUntil(() => Field<ListBox>(revokedForm, "listSelected").Items.Count == 0);
+        Check(revokedForm.Selection is null && !Field<Button>(revokedForm, "btnConfirm").Enabled,
+            "Logout or session replacement clears the new-task creator and disables confirmation");
+        NoScreenWrites(revokedStub);
+        revokedForm.Close();
+    }
+    private static void NonAdminNewTask()
+    {
+        using var stub = new Stub(false);
+        using var form = new TaskPreparationForm(stub, null);
+        Show(form);
+        PumpUntil(() => Field<Button>(form, "btnRefreshContext").Enabled);
+        Check(Field<ListBox>(form, "listSelected").Items.Count == 0 && form.Selection is null
+            && !Field<Button>(form, "btnConfirm").Enabled && stub.CandidateCalls == 0,
+            "A non-admin new-task screen does not assign itself as manager or load candidates");
+        NoScreenWrites(stub);
+        form.Close();
+    }
+    private static void ExistingTaskManagerRemoval()
+    {
+        using var stub = new Stub();
+        using var form = new TaskPreparationForm(stub, "1");
+        Show(form);
+        PumpUntil(() => Field<Button>(form, "btnConfirm").Enabled);
+        var list = Field<ListBox>(form, "listSelected");
+        list.SelectedIndex = SelectedItemIndex(list, true, stub.UserId);
+        Check(Field<Button>(form, "btnRemove").Enabled,
+            "The new-task creator requirement does not lock current managers of an existing task");
+        Field<Button>(form, "btnRemove").PerformClick();
+        Check(SelectedItemIndex(list, true, stub.UserId) == -1,
+            "Existing-task manager selection keeps its prior remove behavior");
+        Field<Button>(form, "btnConfirm").PerformClick();
+        Check(form.Selection?.Context?.TaskId == "1" && form.Selection.ManagerUserIds.Count == 0,
+            "Existing-task preparation does not invent an agreed minimum-manager write rule");
+        NoScreenWrites(stub);
+    }
     private static void LateResponses()
     {
         using var stub = new Stub(); using var form = new TaskPreparationForm(stub, "1"); Show(form);
@@ -203,6 +355,9 @@ internal static class Program
         };
         timer.Start(); Field<Button>(form, "btnPrepareCandidates").PerformClick(); timer.Stop();
         Check(form.PreparedSelection?.Assignee?.Id == 1 && form.CheckedInput is null, "The parent receives a separate unsaved selection without changing CheckedInput");
+        Check(form.PreparedSelection is not null && form.PreparedSelection.ManagerUserIds.Count == 1
+            && form.PreparedSelection.ManagerUserIds[0] == stub.UserId,
+            "The registration form receives its required creator manager in the unsaved selection");
         Check(Field<ComboBox>(form, "cmbAssignee").Text.Contains("#1"), "The parent displays the server candidate label");
         Capture(form, "Task-Edit-Candidate-Selection");
         stub.Revoke(); Application.DoEvents();
@@ -275,21 +430,34 @@ internal static class Program
     {
         private readonly CancellationTokenSource cancellation = new();
         public bool IsCurrent { get; private set; } = true;
-        public bool CanSelectCandidates => true;
+        public bool CanSelectCandidates { get; }
         public int UserId => 2;
         public CancellationToken SessionCancellation => cancellation.Token;
         public int KeyCalls;
+        public int ResultCalls;
+        public int CandidateCalls;
+        public int ContextCalls;
         public Func<TaskCandidateQuery, Task<TaskCandidatePage>>? Next;
-        public Task<TaskWriteContext> GetContextAsync(string id, CancellationToken ct = default) => Task.FromResult(new TaskWriteContext(id, 7, Array.AsReadOnly(new[] { 2 }), "1", 1, TaskDisplayStatus.NotStarted, DateTimeOffset.UtcNow));
+        public Stub(bool canSelectCandidates = true) { CanSelectCandidates = canSelectCandidates; }
+        public Task<TaskWriteContext> GetContextAsync(string id, CancellationToken ct = default)
+        {
+            ContextCalls++;
+            return Task.FromResult(new TaskWriteContext(id, 7, Array.AsReadOnly(new[] { 2 }), "1", 1, TaskDisplayStatus.NotStarted, DateTimeOffset.UtcNow));
+        }
         public Task<TaskCandidatePage> GetCandidatesAsync(TaskCandidateQuery q, CancellationToken ct = default)
         {
+            CandidateCalls++;
             if (Next is not null) return Next(q);
             var items = q.Search == "empty" ? Array.Empty<TaskUserCandidate>()
                 : Enumerable.Range(q.Page == 1 ? 1 : 21, q.Page == 1 ? 20 : 1).Select(id => new TaskUserCandidate(id, "동명이인", "동명이인 · #" + id)).ToArray();
             return Task.FromResult(new TaskCandidatePage(Array.AsReadOnly(items), q.Page, q.Limit, q.Search == "empty" ? 0 : 21));
         }
         public Task<TaskWriteRequestKey> GetRequestKeyAsync(TaskWriteAction action, string? taskId, CancellationToken ct = default) { KeyCalls++; throw new InvalidOperationException("A preparation screen must not issue keys"); }
-        public Task<TaskWriteResultLookup> GetResultAsync(TaskWriteRequestKey key, CancellationToken ct = default) => throw new InvalidOperationException("No write from this screen");
+        public Task<TaskWriteResultLookup> GetResultAsync(TaskWriteRequestKey key, CancellationToken ct = default)
+        {
+            ResultCalls++;
+            throw new InvalidOperationException("No write from this screen");
+        }
         public void Revoke() { IsCurrent = false; cancellation.Cancel(); }
         public void Dispose() => cancellation.Dispose();
     }

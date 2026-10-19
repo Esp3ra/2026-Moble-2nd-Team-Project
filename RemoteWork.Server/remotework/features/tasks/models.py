@@ -1,7 +1,8 @@
 """Task read model: member 1 accepted its read/type contract on 2026-10-17.
 
-These tables support task reads only. Registering their metadata does not migrate
-an existing database. DDL approval and shared application remain separate gates.
+These tables support task reads and separately enabled development-only creation.
+Registering their metadata does not migrate an existing database. DDL approval
+and shared application remain separate gates.
 Submission, reviewer selection and status transitions await the joint write contract.
 """
 from datetime import date, datetime
