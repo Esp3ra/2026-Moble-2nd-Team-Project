@@ -2,7 +2,7 @@
 
 원격 근무 중 업무 배정·상태·마감·결과 검토와 공지·채팅·근태를 관리하는 팀 프로젝트입니다. `alpha`는 화면 초안과 담당별 구현을 통합하는 개발 브랜치입니다. C# WinForms 클라이언트와 Python 공통 서버를 포함합니다.
 
-현재 공통 로그인·사용자 관리·HTTP·DB 기반과 공지 DB 저장 연결 개발 초안, 채팅의 로컬 동작이 구현돼 있습니다. 업무 목록·상세는 공통 인증을 사용하는 GET API·HTTP 서비스와 기존 화면을 연결한 2번 개발 초안입니다. 업무 API는 명시적으로 활성화한 개발 서버에서 사용하며, 기본 실행에는 미확정 업무 스키마를 적용하지 않습니다. 설계·합의 사항은 [DOCX](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/DOCX/DOCX), 구현·검토 이력은 [LOG](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG), 담당별 수정 요청과 재검토 결과는 [PR](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/PR)에서 관리합니다.
+현재 공통 로그인·사용자 관리·HTTP·DB 기반과 공지·채팅의 별도 개발 활성화에 따른 DB 저장과 채팅 화면 자동 갱신이 구현돼 있습니다. 업무 목록·상세는 공통 인증을 사용하는 GET API·HTTP 서비스와 기존 화면을 연결한 2번 개발 초안입니다. 업무 API는 명시적으로 활성화한 개발 서버에서 사용하며, 기본 실행에는 미확정 업무 스키마를 적용하지 않습니다. 설계·합의 사항은 [DOCX](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/DOCX/DOCX), 구현·검토 이력은 [LOG](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/LOG), 담당별 수정 요청과 재검토 결과는 [PR](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/tree/PR)에서 관리합니다.
 
 ## 현재 구현 범위
 
@@ -24,7 +24,7 @@ W1 공통 쓰기 지원은 [WRITE_SUPPORT](docs/WRITE_SUPPORT.md)를 따릅니�
 
 신규 업무의 관리자 기준은 **최소 1명·등록자 자동 포함·최초 등록 시 등록자 제외 불가**입니다(2026-10-19 사용자 확정). 선택 준비 화면에 등록자를 필수 관리자로 표시하고 해제를 막습니다. 추가 관리자는 기존 후보에서 선택하며 제출 검토자는 별도입니다. 명시적 등록 시 서버가 현재 후보·등록자를 다시 검사하고 DB에 저장합니다. 응답이 불확실하면 같은 공통 클라이언트·로그인 세션의 요청을 메모리에 보관해 등록 창과 업무 메뉴를 다시 열어도 이어갑니다. 사용자가 `처리 결과 확인`으로 `not_recorded`를 확인했을 때만 같은 키·본문으로 재전송할 수 있습니다. POST의 키 만료 응답도 보관된 결과를 먼저 확인하며, 앱 종료·로그인 변경 후의 복구 저장소는 제공하지 않습니다. 자동 재등록은 하지 않습니다. 기존 업무의 관리자 변경은 별도 합의 대상입니다. 반려 후 흐름은 **반려완료 → 재작업 시작 → 진행중 → 재제출 성공 → 제출완료**로 확정했습니다. 재작업 시작에서는 제출 회차를 올리지 않습니다. [3번 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/2026-10-19_3번_재작업상태_확정_및_연결회신.md)의 담당 경계를 따르며 실제 재작업/제출 API와 마감·검토자 정책은 별도 구현·합의가 필요합니다.
 
-팀장 공통 기준과 담당별 회신은 [LOG/2번 공통규약](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md), 현재 구현·실행/미실행은 [통합 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md)에서 확인합니다. 1번 부재 중 공통 코드를 대신 변경하지 않았으며, 초기 배정/업무 버전 1/1은 2번 개발 계약·공동 기술 검토 전입니다.
+팀장 공통 기준과 담당별 회신은 [LOG/2번 공통규약](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md), 현재 구현·실행/미실행은 [통합 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md)에서 확인합니다. 1번 부재 중 공통 코드를 대신 변경하지 않았으며, 초기 배정/업무 버전 1/1·신규 등록 트랜잭션·최소 결과와 새 개발 DB의 DDL은 [1번 기술 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/1번/2026-10-19_협업요청_기술검토_회신.md)으로 수용됐습니다. 정식 migration·공유 적용 승인은 별도입니다.
 
 ## 5번 장치 독립 시연
 
@@ -73,7 +73,7 @@ dotnet run --project .\RemoteWork.WinForms\RemoteWork.WinForms.csproj
 
 첨부는 파일명 메타데이터만 저장하고 원본 절대경로·파일 본문을 서버에 보내지 않습니다. 실제 업로드/다운로드·중요 공지 자동 팝업·직원별 확인 기록과 정렬 추가 조정은 이번 DB 변경에 포함하지 않습니다.
 
-채팅은 기존 MainForm 단위 로컬 저장소로 메뉴 이동 중에는 유지되지만 창 종료 후 사라집니다. 개인/그룹 방 생성·삭제, 참여자·메시지 조회, Enter 전송·Shift+Enter 줄바꿈을 제공합니다. 실제 채팅 사용자 매핑·서버/DB·두 PC 전송은 미연결입니다.
+실제 로그인 채팅은 공통 세션과 서버의 현재 참여자 검사에 연결합니다. 독립 개발 활성화 시 방·메시지·개인 숨김을 MySQL에 저장하며, 채팅 화면을 표시하는 동안 약 1초마다 방과 선택 대화를 조회합니다. 숨김은 본인 목록에만 적용하며 상대방의 메시지·자료를 삭제하지 않습니다. 기본 off이며 [채팅 실행·DDL 안내](RemoteWork.Server/remotework/features/chat/README.md)와 [자동 갱신 범위](RemoteWork.WinForms/Features/Collaboration/CHAT_AUTO_RECEIVE.md)를 따릅니다. 명시적 미리보기는 기존 메모리 대역을 사용합니다. 실제 두 PC·공유 DB·장시간 부하는 아직 검증하지 않았습니다.
 
 ## 업무 조회와 상태 기준
 
@@ -87,7 +87,7 @@ dotnet run --project .\RemoteWork.WinForms\RemoteWork.WinForms.csproj
 
 등록·수정은 기본 입력을 확인하고, 수락은 대상 업무를 읽기 전용으로 확인하며, 마감 연장은 실제 선택 업무의 현재 마감일과 희망일·사유 입력을 준비합니다. 수정·수락·연장 버튼은 현재 상세 조회 성공 후에만 열립니다. 입력 확인은 로컬 형식 검사이며 창에 값이 유지됩니다. 확인된 제목·내용·날짜와 원본 업무 ID는 불변 로컬 입력값으로 보관하고, 입력이 바뀌면 확인값을 무효화합니다. 날짜 체크의 변경 이벤트가 없더라도 읽는 시점에 현재 입력과 다시 대조합니다. 신규 등록은 이 확인값과 별도 후보 선택을 다시 검사해 등록 전용 DTO를 만들며, 별도 등록 버튼에서만 POST합니다. 성공 응답 또는 저장 결과 확인 후 현재 범위·상태 필터로 재조회하고, 새 업무가 결과에 포함되면 해당 행·상세를 선택합니다. 필터 밖이면 기존 조회 조건을 유지합니다. 401·403이나 접속 변경은 이전 요청과 창의 등록 동작을 차단합니다. 수정·수락·연장 저장은 여전히 미연결이며 [입력 준비 안내](docs/TASK_INPUT_PREPARATION.md)의 경계를 따릅니다.
 
-업무 조회는 서버 `REMOTEWORK_ENABLE_TASK_QUERY_DRAFT=1`로 명시적으로 활성화합니다. **삭제 가능한 개발·테스트 DB에서만** 활성화·초기화합니다. 1번이 예약한 `002_task_queries.mysql.sql`은 [검토용 DDL·검증/복구안](RemoteWork.Server/migrations/002_task_queries.md)으로 준비하며, 공유 적용 승인이나 버전2 구현을 뜻하지 않습니다. 현재 공통 버전1과 기본 비활성화를 유지합니다. 기본 서버의 미등록 업무 경로는 연결 필요로 표시합니다. 일반 실행에 업무 데이터를 자동 생성하지 않습니다. [신규 등록 API](docs/TASK_CREATION.md)는 조회 옵션과 함께 `REMOTEWORK_ENABLE_COMMON_WRITE_DRAFT=1`, `REMOTEWORK_ENABLE_TASK_CREATE_DRAFT=1` 및 준비된 002/004 개발 테이블을 요구합니다. WinForms 저장 연결은 이 개발 범위에서 검증했으며 1번 공동 기술 검토·정식 migration·공유 배포는 미완료입니다.
+업무 조회는 서버 `REMOTEWORK_ENABLE_TASK_QUERY_DRAFT=1`로 명시적으로 활성화합니다. **삭제 가능한 개발·테스트 DB에서만** 활성화·초기화합니다. 1번이 예약한 `002_task_queries.mysql.sql`은 [검토용 DDL·검증/복구안](RemoteWork.Server/migrations/002_task_queries.md)으로 준비하며, 공유 적용 승인이나 버전2 구현을 뜻하지 않습니다. 현재 공통 버전1과 기본 비활성화를 유지합니다. 기본 서버의 미등록 업무 경로는 연결 필요로 표시합니다. 일반 실행에 업무 데이터를 자동 생성하지 않습니다. [신규 등록 API](docs/TASK_CREATION.md)는 조회 옵션과 함께 `REMOTEWORK_ENABLE_COMMON_WRITE_DRAFT=1`, `REMOTEWORK_ENABLE_TASK_CREATE_DRAFT=1` 및 준비된 002/004 개발 테이블을 요구합니다. WinForms 저장 연결은 이 개발 범위에서 검증했으며 1번의 등록 초기값·서버/DB 기술 수용을 받았습니다. 정식 migration·공유 배포는 미완료입니다.
 
 W1-05 요청에 따라 002 SQL과 업무 ORM의 상태 CHECK는 기존 IN과 HEX 비교를 함께 사용해 정확한 다섯 소문자 코드만 허용합니다. DB collation이 대소문자·뒤 공백을 같게 비교해도 대문자·혼합·공백 변형을 거절하고, SQLite의 TEXT와 BLOB 구분도 유지합니다. 기존 공유 DB 제약의 자동 수정이나 상태 전환 API는 추가하지 않습니다.
 
@@ -144,6 +144,10 @@ dotnet build .\Tests\TaskQueries.Http.Tests\TaskQueries.Http.Tests.csproj -c Rel
 다음 쓰기 연결에 필요한 [2번 행동별 API·후보 사용자 선택 제안](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#r026)은 당시 제안 원문으로 보존합니다. 현재 개발용 신규 등록의 실제 경로·입력·결과는 [TASK_CREATION](docs/TASK_CREATION.md)을 따르며, 나머지 행동은 W1/W3 ID로 검토 중입니다.
 
 [3번 W3 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/3번/README.md)의 현재 로컬 구현·제안을 수신했습니다. 상태별 수정·수락 예외·제출 트랜잭션·검토자·마감/연장 조건은 공동 확인이 남아 있습니다. 1번 공통 쓰기 지원과 실제 API/DB를 연결하기 전까지 로컬 시연의 제출 조건을 서버 규약으로 사용하지 않습니다. 기존 조회 서비스·필드와 미구현 접점은 [2번 조회 연결 안내](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#r015)에 정리합니다.
+
+## 2026-10-19 PR 검토 상태
+
+코드 #25(DB 검증)·#21(채팅 저장/자동 갱신), 문서 #26·#27·#28을 병합했습니다. 코드 #23(활동 상태 확인)은 기존 오래된 프레임 수정은 확인했으나, 새 R23-02(자식 창 정리 중 인증 만료 시 메인 화면 종료 취소)가 재현되어 미병합입니다. 활동 확인 창의 작성자 보고를 현재 alpha의 기능으로 표시하지 않습니다. [검토 결과·실제 테스트와 미실행](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md) 및 [5번 수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/5번/2026-10-19_PR23_과거프레임_지연검사_수정요청.md)을 확인합니다. 등록된 CI 결과는 없으며 독립 로컬 검증을 기록했습니다.
 
 ## 브랜치와 게시 기준
 
