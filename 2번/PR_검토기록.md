@@ -1,5 +1,23 @@
 # PR 검토 및 병합 기록
 
+## 최신 PR 검토 — PR38 수정 요청·PR39 병합 확인, 2026-10-19
+
+코드 [PR38](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/38)은 **R38-01 P2: 2페이지 선택→조회 시 page 누락으로 다른 상세 표시**를 실제 MySQL에서 재현해 미병합입니다. 기존65통과·별도 회귀1실패입니다. 문서 [PR39](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/39)는 검토 도중 LOG `754a6ea`에 병합된 상태를 확인했고 독립 문서 검증에서도 차단 문제를 찾지 못했습니다. 1번이 회원/장치 본인 확인 서버·DB/MainForm,5번이Pi/PC 중계·감지/근태를 작성한다는 역할 회신이며5번 확인·제품 구현은 대기입니다. [4번 수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/4번/2026-10-19_PR38_웹공지_페이지선택_수정요청.md)을 따릅니다. PR35는 CLOSED·미병합을 유지합니다.
+
+| 검토 대상 | 고정 기준·실제 결과 |
+|---|---|
+| PR38 | head `0924db4abe4ea3ab9e7c593fbe0b6d0c1f4bdadb`, base alpha `56cda1fa15ea08a38142e99c524fa3706189c272`,14파일. 미병합·R38-01 수정 요청 |
+| 기존 서버 회귀 | 소유 MySQL8.2/RR + Flask test client65통과·실패/skip0,91.81초. 웹/API·권한/CSRF·rollback·삭제경합/등록 조합 |
+| 독립 페이지 재현 | 렌더된2페이지 form의 실제필드만 제출→review-notice-20 대신00 상세200.1실패,2.16초 |
+| PR39 | head `a9387d9d221858191d7a3f9eb6bc7dcb7926fffb`, baseLOG `1ee575b42e872d9b79b09bce22b964e4914d8574`; 실제 병합 `754a6ea615b897ea26b283e67e43c84229c0048f` |
+| PR39 독립 문서 검증 | Markdown6개·신규1·원문5보존, 추가 상대링크9개·MainForm5메서드/ApiClient3멤버 대조. 검토/병합 tree `056859502244764897cd0554abccee5d69ffd2cb` 일치 |
+
+PR39는 이 채팅에서 병합을 실행했다고 기록하지 않습니다. 검토 중 이미 병합된 상태를 확인했으며 같은 head/병합 트리를 독립 검증했습니다. 1번 역할 수락·5번 분담 확인 대기·실제 제품 구현 전을 구분합니다. 이 문서에 별도 프로그램/DB/장비 시험을 수행한 것으로 기존65개나 이전 벡터 결과를 전용하지 않습니다.
+
+PR38의 P2는 조회 form의 page 누락과 서버 기본1/첫행 대체가 결합된 문제입니다. 수정 방향·필터 초기화/선택 유지 경계·재현 코드/출력은 PR/4번에 게시합니다. 원본 제품 코드는 변경하지 않았습니다. 미병합 웹 기능을 현재 alpha에 연결됐다고 표시하지 않습니다. 소유 MySQL/DB/임시 경로만 정리했고 공유 설정·현재 사용자 데이터·실제 브라우저/두PC/부하·팝업/파일은 미검증입니다.
+
+근거는 `ES/tmp/remote_work_pr38_review_20261019/audit/`의 `owned-review-summary.json`, `pagination-repro.json`, `doc39-verification.json`과 실행 로그입니다. 다른 제작 채팅의 수락/재작업 코드·잔여 협의 정리와 원문은 보존하며 LOG/2번8개를 유지합니다. 아래는 이전 회차 기록입니다.
+
 ## 최신 PR 검토 — PR35 닫힘·문서 PR37 병합, 2026-10-19
 
 - **PR35** `[4번][LOG] 웹 공지사항 연결 규약 확인·협의 요청`: 사용자가 “35번은 Close로 변경 잘못된 PR”이라고 지정하여 CLOSED·mergedAt=null을 확인했습니다. 브랜치 삭제나 해당 문서 병합은 하지 않았습니다.

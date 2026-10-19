@@ -1,3 +1,7 @@
+## 최신 PR 검토 — PR38 수정 요청·PR39 병합 확인, 2026-10-19
+
+코드 [PR38](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/38)은 **R38-01 P2: 2페이지 선택→조회 시 page 누락으로 다른 상세 표시**를 실제 MySQL에서 재현해 미병합입니다. 기존65통과·별도 회귀1실패입니다. 문서 [PR39](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/39)는 검토 도중 LOG `754a6ea`에 병합된 상태를 확인했고 독립 문서 검증에서도 차단 문제를 찾지 못했습니다. 1번이 회원/장치 본인 확인 서버·DB/MainForm,5번이Pi/PC 중계·감지/근태를 작성한다는 역할 회신이며5번 확인·제품 구현은 대기입니다. [4번 수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/4번/2026-10-19_PR38_웹공지_페이지선택_수정요청.md)을 따릅니다. PR35는 CLOSED·미병합을 유지합니다.
+
 > **2026-10-19 · 팀장 최신 처리: 잘못된 PR35 닫힘 / 문서 PR37 수신**
 > 사용자 지시로 [PR35](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/35)는 **CLOSED·미병합** 처리했습니다. #35의 기존 요청을 승인된 정책·공통 파일 수정·실행 근거로 사용하지 않습니다. [PR37](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/37)은 1번의 기술 의견/협의 자료로 수신·병합했으며, WEB-N4 내용은 닫힌 요청의 작성 당시 검토 의견으로 보존합니다. 웹 작업의 유효 요청·범위는 별도로 확인해야 합니다. 회원/장치·근무 수명안과 남은 정책도 공동 합의·제품 구현 완료로 확대하지 않습니다.
 
