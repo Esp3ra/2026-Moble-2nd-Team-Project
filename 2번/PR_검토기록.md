@@ -1,3 +1,38 @@
+<a id="pr49-review-20261020"></a>
+## 최신 검토 — PR49 생성 회원 지문 등록 버튼·주소 연결 병합, 2026-10-20
+
+신규 [PR49](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/49) head `4825efd`를 alpha `73b17e0`와 결합 검토해 추가 차단 결함 없이 `f428034`에 병합했습니다. 실제/검증 tree `03098b4a645499c259c9afb4102b705da4a090bf`가 일치합니다. 생성 응답 회원ID·원래 관리자Session을 유지하고 명시 버튼으로47 등록창을 열며, 선택 장치의 Pi 주소 누락은 발급POST/claim 전에 차단합니다. 원본 연결112·기존회원46/14시나리오·중계114·등록창12·ApiClient125/25시나리오와 독립 수명/경합검사·Release0/0이 통과했습니다. 실제 장치/공유 환경 활성화는 별도입니다.
+
+제출 head `4825efd078c2d3faffbf2a188d5346aba0eb0053`, base `73b17e02a6258625f1a7e914f43e0d0b45319c03`, 실제 merge `f428034ec8b4159ec3abc63e61ca9c5d8a9b133e`, 검증/실제 병합 tree `03098b4a645499c259c9afb4102b705da4a090bf`를 고정 대조했습니다. Ready/무충돌과 제출 head 고정 조건으로 병합했고 병합 직후 열린PR은0건이었습니다.
+
+### 변경과 검토
+
+정확히9파일입니다. UserManagementForm의 생성 회원 등록 버튼과 EnrollmentEndpoints/CreatedUserEnrollmentLauncher·장치별 채널, 기존5번 FingerprintEnrollmentForm의 선택형 validateDevice/읽기전용 RegistrationStarted 접점, 원본/신규 검사와 문서뿐입니다. 2번Tasks·공지45/장치runtime48·MainForm·공통 ApiClient/서버 API·DB 제품은 변경하지 않습니다. 5번 소유 코드의 최소 접점도 직접 검토했으며 실제 담당자 회신을 대신한 것으로 표시하지 않습니다.
+
+- 생성 성공 응답의User.Id와 원래 관리자Session/target·selection generation을 유지합니다. 계정 생성은 자동 채취하지 않고, 기존회원 선택/수정은 새 등록 대상이 아닙니다. 서버completed만 완료로 표시하며 대상/접속이 바뀌면 늦은 결과를 버립니다.
+- PC의 별도 로컬 설정은 버전/현재서버·소문자 장치UUID→정규Pi루트만 허용합니다. 중복/다른버전/서버·userinfo/path/query/fragment와64KiB초과를 거절하고 HTTPS가 기본입니다. 격리개발HTTP는 명시 선택이며 인증서 검사를 끄지 않습니다. 파일/키/주소를 자동 생성하거나 운영 비밀값을 사용하지 않았습니다.
+- 선택 장치 주소 검사는 attempt/발급보다 먼저 합니다. 미시작 실패는 장치 선택 수정/창재진입이 가능하고, 발급을 시도한 뒤에는 같은 작업 재확인으로 고정합니다. 시도한 창을 닫은 뒤 새 작업을 자동 생성하지 않습니다.
+- Launcher는 modal닫힘 뒤 PendingOperation을 비동기로 기다리고 view/channel을 해제합니다. 전송중 부모창닫기·동일계정새로그인·로그아웃/서버변경에서도 채널조기Dispose·중복진입·늦은complete를 차단했습니다.
+
+### 검토자 직접 실행
+
+| 원본 검사 | 결과 |
+|---|---|
+| UserManagement UI 신규 연결 | **112검사 통과**, 실제 버튼/등록창·통제공통HTTP/Pi채널 |
+| 기존 회원 관리 UI | **46검사/14시나리오 통과** |
+| C#→실제Python loopback 중계 | **114검사 통과** |
+| FingerprintEnrollment UI | **12검사 통과** |
+| ApiClient | **125검사/25시나리오 통과** |
+| 결합 Release / diff | **경고0·오류0**, diff검사 통과 |
+
+독립 경합3시나리오/54대역검증(소유창닫기·동일계정재로그인·서버변경)과 별도19검사(실제등록시작전닫기2회→동일target/재진입·issue/채널0, 전송중중복진입·새로그인늦은완료 차단)도 통과했습니다. 공식112/46/114/12/125와 중복 합산하지 않습니다. 추가하네스 첫 실행은 초기Shown로드 대기 누락을 교정한 뒤19통과했으며 제품 결함이나 제품 수정으로 기록하지 않습니다. Markdown추가 상대 링크5개와 범위·고정tree를 확인했습니다.
+
+Windows/.NET SDK10.0.401·Desktop8.0.31/Python3.12.14, 기존47 소유 auditvenv(Flask3.1.3/tzdata2026.5,requirements동일)를 사용했습니다. 제품/원본 검사 무수정, 통제HTTP·공개합성값·소유loopback/임시파일·SQLite·fakehardware 범위이며 하위프로세스 정리를 확인했습니다. 실제LocalAppData 설정·운영키·사용자서버/공유DB·계정/.env/실물은 사용하지 않았습니다.
+
+이제1번 회원창 버튼·장치별 주소 주입 접점은 코드로 연결됐습니다. 실제 공통서버/MySQL+Pi+관리자버튼 결합·UART 신규저장/삭제·기존템플릿·두PC·TLS/키배포·공유007적용·전원장애·앱재시작복구/운영정책은 별도입니다. 현재 개발 기본off와 기존 관리자/장치 명시 권한·서버검사는 유지하며 실제 활성화/배포를 실행하지 않습니다. 과거1/5번 “버튼/주소미연결”은 당시 이력으로 구분하고 원문·LOG/2번8문서를 보존합니다. 새 협의회신MD/PR을 요구하지 않습니다.
+
+근거: `ES/tmp/remote_work_pr49_review_20261020/audit/merge49.json`, `scope-review.json`; `remote_work_pr49_checks_20261020/audit/`의 user-management/fingerprint-relay/fingerprint-ui/apiclient/build 결과; `remote_work_pr49_independent47_20261020/audit/launcher-races/`; `remote_work_pr49_launcher_review_20261020/audit/launcher-boundary-final.txt`와 workspace preflight입니다.
+
 <a id="pr48-review-20261020"></a>
 ## 최신 검토 — PR48 센서·OLED 공유 구성 병합, 2026-10-20
 
