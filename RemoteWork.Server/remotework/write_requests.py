@@ -34,6 +34,30 @@ class WriteAction:
     result_fields: frozenset[str]
 
 
+@dataclass(frozen=True)
+class ResultReader:
+    authorize: object
+    read_only: bool
+
+
+def register_write_result_reader(app, *, action, authorize, read_only=False):
+    """Explicit current-access reader; never grants mutation or creates storage.
+
+    Owners may retain this contract in a separately opted-in read-only app
+    after disabling their business routes. Existing writers are unchanged.
+    """
+    if app._got_first_request:
+        raise RuntimeError("Register result readers during application setup")
+    if (not isinstance(action, str) or len(action) > 80 or
+            re.fullmatch(r"[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*", action) is None or
+            not callable(authorize) or type(read_only) is not bool):
+        raise ValueError("An explicit action and current-access result authorizer are required")
+    readers = app.extensions.setdefault("write_result_readers", {})
+    if action in readers:
+        raise ValueError("A result reader cannot replace an existing contract")
+    readers[action] = ResultReader(authorize, read_only)
+
+
 def register_write_action(app, *, action, authorize, result_fields):
     """Feature-owned startup contract; never installs a business route or grants access.
 
@@ -91,12 +115,16 @@ def _active():
         raise AppError(503, "WRITE_SCHEMA_REQUIRED", "공통 요청 결과 테이블의 검토·준비 상태를 확인해 주세요.")
 
 
-def _scope(action, target):
+def _scope(action, target, *, for_result=False):
+    reader = current_app.extensions.get("write_result_readers", {}).get(action) if isinstance(action, str) else None
     if (not isinstance(action, str) or
-            (action not in ACTIONS and action not in current_app.extensions.get("write_action_contracts", {})) or
+            (action not in ACTIONS and action not in current_app.extensions.get("write_action_contracts", {})
+             and not (reader is not None and (for_result or reader.read_only))) or
             not isinstance(target, str)
             or re.fullmatch(r"[A-Za-z0-9:_-]{1,80}", target) is None):
         raise AppError(400, "INVALID_INPUT", "쓰기 행동과 대상 식별자를 확인해 주세요.")
+    if not for_result and reader is not None and reader.read_only:
+        raise AppError(503, "WRITE_ACTION_READ_ONLY", "이 기능은 저장된 결과 확인만 가능합니다.")
 
 
 def _serializer():
@@ -125,7 +153,7 @@ def issue_key(*, action, target):
 
 
 def _decode(key, action, target, *, allow_expired=False):
-    _scope(action, target)
+    _scope(action, target, for_result=allow_expired)
     if (not isinstance(key, str) or not 32 <= len(key) <= 512
             or re.fullmatch(r"[A-Za-z0-9_.-]+", key) is None):
         raise AppError(400, "INVALID_INPUT", "유효한 요청 키가 필요합니다.")
@@ -166,8 +194,10 @@ def _authorize(db, target, callback):
         raise AppError(403, "FORBIDDEN", "현재 요청을 수행할 권한이 없습니다.")
 
 
-def _check_contract_authorizer(action, authorize):
-    contract = current_app.extensions.get("write_action_contracts", {}).get(action)
+def _check_contract_authorizer(action, authorize, *, for_result=False):
+    contract = (current_app.extensions.get("write_result_readers", {}).get(action) if for_result else None)
+    if contract is None:
+        contract = current_app.extensions.get("write_action_contracts", {}).get(action)
     if contract is not None and authorize is not contract.authorize:
         raise RuntimeError("Use the registered current-access authorizer for every feature action")
 
@@ -207,7 +237,7 @@ def perform_once(db, *, key, action, target, body, authorize, mutate):
 
 def lookup_result(db, *, key, action, target, authorize):
     _active()
-    _check_contract_authorizer(action, authorize)
+    _check_contract_authorizer(action, authorize, for_result=True)
     _authorize(db, target, authorize)
     key_hash, key_expires = _decode(key, action, target, allow_expired=True)
     receipt = _receipt(db, key_hash)
@@ -221,7 +251,11 @@ def lookup_result(db, *, key, action, target, authorize):
             "expires_at": iso(receipt.expires_at)}
 
 
-def _authorizer(action):
+def _authorizer(action, *, for_result=False):
+    if for_result:
+        reader = current_app.extensions.get("write_result_readers", {}).get(action)
+        if reader is not None:
+            return reader.authorize
     contract = current_app.extensions.get("write_action_contracts", {}).get(action)
     if contract is not None:
         return contract.authorize
@@ -231,14 +265,14 @@ def _authorizer(action):
     return callback
 
 
-def _input():
+def _input(*, for_result=False):
     body = payload()
     if set(body) != {"action", "target"}:
         raise AppError(400, "INVALID_INPUT", "action과 target만 전달해 주세요.")
     action, target = body["action"], body["target"]
     if not isinstance(action, str):
         raise AppError(400, "INVALID_INPUT", "쓰기 행동을 확인해 주세요.")
-    _scope(action, target)
+    _scope(action, target, for_result=for_result)
     return action, target
 
 
@@ -255,8 +289,8 @@ def keys():
 @bp.post("/result")
 @login_required
 def result():
-    action, target = _input()
+    action, target = _input(for_result=True)
     with authenticated_transaction() as db:
         data = lookup_result(db, key=request.headers.get("Idempotency-Key"), action=action,
-                             target=target, authorize=_authorizer(action))
+                             target=target, authorize=_authorizer(action, for_result=True))
     return success(data)

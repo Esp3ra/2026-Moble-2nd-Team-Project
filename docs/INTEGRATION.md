@@ -46,6 +46,19 @@
 
 ## 기능 모듈 추가
 
+### 업무·결과물 웹의 최소 연결 접점 (2026-10-20)
+
+2번 F1-04에 대한 현재 공통 계약이다. `/features/tasks`와 `/features/results`는 아직 준비 화면이며 업무/제출 웹의 제품 구현 완료를 뜻하지 않는다. 기존 `remotework/web.py`·`templates/base.html`·`features/registry.py`를 재사용한다.
+
+- 웹 인증은 기존 `web.login`이 발급한 HttpOnly `rw_session`과 `auth.load_identity`의 `channel="web"`을 사용한다. 실제 사용자/접속은 요청마다 `g.user/g.auth_session`으로 확인한다. 브라우저 쿠키를 `/api/`의 Bearer 인증으로 바꾸거나 토큰을 HTML·브라우저 저장소에 노출하지 않는다.
+- 웹의 POST/PATCH/PUT/DELETE는 기존 앱 전역 `web.protect_forms`를 통과한다. 템플릿 폼에는 `csrf_token()`의 값을 `csrf_token` 필드로 보낸다. 현재 검사는 form 필드 계약이며 JSON AJAX의 별도 CSRF 헤더를 지원한다고 가정하지 않는다. 신규 방식이 필요하면1번과 먼저 대조한다.
+- 2번은 자기 웹 blueprint/템플릿에서 기존 업무 서비스의 현재 배정·지정 관리자 권한과 상태/버전/멱등 처리를 재사용한다. 웹 요청이 자기 서버의 Bearer API를 다시 로그인해 호출하는 구조는 만들지 않는다. 공통 `authenticated_transaction`을 포함한 기존 쓰기 보호를 우회하지 않는다.
+- 2번 첫 화면은 기존 Own/Managed 업무 목록·상세/현재 필터 재조회부터 연결하는 안이다. 새 `/tasks`·`task_web.index`는 **제안**이며 아직 등록된 경로가 아니다.2번이 실제 blueprint/endpoint·필요 flag를 제공하면1번이 공통 메뉴의 `web.feature` 분기와 registry를 최소 연결한다. 준비 전에는 현재 준비 화면을 유지한다.
+- 업무→결과물 연결은 서버에서 재검사할 업무 ID만 전달하고 브라우저의 담당자/검토자 값을 권한 근거로 쓰지 않는다.3번 첫 화면의 실제 URL/조회권한·파일/제출 경계는3번 제공 후 맞춘다. 기존 WinForms 연결을 웹 구현 근거로 대신하지 않는다.
+- 성공 후에는 서버 확정 결과를 확인하고 목록·상세를 다시 읽는다. POST 폼 방식에서는303 GET 전환을 제안한다.401은 기존 웹 로그인 이동,403은 현재 접근 불가,409는 입력/예상 버전을 보존한 재조회,503은 준비/통신 실패를 구분한다. 응답 유실 뒤 자동 새 쓰기/새 요청 키를 만들지 않는다.
+
+이 절은 기존 공통 접점을 설명하고 URL/첫 화면안을 제시한다. 업무·결과물 웹 구현, 공동 URL 합의, 공통 메뉴 변경·공유 적용/두PC 검증은 별도이며 이번에 수행하지 않았다.
+
 기능 담당자는 `remotework/features/` 아래에 모델과 라우트를 만들고 `features/registry.py`의 `get_blueprints(config)`가 반환하는 목록에 등록합니다. 2번의 업무 조회 개발 초안은 명시적 활성화일 때만 모듈을 import합니다. 모델 파일을 해당 모듈에서 import해야 최초 `init-db`가 테이블을 발견합니다. 아직 구현되지 않은 기능을 자동으로 성공시키는 예시 API는 등록하지 않습니다.
 
 다음은 공통 grant 도우미를 사용하는 연결 예시입니다. 현재 2번 업무 GET 구현은 [TASK_QUERIES](TASK_QUERIES.md)의 현재 배정·지정 관리자 관계를 직접 검사하며, 1번 회신에 따라 중복 grant 동기화를 요구하지 않습니다. 아래 코드를 현재 업무 라우트와 혼동하지 않습니다.
