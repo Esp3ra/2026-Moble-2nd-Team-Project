@@ -127,7 +127,15 @@ public partial class TaskLifecycleForm : Form
         if (snapshot.State == TaskLifecycleState.Succeeded && snapshot.Result is { } result)
         {
             ConfirmedResult = result; ShouldRefreshList = true;
-            lblStatus.Text = $"서버 처리 성공 확인 · 업무 {result.TaskId} · 버전 {result.RowVersion}\r\n닫으면 목록·요청함을 새로 조회합니다. 취소는 별도 표시이며 5개 업무 상태는 유지됩니다.";
+            string outcome = kind switch
+            {
+                TaskLifecycleKind.Cancel => "업무를 취소했습니다. 기존 업무 상태와 이력은 보존됩니다.",
+                TaskLifecycleKind.RequestExtension => "마감 연장을 신청했습니다. 관리자 승인 전까지 기존 마감일을 유지합니다.",
+                TaskLifecycleKind.ApproveExtension => $"마감 연장을 승인했습니다. 적용 마감일: {result.DueDate:yyyy-MM-dd}",
+                TaskLifecycleKind.RejectExtension => "마감 연장을 반려했습니다. 기존 마감일을 유지합니다.",
+                _ => "마감 연장 신청을 철회했습니다. 기존 마감일을 유지합니다."
+            };
+            lblStatus.Text = outcome + "\r\n확인 후 닫으면 목록·요청함을 다시 조회합니다.";
         }
         SetButtons();
     }
