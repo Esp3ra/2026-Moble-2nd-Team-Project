@@ -4,6 +4,8 @@
 
 2번 화면 조작의 준비·확인·명시 실행, 작은 창/오류 안내와 검증 범위는 [화면 실사용 점검 안내](docs/TASK_MANUAL_CHECK.md)를 확인합니다. 자동화·테스트 대역과 공유 실계정의 수동 검증 결과를 구분합니다.
 
+4번 회신에 따른 2번 제공 접점으로 [로그인 접속에 고정된 읽기 어댑터](docs/TASK_QUERIES.md#captured-read-session)를 추가했습니다. `CaptureReadSession()`은 기존 목록·상세 GET과 오류 분류만 재사용하며 로그인 변경 뒤 새 계정으로 자동 이동하지 않습니다. [전용 92검사](Tests/TaskReadSession.Tests/README.md)와 기존 조회304검사를 통과했습니다. 명시적 업무 대역의 취소 제외/포함 필터도 수정했습니다. 알림 서비스·주기·저장·협업 권한·MainForm 연결과 실제 서버/4번 통합은 추가하지 않았으며, 현재 관계/버전·서버 시각의 추가 읽기 계약은 협의사항입니다.
+
 5번 Pi 실행 조립은 `EnrollmentRuntime`과 `main(enrollment_factory=...)`의 명시 주입으로 기존 지문 센서·잠금·OLED를 등록과 공유합니다. 기본 실행은 등록 비활성이며 키/정책 자동 생성·서비스 설치는 하지 않습니다. [실행 구성·사용자 Pi123개 대역 검사·실물 적용 전 조건](Devices/RaspberryPi/FINGERPRINT_ENROLLMENT.md)을 확인합니다. 관리자 화면/장치 주소 연결과 실제 신규 지문 저장·회원 매핑/운영 배포는 후속입니다.
 
 5번 새 회원 지문 등록의 [Pi 등록 코어·서명/온라인 승인·C# 중계와 전용 등록창](Devices/RaspberryPi/FINGERPRINT_ENROLLMENT.md)을 제공합니다. 기본 장치 실행에는 등록 경로를 켜지 않습니다. 관리자 사용자 관리의 생성한 회원 지문 등록 버튼과 장치별 주소 조립은 [1번 연결 안내](docs/DEVICE_ENROLLMENT_API.md)에 구현·검증 범위를 기록했습니다. 실제 키/주소 설치와 실물 통합 검증은 별도입니다. 실물 신규 저장·회원 매핑/운영 서비스 배포는 아직 검증하지 않았습니다. 서버 계약 [PR44](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/44)와 등록 코어/중계 [PR47](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/47)은 원본 alpha에 병합됐으며, 이번 후속은 기존 자원을 공유하는 Pi 실행 조립입니다.
