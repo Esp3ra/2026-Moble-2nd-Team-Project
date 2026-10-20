@@ -28,12 +28,18 @@ def _check(connection):
         if seen.get("default") is not None: _failure(name + " default")
         if name in ("notice_id", "user_id") and seen.get("autoincrement"): _failure(name + " autoincrement")
     if inspector.get_pk_constraint(table.name)["constrained_columns"] != ["notice_id", "user_id"]: _failure("PK order")
-    actual_fks = {(tuple(f["constrained_columns"]), f["referred_table"], tuple(f["referred_columns"]),
+    # Reflect the active database from this connection, not the configured URL or
+    # constraint name. MySQL may report local references explicitly or as None.
+    current_schema = (connection.execute(text("SELECT DATABASE()")).scalar_one()
+                      if connection.dialect.name == "mysql" else inspector.default_schema_name)
+    def schema(value):
+        return current_schema if value is None else value
+    actual_fks = {(tuple(f["constrained_columns"]), schema(f.get("referred_schema")), f["referred_table"], tuple(f["referred_columns"]),
                    _action(f.get("options", {}).get("ondelete")), _action(f.get("options", {}).get("onupdate")))
                   for f in inspector.get_foreign_keys(table.name)}
-    if actual_fks != {(("notice_id",), "notices", ("id",), "CASCADE", "RESTRICT"),
-                      (("user_id",), "users", ("id",), "RESTRICT", "RESTRICT")}:
-        _failure("FK target/ondelete/onupdate")
+    if actual_fks != {(("notice_id",), current_schema, "notices", ("id",), "CASCADE", "RESTRICT"),
+                      (("user_id",), current_schema, "users", ("id",), "RESTRICT", "RESTRICT")}:
+        _failure("FK schema/target/ondelete/onupdate")
     # The PK provides notice_id lookup/uniqueness; user lookup must have its own leading index.
     indexes = inspector.get_indexes(table.name)
     if not any(i["column_names"] and i["column_names"][0] == "user_id" and not i.get("unique") for i in indexes):

@@ -1,6 +1,7 @@
 """Actual raw008/ORM checks, ONLY on an explicitly disposable test MySQL DB."""
 import os
 import concurrent.futures
+import uuid
 from pathlib import Path
 import pytest
 from sqlalchemy import create_engine, inspect, select, text
@@ -115,3 +116,41 @@ def test_concurrent_explicit_initialization_is_serialized(physical):
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:list(pool.map(prepare,range(2)))
     with app.app_context():prepare_popup_schema(e)
     assert inspect(e).has_table("notice_confirmations")
+
+
+def test_explicit_current_database_foreign_keys_are_allowed(physical):
+    app,e,_=physical
+    database=e.url.database
+    sql=(Path(__file__).resolve().parents[1]/"migrations/008_notice_popups.mysql.sql").read_text(encoding="utf-8")
+    sql=sql.replace("REFERENCES notices",f"REFERENCES `{database}`.notices").replace("REFERENCES users",f"REFERENCES `{database}`.users")
+    with e.begin() as c:c.exec_driver_sql(sql)
+    with app.app_context():prepare_popup_schema(e)
+
+
+@pytest.mark.parametrize("column,parent",[("user_id","users"),("notice_id","notices")])
+def test_foreign_database_parent_is_rejected_without_ddl_or_row_changes(physical,column,parent):
+    app,e,_=physical;raw008(e);uid,nid=rows(app)
+    other="remote_work_test_popup_foreign_"+uuid.uuid4().hex
+    quote=e.dialect.identifier_preparer.quote_identifier
+    with e.begin() as c:c.exec_driver_sql(f"CREATE DATABASE {quote(other)} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+    try:
+        value=uid if column=="user_id" else nid
+        with e.begin() as c:
+            c.exec_driver_sql(f"CREATE TABLE {quote(other)}.{parent} (id INTEGER NOT NULL PRIMARY KEY) ENGINE=InnoDB")
+            c.execute(text(f"INSERT INTO {quote(other)}.{parent} (id) VALUES (:id)"),{"id":value})
+            fk=next(f for f in inspect(c).get_foreign_keys("notice_confirmations") if f["constrained_columns"]==[column])
+            action="RESTRICT" if column=="user_id" else "CASCADE"
+            c.exec_driver_sql(f"ALTER TABLE notice_confirmations DROP FOREIGN KEY {quote(fk['name'])}, ADD CONSTRAINT foreign_parent_check FOREIGN KEY ({column}) REFERENCES {quote(other)}.{parent}(id) ON DELETE {action}")
+        assert next(f for f in inspect(e).get_foreign_keys("notice_confirmations") if f["constrained_columns"]==[column])["referred_schema"]==other
+        with e.connect() as c:
+            before=c.exec_driver_sql("SHOW CREATE TABLE notice_confirmations").one()[1]
+            saved=c.exec_driver_sql("SELECT * FROM notice_confirmations").all()
+        with app.app_context(),pytest.raises(RuntimeError,match="FK schema"):
+            prepare_popup_schema(e)
+        with e.connect() as c:
+            assert c.exec_driver_sql("SHOW CREATE TABLE notice_confirmations").one()[1]==before
+            assert c.exec_driver_sql("SELECT * FROM notice_confirmations").all()==saved
+    finally:
+        # Only this test's child table and UUID-owned temporary database.
+        NoticeConfirmation.__table__.drop(e,checkfirst=True)
+        with e.begin() as c:c.exec_driver_sql(f"DROP DATABASE {quote(other)}")

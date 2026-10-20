@@ -188,9 +188,16 @@ internal static partial class Program
                     }
                     else if (request.StartsWith("GET /api/v1/notices?", StringComparison.Ordinal))
                         payload = new { ok = true, data = new { items = Array.Empty<object>(), page = 1, limit = 100, total = 0 } };
+                    else if (request == "GET /api/v1/notices/popups/pending?after_id=0 HTTP/1.1")
+                    {
+                        // Only the explicit popup-disabled contract is supported.
+                        // All other unknown routes must still fail this fixture.
+                        status = 404;
+                        payload = new { ok = false, error = new { code = "NOT_FOUND", message = "fixture popup disabled" } };
+                    }
                     else throw new InvalidOperationException("Unexpected authentication fixture route");
                     byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(payload, ApiClient.Json);
-                    byte[] headers = Encoding.ASCII.GetBytes($"HTTP/1.1 {status} {(status == 200 ? "OK" : "Unauthorized")}\r\nContent-Type: application/json\r\nContent-Length: {bytes.Length}\r\nConnection: close\r\n\r\n");
+                    byte[] headers = Encoding.ASCII.GetBytes($"HTTP/1.1 {status} {(status == 200 ? "OK" : status == 404 ? "Not Found" : "Unauthorized")}\r\nContent-Type: application/json\r\nContent-Length: {bytes.Length}\r\nConnection: close\r\n\r\n");
                     // Session expiry can cancel an in-flight notice read. The
                     // fixture must keep accepting the following auth request.
                     try { await stream.WriteAsync(headers, stop.Token); await stream.WriteAsync(bytes, stop.Token); }
