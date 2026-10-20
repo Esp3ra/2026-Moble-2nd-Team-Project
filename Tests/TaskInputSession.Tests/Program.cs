@@ -89,7 +89,9 @@ internal static class Program
     private static void FillExtension(DeadlineExtensionForm form)
     {
         Field<TextBox>(form, "txtExtensionReason").Text = "개인 연장 사유";
-        var picker = Field<DateTimePicker>(form, "dtpRequestedDeadline"); picker.Value = new DateTime(2026, 10, 21); picker.Checked = true;
+        var requested = DeadlineExtensionPolicy.KoreanDate(DateTimeOffset.UtcNow).AddDays(1);
+        if (requested <= Detail.Summary.DueDate) requested = Detail.Summary.DueDate.AddDays(1);
+        var picker = Field<DateTimePicker>(form, "dtpRequestedDeadline"); picker.Value = requested.ToDateTime(TimeOnly.MinValue); picker.Checked = true;
         Field<Button>(form, "btnConfirm").PerformClick();
         Check(form.CheckedInput is not null, "extension input is prepared before invalidation");
     }

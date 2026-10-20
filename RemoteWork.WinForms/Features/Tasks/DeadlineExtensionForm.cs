@@ -19,7 +19,8 @@ namespace RemoteWork.WinForms.Features.Tasks
             && (!connected || (preparationService?.IsCurrent == true
                 && !preparationService.SessionCancellation.IsCancellationRequested));
 
-        // A local snapshot of the last successful input check; eligibility is still unconfirmed.
+        // A local policy/input check only. Current assignee, pending request and decision-maker
+        // must be checked atomically by the future server implementation.
         public DeadlineExtensionInputDraft? CheckedInput
         {
             get
@@ -32,7 +33,10 @@ namespace RemoteWork.WinForms.Features.Tasks
                         || checkedInput.TaskId != sourceDetail.Summary.TaskId
                         || checkedInput.OriginalDueDate != sourceDetail.Summary.DueDate
                         || checkedInput.RequestedDueDate != DateOnly.FromDateTime(dtpRequestedDeadline.Value)
-                        || checkedInput.Reason != txtExtensionReason.Text))
+                        || checkedInput.Reason != txtExtensionReason.Text
+                        || !DeadlineExtensionPolicy.AllowsRequest(sourceDetail.Summary.Status)
+                        || DeadlineExtensionPolicy.DateError(checkedInput.OriginalDueDate,
+                            checkedInput.RequestedDueDate, DeadlineExtensionPolicy.KoreanDate(DateTimeOffset.UtcNow)) is not null))
                     checkedInput = null;
                 return checkedInput;
             }
@@ -63,9 +67,10 @@ namespace RemoteWork.WinForms.Features.Tasks
             txtCurrentDeadline.Text = detail?.Summary.DueDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "—";
             txtExtensionReason.Clear();
             dtpRequestedDeadline.Checked = false;
-            dtpRequestedDeadline.Enabled = detail is not null;
-            txtExtensionReason.Enabled = detail is not null;
-            btnConfirm.Enabled = detail is not null;
+            bool allowedState = detail is not null && DeadlineExtensionPolicy.AllowsRequest(detail.Summary.Status);
+            dtpRequestedDeadline.Enabled = allowedState;
+            txtExtensionReason.Enabled = allowedState;
+            btnConfirm.Enabled = allowedState;
             initializing = false;
             ResetPreparationStatus();
             UpdateDateNotice();
@@ -129,7 +134,9 @@ namespace RemoteWork.WinForms.Features.Tasks
             lblPreparationStatus.ForeColor = Color.FromArgb(30, 42, 61);
             lblPreparationStatus.Text = sourceDetail is null
                 ? "목록에서 업무 상세를 조회한 뒤 연장 대상을 선택해 주세요. 요청이 접수되지 않습니다."
-                : "로컬 입력 준비 · 신청 조건·마감 규약 확인 필요 · 요청 접수·마감 변경은 하지 않습니다.";
+                : !DeadlineExtensionPolicy.AllowsRequest(sourceDetail.Summary.Status)
+                    ? "진행중·반려완료에서만 연장을 신청할 수 있습니다. 진행전은 관리자의 일반 날짜 수정을 이용합니다.\r\n현재 화면은 입력 준비이며 요청 접수·마감 변경은 하지 않습니다."
+                    : "진행중·반려완료는 마감 전·후 신청 가능 · 신청자 이외의 현재 업무 관리자가 판단합니다.\r\n현재 화면은 입력 준비이며 요청 접수·마감 변경은 하지 않습니다.";
         }
 
         private void UpdateDateNotice()
@@ -137,7 +144,8 @@ namespace RemoteWork.WinForms.Features.Tasks
             txtExtensionNotice.Text = "현재 마감일: " + txtCurrentDeadline.Text
                 + "\r\n희망 마감일: " + (dtpRequestedDeadline.Checked
                     ? DateOnly.FromDateTime(dtpRequestedDeadline.Value).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
-                    : "선택 필요");
+                    : "선택 필요")
+                + "\r\n기준: 현재 기한보다 뒤 · 승인 당일 한국 날짜 이상 · 승인해도 업무 상태 유지";
         }
 
         private void ConfirmInput_Click(object? sender, EventArgs e)
@@ -151,6 +159,13 @@ namespace RemoteWork.WinForms.Features.Tasks
             if (!dtpRequestedDeadline.Checked)
             {
                 inputErrors.SetError(dtpRequestedDeadline, "희망 마감일을 선택해 주세요.");
+                firstInvalid = dtpRequestedDeadline;
+            }
+            else if (DeadlineExtensionPolicy.DateError(sourceDetail.Summary.DueDate,
+                DateOnly.FromDateTime(dtpRequestedDeadline.Value),
+                DeadlineExtensionPolicy.KoreanDate(DateTimeOffset.UtcNow)) is { } dateError)
+            {
+                inputErrors.SetError(dtpRequestedDeadline, dateError);
                 firstInvalid = dtpRequestedDeadline;
             }
             if (string.IsNullOrWhiteSpace(txtExtensionReason.Text))
@@ -172,7 +187,7 @@ namespace RemoteWork.WinForms.Features.Tasks
                 DateOnly.FromDateTime(dtpRequestedDeadline.Value),
                 txtExtensionReason.Text);
             lblPreparationStatus.ForeColor = Color.FromArgb(30, 42, 61);
-            lblPreparationStatus.Text = "입력 확인 · 접수·마감 변경 안 됨\r\n날짜·업무 상태별 신청 자격은 합의된 서버 규약으로 다시 검증해야 합니다.";
+            lblPreparationStatus.Text = "로컬 상태·날짜·사유 확인 · 접수·마감 변경 안 됨\r\n서버 연결 시 현재 담당자·대기 신청 중복·판단 가능한 다른 관리자와 최신 날짜/버전을 다시 검사합니다.";
         }
 
         private void ClosePreview_Click(object? sender, EventArgs e)

@@ -1,4 +1,4 @@
-"""Member1 raw005 physical-schema checks, no chat application implementation."""
+"""Member1 raw005 checks in fresh owned DBs, independent of app metadata/order."""
 import os
 import subprocess
 from pathlib import Path
@@ -15,8 +15,12 @@ pytestmark=pytest.mark.skipif(not os.getenv("MYSQL_TEST_URL", "").startswith("my
 
 
 @pytest.fixture
-def chat_ddl(app):
-    engine=app.extensions["db_engine"]
+def chat_ddl(owned_databases, fixture_password_hash):
+    # Other chat tests import feature models into common Base.metadata, and
+    # app/init_schema can then create chat tables even after its flag resets.
+    # A raw CREATE test needs a genuinely fresh DB, not the shared app fixture.
+    engine=owned_databases("chat_raw")
+    _seed_common(engine,fixture_password_hash)
     assert engine.dialect.name=="mysql" and make_url(engine.url).database.startswith("remote_work_test_")
     names=("chat_rooms","chat_members","chat_messages")
     assert not any(inspect(engine).has_table(name) for name in names)

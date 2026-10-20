@@ -2,6 +2,14 @@
 
 Raspberry Pi 한 프로세스에서 UART 지문 인식, SH1106 OLED 표시, Arduino Mega USB 조도 수신을 함께 실행합니다. 공통 회원·로그인·근태 DB와 분리된 장치 시연 코드입니다. Windows 확인 화면은 [Tools/DeviceCheck](../../Tools/DeviceCheck/README.md)에 있습니다.
 
+새 계정/새 지문 흐름은 [AS608 등록 코어와 전용 중계](FINGERPRINT_ENROLLMENT.md)를 참고합니다. 등록 경로는 선택 주입 방식으로 제공하며 현재 실행 중인 장치 서비스에는 배포하지 않았습니다.
+
+후속 [요청 검증·서명 결과 보관 어댑터](FINGERPRINT_ENROLLMENT.md)는 등록 코어에 연결하는 독립 모듈입니다. `enroll_online`의 최초 새 온라인 승인/UTC와 단계별 재승인, `read_result_online`의 만료 후 읽기 전용 승인/기존 결과 반환을 구현했습니다. PC 승인 HTTP 중계·전용 등록창·Pi 비동기 경로도 제공하지만 관리자 화면 버튼·키 배포·실물 적용은 별도이며 기존 `pi_api.py` 실행만으로 활성화되지 않습니다.
+
+추가로 C# HTTP 중계/전용 등록창과 Pi의 비동기 `EnrollmentRelayJobs`·선택 등록 경로를 준비했습니다. `create_app(..., enrollment_jobs=jobs)`를 **명시적으로 주입했을 때만** `/enrollments/jobs` 경로가 열리며 기본 `main()`·현재 실행 서비스는 이를 활성화하지 않습니다. 공개 테스트 키나 무조건 허용 승인으로 운영 설정을 대체하지 않습니다. 서버 원래 관리자 접속·장치별 키/프로필·기존 UART/잠금 공유와 신뢰할 TLS/전용 통신 설정을 준비한 뒤 연결합니다. 상세와 실제 검사 결과는 위 등록 문서의 최신 절을 참고합니다.
+
+`fingerprint_enrollment_runtime.EnrollmentRuntime`은 기존 `FingerprintService`의 센서·잠금·OLED를 빌려 조립합니다. 승인된 키/프로필과 비공개 ledger/cache를 준비한 호출자만 `main(enrollment_factory=...)`로 명시 주입할 수 있습니다. 기본 실행은 계속 등록 비활성이며 설정 파일 자동 로드·키 생성·서비스 설치를 하지 않습니다. 등록 중 조도 수신/조회는 유지하고 OLED는 등록 안내를 우선합니다. 현재는 로컬 대역 검증 단계이며 실물 서비스 적용 절차는 위 문서의 최신 절을 확인합니다.
+
 ## 구성과 배선
 
 | 장치 | 연결 / 기본 설정 |
@@ -42,6 +50,27 @@ I2C/UART 설정은 사용 중인 Pi OS와 기존 지문 센서 설정에 맞춰�
 ```bash
 sudo systemctl stop attendance-device.service
 ```
+
+## 새 지문 등록 전: 센서 정보 읽기 전용 점검
+
+[fingerprint_inventory.py](fingerprint_inventory.py)는 센서가 보고하는 용량·등록 개수·사용 중 번호와 설치된 지문 라이브러리 버전만 읽습니다. 지문 채취/원본·템플릿 읽기/저장·삭제·설정 변경은 하지 않습니다. 시스템 ID로 제조사·센서 모델을 확정하거나, 용량으로0번/마지막 등록 가능 번호를 추정하지 않습니다. `null`인 항목은 실물 라벨/제조사 자료 확인 전 미확인입니다. 목록/개수가 맞지 않으면 실패 처리하며 이 결과만으로 빈 슬롯을 할당하지 않습니다.
+
+Pi의 기존 센서 가상환경에서 실행합니다. **수동 pi_api·등록 프로그램·miniterm도 모두 종료**해야 합니다. `exclusive=True`만으로 이미 실행 중인 모든 구형 프로그램의 점유를 발견한다고 보장하지 않습니다. 실행 전 서비스가 `inactive`인지 확인하며 자동 중지·재시작은 하지 않습니다.
+
+```bash
+# 서비스가 실행 중이었다면 점검 동안 중지하고, 끝난 뒤 다시 시작합니다.
+sudo systemctl stop attendance-device.service
+python fingerprint_inventory.py --confirm-sensor-idle
+sudo systemctl start attendance-device.service
+systemctl is-active attendance-device.service
+curl http://127.0.0.1:8080/health
+```
+
+중간 조회에 실패해도 원래 실행 중이던 서비스는 마지막 명령들로 복구합니다. 이전에 정지해 두었던 서비스라면 점검 뒤 임의로 시작하지 않습니다. 센서 정보는 터미널에서만 확인하며 등록 목록 결과를 Git에 추가하지 않습니다. 실제 슬롯 등록/삭제·회원 연결·별도 enroll 서명/서버 API·재시작 복구는 이번 점검 도구에 없습니다. 1번의 PR44는 확인 시 미병합 계약 초안이므로 이번에 병합하거나 그 화면/공통 파일을 수정하지 않았습니다.
+
+구현 참고: Adafruit 공식 [API](https://docs.circuitpython.org/projects/fingerprint/en/latest/api.html)의 `read_sysparam`, `count_templates`, `read_templates`. 설치 버전/실제 센서 응답은 별도 확인하며 읽기 점검으로 실물 등록 가능 범위나 회원 신뢰를 증명하지 않습니다.
+
+장치 없는 로컬 검증: `python -m unittest -v test_fingerprint_inventory`. 이 대역 검증은 실제 UART/센서를 사용하지 않습니다.
 
 ## 표시 이름은 각 장치 안에만 보관
 

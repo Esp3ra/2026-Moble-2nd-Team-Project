@@ -37,6 +37,35 @@ def register_starting(state):
                            methods=["POST"])
 
 
+@bp.record_once
+def register_management(state):
+    enabled = state.app.config.get("ENABLE_TASK_MANAGEMENT_DRAFT",
+        os.getenv("REMOTEWORK_ENABLE_TASK_MANAGEMENT_DRAFT") == "1")
+    if enabled is True:
+        from .management import change_managers, reassign_task, update_task
+        state.add_url_rule("/<string:task_id>", "update", update_task, methods=["PATCH"])
+        state.add_url_rule("/<string:task_id>/reassign", "reassign", reassign_task, methods=["POST"])
+        state.add_url_rule("/<string:task_id>/managers", "change_managers", change_managers, methods=["PATCH"])
+
+
+@bp.record_once
+def register_lifecycle(state):
+    enabled = state.app.config.get("ENABLE_TASK_LIFECYCLE_DRAFT",
+        os.getenv("REMOTEWORK_ENABLE_TASK_LIFECYCLE_DRAFT") == "1")
+    if enabled is True:
+        from .lifecycle import (approve_extension, cancel_task, extension_requests, lifecycle_context,
+                                register_lifecycle_actions, reject_extension, request_extension, withdraw_extension)
+        if state.app.config.get("ENABLE_COMMON_WRITE_DRAFT"):
+            register_lifecycle_actions(state.app)
+        state.add_url_rule("/<string:task_id>/cancel", "cancel", cancel_task, methods=["POST"])
+        state.add_url_rule("/<string:task_id>/lifecycle", "lifecycle", lifecycle_context, methods=["GET"])
+        state.add_url_rule("/extension-requests", "extension_requests", extension_requests, methods=["GET"])
+        state.add_url_rule("/<string:task_id>/deadline-extensions", "request_extension", request_extension, methods=["POST"])
+        for suffix, handler in (("approve", approve_extension), ("reject", reject_extension), ("withdraw", withdraw_extension)):
+            state.add_url_rule("/<string:task_id>/deadline-extensions/<string:extension_id>/" + suffix,
+                               suffix + "_extension", handler, methods=["POST"])
+
+
 def _query_args(allowed):
     if set(request.args) - allowed or any(len(values) != 1 for _, values in request.args.lists()):
         raise AppError(400, "INVALID_INPUT", "지원하지 않거나 중복된 업무 조회 조건입니다.")
@@ -45,12 +74,15 @@ def _query_args(allowed):
 @bp.get("")
 @login_required
 def index():
-    _query_args({"scope", "status"})
+    _query_args({"scope", "status", "include_cancelled"})
     scope = request.args.get("scope", "own")
     status = request.args.get("status")
+    include_cancelled = request.args.get("include_cancelled", "false")
     if scope not in ("own", "managed") or (status is not None and status not in TASK_STATUSES):
         raise AppError(400, "INVALID_INPUT", "업무 범위 또는 상태를 확인해 주세요.")
-    return success({"items": list_tasks(g.user, scope, status)})
+    if include_cancelled not in ("true", "false"):
+        raise AppError(400, "INVALID_INPUT", "취소 포함 여부는 true 또는 false로 전달해 주세요.")
+    return success({"items": list_tasks(g.user, scope, status, include_cancelled == "true")})
 
 
 @bp.get("/<int:task_id>")

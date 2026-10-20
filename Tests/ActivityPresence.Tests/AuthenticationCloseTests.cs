@@ -188,9 +188,16 @@ internal static partial class Program
                     }
                     else if (request.StartsWith("GET /api/v1/notices?", StringComparison.Ordinal))
                         payload = new { ok = true, data = new { items = Array.Empty<object>(), page = 1, limit = 100, total = 0 } };
+                    else if (request == "GET /api/v1/notices/popups/pending?after_id=0 HTTP/1.1")
+                    {
+                        // Only the explicit popup-disabled contract is supported.
+                        // All other unknown routes must still fail this fixture.
+                        status = 404;
+                        payload = new { ok = false, error = new { code = "NOT_FOUND", message = "fixture popup disabled" } };
+                    }
                     else throw new InvalidOperationException("Unexpected authentication fixture route");
                     byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(payload, ApiClient.Json);
-                    byte[] headers = Encoding.ASCII.GetBytes($"HTTP/1.1 {status} {(status == 200 ? "OK" : "Unauthorized")}\r\nContent-Type: application/json\r\nContent-Length: {bytes.Length}\r\nConnection: close\r\n\r\n");
+                    byte[] headers = Encoding.ASCII.GetBytes($"HTTP/1.1 {status} {(status == 200 ? "OK" : status == 404 ? "Not Found" : "Unauthorized")}\r\nContent-Type: application/json\r\nContent-Length: {bytes.Length}\r\nConnection: close\r\n\r\n");
                     // Session expiry can cancel an in-flight notice read. The
                     // fixture must keep accepting the following auth request.
                     try { await stream.WriteAsync(headers, stop.Token); await stream.WriteAsync(bytes, stop.Token); }
@@ -206,8 +213,46 @@ internal static partial class Program
         }
     }
 
+    private static async Task<int> ReadOwnedPid(string path)
+    {
+        var elapsed = Stopwatch.StartNew();
+        while (elapsed.ElapsedMilliseconds < 5000)
+        {
+            try
+            {
+                // File creation is visible before the Python writer has closed
+                // its handle. Retry sharing/empty-write races, not cleanup itself.
+                string value = await File.ReadAllTextAsync(path);
+                if (int.TryParse(value, out int pid) && pid > 0)
+                {
+                    Check(true, "Owned unresponsive Python publishes a readable PID");
+                    return pid;
+                }
+            }
+            catch (IOException) { /* The owned writer may still hold the file. */ }
+            await Task.Delay(15);
+        }
+        throw new InvalidOperationException("Owned unresponsive Python did not publish a readable PID within 5 seconds");
+    }
+
     private static async Task ForcedOwnerClose()
     {
+        // Deterministically hold the same exclusive writer handle that caused
+        // the reviewer failure, then publish a PID without touching a process.
+        string probePath = Path.Combine(Path.GetTempPath(), $"activity-pid-probe-{Guid.NewGuid():N}.pid");
+        try
+        {
+            Task<int> reading;
+            using (var writer = new FileStream(probePath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                reading = ReadOwnedPid(probePath);
+                await Task.Delay(60);
+                Check(!reading.IsCompleted, "PID reader waits while the owned writer holds the file");
+                await writer.WriteAsync(Encoding.UTF8.GetBytes(Environment.ProcessId.ToString()));
+            }
+            Check(await reading == Environment.ProcessId, "PID reader recovers after the writer closes");
+        }
+        finally { File.Delete(probePath); }
         foreach (bool parentClose in new[] { false, true })
         {
             string pidPath = Path.Combine(Path.GetTempPath(), $"activity-close-{Guid.NewGuid():N}.pid");
@@ -228,8 +273,7 @@ internal static partial class Program
                 try
                 {
                     Click(child, "btnStart");
-                    await Until(() => File.Exists(pidPath), "Owned unresponsive Python starts");
-                    int pid = int.Parse(await File.ReadAllTextAsync(pidPath));
+                    int pid = await ReadOwnedPid(pidPath);
                     using var process = Process.GetProcessById(pid);
                     var elapsed = Stopwatch.StartNew();
                     // Reproduce expiry's child.Close -> owner.Close ordering too.

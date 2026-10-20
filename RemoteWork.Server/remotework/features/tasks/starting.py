@@ -160,6 +160,10 @@ def _start(target, action, *, body=None):
 
         def mutate(session):
             task, assignment = _locked_current(session, target)
+            # A retained success may still be read, but a new start must never
+            # bypass a persisted cancellation by switching the feature flag off.
+            from .lifecycle_support import ensure_not_cancelled
+            ensure_not_cancelled(session, task.task_id)
             plan = _plan(task, assignment, expected, action, utcnow())
             before = {"task_status": task.task_status, "row_version": str(task.row_version),
                       "assignment_revision": task.current_assignment_revision}

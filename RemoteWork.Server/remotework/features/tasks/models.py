@@ -3,7 +3,8 @@
 These tables support task reads and separately enabled development-only creation.
 Registering their metadata does not migrate an existing database. DDL approval
 and shared application remain separate gates.
-Submission, reviewer selection and status transitions await the joint write contract.
+Acceptance/rework and separately enabled management reuse the common write contract.
+Submission/review remain member 3 owned; cancellation/extension storage is not declared here.
 """
 from datetime import date, datetime
 

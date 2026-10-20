@@ -1,5 +1,6 @@
 using System.Globalization;
 using RemoteWork.WinForms.Features.Tasks;
+using RemoteWork.WinForms.Features.Tasks.Preparation;
 using RemoteWork.WinForms.Features.Tasks.Queries;
 using RemoteWork.WinForms.Ui;
 
@@ -115,7 +116,8 @@ internal static partial class Program
             && !Field<TextBox>(unconfigured, "txtTaskSummary").Text.Contains("TASK-001"),
             "extension without a selected task has no example target or enabled confirmation");
         Need(unconfigured.CheckedInput is null, "extension without a source task exposes no local snapshot");
-        TaskDetail original = Fixtures[3];
+        // Extension policy is now confirmed: returned remains returned while preparing a later deadline.
+        TaskDetail original = Fixtures[4];
         using var form = new DeadlineExtensionForm(PreviewRole.Administrator, original);
         ShowPreparation(form);
         Need(Field<TextBox>(form, "txtTaskSummary").Text.Contains(original.Summary.TaskId)
@@ -135,17 +137,25 @@ internal static partial class Program
         Need(errors.GetError(reason).Length > 0, "whitespace extension reason is rejected");
         reason.Text = "  마감 연장 입력 형식만 점검합니다.  ";
         Field<Button>(form, "btnConfirm").PerformClick();
+        Need(errors.GetError(date).Length > 0 && form.CheckedInput is null,
+            "the current deadline itself is not an extension under the approved policy");
+        DateOnly requested = original.Summary.DueDate.AddDays(1);
+        DateOnly tomorrowKst = DeadlineExtensionPolicy.KoreanDate(DateTimeOffset.UtcNow).AddDays(1);
+        if (requested < tomorrowKst) requested = tomorrowKst;
+        date.Value = requested.ToDateTime(TimeOnly.MinValue);
+        date.Checked = true;
+        Field<Button>(form, "btnConfirm").PerformClick();
         Need(errors.GetError(reason) == "" && errors.GetError(date) == ""
             && !form.IsDisposed && form.DialogResult != DialogResult.OK,
-            "input check does not invent date/state eligibility or accept a request");
-        Need(status.Text.Contains("접수") && original.Summary.DueDate == Fixtures[3].Summary.DueDate,
+            "confirmed local date/state input check never accepts an actual request");
+        Need(status.Text.Contains("접수") && original.Summary.DueDate == Fixtures[4].Summary.DueDate,
             "local extension preview leaves the actual deadline unchanged");
         var checkedExtension = form.CheckedInput;
         Need(checkedExtension is not null && checkedExtension.TaskId == original.Summary.TaskId
             && checkedExtension.OriginalDueDate == original.Summary.DueDate
-            && checkedExtension.RequestedDueDate == original.Summary.DueDate
+            && checkedExtension.RequestedDueDate == requested
             && checkedExtension.Reason == reason.Text,
-            "extension snapshot preserves the source deadline and verbatim reason without setting eligibility");
+            "extension snapshot preserves source deadline and verbatim reason without claiming server eligibility");
         var oldMessage = status.Text;
         reason.Text += " 변경";
         Need(status.Text != oldMessage, "changed extension input invalidates its previous check");
