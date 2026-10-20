@@ -53,6 +53,9 @@ def install(app):
                 "request_key": wire.b64decode(entry["request_key_b64"], 32),
                 "result_key": wire.b64decode(entry["result_key_b64"], 32)}
     app.config["ENROLLMENT_DEVICE_KEYS"] = validate_keys(values or {})
+    if app.config.get("ENABLE_ENROLLMENT_DURABILITY_DRAFT"):
+        from .durability import install as install_durability
+        install_durability(app)
 
     @app.cli.command("init-enrollment-draft")
     def init_enrollment():

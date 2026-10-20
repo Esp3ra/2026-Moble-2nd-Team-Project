@@ -26,12 +26,15 @@ def create_app(test_config=None):
         ENABLE_TASK_QUERY_DRAFT=os.getenv("REMOTEWORK_ENABLE_TASK_QUERY_DRAFT") == "1",
         ENABLE_COMMON_WRITE_DRAFT=os.getenv("REMOTEWORK_ENABLE_COMMON_WRITE_DRAFT") == "1",
         ENABLE_DEVICE_ENROLLMENT_DRAFT=os.getenv("REMOTEWORK_ENABLE_DEVICE_ENROLLMENT_DRAFT") == "1",
+        ENABLE_ENROLLMENT_DURABILITY_DRAFT=os.getenv("REMOTEWORK_ENABLE_ENROLLMENT_DURABILITY_DRAFT") == "1",
         WRITE_REQUEST_TTL_SECONDS=int(os.getenv("WRITE_REQUEST_TTL_SECONDS", "86400")),
         COMPANY_NAME=os.getenv("COMPANY_NAME", "회사명"), SESSION_HOURS=int(os.getenv("SESSION_HOURS", "8")),
         COOKIE_SECURE=os.getenv("COOKIE_SECURE", "false").lower() == "true", MAX_CONTENT_LENGTH=32 * 1024,
         SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax", SESSION_REFRESH_EACH_REQUEST=False)
     if test_config:
         app.config.update(test_config)
+    if app.config["ENABLE_ENROLLMENT_DURABILITY_DRAFT"] and not app.config["ENABLE_DEVICE_ENROLLMENT_DRAFT"]:
+        raise RuntimeError("Enrollment MySQL durability requires explicit enrollment activation")
     secret = app.config["SECRET_KEY"]
     if len(secret) < 32 or "CHANGE_ME" in secret:
         raise RuntimeError("SECRET_KEY를 무작위 32자 이상으로 설정해 주세요. .env.example 또는 --demo 실행 안내를 확인하세요.")

@@ -171,7 +171,7 @@ def issue(db, body):
     return view(job, device)
 
 
-def current_permit(job, device, body):
+def current_permit(job, device, body, *, allowed_scopes=("sensor_write", "sensor_capture", "result_read")):
     strict(body, wire.COMMON - {"enrollment_id"} | {"probe_nonce", "ticket_digest", "scope"})
     for field in ("operation_revision", "claim_revision", "key_epoch"):
         wire._revision(body[field])
@@ -180,8 +180,21 @@ def current_permit(job, device, body):
         fail(400, "INVALID_INPUT")
     if any(body[f] != binding(job)[f] for f in wire.COMMON - {"enrollment_id"}) or body["ticket_digest"] != job.ticket_digest:
         fail(409, "ENROLLMENT_BINDING_MISMATCH")
+    if body["scope"] not in allowed_scopes:
+        fail(400, "INVALID_INPUT")
+    durable = current_app.config.get("ENABLE_ENROLLMENT_DURABILITY_DRAFT", False)
+    if body["scope"] == "sensor_write" and durable:
+        fail(409, "ENROLLMENT_MYSQL_PROTOCOL_REQUIRED")
+    if body["scope"] == "sensor_capture":
+        if not durable:
+            fail(400, "INVALID_INPUT")
+        from .durability import require_storage, PhysicalReceipt
+        from ...db import get_db
+        db = get_db(); require_storage(db)
+        if db.get(PhysicalReceipt, job.enrollment_id) is not None:
+            fail(409, "ENROLLMENT_PHYSICAL_RECOVERY_REQUIRED")
     stamp = now()
-    if body["scope"] == "sensor_write":
+    if body["scope"] in ("sensor_write", "sensor_capture", "sensor_store"):
         if job.state != "issued" or stamp >= job.expires_at:
             fail(409, "ENROLLMENT_WRITE_NOT_ALLOWED")
         deadline = job.expires_at
@@ -209,6 +222,9 @@ def complete(db, job, device, claim, body):
     result = wire.verify_completion(ticket(job, device), raw, device_id=device.device_id, key_id=context["key_id"],
         key_epoch=str(device.key_epoch), request_key=context["request_key"], result_key=context["result_key"])
     digest = hashlib.sha256(raw).hexdigest()
+    if current_app.config.get("ENABLE_ENROLLMENT_DURABILITY_DRAFT", False) and not job.result_hash:
+        from .durability import require_recorded_result
+        require_recorded_result(db, job, digest)
     if job.result_hash:
         if not hmac.compare_digest(job.result_hash, digest):
             fail(409, "ENROLLMENT_RESULT_CONFLICT")

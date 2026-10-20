@@ -12,6 +12,7 @@
 | 007 | [지문 등록 SQL](007_device_enrollment.mysql.sql) · [설정·검증·복구](007_device_enrollment.md) | 2026-10-20 사용자 승인으로1번 서버 API와 함께 개발 구현. 독립 metadata/명시 초기화·기본off·공유 미적용·전역version1 유지 |
 | 008 | [공지 팝업 SQL](008_notice_popups.mysql.sql) · [검토·검증·복구](008_notice_popups.md) | PR45 검토 후 원본 alpha 병합. 공지 삭제 시 해당 확인 행 CASCADE 삭제·삭제 감사 유지 정책 확정. 기본off·명시 준비·공유 적용은 별도, 전역version1 유지 |
 | 009 | [업무 취소·연장 SQL](009_task_lifecycle.mysql.sql) · [검토/검증/적용 경계](009_task_lifecycle.md) | 최초 번호 예약 후2번 alpha73a05d5의 개발 초안을1번이 대조해 번호화. 신규2테이블의 InnoDB/utf8mb4_unicode_ci 명시,3번 소비 검증/전체 배포확인·공유 적용은 미완료. schema1 유지·전역version9 승인 아님 |
+| 010 | [등록 MySQL 증거 SQL](010_enrollment_durability.mysql.sql) · [설명/복구](010_enrollment_durability.md) | 1번의MySQL전용저장전commit/서명결과원문보관용독립1테이블. 기본off,007보존·schema1유지.5번연결/기존SQLite이관·실제복구/운영적용은별도 |
 
 005·006은 별도 개발 SQL이다. 최초 006 번호 예약 당시의 미작성 안내를 PR46 병합 상태로 정정한다. 002의 신규 등록 초기 업무/배정 버전1/1과 공통 schema version1은 서로 다른 값이다. 3번의 제출 참조는 기존 `task_assignments(task_id, revision)`을 사용하며, 실제 006과 ORM의 참조 인덱스·복합 FK를 함께 대조한다. MySQL의 즉시 FK 검사 때문에 현재 `tasks`의 배정 포인터에 순환 FK를 무단 추가하여 최초 등록 순서를 깨뜨리지 않는다.
 

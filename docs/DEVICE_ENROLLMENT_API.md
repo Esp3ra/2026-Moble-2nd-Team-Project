@@ -1,5 +1,7 @@
 # 지문 등록 서버 API·DB 개발 구현
 
+**최신 MySQL 전용 전환:** Pi의복구ledger/cache까지MySQL로옮기는서버API·010·역할/단계별승인·기존증거이관경계는 [MySQL 영속 계약](ENROLLMENT_MYSQL_DURABILITY.md)을따른다. 아래기존007/legacy연결은이력으로보존하며새모드의sensor_write허용/로컬SQLite운영기준으로사용하지않는다. 새모드는별도명시opt-in이고5번클라이언트변경/실제이관완료가아니다.
+
 1번 작성 → 5번·팀장 / 2026-10-20.
 [5번 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/43#issuecomment-6281140854) · [코드 PR44](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/44).
 
