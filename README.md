@@ -1,4 +1,12 @@
+## 최신 재검토 — PR44·46·47 병합 / PR45 Draft 유지, 2026-10-20
+
+[PR44](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/44) R44-01과 [PR45](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/45) R45-01·02의 수정 업로드를 확인했습니다. **44번은 수정 재검증 후 병합, 45번은 기존 지적 해결·보존 구현 미완료로 Draft/미병합**입니다. 팀장의 이번 “46번은 수정됐으니 검토” 지시로 이전 보류를 해제하여 [PR46](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/46) 실제 제출·검토 코드를 검토했고, 신규 [PR47](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/47) 등록 중계도 검토했습니다. 44→47→46 순서로 alpha에 병합했으며 최종 코드 merge `1d2cb6b`/tree `0608974b29eb5996f67d34c14b63ae8fbf4fa51f`는 검증본과 일치합니다. 아래 이전 미해결·46보류·미병합은 작성 시점의 이력입니다.
+
+[검토 결과·남은 연결·실행/미실행 범위](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr44-47-recheck-20261020). 코드 검증 이후 이 README 상태 기록만 추가했으며 제품 트리는 위 최종 코드 merge와 같습니다.
+
 # 원격 근무용 업무 처리 확인 시스템
+
+5번 새 회원 지문 등록의 [Pi 등록 코어·서명/온라인 승인·C# 중계와 전용 등록창](Devices/RaspberryPi/FINGERPRINT_ENROLLMENT.md)을 제공합니다. 기본 장치 실행에는 등록 경로를 켜지 않으며 관리자 화면 버튼은 1번 연결 대기입니다. 실제 회원 매핑·실물 신규 저장·운영 서비스 배포는 아직 검증하지 않았습니다. 이 기능의 서버 계약은 미병합 [PR44](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/44)를 따르며 서버 구현을 이번 변경에 포함하지 않습니다.
 
 팀원 병행 개발용 [공통 점검·지문 메시지 초안/가상 fixture·화면 요청 취소 도구](docs/TEAM_INTEGRATION_SUPPORT.md)를 제공합니다. 실행 중 서버/DB를 변경하거나 실제 장치·출퇴근·MainForm을 연결하는 기능은 아닙니다.
 
@@ -12,7 +20,7 @@
 |---|---|---|
 | 1번 | 공통 서버·DB·인증·사용자·통신 | 실제 로그인·역할 진입, 사용자 관리·비밀번호 변경, 접속 만료·폐기, 공통 응답·오류·트랜잭션·감사 이력, 웹 로그인·사용자 목록, 개발용 W1 직원 쓰기 guard·후보/문맥·버전·중복 요청 공통 지원 |
 | 2번 | 업무·상태·마감 | GET 목록/상세·전체/5상태 필터·서버 본인/지정 관리자 권한. 별도 opt-in 신규 등록 API와 WinForms 명시적 등록·결과 확인·같은 요청 재전송·성공 후 재조회 연결. 별도 opt-in 수락/재작업 API와 명시 실행·결과 복구·성공 재조회 연결. 수정·재배정·마감 연장은 협의사항 |
-| 3번 | 결과물·제출·검토·이력 | 직원·관리자 내 결과물과 관리자 검토 화면 예시. 실제 제출·파일·승인/반려·이력 저장은 미연결 |
+| 3번 | 결과물·제출·검토·이력 | 별도 opt-in 개발 서버의 실제 제출·파일·승인/반려·이력 및 기존 4개 WinForms 연결. 최종 조직/연장·공용 첨부·성공 구독·웹·공유 환경은 후속 |
 | 4번 | 공지·채팅 | 개발 opt-in 시 웹/WinForms 공지 목록·상세·관리자 작성/삭제, 대상·고정·정렬. 웹20개 페이지/선택 후 조회. 채팅은 독립 활성화 시DB 저장·개인 숨김·약1초 자동 갱신 |
 | 5번 | 출퇴근·연차·장치 | 독립 라파 지문·조도 API, 메가 A0 송신, Windows 장치 점검 도구와 자동 실행 예제. 기존 근태 폼·공통 회원/인증·DB 저장 연결은 별도 |
 
@@ -203,3 +211,8 @@ dotnet build .\Tests\TaskQueries.Http.Tests\TaskQueries.Http.Tests.csproj -c Rel
 공통 DB 초기화는 chat off의 새 프로세스에서 진행합니다. 새 개발 DB의 채팅 테이블 준비는 검토된 SQL 또는 Init-Chat.cmd 중 한 방법을 사용합니다. 기존 테이블에 자동 변환·삭제를 하지 않습니다. CLI의 열 이름 검사는 물리 스키마 검증을 대신하지 않습니다. 서버 활성화는 REMOTEWORK_ENABLE_CHAT_DRAFT=1로 별도 지정합니다. Init-Chat의 환경 값은 호출자에게 남지 않습니다.
 
 [채팅 실행·정책](RemoteWork.Server/remotework/features/chat/README.md), [자동 갱신 코드·제한](RemoteWork.WinForms/Features/Collaboration/CHAT_AUTO_RECEIVE.md), [재현 테스트](Tests/ChatAutoReceive.Tests/README.md)를 확인합니다. 물리 두 PC·공유 DB·운영 배포·장시간 부하와 전역 알림은 미검증/범위 밖이며, 운영 적용자·백업/복구·보존 정책은 팀장과 별도로 확정해야 합니다.
+
+
+## 3번 결과물 개발 구현 — PR #46
+
+직원·관리자 본인 제출과 관리자 검토·업무 이력을 기존 4개 폼과 공통 인증/쓰기 지원에 연결합니다. 첫 성공 제출 1차, 성공 재제출만 +1차이며 업무상 5차 제한은 없습니다. 실제 파일 바이트와 이전 제출물을 보존합니다. 기본 off이며 006은 개발 검토안입니다. 실행/권한/범위와 미연결은 [결과물 안내](docs/RESULTS.md), 직접 검사와 미실행은 [검증 안내](Tests/Results.Http.Tests/README.md)를 확인합니다. 웹 준비 중 화면을 실제 결과물 웹 완료로 표시하지 않습니다.

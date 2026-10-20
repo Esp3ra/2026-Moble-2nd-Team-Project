@@ -20,4 +20,7 @@ def get_blueprints(config):
         if config.get("ENABLE_NOTICE_POPUP_DRAFT", os.getenv("REMOTEWORK_ENABLE_NOTICE_POPUP_DRAFT") == "1"):
             from .notices.popup_routes import bp as notice_popup_bp
             blueprints.append(notice_popup_bp)
+    if config.get("ENABLE_RESULTS_DRAFT", os.getenv("REMOTEWORK_ENABLE_RESULTS_DRAFT") == "1"):
+        from .results import bp as results_bp
+        blueprints.append(results_bp)
     return blueprints
