@@ -1,3 +1,9 @@
+## 최신 — 5번 MySQL 전용 정정·설치/실패 보고 수신, 2026-10-20
+
+[5번 통합 댓글의 최신 절](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/43#issuecomment-6281140854)과[팀장/2번 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/43#issuecomment-6287668801)을반영합니다. ZIP수신·Pi/PC설정·등록runtime설치대기는해소됐다고보고받았습니다. failed/already_registered/slot12는신규저장/서버매핑완료의증거가아니며실제Pi재검증은이번에하지않았습니다. MySQL전용재설계·SQLite독자선택정정요청을수신했고현재SQLite잔존/전환·이관미완료를유지합니다.
+
+1번의store예정영속확인/고정결과·재시작조회/불명복구API·DB접점과실제실패job·claim·mapping/원접속대조,5번의합의된Pi/PC SQLite의존제거·이관/검증이후속입니다. 새계약/번호/TTL·삭제/재사용을확정하지않고기록·키·센서템플릿보존과추가실물쓰기/SQLite새배포중단보고를구분합니다. [중앙현재기록](../2번/공통규약.md#pr53-and-owner-replies-20261020). 아래의과거인계/설치대기는당시이력입니다.
+
 ## 최신 수신 — PR49의5번 제출 접점 직접 수용 확인, 2026-10-20
 
 5번의 [기존 통합 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/43#issuecomment-6281140854)에서 head4825efd 직접검사·validateDevice/RegistrationStarted·기존2인자호환·비동기채널해제 수용을 확인했습니다.49는팀장검토후f428034에병합됐고50은이 수용과 migration상태를문서에정정해 `8cbdf8b`에병합됐습니다. 제출접점수용과 실제설정/서버DB·Pi/실물배포는 별개입니다. [검토근거](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr50-review-20261020).
