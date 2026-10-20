@@ -58,6 +58,14 @@ def candidates(device):
     return sorted(slots)
 
 
+def active_target(db, target_id):
+    target = db.scalar(select(User).where(User.id == target_id).with_for_update()
+                       .execution_options(populate_existing=True))
+    if target is None or not target.is_active:
+        fail(409, "ENROLLMENT_UNAVAILABLE")
+    return target
+
+
 def device_access(db, device_id, target_id):
     device = db.scalar(select(Device).where(Device.device_id == device_id).with_for_update())
     if device is None:
@@ -66,9 +74,8 @@ def device_access(db, device_id, target_id):
         ResourceGrant.resource_type == "enrollment_device", ResourceGrant.resource_id == device_id).with_for_update())
     if grant is None:
         fail(403, "ENROLLMENT_DEVICE_FORBIDDEN")
-    target = db.scalar(select(User).where(User.id == target_id).with_for_update()
-                       .execution_options(populate_existing=True))
-    if not device.enabled or target is None or not target.is_active:
+    active_target(db, target_id)
+    if not device.enabled:
         fail(409, "ENROLLMENT_UNAVAILABLE")
     keys(device)
     candidates(device)

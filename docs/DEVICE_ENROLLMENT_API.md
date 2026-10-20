@@ -61,6 +61,7 @@ HTTP의 envelope는 **패딩 없는 base64url 문자열**이다. PC는 decode한
 | POST `/{enrollment_id}/cancel` | `operation_revision` | 새 완료 차단/claim 격리. 센서 중단·물리 삭제 완료는 아님 |
 
 작업 응답: `enrollment_id,operation_revision,reserved_slot,claim_revision,key_epoch,client_request_id,device_id,state,expires_at,recovery_required,request_envelope,result`.
+후보 목록은 비활성 장치를 먼저 제외한다. 정상+비활성 장치가 함께 배정돼 있어도 정상 장치만200으로 반환하며 전부 비활성이면 빈 목록이다. 빈 목록이어도 현재 관리자/접속·대상 회원의 활성 검사는 생략하지 않는다. 활성·명시 권한 장치의 키/프로필 오류는 숨기지 않고, 비활성 장치 직접 발급·승인·완료는 계속409로 거절한다(R44-01 수정).
 진행 중일 때만 request_envelope가 있고 그 외null이다. result는 null 또는 `result_id,state,failure_code`만 포함한다.
 최종 결과 캐시에 회원ID/nonce/접속참조를 반복하지 않고 원래 서명 티켓 digest로 결합한다.
 

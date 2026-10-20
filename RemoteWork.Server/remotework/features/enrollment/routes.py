@@ -41,8 +41,11 @@ def eligible(db):
     if not 1 <= len(raw) <= 10 or not raw.isascii() or not raw.isdecimal() or str(int(raw)) != raw:
         svc.fail(400, "INVALID_INPUT")
     target = int(raw); wire._integer(target, 1)
+    # Validate the target even when every device is disabled or ungranted.
+    svc.active_target(db, target)
     available = []
-    for device_id in db.scalars(select(Device.device_id).order_by(Device.device_id).with_for_update()):
+    for device_id in db.scalars(select(Device.device_id).where(Device.enabled.is_(True))
+                               .order_by(Device.device_id).with_for_update()):
         # Permission filtering is exact; only explicit device grants are exposed.
         from flask import g
         from ...models import ResourceGrant

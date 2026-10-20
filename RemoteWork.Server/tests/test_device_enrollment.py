@@ -503,3 +503,74 @@ def test_legacy_check_requires_explicit_review_and_preserves_rows(env):
     mutate(env, lambda db: setattr(db.get(Device, DID), "minimum_slot", 1))
     job, _ = issue(env)
     assert complete(env, job, result(job)).status_code == 200
+
+
+@pytest.mark.parametrize("active_candidate", [True, False])
+def test_eligible_omits_disabled_grants_without_hiding_active_device(env, active_candidate):
+    app, client, headers, ids, *_ = env
+    disabled = "223e4567-e89b-42d3-a456-426614174000"
+    def change(db):
+        db.get(Device, DID).enabled = active_candidate
+        db.add(Device(device_id=disabled, display_name="Disabled synthetic device", enabled=False,
+            key_id=KEYS["key_id"], key_epoch=1, minimum_slot=0, maximum_slot=299, capacity=300,
+            candidate_slots_json="[7,8]"))
+        grant_resource(db, ids["admin1"], "enrollment_device", disabled)
+    mutate(env, change)
+    response = client.get(ROOT + "/eligible-devices?target_user_id=" + str(ids["staff1"]), headers=headers)
+    assert response.status_code == 200, response.json
+    assert [d["device_id"] for d in response.json["data"]["devices"]] == ([DID] if active_candidate else [])
+
+
+@pytest.mark.parametrize("invalid,status", [("target", 409), ("missing_target", 409),
+    ("actor", 401), ("role", 403), ("session", 401)])
+def test_empty_eligible_list_does_not_hide_invalid_target_or_identity(env, invalid, status):
+    app, client, headers, ids, *_ = env
+    def change(db):
+        db.get(Device, DID).enabled = False
+        if invalid == "target":
+            db.get(User, ids["staff1"]).is_active = False
+        elif invalid == "actor":
+            db.get(User, ids["admin1"]).is_active = False
+        elif invalid == "role":
+            db.get(User, ids["admin1"]).role = "employee"
+        elif invalid == "session":
+            db.execute(delete(AuthSession))
+    mutate(env, change)
+    target = 2147483647 if invalid == "missing_target" else ids["staff1"]
+    assert client.get(ROOT + "/eligible-devices?target_user_id=" + str(target), headers=headers).status_code == status
+
+
+def test_disabled_device_still_denies_issue_approval_completion(env):
+    job, _ = issue(env)
+    raw = result(job)
+    mutate(env, lambda db: setattr(db.get(Device, DID), "enabled", False))
+    approval_body = {f: job[f] for f in wire.COMMON - {"enrollment_id"}} | dict(
+        ticket_digest=wire.ticket_digest(wire.b64decode(job["request_envelope"])),
+        probe_nonce=wire.b64encode(os.urandom(32)), scope="sensor_write")
+    client, headers = env[1:3]
+    assert client.post(ROOT, headers=headers, json=dict(client_request_id=str(uuid4()),
+        target_user_id=env[3]["staff2"], device_id=DID)).status_code == 409
+    assert client.post(ROOT + "/" + job["enrollment_id"] + "/approval", headers=headers, json=approval_body).status_code == 409
+    assert complete(env, job, raw).status_code == 409
+    assert count(env[0], Mapping) == 0
+
+
+def test_eligible_does_not_expose_ungranted_device(env):
+    def change(db):
+        db.add(Device(device_id="223e4567-e89b-42d3-a456-426614174000", display_name="Ungrant synthetic device",
+            enabled=True, key_id=KEYS["key_id"], key_epoch=1, minimum_slot=0, maximum_slot=299,
+            capacity=300, candidate_slots_json="[7,8]"))
+    mutate(env, change)
+    response = env[1].get(ROOT + "/eligible-devices?target_user_id=" + str(env[3]["staff1"]), headers=env[2])
+    assert response.status_code == 200
+    assert [d["device_id"] for d in response.json["data"]["devices"]] == [DID]
+
+
+@pytest.mark.parametrize("invalid", ["keys", "profile"])
+def test_enabled_granted_device_keeps_key_and_profile_validation(env, invalid):
+    if invalid == "keys":
+        env[0].config["ENROLLMENT_DEVICE_KEYS"] = {}
+    else:
+        mutate(env, lambda db: setattr(db.get(Device, DID), "candidate_slots_json", "[999]"))
+    response = env[1].get(ROOT + "/eligible-devices?target_user_id=" + str(env[3]["staff1"]), headers=env[2])
+    assert response.status_code == 503
