@@ -383,7 +383,13 @@ def create_app(fingerprint_service, motion_feed, enrollment_jobs=None):
     return app
 
 
-def main():
+def main(enrollment_factory=None):
+    """Default demo, or an explicitly composed enrollment runtime.
+
+    enrollment_factory borrows the existing FingerprintService. It must return
+    an object with jobs/close(), without opening another UART or generating keys.
+    No environment variable or local file enables enrollment automatically.
+    """
     import serial
     import adafruit_fingerprint as af
     from PIL import ImageFont
@@ -403,28 +409,42 @@ def main():
     uart = None
     worker = None
     fingerprint = None
+    enrollment = None
     try:
         uart = serial.Serial(FINGER_PORT, 57600, timeout=1, exclusive=True)
         finger = af.Adafruit_Fingerprint(uart)
         names = load_user_names(Path(__file__).with_name("user_names.local.json"))
         fingerprint = FingerprintService(finger, af, display, names=names)
         feed = MotionFeed()
+        if enrollment_factory is not None:
+            enrollment = enrollment_factory(fingerprint)
+            if enrollment is None:
+                raise RuntimeError("지문 등록 실행 구성이 필요합니다")
         worker = MotionWorker(feed, display, serial.Serial)
-        app = create_app(fingerprint, feed)
+        app = create_app(fingerprint, feed, None if enrollment is None else enrollment.jobs)
         display.show_scan("시스템 준비 완료", "PC 요청 대기")
         worker.start()
         app.run(host="0.0.0.0", port=HTTP_PORT, debug=False,
                 use_reloader=False, threaded=True)
     finally:
-        if worker is not None and worker.thread.ident is not None:
-            worker.stop()
         if fingerprint is not None:
             fingerprint.stopping.set()
-            with fingerprint.lock:
-                if uart is not None:
+        try:
+            if enrollment is not None:
+                enrollment.close()
+        finally:
+            try:
+                if worker is not None and worker.thread.ident is not None:
+                    worker.stop()
+            finally:
+                if fingerprint is not None:
+                    # A cancelled enrollment must release the SAME lock before
+                    # the single owner closes UART; never race an active command.
+                    with fingerprint.lock:
+                        if uart is not None:
+                            uart.close()
+                elif uart is not None:
                     uart.close()
-        elif uart is not None:
-            uart.close()
 
 
 if __name__ == "__main__":

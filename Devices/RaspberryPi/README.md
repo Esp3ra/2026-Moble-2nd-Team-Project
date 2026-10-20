@@ -8,6 +8,8 @@ Raspberry Pi 한 프로세스에서 UART 지문 인식, SH1106 OLED 표시, Ardu
 
 추가로 C# HTTP 중계/전용 등록창과 Pi의 비동기 `EnrollmentRelayJobs`·선택 등록 경로를 준비했습니다. `create_app(..., enrollment_jobs=jobs)`를 **명시적으로 주입했을 때만** `/enrollments/jobs` 경로가 열리며 기본 `main()`·현재 실행 서비스는 이를 활성화하지 않습니다. 공개 테스트 키나 무조건 허용 승인으로 운영 설정을 대체하지 않습니다. 서버 원래 관리자 접속·장치별 키/프로필·기존 UART/잠금 공유와 신뢰할 TLS/전용 통신 설정을 준비한 뒤 연결합니다. 상세와 실제 검사 결과는 위 등록 문서의 최신 절을 참고합니다.
 
+`fingerprint_enrollment_runtime.EnrollmentRuntime`은 기존 `FingerprintService`의 센서·잠금·OLED를 빌려 조립합니다. 승인된 키/프로필과 비공개 ledger/cache를 준비한 호출자만 `main(enrollment_factory=...)`로 명시 주입할 수 있습니다. 기본 실행은 계속 등록 비활성이며 설정 파일 자동 로드·키 생성·서비스 설치를 하지 않습니다. 등록 중 조도 수신/조회는 유지하고 OLED는 등록 안내를 우선합니다. 현재는 로컬 대역 검증 단계이며 실물 서비스 적용 절차는 위 문서의 최신 절을 확인합니다.
+
 ## 구성과 배선
 
 | 장치 | 연결 / 기본 설정 |
