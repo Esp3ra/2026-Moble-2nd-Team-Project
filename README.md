@@ -101,6 +101,8 @@ dotnet run --project .\RemoteWork.WinForms\RemoteWork.WinForms.csproj
 
 ## 공지 DB 개발 초안과 채팅 저장 범위
 
+**공지 삭제 정책(2026-10-20 팀장 확정):** 관리자가 공지를 삭제하면 해당 공지의 직원별 확인 여부·확인 시각 기록도 함께 삭제하고, 삭제 감사 로그는 별도로 남깁니다. 독립 중요공지 팝업/확인 기능은 [POPUP](RemoteWork.Server/remotework/features/notices/POPUP.md)·[008](RemoteWork.Server/migrations/008_notice_popups.md)의 기본off 개발 옵션이며 실제 앱/공유DB 적용·팝업 활성화는 별도입니다. [검토·병합 근거](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr45-merged-delete-policy-20261020).
+
 [웹 공지 화면](RemoteWork.Server/remotework/features/notices/WEB.md)도 기존 notice opt-in에서 연결됩니다. 웹 로그인 후 공지 메뉴에서20개 페이지 목록·선택 후 조회·대상/정렬·관리자 작성/삭제를 사용합니다. 같은 notices와 기존 API를 공유하고, 단순 조회는 현재 페이지를 유지하며 필터/정렬 변경은1페이지로 초기화합니다. 저장 commit 후303으로 이동하고 기본off·전체32KiB·쿠키/CSRF를 유지합니다. 웹 팝업·확인 저장·실제 파일 전송·마감 알림은 별도입니다.
 
 공지 작성·목록·상세·관리자 삭제를 공통 인증 서버와 notices 테이블에 연결합니다. 전 직원·기획팀·개발팀·디자인팀을 target으로 구분하고 사용자 결정에 따라 직원도 모든 부서를 조회합니다. 작성자·UTC 시각은 서버에서 결정하며 저장 성공 때만 작성 창을 닫고 오류 시 입력을 유지합니다. 목록/대상 필터·고정 우선·열 정렬·조회 버튼 상세를 유지합니다. 정적 샘플 공지는 제거했고 종료 후 유지 여부는 연결한 DB가 담당합니다.
