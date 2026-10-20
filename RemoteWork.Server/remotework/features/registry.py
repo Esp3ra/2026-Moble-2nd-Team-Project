@@ -17,4 +17,7 @@ def get_blueprints(config):
         blueprints.append(notices_bp)
         from .notices.web import bp as notice_web_bp
         blueprints.append(notice_web_bp)
+        if config.get("ENABLE_NOTICE_POPUP_DRAFT", os.getenv("REMOTEWORK_ENABLE_NOTICE_POPUP_DRAFT") == "1"):
+            from .notices.popup_routes import bp as notice_popup_bp
+            blueprints.append(notice_popup_bp)
     return blueprints

@@ -4,6 +4,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
     {
         public int Id { get; init; }
         public int AuthorId { get; init; }
+        public string PopupKey { get; init; } = "";
         public string Title { get; init; } = "";
         public string Content { get; init; } = "";
         public string Target { get; init; } = "전 직원";

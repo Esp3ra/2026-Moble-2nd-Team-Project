@@ -39,6 +39,8 @@ internal static class Program
             try
             {
                 await HttpContract();
+                await PopupUnavailable(host);
+                await PopupSessionChanged(host);
                 await SaveLifecycle(host);
                 await ScreenLifecycle(host);
                 if (args.Length > 0) await RealHttp(args[0], host);
@@ -50,6 +52,55 @@ internal static class Program
         };
         Application.Run(host);
         return result;
+    }
+
+    private static async Task PopupSessionChanged(Form host)
+    {
+        int pending = 0;
+        using var api = new ApiClient("http://test.invalid:5000", new Handler((request, ct) =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("auth/login"))
+                return Task.FromResult(Json(new LoginResult("test-token", "Bearer", DateTimeOffset.UtcNow.AddHours(1),
+                    new UserInfo(1, "test", "직원", "T1", "개발팀", "employee", true))));
+            pending++;
+            return Task.FromResult(Json(new { items = Array.Empty<object>(), next_after_id = (int?)null }));
+        }));
+        await api.LoginAsync("test", "synthetic");
+        var service = new HttpNoticeService(api);
+        using var coordinator = new ImportantNoticeCoordinator(host, api, service, 1);
+        var check = typeof(ImportantNoticeCoordinator).GetMethod("CheckAsync", Hidden)!;
+        await (Task)check.Invoke(coordinator, null)!;
+        Check(pending == 1, "Current popup session can establish a baseline");
+        await api.LoginAsync("test", "synthetic");
+        Field<System.Windows.Forms.Timer>(coordinator, "timer").Start();
+        await (Task)check.Invoke(coordinator, null)!;
+        Check(pending == 1 && !Field<System.Windows.Forms.Timer>(coordinator, "timer").Enabled,
+            "Same-user new login cannot reuse the old popup coordinator");
+        try { await service.GetPendingPopupsAsync(); throw new Exception("Old popup identity reused"); }
+        catch (OperationCanceledException) { checks++; }
+    }
+
+    private static async Task PopupUnavailable(Form host)
+    {
+        int requests = 0;
+        using var api = new ApiClient("http://test.invalid:5000", new Handler((request, ct) =>
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("auth/login"))
+                return Task.FromResult(Json(new LoginResult("test-token", "Bearer", DateTimeOffset.UtcNow.AddHours(1),
+                    new UserInfo(1, "test", "직원", "T1", "개발팀", "employee", true))));
+            requests++;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound) {
+                Content = new StringContent("{\"ok\":false,\"error\":{\"code\":\"HTTP_404\",\"message\":\"not available\"}}", Encoding.UTF8, "application/json") });
+        }));
+        await api.LoginAsync("test", "synthetic");
+        using var coordinator = new ImportantNoticeCoordinator(host, api, new HttpNoticeService(api), 1);
+        string status = "";
+        coordinator.StatusChanged += text => status = text;
+        var timer = Field<System.Windows.Forms.Timer>(coordinator, "timer");
+        timer.Start();
+        await (Task)typeof(ImportantNoticeCoordinator).GetMethod("CheckAsync", Hidden)!.Invoke(coordinator, null)!;
+        Check(requests == 1 && !timer.Enabled, "Unavailable popup API stops polling");
+        Check(coordinator.LastError is null && status.Contains("제공하지 않습니다"), "Disabled/unsupported popup is not displayed as a retrying error");
     }
 
     private static async Task HttpContract()

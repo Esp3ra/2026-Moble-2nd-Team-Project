@@ -20,8 +20,12 @@ W1-05 회신에 따라 002와 업무 ORM의 상태 CHECK는 다섯 소문자 코
 
 이미 배포한 테이블을 변경할 때는 담당자끼리 번호·DDL·FK·데이터 영향을 조정하고 전용 테스트 DB의 전후·실패/복구 검증, 공유 DB 백업·복원 확인을 거쳐 적용합니다. 002의 목표 버전2 지원과 기대 버전 검사는 1번의 별도 코드 검토 대상입니다. 번호 예약이나 SQL 파일 추가만으로 버전 증가·공유 적용·팀 전체 합의 완료로 표시하지 않습니다.
 
-003은 기본 notices 테이블만 대상으로 하며 팝업/확인 테이블 번호는 미정입니다. 002→version2 승인·적용 이후의 version3은 후속 목표안일 뿐이며 공통 실제/기대 버전·부분 적용 지원은 1번 검토/구현 전입니다. 공지 API/ID/404 수용과 DDL 최종 승인·공유 적용을 구분합니다. 테스트는 NOTICE_MIGRATION_TEST_URL과 REMOTEWORK_RUN_NOTICE_MIGRATION_DRAFT_TESTS로 002의 전용 설정과 분리합니다.
+003은 기본 notices 테이블만 대상으로 합니다. 팝업 확인 저장은 2026-10-20 1번 회신으로008 작성·검토 번호만 예약했으며, 실제 SQL/CASCADE·보존·공유 적용 승인은 아닙니다. 002→version2 승인·적용 이후의 version3은 후속 목표안일 뿐이며 공통 실제/기대 버전·부분 적용 지원은 1번 검토/구현 전입니다. 공지 API/ID/404 수용과 DDL 최종 승인·공유 적용을 구분합니다. 테스트는 NOTICE_MIGRATION_TEST_URL과 REMOTEWORK_RUN_NOTICE_MIGRATION_DRAFT_TESTS로 002의 전용 설정과 분리합니다.
 
 ## 005 채팅 저장
 
 1번 PR #25 head2173492의 [005 SQL](005_chat_storage.mysql.sql)과 [안내](005_chat_storage.md)를 동일 내용으로 포함합니다. 기존 번호 없는 chat_storage.mysql.sql을 대체하며 둘을 중복 적용하지 않습니다. ORM 생성도 InnoDB·utf8mb4·utf8mb4_unicode_ci를 명시합니다. 개발 기술 검토와 공유 적용 승인은 별개이며 공통 schema version1을 유지합니다. 기존 테이블은 열 이름뿐 아니라 실제 타입·제약·인덱스·엔진·collation을 비교한 후 처리하고 자동 ALTER/DROP하지 않습니다.
+
+## 008 공지 팝업 확인 — 작성·검토용 번호 예약
+
+[검토 SQL](008_notice_popups.mysql.sql) · [범위/적용 금지·검증/복구](008_notice_popups.md). 006 결과물·007 장치 등록 번호와 분리하며 전역schema1을 유지합니다. [1번 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/43#issuecomment-6283590252)이 분리 방향/명시 준비만 기술 수용했습니다. 삭제보존 미합의로 공유/운영 DB 적용 및 기본 공지 삭제 무영향 승인을 보류합니다.
