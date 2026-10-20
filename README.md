@@ -1,3 +1,9 @@
+## 최신 검토 — PR49 생성 회원 지문 등록 버튼·주소 연결 병합, 2026-10-20
+
+신규 [PR49](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/49) head `4825efd`를 alpha `73b17e0`와 결합 검토해 추가 차단 결함 없이 `f428034`에 병합했습니다. 실제/검증 tree `03098b4a645499c259c9afb4102b705da4a090bf`가 일치합니다. 생성 응답 회원ID·원래 관리자Session을 유지하고 명시 버튼으로47 등록창을 열며, 선택 장치의 Pi 주소 누락은 발급POST/claim 전에 차단합니다. 원본 연결112·기존회원46/14시나리오·중계114·등록창12·ApiClient125/25시나리오와 독립 수명/경합검사·Release0/0이 통과했습니다. 실제 장치/공유 환경 활성화는 별도입니다.
+
+[고정 SHA·수명/채널 검사·남은 실물 연결](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr49-review-20261020)을 따릅니다.
+
 ## 최신 검토 — PR48 센서·OLED 공유 구성 병합, 2026-10-20
 
 신규 [PR48](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/48) head `a4407f1`를 alpha `df2af6d`와 결합 검토해 추가 차단 결함 없이 `73b17e0`에 병합했습니다. 실제/검증 tree `a193994c2aa98bbb5a4e3d86bb082845b72c903f`가 일치합니다. 기존 단일 UART·센서 잠금·OLED를 빌려 명시 factory로 등록 runtime을 조립하며 **기본 실행은 등록 비활성**입니다. 전체Pi123개 중122통과/Windows POSIX권한1생략, 독립동시성3개 통과, Release0경고/0오류입니다. 45번 공지 삭제 정책과2번 결과 제출 연결·공통 코드는 보존합니다.
