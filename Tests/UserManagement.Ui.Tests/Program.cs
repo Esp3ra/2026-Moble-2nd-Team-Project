@@ -25,6 +25,7 @@ internal static class Program
                 CreatedIdentity(false); CreatedIdentity(true); RefreshFailure(); PatchIsNotEnrollment();
                 foreach (string change in new[] { "selection", "clear", "relogin", "close", "dispose" }) LateCreate(change);
                 LostResponse(); TargetLifetime(); ReentrantHandoff(); Unauthorized(); Disconnected();
+                EnrollmentConnectionChecks.Run();
                 Console.WriteLine($"PASS UserManagement UI: {scenarios} scenarios / {checks} assertions; actual WinForms + controlled HTTP; no device/server/DB.");
                 exit = 0;
             }
