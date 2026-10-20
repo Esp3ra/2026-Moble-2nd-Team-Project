@@ -1,5 +1,8 @@
 -- RESERVED 008: isolated development review DRAFT ONLY.
 -- Member 1 reserved this number on 2026-10-20. DDL/CASCADE/retention NOT approved.
+-- User now requires confirmation retention after notice deletion.
+-- This CASCADE specimen DOES NOT meet that requirement; DO NOT DEPLOY.
+-- Keep only as comparison/regression evidence pending member1 retention design.
 -- Requires common schema1/users and existing notices. Never run on shared DB.
 -- No counter/event/session-boundary model; no schema_versions modification.
 -- OFF DOES NOT NEUTRALIZE THESE FKs: deleting a notice cascades confirmations.

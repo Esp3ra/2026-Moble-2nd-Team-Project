@@ -14,6 +14,7 @@ namespace RemoteWork.WinForms.Shell
         // Keep the current user chat service when navigating between pages.
         private readonly IChatService? chatService;
         private UserControl? currentPage;
+        private ImportantNoticeCoordinator? noticeCoordinator;
         private readonly System.Windows.Forms.Timer identityTimer = new() { Interval = 30000 };
         private readonly UserInfo? signedInUser;
         private bool allowClose;
@@ -50,6 +51,20 @@ namespace RemoteWork.WinForms.Shell
             layoutWorkspace.RowStyles.Add(new RowStyle(SizeType.Absolute, 60F));
             layoutWorkspace.SetRowSpan(layoutSidebar, 3);
             layoutWorkspace.Controls.Add(footer, 1, 2);
+            if (user.Role == "employee")
+            {
+                noticeCoordinator = new ImportantNoticeCoordinator(this, AppServices.Api,
+                    new HttpNoticeService(AppServices.Api), user.Id);
+                components!.Add(noticeCoordinator);
+                var popupTip = new ToolTip(components!);
+                note.Text = "로그인 연결됨 · 중요 공지 수신 준비 중";
+                noticeCoordinator.StatusChanged += status =>
+                {
+                    if (IsDisposed || closingSession || expired) return;
+                    note.Text = "로그인 연결됨 · " + status;
+                    popupTip.SetToolTip(note, noticeCoordinator.LastError ?? "전 직원·본인 부서의 새 중요 공지를 표시합니다.");
+                };
+            }
         }
 
         public MainForm(PreviewRole role)
@@ -136,6 +151,7 @@ namespace RemoteWork.WinForms.Shell
         {
             if (IsDisposed || expired || closingSession) return;
             expired = true;
+            noticeCoordinator?.Dispose();
             identityTimer.Stop();
             BeginInvoke(() =>
             {
@@ -153,6 +169,7 @@ namespace RemoteWork.WinForms.Shell
             e.Cancel = true;
             if (closingSession) return;
             closingSession = true;
+            noticeCoordinator?.Dispose();
             identityTimer.Stop();
             try { await AppServices.Api.LogoutAsync(); }
             catch (ApiException ex)

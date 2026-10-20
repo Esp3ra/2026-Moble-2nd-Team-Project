@@ -150,4 +150,4 @@ alpha 3b09480의 로그인 화면·README·실행 안내를 보존해 공지 DB 
 
 ## 공지 팝업 독립 opt-in 검토안 (2026-10-20)
 
-[POPUP](POPUP.md)·[008 검토/복구 범위](../../../migrations/008_notice_popups.md)를 따른다. 1번은 REMOTEWORK_ENABLE_NOTICE_POPUP_DRAFT 이름·기본off·독립 등록·명시 초기화 방향을 기술 수용했다. 공통/기본공지 초기화에는 확인 테이블을 넣지 않으며 기본 DTO도 유지한다. 실제 FK/삭제보존·로그인 경계·공유 적용은 미합의로 Draft 검토 대상이다. MainForm 자동 연결은 이 PR에 포함하지 않는다.
+[POPUP](POPUP.md)·[008 검토/복구 범위](../../../migrations/008_notice_popups.md)를 따른다. 1번은 REMOTEWORK_ENABLE_NOTICE_POPUP_DRAFT 이름·기본off·독립 등록·명시 초기화 방향을 기술 수용했다. 공통/기본공지 초기화에는 확인 테이블을 넣지 않으며 기본 DTO도 유지한다. 실제 FK/삭제보존·로그인 경계·공유 적용은 미합의로 Draft 검토 대상이다. 후속으로 직원 MainForm 자동연결/만료·로그아웃정리를추가하고실제GUI+HTTP/MySQL자동표시·확인저장을검증했다. MainForm담당검토와확인기록보존구조는추가협의사항이며실제앱DB활성화는보류한다.

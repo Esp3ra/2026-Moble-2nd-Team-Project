@@ -5,6 +5,7 @@ using System.Text.Json;
 using RemoteWork.WinForms.Features.Collaboration;
 using RemoteWork.WinForms.Infrastructure;
 using RemoteWork.WinForms.Ui;
+using RemoteWork.WinForms.Shell;
 
 internal static class Program
 {
@@ -38,6 +39,13 @@ internal static class Program
         {
             try
             {
+                if (args.Length == 2 && args[0] == "--popup-e2e")
+                {
+                    await PopupEndToEnd(args[1], host);
+                    Console.WriteLine($"PASS: {checks} automatic popup end-to-end checks; actual MainForm/WinForms and HTTP/MySQL.");
+                    result = 0;
+                    return;
+                }
                 await HttpContract();
                 await PopupUnavailable(host);
                 await PopupSessionChanged(host);
@@ -52,6 +60,51 @@ internal static class Program
         };
         Application.Run(host);
         return result;
+    }
+
+    private static async Task PopupEndToEnd(string url, Form host)
+    {
+        using var adminApi = new ApiClient(url);
+        await adminApi.LoginAsync("admin1", "Admin-test-2026!");
+        var admin = new HttpNoticeService(adminApi);
+        await admin.CreateNoticeAsync(new("old-before-login", "existing", "전 직원", true, Array.Empty<string>()));
+        var employeeApi = AppServices.Api;
+        await employeeApi.LoginAsync("staff1", "Staff-test-2026!");
+        using var main = new MainForm(employeeApi.CurrentUser!);
+        main.Show(host);
+        var coordinator = Field<ImportantNoticeCoordinator>(main, "noticeCoordinator");
+        Check(coordinator is not null, "Signed-in employee MainForm owns the popup coordinator");
+        await WaitFor(() => Field<bool>(coordinator!, "baselineInitialized"));
+        Check(!main.OwnedForms.OfType<ImportantNoticeForm>().Any(), "Pre-login notice does not open a popup");
+        var timer = Field<System.Windows.Forms.Timer>(coordinator!, "timer");
+        Check(timer.Interval == 15000, "Production coordinator uses the existing 15-second interval");
+        timer.Interval = 100; // Accelerate only this controlled GUI test; keep production default.
+        await admin.CreateNoticeAsync(new("ordinary-no-popup", "regular", "전 직원", false, Array.Empty<string>()));
+        await admin.CreateNoticeAsync(new("other-department-no-popup", "other", "디자인팀", true, Array.Empty<string>()));
+        await Task.Delay(300);
+        Check(!main.OwnedForms.OfType<ImportantNoticeForm>().Any(), "Ordinary and other-department notices are excluded");
+        var own = await admin.CreateNoticeAsync(new("own-department-new", "own", "개발팀", true, Array.Empty<string>()));
+        var all = await admin.CreateNoticeAsync(new("all-employees-new", "all", "전 직원", true, Array.Empty<string>()));
+        await WaitFor(() => main.OwnedForms.OfType<ImportantNoticeForm>().Any());
+        var popup = main.OwnedForms.OfType<ImportantNoticeForm>().Single();
+        Check(Field<Label>(popup, "lblText2").Text == own.Title, "New department notice automatically displays without opening notices page");
+        Field<Button>(popup, "btnConfirm").PerformClick();
+        await WaitFor(() => popup.IsDisposed);
+        await WaitFor(() => main.OwnedForms.OfType<ImportantNoticeForm>().Any());
+        var next = main.OwnedForms.OfType<ImportantNoticeForm>().Single();
+        Check(Field<Label>(next, "lblText2").Text == all.Title, "Next new all-employee notice automatically displays");
+        Field<Button>(next, "btnConfirm").PerformClick();
+        await WaitFor(() => next.IsDisposed);
+        var pending = await new HttpNoticeService(employeeApi).GetPendingPopupsAsync();
+        Check(!pending.Items.Any(n => n.Id == own.Id || n.Id == all.Id), "Confirmed notices disappear from the server pending query");
+        main.Close();
+        await WaitFor(() => main.IsDisposed);
+        Check(!timer.Enabled, "Employee logout stops popup polling");
+        await employeeApi.LoginAsync("admin1", "Admin-test-2026!");
+        using var manager = new MainForm(employeeApi.CurrentUser!);
+        Check(Field<ImportantNoticeCoordinator?>(manager, "noticeCoordinator") is null, "Administrator MainForm does not receive employee popups");
+        await employeeApi.LogoutAsync();
+        await adminApi.LogoutAsync();
     }
 
     private static async Task PopupSessionChanged(Form host)
