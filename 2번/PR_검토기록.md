@@ -1,3 +1,26 @@
+<a id="pr48-review-20261020"></a>
+## 최신 검토 — PR48 센서·OLED 공유 구성 병합, 2026-10-20
+
+신규 [PR48](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/48) head `a4407f1`를 alpha `df2af6d`와 결합 검토해 추가 차단 결함 없이 `73b17e0`에 병합했습니다. 실제/검증 tree `a193994c2aa98bbb5a4e3d86bb082845b72c903f`가 일치합니다. 기존 단일 UART·센서 잠금·OLED를 빌려 명시 factory로 등록 runtime을 조립하며 **기본 실행은 등록 비활성**입니다. 전체Pi123개 중122통과/Windows POSIX권한1생략, 독립동시성3개 통과, Release0경고/0오류입니다. 45번 공지 삭제 정책과2번 결과 제출 연결·공통 코드는 보존합니다.
+
+제출 head `a4407f1c79ce995abe3ee4d25c087fc94b267eab`, base `df2af6db0c0f8ca01410c5937b2cebc812e4ec74`, 실제 merge `73b17e02a6258625f1a7e914f43e0d0b45319c03`, 검증/병합 tree `a193994c2aa98bbb5a4e3d86bb082845b72c903f`를 고정 대조했습니다. Ready·무충돌·제출 head 고정 조건으로 병합했고 병합 직후 열린PR 목록은0건이었습니다.
+
+### 변경과 직접 검증
+
+- 변경은 정확히6파일입니다. 새 `fingerprint_enrollment_runtime.py`·기존 `pi_api.py`, 신규 runtime검사와 Markdown3개뿐입니다. 명시 keys/profile·비공개 ledger/cache를 받아 기존 FingerprintService의 sensor/codes/lock/OLED/clock/sleep을 공유합니다. 새 UART/키 생성·개인설정 자동 탐색·하드웨어 초기화는 없으며 기본 main/create_app은 등록 route를 설치하지 않습니다.
+- 센서 잠금을 얻은 등록만 OLED 안내를 우선 점유하며 저장 후에도 “지문 저장됨·계정 연결 확인 중”으로 표시합니다. main 종료는 scan stopping→등록 취소/승인 대기 해제→조도 정리→공유 잠금 대기→단일 UART 종료 순서이고 중첩 finally로 후속 정리를 유지합니다. runtime.close는 빌린 scan/UART/OLED를 직접 닫지 않습니다.
+- **전체 RaspberryPi 원본123개 중122통과/1생략,1.641초**입니다. `python -B -W error::ResourceWarning -m unittest discover -v -s Devices/RaspberryPi -p test_*.py`로 새14개를 포함해 실행했습니다. Windows에서 POSIX 소유자/파일 모드1개를 생략했으며123개 전체 성공이나 실제Pi 검증으로 표시하지 않습니다. requirements-test가 동일함을 대조한 기존 소유 auditvenv(Python3.12.14,Flask3.1.3,tzdata2026.5)를 재사용했습니다.
+- **독립 동시성3개 통과**: 첫 등록이 잠금/OLED를 가진 동안 다음 등록sensor_busy와scan409·표시 무침범/취소 후 쓰기0, fake store 진행 중 close의 취소/잠금 대기·쓰기1회/확인 필요 상태·결과 미전달, scan 진행 중 결과 재조회 원문 일치/센서0·표시/잠금 무침범입니다. 실행에는 import된 기존runtime8개도 함께 수집돼 총11통과/2.486초이며 전체123에 중복 합산하지 않습니다.
+- fresh process에서 하드웨어/Flask import·파일 쓰기·DB·network/subprocess를 차단하고 pi_api/runtime import가 성공했습니다. 별도 기본 라우트도 `/health`·`/motion`·`/scan`·정적 파일뿐이고 등록 route/새 thread가 없었습니다. Python AST3·문서 상대 링크56개(추가행2개 포함)·diff검사 및 결합 **Release 경고0/오류0**을 통과했습니다.
+
+센서·승인·키는 공개 합성값/대역이고 ledger/cache는 임시 SQLite입니다. 실행 프로세스를 정리했고 검사 증거/격리checkout·venv는 보존했습니다. 실제 장치·운영키·공유MySQL/실계정/.env/사용자 서버는 사용하거나 변경하지 않았습니다. 2번Tasks·45공지와 공통C#/서버/DB 소스는 base 그대로입니다. 기존 C#중계114/창12·서버MySQL 회귀를 이번에 다시 실행한 수치로 쓰지 않습니다.
+
+### 남은 연결
+
+1번 회원창 등록 버튼/장치별 주소 주입, 승인된 운영 keys/profile·상태 저장소와 bootstrap/서비스 설치·키 배포/TLS는 후속입니다. 실제 UART/OLED 동시 동작·Pi123 동일파일 검증·SIGTERM/systemd/전원 장애·실제 신규 등록/삭제·기존 템플릿·회원 매핑/공유DB/두PC는 이번 검토로 완료 처리하지 않습니다. 기본 실행을 활성화하거나 실제Pi 서비스를 교체하지 않았습니다. 새 협의 회신MD/PR 없이 기존 LOG1/5 담당 경계를 유지하며 LOG/2번8문서와 원문/과거 검증을 보존합니다.
+
+근거: `ES/tmp/remote_work_pr48_review_20261020/audit/merge48.json`, `remote_work_pr48_checks_20261020/audit/`의 unittest/build/default-and-environment 결과, `remote_work_pr48_independent_20261020/audit/test_runtime_races.py`, `remote_work_pr48_scope_review_20261020/audit/scope-and-workspace.json`입니다.
+
 <a id="pr45-merged-delete-policy-20261020"></a>
 ## 최신 — 팀장 삭제 정책 확정·PR45 병합 완료, 2026-10-20
 
