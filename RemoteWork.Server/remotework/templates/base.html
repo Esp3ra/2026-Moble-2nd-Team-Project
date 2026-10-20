@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}원격 근무 관리{% endblock %} · {{ company_name }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">{% block extra_head %}{% endblock %}</head>
+<body>
+{% if g.user %}
+<aside><a class="brand" href="{{ url_for('web.home') }}">{{ company_name }}<small>원격 근무 관리</small></a>
+<nav aria-label="주 메뉴"><a href="{{ url_for('web.home') }}">홈</a>
+<a href="{{ url_for('web.feature', name='notices') }}">공지사항</a><a href="{{ url_for('web.feature', name='tasks') }}">업무</a>
+<a href="{{ url_for('web.feature', name='chat') }}">채팅</a><a href="{{ url_for('web.feature', name='results') }}">결과물</a>
+{% if g.user.role == 'admin' %}<a href="{{ url_for('web.users') }}">사용자 관리</a>{% endif %}</nav>
+<div class="identity">{{ g.user.display_name }} · {{ '관리자' if g.user.role == 'admin' else '직원' }}<br>{{ g.user.department }}<br>{{ g.user.employee_no }}</div>
+<form action="{{ url_for('web.sign_out') }}" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="secondary" type="submit">로그아웃</button></form></aside>
+{% endif %}
+<main class="{{ 'workspace' if g.user else 'public' }}">{% block content %}{% endblock %}</main>
+</body></html>

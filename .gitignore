@@ -1,0 +1,20 @@
+**/bin/
+**/obj/
+.vs/
+*.user
+*.suo
+
+# Local project documents are published only on explicit request.
+/DOCX/
+
+# Local settings, credentials and generated artifacts
+.env
+.env.*
+!.env.example
+**/.venv/
+**/__pycache__/
+*.py[cod]
+**/.pytest_cache/
+**/instance/
+/Desktop/
+/work/

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <ApplicationHighDpiMode>DpiUnawareGdiScaled</ApplicationHighDpiMode>
+    <ForceDesignerDPIUnaware>true</ForceDesignerDPIUnaware>
+    <RootNamespace>RemoteWork.WinForms</RootNamespace>
+    <AssemblyName>RemoteWork.WinForms</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Update="Shell\*Form.cs;Features\**\*Form.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="Features\**\*Control.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="**\*.Designer.cs">
+      <DependentUpon>$([System.String]::Copy('%(Filename)').Replace('.Designer', '')).cs</DependentUpon>
+    </Compile>
+    <EmbeddedResource Update="**\*.resx">
+      <DependentUpon>%(Filename).cs</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+</Project>

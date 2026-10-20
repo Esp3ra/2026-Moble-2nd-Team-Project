@@ -1,0 +1,4 @@
+{% extends 'base.html' %}
+{% block content %}<p class="eyebrow">WORKSPACE</p><h1>{{ g.user.display_name }}님, 안녕하세요.</h1><p class="muted">로그인한 계정과 근무 정보를 확인하세요.</p>
+<section class="card"><h2>내 정보</h2><dl><dt>이름</dt><dd>{{ g.user.display_name }}</dd><dt>아이디</dt><dd>{{ g.user.login_id }}</dd><dt>사번</dt><dd>{{ g.user.employee_no }}</dd><dt>부서</dt><dd>{{ g.user.department or '미지정' }}</dd><dt>권한</dt><dd>{{ '관리자' if g.user.role == 'admin' else '직원' }}</dd></dl></section>
+<section class="card"><h2>연결 상태</h2><p><span class="badge">연결됨</span> 공통 서버에서 사용자 정보를 불러왔습니다.</p><p class="muted">업무·결과물·채팅·공지는 각 담당자의 기능 연결 후 이용할 수 있습니다.</p></section>{% endblock %}

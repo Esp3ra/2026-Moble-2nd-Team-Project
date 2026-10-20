@@ -1,0 +1,270 @@
+#nullable disable
+using System.Drawing;
+using System.Windows.Forms;
+
+namespace RemoteWork.WinForms.Features.Attendance
+{
+    partial class LeaveDecisionForm
+    {
+        private System.ComponentModel.IContainer components = null;
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && components != null) components.Dispose();
+            base.Dispose(disposing);
+        }
+
+        #region Windows Form Designer generated code
+
+        private void InitializeComponent()
+        {
+            components = new System.ComponentModel.Container();
+            layoutPage = new TableLayoutPanel();
+            layoutHeading = new TableLayoutPanel();
+            lblPageTitle = new Label();
+            panelRequest = new Panel();
+            layoutRequest = new TableLayoutPanel();
+            lblApplicant = new Label();
+            txtApplicant = new TextBox();
+            lblLeaveType = new Label();
+            txtLeaveType = new TextBox();
+            lblPeriod = new Label();
+            txtPeriod = new TextBox();
+            lblRequestReason = new Label();
+            txtRequestReason = new TextBox();
+            panelDecision = new Panel();
+            layoutDecision = new TableLayoutPanel();
+            lblDecisionReason = new Label();
+            txtDecisionReason = new TextBox();
+            flowActions = new FlowLayoutPanel();
+            btnApprove = new Button();
+            btnReject = new Button();
+            btnClose = new Button();
+            layoutPage.SuspendLayout();
+            layoutHeading.SuspendLayout();
+            panelRequest.SuspendLayout();
+            layoutRequest.SuspendLayout();
+            panelDecision.SuspendLayout();
+            layoutDecision.SuspendLayout();
+            flowActions.SuspendLayout();
+            SuspendLayout();
+            // layoutPage
+            layoutPage.ColumnCount = 1;
+            layoutPage.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            layoutPage.RowCount = 4;
+            layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 48F));
+            layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 250F));
+            layoutPage.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 58F));
+            layoutPage.Dock = DockStyle.Fill;
+            layoutPage.Margin = new Padding(0);
+            layoutPage.Name = "layoutPage";
+            layoutPage.Controls.Add(layoutHeading, 0, 0);
+            layoutPage.Controls.Add(panelRequest, 0, 1);
+            layoutPage.Controls.Add(panelDecision, 0, 2);
+            layoutPage.Controls.Add(flowActions, 0, 3);
+            layoutHeading.ColumnCount = 1;
+            layoutHeading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            layoutHeading.RowCount = 1;
+            layoutHeading.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            layoutHeading.Dock = DockStyle.Fill;
+            layoutHeading.Margin = new Padding(0);
+            layoutHeading.Name = "layoutHeading";
+            layoutHeading.Controls.Add(lblPageTitle, 0, 0);
+            lblPageTitle.AutoSize = true;
+            lblPageTitle.Font = new Font("맑은 고딕", 20F, FontStyle.Bold);
+            lblPageTitle.Text = "연차 신청 검토";
+            lblPageTitle.Margin = new Padding(0, 0, 0, 4);
+            lblPageTitle.Name = "lblPageTitle";
+            // panelRequest
+            panelRequest.Dock = DockStyle.Fill;
+            panelRequest.BackColor = Color.White;
+            panelRequest.BorderStyle = BorderStyle.FixedSingle;
+            panelRequest.Padding = new Padding(20);
+            panelRequest.Margin = new Padding(0, 0, 0, 12);
+            panelRequest.Name = "panelRequest";
+            panelRequest.Controls.Add(layoutRequest);
+            layoutRequest.ColumnCount = 2;
+            layoutRequest.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 112F));
+            layoutRequest.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            layoutRequest.RowCount = 4;
+            layoutRequest.RowStyles.Add(new RowStyle(SizeType.Absolute, 44F));
+            layoutRequest.RowStyles.Add(new RowStyle(SizeType.Absolute, 44F));
+            layoutRequest.RowStyles.Add(new RowStyle(SizeType.Absolute, 44F));
+            layoutRequest.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            layoutRequest.Dock = DockStyle.Fill;
+            layoutRequest.Margin = new Padding(0);
+            layoutRequest.Name = "layoutRequest";
+            layoutRequest.Controls.Add(lblApplicant, 0, 0);
+            layoutRequest.Controls.Add(txtApplicant, 1, 0);
+            layoutRequest.Controls.Add(lblLeaveType, 0, 1);
+            layoutRequest.Controls.Add(txtLeaveType, 1, 1);
+            layoutRequest.Controls.Add(lblPeriod, 0, 2);
+            layoutRequest.Controls.Add(txtPeriod, 1, 2);
+            layoutRequest.Controls.Add(lblRequestReason, 0, 3);
+            layoutRequest.Controls.Add(txtRequestReason, 1, 3);
+            lblApplicant.Text = "신청자";
+            lblApplicant.Dock = DockStyle.Fill;
+            lblApplicant.TextAlign = ContentAlignment.MiddleLeft;
+            lblApplicant.Font = new Font("맑은 고딕", 9F, FontStyle.Bold);
+            lblApplicant.Name = "lblApplicant";
+            txtApplicant.Text = "이서연 · 기획팀";
+            txtApplicant.ReadOnly = true;
+            txtApplicant.Dock = DockStyle.Fill;
+            txtApplicant.BorderStyle = BorderStyle.FixedSingle;
+            txtApplicant.Margin = new Padding(0, 8, 0, 8);
+            txtApplicant.Name = "txtApplicant";
+            lblLeaveType.Text = "신청 유형";
+            lblLeaveType.Dock = DockStyle.Fill;
+            lblLeaveType.TextAlign = ContentAlignment.MiddleLeft;
+            lblLeaveType.Font = new Font("맑은 고딕", 9F, FontStyle.Bold);
+            lblLeaveType.Name = "lblLeaveType";
+            txtLeaveType.Text = "연차";
+            txtLeaveType.ReadOnly = true;
+            txtLeaveType.Dock = DockStyle.Fill;
+            txtLeaveType.BorderStyle = BorderStyle.FixedSingle;
+            txtLeaveType.Margin = new Padding(0, 8, 0, 8);
+            txtLeaveType.Name = "txtLeaveType";
+            lblPeriod.Text = "신청 기간";
+            lblPeriod.Dock = DockStyle.Fill;
+            lblPeriod.TextAlign = ContentAlignment.MiddleLeft;
+            lblPeriod.Font = new Font("맑은 고딕", 9F, FontStyle.Bold);
+            lblPeriod.Name = "lblPeriod";
+            txtPeriod.Text = "2026-10-16 ~ 2026-10-16";
+            txtPeriod.ReadOnly = true;
+            txtPeriod.Dock = DockStyle.Fill;
+            txtPeriod.BorderStyle = BorderStyle.FixedSingle;
+            txtPeriod.Margin = new Padding(0, 8, 0, 8);
+            txtPeriod.Name = "txtPeriod";
+            lblRequestReason.Text = "신청 사유";
+            lblRequestReason.Dock = DockStyle.Fill;
+            lblRequestReason.TextAlign = ContentAlignment.TopLeft;
+            lblRequestReason.Padding = new Padding(0, 8, 0, 0);
+            lblRequestReason.Font = new Font("맑은 고딕", 9F, FontStyle.Bold);
+            lblRequestReason.Name = "lblRequestReason";
+            txtRequestReason.Text = "개인 일정";
+            txtRequestReason.ReadOnly = true;
+            txtRequestReason.Multiline = true;
+            txtRequestReason.Dock = DockStyle.Fill;
+            txtRequestReason.BorderStyle = BorderStyle.FixedSingle;
+            txtRequestReason.ScrollBars = ScrollBars.Vertical;
+            txtRequestReason.Margin = new Padding(0, 8, 0, 0);
+            txtRequestReason.Name = "txtRequestReason";
+            // panelDecision
+            panelDecision.Dock = DockStyle.Fill;
+            panelDecision.BackColor = Color.White;
+            panelDecision.BorderStyle = BorderStyle.FixedSingle;
+            panelDecision.Padding = new Padding(20);
+            panelDecision.Margin = new Padding(0);
+            panelDecision.Name = "panelDecision";
+            panelDecision.Controls.Add(layoutDecision);
+            layoutDecision.ColumnCount = 1;
+            layoutDecision.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            layoutDecision.RowCount = 2;
+            layoutDecision.RowStyles.Add(new RowStyle(SizeType.Absolute, 34F));
+            layoutDecision.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            layoutDecision.Dock = DockStyle.Fill;
+            layoutDecision.Margin = new Padding(0);
+            layoutDecision.Name = "layoutDecision";
+            layoutDecision.Controls.Add(lblDecisionReason, 0, 0);
+            layoutDecision.Controls.Add(txtDecisionReason, 0, 1);
+            lblDecisionReason.AutoSize = true;
+            lblDecisionReason.Font = new Font("맑은 고딕", 10F, FontStyle.Bold);
+            lblDecisionReason.Text = "검토 의견 · 반려 사유";
+            lblDecisionReason.Margin = new Padding(0, 0, 0, 6);
+            lblDecisionReason.Name = "lblDecisionReason";
+            txtDecisionReason.Multiline = true;
+            txtDecisionReason.Dock = DockStyle.Fill;
+            txtDecisionReason.BorderStyle = BorderStyle.FixedSingle;
+            txtDecisionReason.ScrollBars = ScrollBars.Vertical;
+            txtDecisionReason.Margin = new Padding(0);
+            txtDecisionReason.Name = "txtDecisionReason";
+            // flowActions
+            flowActions.Dock = DockStyle.Fill;
+            flowActions.FlowDirection = FlowDirection.RightToLeft;
+            flowActions.Padding = new Padding(0, 16, 0, 0);
+            flowActions.Margin = new Padding(0);
+            flowActions.Name = "flowActions";
+            flowActions.Controls.Add(btnApprove);
+            flowActions.Controls.Add(btnReject);
+            flowActions.Controls.Add(btnClose);
+            btnApprove.Text = "승인";
+            btnApprove.Size = new Size(100, 36);
+            btnApprove.FlatStyle = FlatStyle.Flat;
+            btnApprove.FlatAppearance.BorderColor = Color.FromArgb(52, 101, 224);
+            btnApprove.BackColor = Color.FromArgb(52, 101, 224);
+            btnApprove.ForeColor = Color.White;
+            btnApprove.Margin = new Padding(10, 0, 0, 0);
+            btnApprove.Name = "btnApprove";
+            btnApprove.Click += new System.EventHandler(Unavailable_Click);
+            btnReject.Text = "반려";
+            btnReject.Size = new Size(100, 36);
+            btnReject.FlatStyle = FlatStyle.Flat;
+            btnReject.FlatAppearance.BorderColor = Color.FromArgb(213, 220, 231);
+            btnReject.BackColor = Color.White;
+            btnReject.Margin = new Padding(10, 0, 0, 0);
+            btnReject.Name = "btnReject";
+            btnReject.Click += new System.EventHandler(Unavailable_Click);
+            btnClose.Text = "닫기";
+            btnClose.Size = new Size(100, 36);
+            btnClose.FlatStyle = FlatStyle.Flat;
+            btnClose.FlatAppearance.BorderColor = Color.FromArgb(213, 220, 231);
+            btnClose.BackColor = Color.White;
+            btnClose.DialogResult = DialogResult.Cancel;
+            btnClose.Margin = new Padding(10, 0, 0, 0);
+            btnClose.Name = "btnClose";
+            btnClose.Click += new System.EventHandler(ClosePreview_Click);
+            // LeaveDecisionForm
+            AutoScaleDimensions = new SizeF(7F, 15F);
+            AutoScaleMode = AutoScaleMode.Font;
+            Font = new Font("맑은 고딕", 9F);
+            BackColor = Color.FromArgb(242, 245, 250);
+            ForeColor = Color.FromArgb(30, 42, 61);
+            ClientSize = new Size(800, 690);
+            MinimumSize = new Size(720, 620);
+            Padding = new Padding(22);
+            StartPosition = FormStartPosition.CenterParent;
+            ShowInTaskbar = false;
+            MinimizeBox = false;
+            CancelButton = btnClose;
+            Text = "연차 신청 검토";
+            Name = "LeaveDecisionForm";
+            Controls.Add(layoutPage);
+            flowActions.ResumeLayout(false);
+            layoutDecision.ResumeLayout(false);
+            layoutDecision.PerformLayout();
+            panelDecision.ResumeLayout(false);
+            layoutRequest.ResumeLayout(false);
+            layoutRequest.PerformLayout();
+            panelRequest.ResumeLayout(false);
+            layoutHeading.ResumeLayout(false);
+            layoutHeading.PerformLayout();
+            layoutPage.ResumeLayout(false);
+            ResumeLayout(false);
+        }
+
+        #endregion
+
+        private TableLayoutPanel layoutPage;
+        private TableLayoutPanel layoutHeading;
+        private Label lblPageTitle;
+        private Panel panelRequest;
+        private TableLayoutPanel layoutRequest;
+        private Label lblApplicant;
+        private TextBox txtApplicant;
+        private Label lblLeaveType;
+        private TextBox txtLeaveType;
+        private Label lblPeriod;
+        private TextBox txtPeriod;
+        private Label lblRequestReason;
+        private TextBox txtRequestReason;
+        private Panel panelDecision;
+        private TableLayoutPanel layoutDecision;
+        private Label lblDecisionReason;
+        private TextBox txtDecisionReason;
+        private FlowLayoutPanel flowActions;
+        private Button btnApprove;
+        private Button btnReject;
+        private Button btnClose;
+    }
+}
