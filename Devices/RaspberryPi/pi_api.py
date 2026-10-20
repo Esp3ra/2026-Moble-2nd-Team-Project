@@ -353,7 +353,7 @@ class MotionWorker:
             self.feed.connection(False, "MOTION_STOPPED")
 
 
-def create_app(fingerprint_service, motion_feed):
+def create_app(fingerprint_service, motion_feed, enrollment_jobs=None):
     from flask import Flask, jsonify
 
     app = Flask(__name__)
@@ -375,6 +375,10 @@ def create_app(fingerprint_service, motion_feed):
         response = jsonify(success=data["available"], data=data)
         response.headers["Cache-Control"] = "no-store"
         return response, 200 if data["available"] else 503
+
+    if enrollment_jobs is not None:
+        from fingerprint_enrollment_relay import register_enrollment_relay
+        register_enrollment_relay(app, enrollment_jobs)
 
     return app
 

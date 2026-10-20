@@ -2,7 +2,11 @@
 
 Raspberry Pi 한 프로세스에서 UART 지문 인식, SH1106 OLED 표시, Arduino Mega USB 조도 수신을 함께 실행합니다. 공통 회원·로그인·근태 DB와 분리된 장치 시연 코드입니다. Windows 확인 화면은 [Tools/DeviceCheck](../../Tools/DeviceCheck/README.md)에 있습니다.
 
-새 계정/새 지문 흐름의 로컬 준비는 [AS608 등록 코어](FINGERPRINT_ENROLLMENT.md)를 참고합니다. 대역 검증용으로 분리했으며 현재 실행 중인 API에 등록 경로를 추가하거나 장치에 배포한 상태는 아닙니다.
+새 계정/새 지문 흐름은 [AS608 등록 코어와 전용 중계](FINGERPRINT_ENROLLMENT.md)를 참고합니다. 등록 경로는 선택 주입 방식으로 제공하며 현재 실행 중인 장치 서비스에는 배포하지 않았습니다.
+
+후속 [요청 검증·서명 결과 보관 어댑터](FINGERPRINT_ENROLLMENT.md)는 등록 코어에 연결하는 독립 모듈입니다. `enroll_online`의 최초 새 온라인 승인/UTC와 단계별 재승인, `read_result_online`의 만료 후 읽기 전용 승인/기존 결과 반환을 구현했습니다. PC 승인 HTTP 중계·전용 등록창·Pi 비동기 경로도 제공하지만 관리자 화면 버튼·키 배포·실물 적용은 별도이며 기존 `pi_api.py` 실행만으로 활성화되지 않습니다.
+
+추가로 C# HTTP 중계/전용 등록창과 Pi의 비동기 `EnrollmentRelayJobs`·선택 등록 경로를 준비했습니다. `create_app(..., enrollment_jobs=jobs)`를 **명시적으로 주입했을 때만** `/enrollments/jobs` 경로가 열리며 기본 `main()`·현재 실행 서비스는 이를 활성화하지 않습니다. 공개 테스트 키나 무조건 허용 승인으로 운영 설정을 대체하지 않습니다. 서버 원래 관리자 접속·장치별 키/프로필·기존 UART/잠금 공유와 신뢰할 TLS/전용 통신 설정을 준비한 뒤 연결합니다. 상세와 실제 검사 결과는 위 등록 문서의 최신 절을 참고합니다.
 
 ## 구성과 배선
 
