@@ -29,6 +29,8 @@ namespace RemoteWork.WinForms.Features.Collaboration
             txtContent = new System.Windows.Forms.TextBox();
             flowActions = new System.Windows.Forms.FlowLayoutPanel();
             btnClose = new System.Windows.Forms.Button();
+            btnConfirm = new System.Windows.Forms.Button();
+            txtConfirmationError = new System.Windows.Forms.TextBox();
             layoutContent.SuspendLayout();
             layoutContent2.SuspendLayout();
             panelContent.SuspendLayout();
@@ -64,7 +66,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             layoutContent.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 70F));
             layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 50F));
+            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             layoutContent.Controls.Add(layoutContent2, 0, 0);
             layoutContent.Controls.Add(panelContent, 0, 1);
             layoutContent.Controls.Add(flowActions, 0, 2);
@@ -92,13 +94,24 @@ namespace RemoteWork.WinForms.Features.Collaboration
             layoutContent2.RowCount = 2;
             layoutContent2.GrowStyle = System.Windows.Forms.TableLayoutPanelGrowStyle.AddRows;
             layoutContent2.Name = "layoutContent2";
-            layoutContent2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 36F));
+            layoutContent2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             layoutContent2.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             layoutContent2.Controls.Add(lblPageTitle, 0, 0);
+            layoutContent2.Controls.Add(txtConfirmationError, 0, 1);
+            txtConfirmationError.Dock = System.Windows.Forms.DockStyle.Fill;
+            txtConfirmationError.Multiline = true;
+            txtConfirmationError.ReadOnly = true;
+            txtConfirmationError.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            txtConfirmationError.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            txtConfirmationError.BackColor = System.Drawing.Color.FromArgb(242, 245, 250);
+            txtConfirmationError.ForeColor = System.Drawing.Color.DarkRed;
+            txtConfirmationError.Name = "txtConfirmationError";
+            txtConfirmationError.Visible = false;
+            txtConfirmationError.TabStop = false;
             //
             // lblPageTitle
             //
-            lblPageTitle.Text = "상단 고정 공지사항";
+            lblPageTitle.Text = "중요 공지사항";
             lblPageTitle.Location = new System.Drawing.Point(0, 4);
             lblPageTitle.Size = new System.Drawing.Size(134, 28);
             lblPageTitle.MinimumSize = new System.Drawing.Size(0, 0);
@@ -297,6 +310,20 @@ namespace RemoteWork.WinForms.Features.Collaboration
             flowActions.WrapContents = true;
             flowActions.Name = "flowActions";
             flowActions.Controls.Add(btnClose);
+            flowActions.Controls.Add(btnConfirm);
+            btnConfirm.Text = "확인";
+            btnConfirm.Name = "btnConfirm";
+            btnConfirm.AutoSize = true;
+            btnConfirm.MinimumSize = new System.Drawing.Size(88, 34);
+            btnConfirm.Margin = new System.Windows.Forms.Padding(0, 0, 8, 6);
+            btnConfirm.Padding = new System.Windows.Forms.Padding(12, 4, 12, 4);
+            btnConfirm.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            btnConfirm.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(52, 101, 224);
+            btnConfirm.BackColor = System.Drawing.Color.FromArgb(52, 101, 224);
+            btnConfirm.ForeColor = System.Drawing.Color.White;
+            btnConfirm.Cursor = System.Windows.Forms.Cursors.Hand;
+            btnConfirm.TabIndex = 0;
+            btnConfirm.Click += new System.EventHandler(ConfirmNotice_Click);
             //
             // btnClose
             //
@@ -328,7 +355,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             //
             // ImportantNoticeForm
             //
-            Text = "상단 고정 공지사항";
+            Text = "중요 공지사항";
             MinimumSize = new System.Drawing.Size(690, 560);
             MaximumSize = new System.Drawing.Size(0, 0);
             Margin = new System.Windows.Forms.Padding(3, 3, 3, 3);
@@ -381,5 +408,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
         private System.Windows.Forms.TextBox txtContent;
         private System.Windows.Forms.FlowLayoutPanel flowActions;
         private System.Windows.Forms.Button btnClose;
+        private System.Windows.Forms.Button btnConfirm;
+        private System.Windows.Forms.TextBox txtConfirmationError;
     }
 }
