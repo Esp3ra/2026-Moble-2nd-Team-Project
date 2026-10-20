@@ -1,3 +1,7 @@
+## 최신 수신 — PR49의5번 제출 접점 직접 수용 확인, 2026-10-20
+
+5번의 [기존 통합 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/43#issuecomment-6281140854)에서 head4825efd 직접검사·validateDevice/RegistrationStarted·기존2인자호환·비동기채널해제 수용을 확인했습니다.49는팀장검토후f428034에병합됐고50은이 수용과 migration상태를문서에정정해 `8cbdf8b`에병합됐습니다. 제출접점수용과 실제설정/서버DB·Pi/실물배포는 별개입니다. [검토근거](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr50-review-20261020).
+
 ## 최신 검토 — PR49 생성 회원 지문 등록 버튼·주소 연결 병합, 2026-10-20
 
 신규 [PR49](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/49) head `4825efd`를 alpha `73b17e0`와 결합 검토해 추가 차단 결함 없이 `f428034`에 병합했습니다. 실제/검증 tree `03098b4a645499c259c9afb4102b705da4a090bf`가 일치합니다. 생성 응답 회원ID·원래 관리자Session을 유지하고 명시 버튼으로47 등록창을 열며, 선택 장치의 Pi 주소 누락은 발급POST/claim 전에 차단합니다. 원본 연결112·기존회원46/14시나리오·중계114·등록창12·ApiClient125/25시나리오와 독립 수명/경합검사·Release0/0이 통과했습니다. 실제 장치/공유 환경 활성화는 별도입니다.

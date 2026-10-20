@@ -1,3 +1,20 @@
+<a id="pr50-review-20261020"></a>
+## 최신 — PR49 코드·PR50 기술 문서 검토 병합, 2026-10-20
+
+[PR49](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/49)의 회원 지문 등록 버튼/장치별 주소 연결은 `f428034`에, 이후 발견한 [PR50](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/50)의006/008 현행화·009 번호 예약/5번 접점 수용 기록은 `8cbdf8b`에 검토 후 병합했습니다. 50번은 기존Markdown2개뿐이며 실제009 SQL·신규 모델/flag/action·공유 적용을 추가하지 않습니다. 최신589 결합으로2번 ABC31파일을 보존했고, 실제/검증 tree `0fc6fae7e063baaad72faa9eb9c697a143014ff7`가 일치합니다. 병합 직후 열린PR은0건이었습니다.
+
+PR50 제출 `0b0cb9e868b479ce4b1fc8102243e03347ae5636`, 최신 base `589917e9a1c1bca799c74ac3b2499c8f055e1c00`, merge `8cbdf8b26ff9023179ab816b84dd9e10f9e7fb12`, 검증/실제 tree `0fc6fae7e063baaad72faa9eb9c697a143014ff7`입니다. 최초 검토 base `f428034` 뒤2번 ABC가 올라와 즉시 병합하지 않고589에 재결합했습니다. 최신 base 대비 기존MD2개/20추가·7삭제이며 새31파일이 전부 보존됩니다. Ready·무충돌·제출 head 고정 조건으로 병합했습니다.
+
+006 SQL/API의 PR46 병합,008 CASCADE/삭제감사유지의 팀장 확정·PR45 병합,공통schema1을 실제 파일·현재LOG와 대조했습니다. 009는SQL파일 없이 번호만 예약했습니다. 공통action/최소결과·register_write_action의 초기화/덮어쓰기 제한,현재권한·FK signedBIGINT/INTEGER·results ExternalFacts의두필드/명시개발Gate와 문서를 대조했습니다. D/E취소·연장 저장은 새589의ABC와 구분된 후속이며 같은TX/잠금 연결을 완료로 주장하지 않습니다.
+
+연장신청의현재준비지원은 정확히 구분합니다. W1의 `task.deadline_extension_requested`에는 이미 `_own` 준비authorizer가 연결돼 있고, 승인·반려authorizer는 미연결503입니다. 실제 연장신청/판단 route·모델과는 다릅니다. migration목차의 “허용목록에만” 한 문장은 이 사실을 명확히 하도록 후속문서수정하며 코드/SQL은 변경하지 않습니다.
+
+5번 dudu110101의 기존PR43 댓글6281140854(2026-10-20T06:35:08Z)을 직접 읽어 head4825efd의 선택형validateDevice/RegistrationStarted·기존2인자호환·PendingOperation 수용과 실행보고를 확인했습니다. 실제5번수용은 제출접점에 한정되며 팀장병합/운영설정/실물배포와 구분합니다. 이 작성자112/46/12보고를 검토자의49 직접실행에 중복합산하지 않습니다.
+
+기존MD2개·상대링크23개(추가행6)·fence2쌍·새tree/diff검사를 통과했습니다. 현재LOG2 정책앵커와005~008실파일/009미작성,source와SQL blob보존을 확인했습니다. 문서만 바뀌어 프로그램 빌드/테스트·MySQL·009이관·공유적용은 이번50검토에서 실행하지 않았습니다. 49의112/46·114·12·125/독립수명검사·Release0/0은 별도기록입니다. 기존원문·LOG/2번8문서와 실제설정/서버/DB·장치를 보존하며 새협의회신MD/PR을 요구하지 않습니다.
+
+근거: `ES/tmp/remote_work_pr50_review_20261020/audit/merge50.json`, `member5-comment.json`, `current-management-policy.md`, `latest-tested-tree.txt`; `remote_work_pr50_docs_review_20261020/audit/static-review.json`, `newbase-static-review.json`와 최신 코드 직접 대조입니다.
+
 <a id="pr49-review-20261020"></a>
 ## 최신 검토 — PR49 생성 회원 지문 등록 버튼·주소 연결 병합, 2026-10-20
 
