@@ -1,3 +1,34 @@
+<a id="pr51-53-review-20261020"></a>
+## 최신 — PR51·53 병합, PR52 수정 필요, 2026-10-20
+
+[PR51](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/51)의 취소·연장 성공 결과 조회/009 공통 검토를 `bb281e3`에, [PR53](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/53)의 협업 개발 환경 확인 요청 문서를 LOG `6664519`에 병합했습니다. [PR52](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52)는 기존 R52-01 P1(표시한 과거 결과물과 실제 판단 대상 불일치)을 독립 재현했고, R52-02 P2(버전 충돌 후 이전 요청만 반복하고 재준비 불가)를 추가 재현해 **OPEN·미병합**입니다. 공식 검사 통과와 이 JavaScript 결함을 구분합니다.
+
+[고정 SHA·직접 검사·수정 기준](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr51-53-review-20261020)을 따릅니다. 공유 DB 적용·통합 ACK·실제 환경 준비는 별도이며, 회신용 새 MD/PR을 요구하지 않습니다.
+
+### PR51 — 병합과 검사
+
+head `a0aafacd5bc2895dc13c1d8e22e830872408cf93`, 실제 alpha base `2324606217f6f92848f2a7ad5e76dcf98bb164a1`, merge `bb281e317cdd27e2a4796ad39d8712bbddd9828b`입니다. 검토/실제 merge tree `170f666596a7cd2b967f423b8f0c755700eb71fb`가 일치합니다. Ready·head 고정·무충돌과 병합 직전 base를 확인했습니다.
+
+새 소유 MySQL8.2·Python3.12.14에서 공식6모듈 **109개 통과, 실패/생략/경고0(232.98초)**입니다. 스레드 경고를 오류로 처리했고 실제 C#→HTTP→MySQL16검증도 이 실행에 포함돼 있어 별도 합산하지 않습니다. HTTP 검사 DLL Release 경고/오류0입니다. reader 앱별 고정 등록·현재 접속/사용자/배정·관리 관계·키/TTL을 대조했습니다. 쓰기 flag와 통합 ACK를 제거해도 기존 성공 결과만 현재 권한으로 조회하며 cold 읽기 모드는 키 발급/실행을 거절합니다. 조회/등록에서 DDL을 실행하지 않고 기존009가 필요합니다. raw009는 원문 미번호 초안에 신규 두 테이블의 엔진/문자셋/collation 옵션만 추가했고 원문은 보존됐습니다. 물리 제약·타 DB FK 거절·dump/새 DB 복원도 위109개에 포함됩니다.
+
+병합15파일만 실제 작업 폴더에 base/current/incoming 대조·백업·재확인 후 반영했습니다. 병행2번 코드와 DOCX7개를 보존했고 실제 `RemoteWork.sln` Release 빌드는 경고/오류0입니다. 보류된52번 제품 파일은 반영하지 않았습니다.
+
+### PR52 — R52-01 P1 유지, R52-02 P2 추가
+
+head `0a7a57df97767e81680484222587974747bf6dab`를 위 alpha base와 PR51에 결합한 tree `68776b379ba0537f533073e9d1f51cd3f7c58bce`에서 검사했습니다. **서버185·실제 C# HTTP/WinForms41·cookie/CSRF 웹177**, cold 비활성·JS 구문·Release 경고/오류0을 직접 확인했습니다. C# 제품115소스를 컴파일했고 설치되지 않은 ref8.0.29/desktop10.0.9만 audit wrapper에서 설치된8.0.31/10.0.12 경로로 대체했습니다. 원본 제품/검사 assertion은 변경하지 않았습니다. 이전43f69c9 검토의 같은185/41/177과 합산하지 않습니다. 웹177은 실제 브라우저 JavaScript 상호작용 검사가 아닙니다.
+
+기존 [R52-01 P1 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/3번/2026-10-20_PR52_검토회차_불일치_수정요청.md)은 현 head에서도 남아 있습니다. 원본 JS의 실제 등록된 회차/판단 handler를 Node VM에서 실행해 승인·반려 모두 context202→지연 중 과거201 선택→확인창201/1차→실제 POST202를 독립 재현했습니다. 브라우저/공유 DB 판단 실행으로 표시하지 않습니다.
+
+**R52-02 P2:** `static/results.js:245–246`에서 제출409 `TASK_VERSION_CONFLICT` 뒤 결과 조회가 `not_recorded`여도 옛 expected 버전/본문의 재전송만 제공합니다. 원본 JS를 Node VM에서 실행해 `409 → not_recorded → retry409`, 두 전송 버전1·같은 키, 설명/조회 범위 비활성 및 choose/refresh 무요청을 재현했습니다. 확정 실패 상태와 결과 조회를 확인한 뒤 현재 context 재조회·편집/재준비로 복귀할 경로가 필요합니다. 불명확한 통신 결과에서는 원본 키/본문을 유지하고 자동 쓰기 재시도를 추가하지 않습니다. 지연 성공/미기록 충돌·입력 오류·정상 재준비 회귀를 함께 검증해야 합니다. 기존 코드 PR52에서 수정 후 재검토하며 3번 제품 코드를 대신 수정하지 않았습니다.
+
+### PR53 — 요청 문서 병합
+
+head `6dc2be88f7a1da880f13346e2404a8cca2dab16b`, 실제 LOG base `8179d7aeb6be5656047cd1c34d65aaebae56b547`, merge `6664519e4cd73b11056733d4008201f315eea39a`, 검토/실제 tree `09a0e8976479d9a46ac872cb9d790722a1632b51`입니다. 기존2번 MD1개51행 추가이며 원문/헤딩·추가 상대 링크/앵커·LOG2번8개 구조를 보존했습니다. 문서 변경이므로 프로그램/DB 검사를 추가 실행하지 않았습니다. 이미 구현된 업무 등록의 사용 절차와 실효 환경을 확인하려는 요청이며 장애 원인·환경 준비·협업 정책 승인을 확정하지 않습니다.
+
+소유 MySQL·프로세스·임시 runtime 정리를 확인했습니다. 실제 공유 DB/.env·계정·서버·장치·통합 ACK는 변경하지 않았습니다. 결과물의 실제 취소/pending helper 소비 및 경합 검증이 남아 있어 lifecycle 쓰기503을 해제하지 않습니다. PR53 환경 답변을 외부에 보내거나 환경 준비 완료로 기록하지 않았습니다.
+
+근거: `ES/tmp/remote_work_pr51_independent47_20261020/audit/official-six.txt`, `owned-summary.json`, `scope-and-sql.json`; `remote_work_pr51_52_checks_20261020/audit/results-owned.txt`, `web-reprepare-reproduction.json`, `web-decision-selection-reproduction.json`, `web-decision-return-selection-reproduction.json`; `remote_work_pr53_docs_review_20261020/audit/static-review.json`; `remote_work_pr51_52_review_20261020/audit/sync51-result.json`과 실제 merge tree 직접 대조입니다.
+
 <a id="pr52-review-20261020"></a>
 ## PR52 전체 검토 — R52-01 P1 수정 필요·미병합, 2026-10-20
 
