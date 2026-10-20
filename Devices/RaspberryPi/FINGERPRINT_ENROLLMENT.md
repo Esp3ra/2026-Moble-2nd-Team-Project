@@ -272,3 +272,59 @@ target와 channel은 호출자 소유이며 폼은 빌려 사용한다. UI 스�
 1번이 제안한 별도 PC 로컬 `enrollment-endpoints.json`은 현재 제안이며 이번에 파일/로더를 설치하지 않는다. 기존 `client.json`에 중첩 객체를 추가하지 않는 방향을 수신했다. 현재 채널은 `ApiClient.ValidateUrl`을 사용하므로 주소는 **http/https의 루트 base URI**이고 사용자정보·경로 접두사·query·fragment는 허용하지 않는다. TLS 검증을 끄지 않는다. 다장치 주소 선택·누락/서버 불일치 안내는 1번과 접점 대조 후 검증한다.
 
 인계 후 확인할 것은 실제 관리자 버튼/생성 ID·접속 수명, 장치 주소 구성, 공통 서버+Pi 결합 및 승인된 실물 두 채취→매핑이다. 등록 성공용 서명 결과 이외 실패 envelope, PC 재시작 복구 UI, 실제 서비스 조립/키·TLS 배포·운영 복구/보관 정책은 여전히 후속이다. LOG 날짜 기록은 게시하지 않고 팀장에게 기존 협업 댓글/이 검증 기록으로 전달한다.
+
+## 2026-10-20 사용자 수행 — Pi 전체109개 검사 통과
+
+사용자가 별도 `enrollment_check_20261020` 폴더에 복사한 소스와 새 `.test-venv`에서 저장소 `requirements-test.txt`를 설치하고 다음 명령을 직접 실행했다. 제공된 전체 출력을 확인한 결과 **109개/0.525초/OK, 실패·생략0개**이며 POSIX 소유자/권한 검사와 선택 Flask 등록 경로 검사도 통과했다.
+
+```text
+.test-venv/bin/python -X utf8 -W error::ResourceWarning -m unittest discover -s . -p 'test_*.py' -v
+```
+
+Flask3.1.3/tzdata2026.5 설치가 성공했고, `센서 오류: sensor error`는 예외 처리 대역의 의도된 출력 뒤 해당 검사도 ok였다. Windows의108통과/1생략·앞선 Pi76개와 합산하지 않는다. 출력은 사용자가 Pi에서 수행한 가짜 센서/승인 응답·임시 DB 검사 근거이며, 실제 지문 신규 저장/삭제·서버 계정 매핑·운영 서비스 배포/가동 상태를 검증한 것은 아니다. 복사 파일의 개별 해시도 이번 출력에 포함되지 않았다.
+
+PR44와 PR47은 원본에 병합됐으며 현재 작업공간은 원본 alpha `14c1c806c56ca0b2b701ad98ee427a55f46f71cd`를 반영했다. 이 Pi 결과 추가 기록은 로컬 문서 수정이며 새 commit/push/PR·협업 댓글 전송은 아직 하지 않았다. 다음은1번의 관리자 버튼·장치별 주소 연결 소스를 확인한 뒤 결합 검사, 그 이후 실제 장치/키·권한·전송/전용DB 준비와 승인된 실물 등록이다.
+
+## 2026-10-20 후속 — 기존 UART·OLED 공유 실행 조립
+
+사용자가 Pi109 결과 전달과 병행 가능한5번 작업을 승인했다. [기존 통합 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/43#issuecomment-6281140854)에 사용자 수행109개/0.525초/실패·생략0, PR44/47 병합·작업공간 반영,1번 버튼/장치별 주소 접점 확인 요청과5번 실행 조립 준비 중 상태를 전달하고 재조회로 본문 일치를 확인했다. 상대의 수신/회신·버튼 연결 완료를 대신 표시하지 않는다. 이후 아래 로컬 구현을 진행했으며 새 코드 주소를 제공한 상태는 아니다.
+
+### 소유 파일과 동작
+
+- 신규 `fingerprint_enrollment_runtime.py`: `EnrollmentRuntime(fingerprint_service, *, keys, profile, ledger, cache, approval_clock=...)`가 기존 센서/codes·실제 scan lock·표시 coordinator·clock/sleep을 그대로 빌려 어댑터와 작업 broker를 조립한다. UART/OLED 초기화·키 생성·장치/슬롯 정책 기본값·설정 파일 자동 탐색이 없다. keys/profile/비공개 ledger/cache는 호출자가 명시 제공한다.
+- 내부 표시 잠금은 별도 UART 소유자가 아니라 기존 `fingerprint_service.lock`을 획득/해제하는 래퍼다. 등록이 실제 센서 잠금을 획득했을 때만 OLED 표시를 점유한다. 기존 scan이 점유 중이면 센서 호출/화면 변경 없이 busy이며, 반대로 등록 중 scan은409다. 읽기 전용 결과 조회는 센서/표시를 점유하지 않는다.
+- 등록 단계는 손 떼기/첫 채취/같은 손가락 두 번째 채취/지문 저장됨·계정 연결 확인 중으로 표시한다. 마지막 문구를 서버 완료로 표시하지 않는다. 조도 수신/HTTP 조회는 유지하고 조도 OLED 덮어쓰기만 잠시 막는다. 실패/종료 때 표시 우선권과 센서 잠금을 해제하고 기존3초 표시 유지 뒤 조도 표시를 재개한다. OLED 예외로 저장을 반복하거나 센서 잠금을 누수하지 않는다.
+- `pi_api.main(enrollment_factory=None)`에 명시 조립 접점만 추가했다. factory는 기존 `FingerprintService`를 받고 runtime을 반환한다. 기본 main은 여전히 등록 비활성이며 환경변수/개인 설정 파일만으로 자동 활성화하지 않는다.
+- 호스트의 finally는 fingerprint stopping→등록 작업 취소/대기 깨우기→조도 worker 정리→공유 센서 잠금 대기→단일 UART 닫기 순서다. 등록/조도 정리에서 예외가 나도 중첩 finally로 UART 정리까지 시도한다. 실행 중 센서 명령을 강제로 끊거나 템플릿을 지우지 않는다. 기존 UART timeout/프로세스 단일 소유는 별도 전제이고, SIGTERM/systemd 강제 종료·실전원 장애를 이번에 검증한 것은 아니다.
+
+호출 예는 아래와 같다. 인자는 이미 신뢰할 설정에서 준비한 실제 객체여야 하며 이 함수 정의만으로 서비스가 바뀌지 않는다. 운영 bootstrap/키 파일 로더·설정 승인/설치는 이번에 만들지 않았다.
+
+```python
+from pi_api import main
+from fingerprint_enrollment_runtime import EnrollmentRuntime
+
+def start_with_enrollment(*, keys, profile, ledger, cache):
+    main(enrollment_factory=lambda fingerprint: EnrollmentRuntime(
+        fingerprint, keys=keys, profile=profile, ledger=ledger, cache=cache,
+    ))
+```
+
+### 실제 검사·인계 상태
+
+신규 `test_fingerprint_enrollment_runtime.py`의14개 검사로 실제 Flask 대역의 등록/scan 점유·조도 HTTP 갱신·OLED 우선권, 캐시 읽기 무점유, 비교 실패/표시 실패·호스트 stopping, 승인 대기 중 runtime 종료, 기본 main 비활성/명시 factory·설정 실패·서버/worker 정리 예외와 잠금 대기 뒤 UART 종료를 확인했다. 실제 센서 대신 기존 가짜 센서·공개 합성 승인/키·임시 DB를 사용한다. main의 하드웨어 import도 대역이다.
+
+Windows의 별도 Python3.13.15/Flask 테스트 venv에서 기존 명령 `python -X utf8 -W error::ResourceWarning -m unittest discover -s Devices/RaspberryPi -p 'test_*.py'` → **123개 중122통과/1 POSIX 생략,2.981초**. 신규14개가 포함되므로 앞선109와 합산하지 않는다. 사용자 Pi109개 통과는 새 runtime14개가 들어오기 전 결과이며 새123개는 아직 Pi 미실행이다. C# 제품/검사·1번 화면/서버·다른 담당 파일은 수정하지 않아 이번 Python 변경 때문에 재실행한 C# 결과는 없다.
+
+로컬 변경은 위 새 모듈/검사와 `pi_api.py`, README/이 문서다. 실제 라파 서비스·기존 동작 파일·키·계정/서버/DB·기존 지문은 변경하지 않았고 새 commit/push/PR도 아직 하지 않았다. 관리자 버튼/장치 주소 연결, 승인된 설정/키·프로필/보관 경로·전용 전송과 실제 두 채취/매핑 검사는 후속이다. 팀장 날짜LOG·새 협의MD/LOG PR은 게시하지 않고 실제 작업/검증을 이 코드 문서에 남긴다.
+
+### 사용자 수행 — 실행 조립 포함 Pi123개 통과
+
+사용자가 별도 `enrollment_check_20261020` 테스트 폴더에 변경된 `pi_api.py`와 신규 runtime/검사를 복사한 뒤 같은 `.test-venv`에서 위 전체 명령을 직접 실행했다. 제공된 전체 출력을 확인한 결과 **123개/0.656초/OK, 실패·생략0개**다. 신규 실행 조립14개와 POSIX 파일권한 검사도 모두 ok이며, 중간 `센서 오류: sensor error`는 예외 처리 대역의 의도된 출력 뒤 해당 검사도 ok였다.
+
+이123개는 앞선109개를 포함하므로 합산하지 않는다. 실제 Pi OS에서 가짜 센서·하드웨어 import 대역·임시 DB로 실행한 검사이며 실물 지문 저장/삭제·실제 UART/OLED 동시 동작·운영 서비스 배포/정상 상태를 검증한 것으로 확대하지 않는다. 복사 파일의 개별 해시는 출력에 포함되지 않았다. 로컬 코드/문서 준비와 사용자 Pi 대역 검증까지 완료했고, 이 실행 조립 변경의 commit/push·새 PR·이번 결과의 추가 협업 전송은 아직 하지 않았다. 1번 화면/주소 연결·신뢰할 실제 설정/키/전송 준비와 실물 통합은 계속 후속이다.
+
+### 실행 조립 변경의 게시 승인
+
+사용자가 이 실행 조립 변경의 포크 alpha push·원본 alpha 대상 PR 게시를 승인했다. 업로드 전에 최신 원본 alpha `a554242fb7dc0a9a82fb22910219b16d5ff54990`를 작업공간에 fast-forward 반영하고 LOG `bf5b5bd`/PR `e514ba2` 및5번 수정 요청 상태와1번 최신 회신을 확인했다. 새5번 차단 수정 요청은 없고 관리자 버튼·주소 주입은 아직 연결 근거를 받지 못했다. 실제 업로드/PR 주소·병합 상태는 게시 후 해당 PR 본문/기존 협업 댓글에서 구분한다. 앞 절의 미게시 상태는 각 작성 시점의 기록으로 보존한다.
+
+최신 원본 결합 상태에서 Python 전체123개를 다시 실행해 **122통과/1 POSIX 생략,2.555초**를 확인했고, `dotnet build RemoteWork.sln -c Release --nologo`(임시 artifacts 경로 지정)도 **경고0/오류0**이었다. 이번 빌드는 최신 원본 결합 확인이며 C# 중계/화면 검사를 다시 실행한 수치가 아니다. 사용자 Pi123개/0.656초/실패·생략0과 구분한다.
