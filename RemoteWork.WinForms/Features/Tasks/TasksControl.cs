@@ -643,7 +643,9 @@ namespace RemoteWork.WinForms.Features.Tasks
             TaskDetail? detail = PreparationDetail();
             if (recovery is null && (kind is null || detail is null || currentListQuery?.Scope != TaskQueryScope.Managed
                 || PendingManagementWorkflow() is not null)) return;
-            TaskManagementWorkflow? workflow = recovery ?? CurrentManagementSource()?.GetManagementWorkflow(kind!.Value, detail!.Summary.TaskId);
+            TaskManagementWorkflow? workflow;
+            try { workflow = recovery ?? CurrentManagementSource()?.GetManagementWorkflow(kind!.Value, detail!.Summary.TaskId); }
+            catch (OperationCanceledException) { return; }
             if (workflow is null) return;
             managementFormOpen = true; UpdatePreparationActions();
             try

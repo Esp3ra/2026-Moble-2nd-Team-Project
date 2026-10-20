@@ -1,21 +1,3 @@
-## PR45 최신 추가분 — 삭제 정책 문서 정정·Draft 유지, 2026-10-20
-
-[PR45](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/45) 검토 마무리 중 head `c5dad3b`이 추가됐습니다. Markdown3개·SQL/시험 주석만 바뀌었고 실행 로직·DDL은 이전 검증본 `0dfa517`과 동일합니다. **4번 문서는 로컬 선택을 “공지 삭제 시 확인 기록도 함께 삭제”로 정정**했으므로, 아래 “보존 요구와 CASCADE 불일치”는 이전 요구 시점 기록입니다. 이 보고를 팀장의 공통 삭제 정책·최종008/공유 적용 승인으로 확대하지 않습니다. 최신 head는 충돌 없이 결합되며 **Draft·미병합을 유지**합니다.
-
-[최신 검토 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr45-policy-followup-20261020). PR45 제품은 미병합이며 이번 alpha 갱신은 상태 README만 추가합니다.
-
-## PR45 후속 수정 확인 — 충돌·PID 경합 해결 / Draft 유지, 2026-10-20
-
-[PR45](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/45) head `0dfa517`에서 최신 alpha `14c1c80` 반영과 병합 충돌 해소, 공식 Activity 회귀의 PID 파일 읽기 보완을 확인했습니다. 공식 원본 전체 **297검사/12시나리오를2회 통과**, 공지35검사·Release 경고0/오류0입니다. R45-01·02 해결도 유지됩니다. **공지 삭제 후 확인 기록 보존 구조는 여전히 미구현이므로 Draft·미병합·008공유 적용 보류**입니다. 아래 과거 “alpha 충돌/공식 Activity PID 경합 실패”는 해당 head 시점 이력이며 최신 해결 상태와 구분합니다.
-
-[검토 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr45-pid-recheck-20261020). PR45 제품은 미병합이며 이번 alpha 갱신은 이 상태 기록만 추가합니다.
-
-## 최신 재검토 — PR44·46·47 병합 / PR45 Draft 유지, 2026-10-20
-
-[PR44](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/44) R44-01과 [PR45](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/45) R45-01·02의 수정 업로드를 확인했습니다. **44번은 수정 재검증 후 병합, 45번은 기존 지적 해결·보존 구현 미완료로 Draft/미병합**입니다. 팀장의 이번 “46번은 수정됐으니 검토” 지시로 이전 보류를 해제하여 [PR46](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/46) 실제 제출·검토 코드를 검토했고, 신규 [PR47](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/47) 등록 중계도 검토했습니다. 44→47→46 순서로 alpha에 병합했으며 최종 코드 merge `1d2cb6b`/tree `0608974b29eb5996f67d34c14b63ae8fbf4fa51f`는 검증본과 일치합니다. 아래 이전 미해결·46보류·미병합은 작성 시점의 이력입니다.
-
-[검토 결과·남은 연결·실행/미실행 범위](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr44-47-recheck-20261020). 코드 검증 이후 이 README 상태 기록만 추가했으며 제품 트리는 위 최종 코드 merge와 같습니다.
-
 # 원격 근무용 업무 처리 확인 시스템
 
 업무 관리의 [확정 정책과 실행 안내](docs/TASK_MANAGEMENT.md)를 적용했습니다. 현재 지정 관리자는 진행전 업무의 일반 수정·담당자 재배정, 진행전/진행중/반려완료 업무의 관리자 변경을 별도 확인 후 실행할 수 있습니다. `REMOTEWORK_ENABLE_TASK_MANAGEMENT_DRAFT=1` 개발 옵션이 필요하며 기본 off입니다. 응답 유실은 같은 요청의 결과 확인으로 복구하고, 성공 후 현재 목록/상세를 다시 조회합니다. 취소·마감 연장도 정책은 확정됐지만 실제 저장은 공통 모델/등록·3번 제출 차단 연결이 남아 있습니다. 연장 폼은 상태·KST 날짜에 맞는 로컬 입력 준비까지 제공합니다.
@@ -232,3 +214,28 @@ dotnet build .\Tests\TaskQueries.Http.Tests\TaskQueries.Http.Tests.csproj -c Rel
 ## 3번 결과물 개발 구현 — PR #46
 
 직원·관리자 본인 제출과 관리자 검토·업무 이력을 기존 4개 폼과 공통 인증/쓰기 지원에 연결합니다. 첫 성공 제출 1차, 성공 재제출만 +1차이며 업무상 5차 제한은 없습니다. 실제 파일 바이트와 이전 제출물을 보존합니다. 기본 off이며 006은 개발 검토안입니다. 실행/권한/범위와 미연결은 [결과물 안내](docs/RESULTS.md), 직접 검사와 미실행은 [검증 안내](Tests/Results.Http.Tests/README.md)를 확인합니다. 웹 준비 중 화면을 실제 결과물 웹 완료로 표시하지 않습니다.
+
+<details>
+<summary>과거 PR 검토 요약</summary>
+
+아래는 각 검토 당시 기록입니다. PR45는 이후 팀장 삭제 정책 확정과 재검증을 거쳐 alpha에 병합됐습니다. 현재 상태는 [LOG 검토 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr45-merged-delete-policy-20261020)을 따릅니다.
+
+## PR45 최신 추가분 — 삭제 정책 문서 정정·Draft 유지, 2026-10-20
+
+[PR45](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/45) 검토 마무리 중 head `c5dad3b`이 추가됐습니다. Markdown3개·SQL/시험 주석만 바뀌었고 실행 로직·DDL은 이전 검증본 `0dfa517`과 동일합니다. **4번 문서는 로컬 선택을 “공지 삭제 시 확인 기록도 함께 삭제”로 정정**했으므로, 아래 “보존 요구와 CASCADE 불일치”는 이전 요구 시점 기록입니다. 이 보고를 팀장의 공통 삭제 정책·최종008/공유 적용 승인으로 확대하지 않습니다. 최신 head는 충돌 없이 결합되며 **Draft·미병합을 유지**합니다.
+
+[최신 검토 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr45-policy-followup-20261020). PR45 제품은 미병합이며 이번 alpha 갱신은 상태 README만 추가합니다.
+
+## PR45 후속 수정 확인 — 충돌·PID 경합 해결 / Draft 유지, 2026-10-20
+
+[PR45](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/45) head `0dfa517`에서 최신 alpha `14c1c80` 반영과 병합 충돌 해소, 공식 Activity 회귀의 PID 파일 읽기 보완을 확인했습니다. 공식 원본 전체 **297검사/12시나리오를2회 통과**, 공지35검사·Release 경고0/오류0입니다. R45-01·02 해결도 유지됩니다. **공지 삭제 후 확인 기록 보존 구조는 여전히 미구현이므로 Draft·미병합·008공유 적용 보류**입니다. 아래 과거 “alpha 충돌/공식 Activity PID 경합 실패”는 해당 head 시점 이력이며 최신 해결 상태와 구분합니다.
+
+[검토 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr45-pid-recheck-20261020). PR45 제품은 미병합이며 이번 alpha 갱신은 이 상태 기록만 추가합니다.
+
+## 최신 재검토 — PR44·46·47 병합 / PR45 Draft 유지, 2026-10-20
+
+[PR44](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/44) R44-01과 [PR45](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/45) R45-01·02의 수정 업로드를 확인했습니다. **44번은 수정 재검증 후 병합, 45번은 기존 지적 해결·보존 구현 미완료로 Draft/미병합**입니다. 팀장의 이번 “46번은 수정됐으니 검토” 지시로 이전 보류를 해제하여 [PR46](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/46) 실제 제출·검토 코드를 검토했고, 신규 [PR47](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/47) 등록 중계도 검토했습니다. 44→47→46 순서로 alpha에 병합했으며 최종 코드 merge `1d2cb6b`/tree `0608974b29eb5996f67d34c14b63ae8fbf4fa51f`는 검증본과 일치합니다. 아래 이전 미해결·46보류·미병합은 작성 시점의 이력입니다.
+
+[검토 결과·남은 연결·실행/미실행 범위](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr44-47-recheck-20261020). 코드 검증 이후 이 README 상태 기록만 추가했으며 제품 트리는 위 최종 코드 merge와 같습니다.
+
+</details>

@@ -308,11 +308,13 @@ def run_server_pytest(env, runtime):
             job.assign(process)
         stdout, _stderr = process.communicate(timeout=600)
         safe_summary = next((line.strip() for line in reversed(stdout.splitlines())
-                             if re.fullmatch(r"[0-9]+ passed(?:, [0-9]+ skipped)? in [0-9.]+s", line.strip())), None)
-        if process.returncode != 0 or safe_summary is None:
-            failed = re.findall(r"^FAILED ([A-Za-z0-9_./\\:\[\]-]+)", stdout, re.M)
+                             if re.fullmatch(r"[0-9]+ passed(?:, [0-9]+ skipped)? in [0-9.]+s(?: \([0-9:]+\))?", line.strip())), None)
+        if process.returncode != 0:
+            failed = re.findall(r"^(?:FAILED|ERROR) ([A-Za-z0-9_./\\:\[\]-]+)", stdout, re.M)
             labels = ", ".join(Path(value.split("::")[0]).name + "::" + value.split("::")[-1] for value in failed[:20])
             raise owned.shared.RunFailure("owned MySQL server tests failed" + (": " + labels if labels else ""))
+        if safe_summary is None:
+            raise owned.shared.RunFailure("server pytest exited successfully but its safe summary format was unexpected")
         print("PASS owned MySQL server pytest: " + safe_summary + ".", flush=True)
     finally:
         if job is not None:

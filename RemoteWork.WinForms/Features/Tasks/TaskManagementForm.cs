@@ -186,7 +186,11 @@ public partial class TaskManagementForm : Form
         if (stopped || IsDisposed || workflow is null) return;
         var snapshot = workflow.Snapshot;
         if (!workflow.IsCurrent)
-        { ForgetInput(); lblStatus.Text = "접속이 변경되어 이전 입력을 지웠습니다. 현재 로그인에서 업무를 다시 조회해 주세요."; }
+        {
+            ForgetInput(); ConfirmedResult = null; ShouldRefreshList = false;
+            lblStatus.Text = "접속이 변경되어 이전 입력을 지웠습니다. 현재 로그인에서 업무를 다시 조회해 주세요.";
+            SetButtons(); return;
+        }
         else if (snapshot.State != TaskManagementState.Editing || snapshot.Failure is not null)
         {
             checkedRequest = null; lblStatus.Text = snapshot.Message;

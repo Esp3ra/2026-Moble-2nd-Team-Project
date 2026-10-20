@@ -196,6 +196,14 @@ internal static class Program
         Field<Button>(form, "btnConfirm").PerformClick(); Application.DoEvents();
         Check(workflow.State == TaskManagementState.Succeeded && service.Changes == 1 && service.LastRequest?.ExpectedRowVersion == "2",
             "only the distinct execution step submits the checked stable version");
+        // Identity replacement can precede notification of its cancellation.
+        service.AllowCurrent = false;
+        form.GetType().GetMethod("ShowWorkflow", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(form, null);
+        Check(Field<Label>(form, "lblStatus").Text.Contains("접속이 변경")
+            && !Field<Label>(form, "lblStatus").Text.Contains("서버 변경 성공"),
+            "an old successful snapshot cannot overwrite the session-change message");
+        Check(form.ConfirmedResult is null && !form.ShouldRefreshList,
+            "invalid session clears the old confirmed result and parent refresh flag");
         form.Close();
 
         using var page = new TasksControl(PreviewRole.Administrator, new QueryFixture(layout: true), new PreparationFixture());
@@ -259,7 +267,8 @@ internal static class Program
     private sealed class FakeService : ITaskManagementService, IDisposable
     {
         private readonly CancellationTokenSource session = new();
-        public bool IsCurrent => !session.IsCancellationRequested;
+        public bool AllowCurrent = true;
+        public bool IsCurrent => AllowCurrent && !session.IsCancellationRequested;
         public int UserId => 1;
         public CancellationToken SessionCancellation => session.Token;
         public int Keys, Changes;
