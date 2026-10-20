@@ -145,12 +145,17 @@ def _locked_current(db, target):
     return task, assignment
 
 
-def _start(target, action):
+def _start(target, action, *, body=None):
     authorize = _authorizer(action)  # common-off never imports receipt support
     with authenticated_transaction() as db:
         if authorize(db, target) is not True:
             raise AppError(403, "FORBIDDEN", "현재 업무를 시작할 권한이 없습니다.")
-        body, expected = _input()
+        if body is None:
+            body, expected = _input()
+        else:
+            if not isinstance(body, dict) or set(body) != _FIELDS:
+                raise AppError(400, "INVALID_INPUT", "업무 버전과 배정 버전만 전달해 주세요.")
+            expected = ExpectedVersions.from_body(body)
         from ...write_requests import WriteResult, perform_once
 
         def mutate(session):

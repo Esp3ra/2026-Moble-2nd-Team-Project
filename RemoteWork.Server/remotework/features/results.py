@@ -193,9 +193,9 @@ def _uuid(value):
     return value
 
 
-def _fields(names):
-    body = payload()
-    if set(body) != set(names):
+def _fields(names, body=None):
+    body = payload() if body is None else body
+    if not isinstance(body, dict) or set(body) != set(names):
         _error(400, "INVALID_INPUT", "입력 항목을 확인해 주세요.")
     return body
 
@@ -368,10 +368,10 @@ def submission_context(task_id):
 
 @bp.post("/tasks/<task_id>/submissions")
 @login_required
-def submit(task_id):
+def submit(task_id, *, body=None):
     task_id = positive_bigint(task_id, "task_id")
     body = _fields({"expected_row_version", "expected_assignment_revision",
-                    "description", "attachment_ids"})
+                    "description", "attachment_ids"}, body)
     expected = ExpectedVersions.from_body(body)
     description = _text(body["description"], required=True)
     ids = body["attachment_ids"]
@@ -421,9 +421,9 @@ def submit(task_id):
 
 @bp.post("/submissions/<submission_id>/decisions")
 @login_required
-def decide(submission_id):
+def decide(submission_id, *, body=None):
     submission_id = positive_bigint(submission_id, "submission_id")
-    body = _fields({"expected_row_version", "expected_assignment_revision", "outcome", "reason"})
+    body = _fields({"expected_row_version", "expected_assignment_revision", "outcome", "reason"}, body)
     expected = ExpectedVersions.from_body(body)
     outcome = body["outcome"]
     if outcome not in ("approved", "returned"):
@@ -787,9 +787,9 @@ def _valid_file_name(name):
 
 @bp.post("/tasks/<task_id>/uploads/start")
 @login_required
-def start_json_upload(task_id):
+def start_json_upload(task_id, *, body=None):
     task_id = positive_bigint(task_id, "task_id")
-    body = _fields({"name", "size", "sha256"})
+    body = _fields({"name", "size", "sha256"}, body)
     name = _valid_file_name(body["name"])
     size, digest = body["size"], body["sha256"]
     if type(size) is not int or not 0 <= size <= MAX_FILE_BYTES:
@@ -812,9 +812,9 @@ def start_json_upload(task_id):
 
 @bp.post("/uploads/<attachment_id>/chunks")
 @login_required
-def write_json_chunk(attachment_id):
+def write_json_chunk(attachment_id, *, body=None):
     attachment_id = _uuid(attachment_id)
-    body = _fields({"offset", "data"})
+    body = _fields({"offset", "data"}, body)
     offset, encoded = body["offset"], body["data"]
     if type(offset) is not int or offset < 0 or offset % CHUNK_BYTES:
         _error(400, "INVALID_INPUT", "파일 조각 위치를 확인해 주세요.")
@@ -857,9 +857,9 @@ def write_json_chunk(attachment_id):
 
 @bp.post("/uploads/<attachment_id>/complete")
 @login_required
-def complete_json_upload(attachment_id):
+def complete_json_upload(attachment_id, *, body=None):
     attachment_id = _uuid(attachment_id)
-    _fields(set())
+    _fields(set(), body)
     with authenticated_transaction() as db:
         item = _upload_owner(db, attachment_id)
         data = _attachment_json(item)
