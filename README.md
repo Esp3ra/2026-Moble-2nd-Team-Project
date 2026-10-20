@@ -1,3 +1,9 @@
+## 최신 재검토 — PR44·46·47 병합 / PR45 Draft 유지, 2026-10-20
+
+[PR44](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/44) R44-01과 [PR45](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/45) R45-01·02의 수정 업로드를 확인했습니다. **44번은 수정 재검증 후 병합, 45번은 기존 지적 해결·보존 구현 미완료로 Draft/미병합**입니다. 팀장의 이번 “46번은 수정됐으니 검토” 지시로 이전 보류를 해제하여 [PR46](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/46) 실제 제출·검토 코드를 검토했고, 신규 [PR47](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/47) 등록 중계도 검토했습니다. 44→47→46 순서로 alpha에 병합했으며 최종 코드 merge `1d2cb6b`/tree `0608974b29eb5996f67d34c14b63ae8fbf4fa51f`는 검증본과 일치합니다. 아래 이전 미해결·46보류·미병합은 작성 시점의 이력입니다.
+
+[검토 결과·남은 연결·실행/미실행 범위](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr44-47-recheck-20261020). 코드 검증 이후 이 README 상태 기록만 추가했으며 제품 트리는 위 최종 코드 merge와 같습니다.
+
 # 원격 근무용 업무 처리 확인 시스템
 
 5번 새 회원 지문 등록의 [Pi 등록 코어·서명/온라인 승인·C# 중계와 전용 등록창](Devices/RaspberryPi/FINGERPRINT_ENROLLMENT.md)을 제공합니다. 기본 장치 실행에는 등록 경로를 켜지 않으며 관리자 화면 버튼은 1번 연결 대기입니다. 실제 회원 매핑·실물 신규 저장·운영 서비스 배포는 아직 검증하지 않았습니다. 이 기능의 서버 계약은 미병합 [PR44](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/44)를 따르며 서버 구현을 이번 변경에 포함하지 않습니다.
