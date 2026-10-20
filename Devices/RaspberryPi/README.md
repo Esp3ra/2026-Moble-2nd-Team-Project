@@ -2,6 +2,8 @@
 
 Raspberry Pi 한 프로세스에서 UART 지문 인식, SH1106 OLED 표시, Arduino Mega USB 조도 수신을 함께 실행합니다. 공통 회원·로그인·근태 DB와 분리된 장치 시연 코드입니다. Windows 확인 화면은 [Tools/DeviceCheck](../../Tools/DeviceCheck/README.md)에 있습니다.
 
+새 계정/새 지문 흐름의 로컬 준비는 [AS608 등록 코어](FINGERPRINT_ENROLLMENT.md)를 참고합니다. 대역 검증용으로 분리했으며 현재 실행 중인 API에 등록 경로를 추가하거나 장치에 배포한 상태는 아닙니다.
+
 ## 구성과 배선
 
 | 장치 | 연결 / 기본 설정 |
