@@ -38,7 +38,7 @@ W1-05 회신에 따라 002와 업무 ORM의 상태 CHECK는 다섯 소문자 코
 [팀장 확정 A~E 정책](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-management-policy-approved-20261020)에 따른 **D/E의 기술 접점 준비**입니다. 009는 번호만 예약하며 아직 SQL 파일·새 테이블/열·적용 기록·신규 기능 flag를 추가하지 않습니다. A/B/C 저장과 D/E 기능은2번, 제출·판단의 차단은3번이 구현하고1번은 아래 공통 접점을 대조합니다.
 
 - 기존 `task.updated/reassigned/managers_changed`는 현재 지정 관리자 권한과 기존5필드 결과를 사용합니다. 본인을 관리자에서 제외한 성공 뒤 조회403을 성공 취소로 취급하거나 과거 권한으로 우회하지 않습니다.
-- `task.deadline_extension_requested/approved/rejected`는 공통 action 허용 목록에만 있으며 담당 authorizer/제품 route·실제 연장 모델이 준비됐다는 뜻이 아닙니다. 기존 공통 최소 결과는 업무5필드와 `extension_id/requested_due_date/due_date` 범위입니다. 미연결 authorizer는503으로 거절합니다.
+- `task.deadline_extension_requested/approved/rejected`는 공통 action 허용 목록에 있습니다. 신청에는 W1의 `_own` 준비 authorizer가 연결돼 있고 승인·반려 authorizer는 미연결이며, 제품 route·실제 연장 모델은 후속 구현입니다. 기존 공통 최소 결과는 업무5필드와 `extension_id/requested_due_date/due_date` 범위입니다. 미연결 authorizer는503으로 거절합니다.
 - `task.cancelled`·연장 철회 등 신규 action/추가 결과 필드는2번이 계약 초안을 제공한 뒤 앱 초기화의 `register_write_action`으로 명시 등록합니다. 기존 built-in action을 이 함수로 덮어쓸 수 없으며 receipt에 사유 본문·개인정보·파일을 추가하지 않습니다. 정확한 필드/target 형식은 초안 대조 전 미확정입니다.
 - 신규 D/E 모델은 기존 `tasks.task_id` signed BIGINT·`task_assignments(task_id, revision)`의 BIGINT/INTEGER·users signed INTEGER와 FK 타입/현재 DB를 맞춰야 합니다. 취소는 여섯 번째 업무 상태/물리 삭제로 구현하지 않고 이력을 보존합니다. 연장 대기1건의 DB/잠금 경계·동시 신청/판단·업무 버전 증가를 명시한 초안이 필요합니다.
 - 기존3번 `ExternalFacts`에는 `reviewer_id/extension_pending`만 있고 취소 여부가 없습니다.2번의 취소/연장 저장과3번의 제출·판단은 동일 task/배정 잠금·현재 관계·유효 기한을 같은 DB transaction에서 재검사하도록 연결해야 합니다. 현재의 명시 개발 `SubmissionGate`를 실연장 신청 모델이나 공유 환경의 기본 false로 취급하지 않습니다.
