@@ -7,6 +7,7 @@ public sealed class FingerprintEnrollmentForm : Form
 {
     private readonly EnrollmentTarget target;
     private readonly FingerprintEnrollmentRelay relay;
+    private readonly Action<string>? validateDevice;
     private readonly FeatureUiScope scope;
     private readonly CancellationTokenSource viewLifetime;
     private readonly CancellationTokenRegistration lifetimeRegistration;
@@ -19,11 +20,13 @@ public sealed class FingerprintEnrollmentForm : Form
     private bool busy;
     private bool released;
     public bool RegistrationCompleted { get; private set; }
+    public bool RegistrationStarted => attempt is not null;
     public Task PendingOperation { get; private set; } = Task.CompletedTask;
 
-    public FingerprintEnrollmentForm(EnrollmentTarget target, IEnrollmentPiChannel pi)
+    public FingerprintEnrollmentForm(EnrollmentTarget target, IEnrollmentPiChannel pi, Action<string>? validateDevice = null)
     {
         this.target = target;
+        this.validateDevice = validateDevice;
         relay = new(target, pi);
         Text = "새 회원 지문 등록";
         ClientSize = new Size(600, 290);
@@ -101,6 +104,8 @@ public sealed class FingerprintEnrollmentForm : Form
         stop.Enabled = true;
         try
         {
+            // The owner resolves the selected device before any issue POST/claim.
+            validateDevice?.Invoke(device.DeviceId);
             attempt ??= relay.CreateAttempt(device.DeviceId);
             var progress = new Progress<string>(text => scope.TryPost(view, () => status.Text = text));
             var result = await relay.RunAsync(attempt, progress, operation.Token);
@@ -114,7 +119,9 @@ public sealed class FingerprintEnrollmentForm : Form
         catch (OperationCanceledException)
         { scope.TryPost(view, () => status.Text = "등록을 중단했습니다. 저장 여부는 확인이 필요할 수 있습니다."); }
         catch (Exception error) when (error is ApiException or InvalidOperationException or InvalidDataException or HttpRequestException)
-        { scope.TryPost(view, () => status.Text = "연결 확인 필요. 같은 작업의 저장 결과를 다시 확인해 주세요."); }
+        { scope.TryPost(view, () => status.Text = attempt is null
+            ? "등록을 시작하지 못했습니다. 선택한 장치의 주소 설정을 확인해 주세요."
+            : "연결 확인 필요. 같은 작업의 저장 결과를 다시 확인해 주세요."); }
         finally
         {
             busy = false;
@@ -122,7 +129,11 @@ public sealed class FingerprintEnrollmentForm : Form
             {
                 stop.Enabled = false;
                 if (!RegistrationCompleted)
-                { start.Text = "같은 작업 다시 확인"; start.Enabled = true; }
+                {
+                    devices.Enabled = attempt is null;
+                    start.Text = attempt is null ? "지문 등록" : "같은 작업 다시 확인";
+                    start.Enabled = true;
+                }
             });
         }
     }

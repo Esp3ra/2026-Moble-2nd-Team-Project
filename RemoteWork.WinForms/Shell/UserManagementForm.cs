@@ -6,6 +6,9 @@ public sealed class UserManagementForm : Form
 {
     private readonly ApiClient.Session? session;
     private readonly FeatureUiScope? requests;
+    private readonly ICreatedUserEnrollmentLauncher enrollmentLauncher;
+    private readonly Uri server;
+    private bool enrolling, enrollmentAttempted;
     private CancellationTokenRegistration sessionCancellation;
     private CreatedUserEnrollmentTarget? enrollmentTarget;
     private long selectionGeneration;
@@ -28,16 +31,22 @@ public sealed class UserManagementForm : Form
     private int total;
     private readonly Button create = new() { Text = "새 계정 입력", AutoSize = true };
     private readonly Button reload = new() { Text = "새로고침", AutoSize = true };
+    private readonly Button enroll = new() { Text = "생성한 회원 지문 등록", AutoSize = true, Enabled = false };
 
-    /// <summary>Future enrollment service borrows this target. No scan starts automatically.</summary>
+    /// <summary>The explicit enrollment button borrows this target. Account save never starts a scan.</summary>
     public CreatedUserEnrollmentTarget? EnrollmentTarget => enrollmentTarget?.IsCurrent == true ? enrollmentTarget : null;
     public event EventHandler? EnrollmentTargetChanged;
 
     public UserManagementForm() : this(AppServices.Api) { }
 
-    public UserManagementForm(ApiClient api)
+    public UserManagementForm(ApiClient api) : this(api, new CreatedUserEnrollmentLauncher()) { }
+
+    public UserManagementForm(ApiClient api, ICreatedUserEnrollmentLauncher enrollmentLauncher)
     {
         ArgumentNullException.ThrowIfNull(api);
+        ArgumentNullException.ThrowIfNull(enrollmentLauncher);
+        this.enrollmentLauncher = enrollmentLauncher;
+        server = api.ServerUri;
         try { session = api.CaptureSession(); }
         catch (InvalidOperationException) { /* A disconnected view never starts requests. */ }
         if (session is not null)
@@ -62,8 +71,8 @@ public sealed class UserManagementForm : Form
             input.Dock = DockStyle.Fill; editor.Controls.Add(input, 0, row);
         }
         var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = true, Margin = new Padding(0) };
-        actions.Controls.AddRange(new Control[] { active, create, save, reset });
-        var actionRow = editor.RowCount++; editor.RowStyles.Add(new RowStyle(SizeType.Absolute, 110)); editor.Controls.Add(actions, 0, actionRow);
+        actions.Controls.AddRange(new Control[] { active, create, save, reset, enroll });
+        var actionRow = editor.RowCount++; editor.RowStyles.Add(new RowStyle(SizeType.Absolute, 145)); editor.Controls.Add(actions, 0, actionRow);
         layout.Controls.Add(editor, 1, 0); layout.SetRowSpan(editor, 2);
         var paging = new FlowLayoutPanel { Dock = DockStyle.Fill };
         paging.Controls.AddRange(new Control[] { previous, pageLabel, next, reload }); layout.Controls.Add(paging, 0, 1);
@@ -82,6 +91,7 @@ public sealed class UserManagementForm : Form
         create.Click += (_, _) => ClearEditor();
         save.Click += async (_, _) => await Save();
         reset.Click += async (_, _) => await ResetPassword();
+        enroll.Click += async (_, _) => await EnrollCreatedUser();
         ClearEditor();
         FormClosing += (_, _) => EndLifetime();
         Disposed += (_, _) => EndLifetime();
@@ -102,6 +112,7 @@ public sealed class UserManagementForm : Form
         Interlocked.Increment(ref selectionGeneration);
         var previousTarget = enrollmentTarget;
         enrollmentTarget = null;
+        enrollmentAttempted = false;
         previousTarget?.Invalidate();
         if (previousTarget is not null) EnrollmentTargetChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -127,7 +138,7 @@ public sealed class UserManagementForm : Form
     private void SetControls()
     {
         if (IsDisposed) return;
-        bool enabled = IsUsable && !loading && !writing;
+        bool enabled = IsUsable && !loading && !writing && !enrolling;
         grid.Enabled = create.Enabled = reload.Enabled = save.Enabled = enabled;
         foreach (var control in new Control[] { name, number, department, role, password }) control.Enabled = enabled;
         login.Enabled = enabled && selectedId == 0;
@@ -135,6 +146,7 @@ public sealed class UserManagementForm : Form
         reset.Enabled = enabled && selectedId != 0 && selectedId != session?.User.Id;
         previous.Enabled = enabled && page > 1;
         next.Enabled = enabled && page * 50 < total;
+        enroll.Enabled = enabled && !enrollmentAttempted && EnrollmentTarget is not null && session?.User.Role == "admin";
     }
 
     private void ClearEditor()
@@ -218,7 +230,7 @@ public sealed class UserManagementForm : Form
             }
             if (!IsUsable || savedGeneration != Interlocked.Read(ref selectionGeneration)) return;
             string message = targetId == 0
-                ? "계정 생성 완료. 지문 등록은 별도 연결 단계이며, 생성된 회원 ID를 유지합니다."
+                ? "계정 생성 완료. 생성한 회원 지문 등록 버튼으로 별도 등록을 시작할 수 있습니다."
                 : "사용자 정보 저장 완료.";
             status.Text = message;
             await LoadUsers(result.User, message);
@@ -227,6 +239,34 @@ public sealed class UserManagementForm : Form
         catch (ApiException ex)
         { if (IsUsable && operation?.IsCurrent == true && generation == Interlocked.Read(ref selectionGeneration)) status.Text = ex.Message + (targetId == 0 && ex.StatusCode == 0 ? " 생성 여부를 목록에서 확인한 뒤 다시 시도해 주세요." : ""); }
         finally { writing = false; SetControls(); }
+    }
+
+    private async Task EnrollCreatedUser()
+    {
+        var target = EnrollmentTarget;
+        if (!IsUsable || loading || writing || enrolling || enrollmentAttempted || target is null || session?.User.Role != "admin") return;
+        enrolling = true; SetControls();
+        try
+        {
+            var result = await enrollmentLauncher.ShowAsync(this, target, server);
+            if (!IsUsable || !ReferenceEquals(enrollmentTarget, target) || !target.IsCurrent) return;
+            enrollmentAttempted = result.AttemptStarted;
+            status.Text = result.Completed ? "지문 등록 완료. 서버에서 생성한 회원과 장치 연결을 확인했습니다."
+                : result.AttemptStarted ? "계정은 유지됩니다. 등록은 완료되지 않았습니다. 기존 작업 확인이 필요하므로 새 등록을 시작하지 않습니다."
+                : "계정은 유지됩니다. 지문 등록을 시작하지 않았습니다.";
+        }
+        catch (OperationCanceledException) { /* Ended target/session cannot publish a late result. */ }
+        catch (InvalidDataException)
+        { if (IsUsable && target.IsCurrent) status.Text = "지문 등록 주소 설정을 확인해 주세요. 현재 서버와 선택한 장치의 Pi 주소가 필요합니다."; }
+        catch (Exception error) when (error is ApiException or InvalidOperationException or HttpRequestException)
+        {
+            if (IsUsable && target.IsCurrent)
+            {
+                enrollmentAttempted = true;
+                status.Text = "등록 결과 확인이 필요합니다. 계정은 유지되며 새 등록은 자동으로 시작하지 않습니다.";
+            }
+        }
+        finally { enrolling = false; SetControls(); }
     }
 
     private async Task ResetPassword()
