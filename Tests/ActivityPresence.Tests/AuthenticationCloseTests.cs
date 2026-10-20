@@ -213,8 +213,46 @@ internal static partial class Program
         }
     }
 
+    private static async Task<int> ReadOwnedPid(string path)
+    {
+        var elapsed = Stopwatch.StartNew();
+        while (elapsed.ElapsedMilliseconds < 5000)
+        {
+            try
+            {
+                // File creation is visible before the Python writer has closed
+                // its handle. Retry sharing/empty-write races, not cleanup itself.
+                string value = await File.ReadAllTextAsync(path);
+                if (int.TryParse(value, out int pid) && pid > 0)
+                {
+                    Check(true, "Owned unresponsive Python publishes a readable PID");
+                    return pid;
+                }
+            }
+            catch (IOException) { /* The owned writer may still hold the file. */ }
+            await Task.Delay(15);
+        }
+        throw new InvalidOperationException("Owned unresponsive Python did not publish a readable PID within 5 seconds");
+    }
+
     private static async Task ForcedOwnerClose()
     {
+        // Deterministically hold the same exclusive writer handle that caused
+        // the reviewer failure, then publish a PID without touching a process.
+        string probePath = Path.Combine(Path.GetTempPath(), $"activity-pid-probe-{Guid.NewGuid():N}.pid");
+        try
+        {
+            Task<int> reading;
+            using (var writer = new FileStream(probePath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                reading = ReadOwnedPid(probePath);
+                await Task.Delay(60);
+                Check(!reading.IsCompleted, "PID reader waits while the owned writer holds the file");
+                await writer.WriteAsync(Encoding.UTF8.GetBytes(Environment.ProcessId.ToString()));
+            }
+            Check(await reading == Environment.ProcessId, "PID reader recovers after the writer closes");
+        }
+        finally { File.Delete(probePath); }
         foreach (bool parentClose in new[] { false, true })
         {
             string pidPath = Path.Combine(Path.GetTempPath(), $"activity-close-{Guid.NewGuid():N}.pid");
@@ -235,8 +273,7 @@ internal static partial class Program
                 try
                 {
                     Click(child, "btnStart");
-                    await Until(() => File.Exists(pidPath), "Owned unresponsive Python starts");
-                    int pid = int.Parse(await File.ReadAllTextAsync(pidPath));
+                    int pid = await ReadOwnedPid(pidPath);
                     using var process = Process.GetProcessById(pid);
                     var elapsed = Stopwatch.StartNew();
                     // Reproduce expiry's child.Close -> owner.Close ordering too.
