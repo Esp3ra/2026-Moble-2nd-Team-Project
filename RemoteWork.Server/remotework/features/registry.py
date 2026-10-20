@@ -17,4 +17,7 @@ def get_blueprints(config):
         blueprints.append(notices_bp)
         from .notices.web import bp as notice_web_bp
         blueprints.append(notice_web_bp)
+    if config.get("ENABLE_RESULTS_DRAFT", os.getenv("REMOTEWORK_ENABLE_RESULTS_DRAFT") == "1"):
+        from .results import bp as results_bp
+        blueprints.append(results_bp)
     return blueprints
