@@ -5,6 +5,7 @@ using RemoteWork.WinForms.Features.Tasks.Queries;
 using RemoteWork.WinForms.Features.Tasks.Preparation;
 using RemoteWork.WinForms.Features.Tasks.Creation;
 using RemoteWork.WinForms.Features.Tasks.Starting;
+using RemoteWork.WinForms.Features.Results;
 using RemoteWork.WinForms.Infrastructure;
 
 namespace RemoteWork.WinForms.Features.Tasks
@@ -26,6 +27,7 @@ namespace RemoteWork.WinForms.Features.Tasks
         private bool viewSessionInvalidated;
         private bool creationFormOpen;
         private bool startFormOpen;
+        private bool submissionFormOpen;
         private bool lastListQuerySucceeded;
         private string? acknowledgedCreationId;
         private string? createdTaskIdForRefresh;
@@ -79,6 +81,8 @@ namespace RemoteWork.WinForms.Features.Tasks
             if (queryService is ITaskStartSource)
                 lblTaskQuerySource.Text = queryService.SourceDescription
                     + "\r\n신규 등록·수락·재작업: 개발 서버 요청 연결 · 수정·재배정·연장: 협의사항";
+            if (queryService is HttpTaskQueryService)
+                lblTaskQuerySource.Text += "\r\n결과 제출: 선택 업무의 결과물 폼 연결 · 성공 후 업무 재조회 · 결과 미확인은 결과물 메뉴에서 확인";
             ClearDetail("목록에서 업무를 선택하면 상세 내용이 표시됩니다.");
             UpdateViewScope();
             initializing = false;
@@ -94,6 +98,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnEditTaskPreview.Visible = managementView;
             btnCancelTask.Visible = managementView;
             btnAcceptTask.Visible = !managementView || PendingStartWorkflow() is not null;
+            btnSubmitResult.Visible = !managementView && queryService is HttpTaskQueryService;
             btnReviewRequestPreview.Visible = !managementView;
             btnDeadlineExtensionPreview.Visible = !managementView;
             btnCollaborationRequest.Visible = true;
@@ -120,6 +125,9 @@ namespace RemoteWork.WinForms.Features.Tasks
             bool hasDetail = detail is not null;
             btnEditTaskPreview.Enabled = hasDetail;
             bool ownView = viewRole != PreviewRole.Administrator || cmbTaskScope.SelectedIndex == 0;
+            btnSubmitResult.Enabled = !submissionFormOpen && ownView
+                && viewSession?.Session.IsCurrent == true && currentListQuery?.Scope == TaskQueryScope.Own
+                && detail?.Summary.Status == TaskDisplayStatus.InProgress;
             TaskStartWorkflow? pendingStart = PendingStartWorkflow();
             btnAcceptTask.Text = detail?.Summary.Status == TaskDisplayStatus.Returned ? "재작업 시작" : "업무 수락";
             btnAcceptTask.Enabled = ownView && detail?.Summary.Status is TaskDisplayStatus.NotStarted or TaskDisplayStatus.Returned;
@@ -671,6 +679,34 @@ namespace RemoteWork.WinForms.Features.Tasks
         private void btnReviewRequestPreview_Click(object? sender, EventArgs e)
         {
             PreviewActions.Open(this, new ReviewRequestForm(previewRole));
+        }
+
+        private async void btnSubmitResult_Click(object? sender, EventArgs e)
+        {
+            TaskDetail? detail = PreparationDetail();
+            TaskQuerySession? captured = viewSession;
+            if (submissionFormOpen || queriesDisposed || IsDisposed || !btnSubmitResult.Enabled
+                || captured?.Session.IsCurrent != true || currentListQuery?.Scope != TaskQueryScope.Own
+                || detail?.Summary.Status != TaskDisplayStatus.InProgress) return;
+            submissionFormOpen = true;
+            UpdatePreparationActions();
+            try
+            {
+                // Member 3 owns the actual write, pending-result recovery and final
+                // authorization. Pass the selected identity and this page's login.
+                using var form = new SubmissionForm(viewRole, captured.Session, captured.QueryService)
+                {
+                    Tag = new Dictionary<string, string> { ["TaskId"] = detail.Summary.TaskId }
+                };
+                if (form.ShowDialog(FindForm()) == DialogResult.OK && !queriesDisposed && !IsDisposed
+                    && captured.Session.IsCurrent)
+                    await RefreshAsync();
+            }
+            finally
+            {
+                submissionFormOpen = false;
+                if (!queriesDisposed && !IsDisposed) UpdatePreparationActions();
+            }
         }
 
         private void btnDeadlineExtensionPreview_Click(object? sender, EventArgs e)

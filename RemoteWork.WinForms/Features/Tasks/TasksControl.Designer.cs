@@ -44,6 +44,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnEditTaskPreview = new System.Windows.Forms.Button();
             btnCancelTask = new System.Windows.Forms.Button();
             btnAcceptTask = new System.Windows.Forms.Button();
+            btnSubmitResult = new System.Windows.Forms.Button();
             btnReviewRequestPreview = new System.Windows.Forms.Button();
             btnDeadlineExtensionPreview = new System.Windows.Forms.Button();
             btnCollaborationRequest = new System.Windows.Forms.Button();
@@ -364,6 +365,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             flowActions.Controls.Add(btnEditTaskPreview);
             flowActions.Controls.Add(btnCancelTask);
             flowActions.Controls.Add(btnAcceptTask);
+            flowActions.Controls.Add(btnSubmitResult);
             flowActions.Controls.Add(btnReviewRequestPreview);
             flowActions.Controls.Add(btnDeadlineExtensionPreview);
             flowActions.Controls.Add(btnCollaborationRequest);
@@ -489,6 +491,22 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnAcceptTask.FlatAppearance.BorderSize = 1;
             btnAcceptTask.Name = "btnAcceptTask";
             btnAcceptTask.Click += new System.EventHandler(btnAcceptTask_Click);
+            //
+            // btnSubmitResult
+            //
+            btnSubmitResult.AutoSize = true;
+            btnSubmitResult.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowOnly;
+            btnSubmitResult.MinimumSize = new System.Drawing.Size(88, 34);
+            btnSubmitResult.Margin = new System.Windows.Forms.Padding(0, 0, 8, 6);
+            btnSubmitResult.Padding = new System.Windows.Forms.Padding(12, 4, 12, 4);
+            btnSubmitResult.Font = new System.Drawing.Font("맑은 고딕", 9F);
+            btnSubmitResult.Name = "btnSubmitResult";
+            btnSubmitResult.Text = "결과 제출";
+            btnSubmitResult.TabIndex = 1;
+            btnSubmitResult.Enabled = false;
+            btnSubmitResult.Visible = false;
+            btnSubmitResult.UseVisualStyleBackColor = true;
+            btnSubmitResult.Click += new System.EventHandler(btnSubmitResult_Click);
             //
             // btnReviewRequestPreview
             //
@@ -1176,6 +1194,7 @@ namespace RemoteWork.WinForms.Features.Tasks
         private System.Windows.Forms.Button btnEditTaskPreview;
         private System.Windows.Forms.Button btnCancelTask;
         private System.Windows.Forms.Button btnAcceptTask;
+        private System.Windows.Forms.Button btnSubmitResult;
         private System.Windows.Forms.Button btnReviewRequestPreview;
         private System.Windows.Forms.Button btnDeadlineExtensionPreview;
         private System.Windows.Forms.Button btnCollaborationRequest;
