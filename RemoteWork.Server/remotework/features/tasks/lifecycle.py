@@ -54,15 +54,21 @@ def _current(db, target, *, mode="read"):
     return task, assignment, managers, users
 
 
-def authorize_cancel(db, target):
+def authorize_cancel_result(db, target):
     _current(db, target, mode="manage")
+    require_lifecycle_schema(db)
+    return True
+
+
+def authorize_cancel(db, target):
+    authorize_cancel_result(db, target)
     require_lifecycle_write_ready(db)
     return True
 
 
-def authorize_decision(db, target):
+def authorize_decision_result(db, target):
     task, assignment, _managers, _users = _current(db, target, mode="manage")
-    require_lifecycle_write_ready(db)
+    require_lifecycle_schema(db)
     # This also protects receipt lookup, whose shared target is the task ID.
     # Closed rows remain: a recorded success is still lookupable by a current
     # eligible manager, without re-running pending/state/date validation.
@@ -76,9 +82,15 @@ def authorize_decision(db, target):
     return True
 
 
-def authorize_withdraw(db, target):
-    task, assignment, _managers, _users = _current(db, target, mode="own")
+def authorize_decision(db, target):
+    authorize_decision_result(db, target)
     require_lifecycle_write_ready(db)
+    return True
+
+
+def authorize_withdraw_result(db, target):
+    task, assignment, _managers, _users = _current(db, target, mode="own")
+    require_lifecycle_schema(db)
     found = db.scalar(select(TaskDeadlineExtension.extension_id).where(
         TaskDeadlineExtension.task_id == task.task_id,
         TaskDeadlineExtension.assignment_revision == assignment.revision,
@@ -86,6 +98,28 @@ def authorize_withdraw(db, target):
     if found is None:
         raise AppError(403, "FORBIDDEN", "현재 본인의 연장 신청만 철회할 수 있습니다.")
     return True
+
+
+def authorize_withdraw(db, target):
+    authorize_withdraw_result(db, target)
+    require_lifecycle_write_ready(db)
+    return True
+
+
+def authorize_request_result(db, target):
+    _current(db, target, mode="own")
+    require_lifecycle_schema(db)
+    return True
+
+
+def register_lifecycle_result_readers(app, *, read_only=False):
+    from ...write_requests import register_write_result_reader
+    for action, authorize in (("task.cancelled", authorize_cancel_result),
+            ("task.deadline_extension_requested", authorize_request_result),
+            ("task.deadline_extension_approved", authorize_decision_result),
+            ("task.deadline_extension_rejected", authorize_decision_result),
+            ("task.deadline_extension_withdrawn", authorize_withdraw_result)):
+        register_write_result_reader(app, action=action, authorize=authorize, read_only=read_only)
 
 
 def register_lifecycle_actions(app):

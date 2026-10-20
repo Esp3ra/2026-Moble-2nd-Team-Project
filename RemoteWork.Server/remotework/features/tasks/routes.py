@@ -52,6 +52,11 @@ def register_management(state):
 def register_lifecycle(state):
     enabled = state.app.config.get("ENABLE_TASK_LIFECYCLE_DRAFT",
         os.getenv("REMOTEWORK_ENABLE_TASK_LIFECYCLE_DRAFT") == "1")
+    reads = state.app.config.get("ENABLE_TASK_LIFECYCLE_RESULT_READS_DRAFT",
+        os.getenv("REMOTEWORK_ENABLE_TASK_LIFECYCLE_RESULT_READS_DRAFT") == "1")
+    if (enabled is True or reads is True) and state.app.config.get("ENABLE_COMMON_WRITE_DRAFT"):
+        from .lifecycle import register_lifecycle_result_readers
+        register_lifecycle_result_readers(state.app, read_only=enabled is not True)
     if enabled is True:
         from .lifecycle import (approve_extension, cancel_task, extension_requests, lifecycle_context,
                                 register_lifecycle_actions, reject_extension, request_extension, withdraw_extension)

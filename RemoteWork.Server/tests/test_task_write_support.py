@@ -143,9 +143,15 @@ def test_real_csharp_http_to_mysql_preparation_and_single_effect(preparation):
             assert db.scalar(select(func.count()).select_from(AuditEvent).where(AuditEvent.action=='test.http_once'))==1
     finally:
         server.task_dispatcher.shutdown()
-        wasyncore.close_all(map=sockets)
+        # Close the owned sockets on their select-loop thread. Closing them
+        # concurrently from this thread can raise Windows WSAENOTSOCK (10038).
+        if thread.is_alive():
+            server.trigger.pull_trigger(lambda: wasyncore.close_all(map=sockets))
+        else:
+            wasyncore.close_all(map=sockets)
         thread.join(timeout=5)
         assert not thread.is_alive()
+        assert not sockets
 
 
 @pytest.mark.parametrize('revoked',['assignment','manager'])

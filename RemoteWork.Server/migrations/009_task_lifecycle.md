@@ -19,6 +19,8 @@
 
 ## 검증과 복구
 
+기능 off 후 이미 확정된 결과의 조회는 [공통 읽기 계약](../../docs/WRITE_SUPPORT.md#최신-보완-기능-종료-후-성공-결과-조회-2026-10-20)을 사용한다. 조회 전용 초기화는 테이블을 만들거나009를 적용하지 않는다. 현재권한/키/보관기간 검사를 유지하며 신규 쓰기와 통합 ACK는 별도 조건이다. 재시작 후 읽기 opt-in은 개발 검토 환경에서 검증한 뒤 운영자가 명시 적용해야 한다.
+
 `tests/test_task_lifecycle_migration.py`는 소유 `remote_work_test_` MySQL에서 빈 lifecycle 테이블을 raw009로 바꿔 물리 타입/제약·현재DB FK·다른DB 참조 거절·단일 대기/종료 이력·실제 API와 재전송/결과 조회·실제 dump→빈 새DB 복원을 검증한다. 기존 `tests/test_task_lifecycle.py`는 정책/상태/권한·멱등·동시성·연결 미완료 차단을 검사한다.
 
 ```text
