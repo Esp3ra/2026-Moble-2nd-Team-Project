@@ -31,6 +31,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             panelContent = new System.Windows.Forms.Panel();
             layoutContent3 = new System.Windows.Forms.TableLayoutPanel();
             flowViewOptions = new System.Windows.Forms.FlowLayoutPanel();
+            chkIncludeCancelled = new System.Windows.Forms.CheckBox();
             lblTaskScope = new System.Windows.Forms.Label();
             cmbTaskScope = new System.Windows.Forms.ComboBox();
             lblTaskStatusFilter = new System.Windows.Forms.Label();
@@ -52,6 +53,8 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnDeadlineExtensionPreview = new System.Windows.Forms.Button();
             btnCollaborationRequest = new System.Windows.Forms.Button();
             btnTaskRequests = new System.Windows.Forms.Button();
+            btnLifecycleRequests = new System.Windows.Forms.Button();
+            btnLifecycleResult = new System.Windows.Forms.Button();
             layoutContent4 = new System.Windows.Forms.TableLayoutPanel();
             panelContent2 = new System.Windows.Forms.Panel();
             layoutContent5 = new System.Windows.Forms.TableLayoutPanel();
@@ -244,6 +247,12 @@ namespace RemoteWork.WinForms.Features.Tasks
             flowViewOptions.Controls.Add(lblTaskStatusFilter);
             flowViewOptions.Controls.Add(cmbTaskStatusFilter);
             flowViewOptions.Controls.Add(btnRetryQuery);
+            flowViewOptions.Controls.Add(chkIncludeCancelled);
+            chkIncludeCancelled.Name = "chkIncludeCancelled";
+            chkIncludeCancelled.Text = "취소 업무 포함";
+            chkIncludeCancelled.AutoSize = true;
+            chkIncludeCancelled.Margin = new System.Windows.Forms.Padding(8, 8, 0, 0);
+            chkIncludeCancelled.CheckedChanged += IncludeCancelled_Changed;
             //
             // lblTaskScope
             //
@@ -376,6 +385,20 @@ namespace RemoteWork.WinForms.Features.Tasks
             flowActions.Controls.Add(btnDeadlineExtensionPreview);
             flowActions.Controls.Add(btnCollaborationRequest);
             flowActions.Controls.Add(btnTaskRequests);
+            flowActions.Controls.Add(btnLifecycleRequests);
+            flowActions.Controls.Add(btnLifecycleResult);
+            btnLifecycleRequests.Name = "btnLifecycleRequests";
+            btnLifecycleRequests.Text = "마감 연장 요청함";
+            btnLifecycleRequests.AutoSize = true;
+            btnLifecycleRequests.MinimumSize = new System.Drawing.Size(125, 35);
+            btnLifecycleRequests.Margin = new System.Windows.Forms.Padding(0, 0, 8, 6);
+            btnLifecycleRequests.Click += btnLifecycleRequests_Click;
+            btnLifecycleResult.Name = "btnLifecycleResult";
+            btnLifecycleResult.Text = "취소·연장 결과 확인";
+            btnLifecycleResult.AutoSize = true;
+            btnLifecycleResult.MinimumSize = new System.Drawing.Size(145, 35);
+            btnLifecycleResult.Margin = new System.Windows.Forms.Padding(0, 0, 8, 6);
+            btnLifecycleResult.Click += btnLifecycleResult_Click;
             btnPrepareWrite = new System.Windows.Forms.Button();
             btnPrepareWrite.Name = "btnPrepareWrite";
             btnPrepareWrite.Text = "업무 연결 정보";
@@ -552,7 +575,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnCancelTask.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(255, 213, 220, 231);
             btnCancelTask.FlatAppearance.BorderSize = 1;
             btnCancelTask.Name = "btnCancelTask";
-            btnCancelTask.Click += new System.EventHandler(Unavailable_Click);
+            btnCancelTask.Click += new System.EventHandler(btnCancelTask_Click);
             //
             // btnAcceptTask
             //
@@ -1271,6 +1294,8 @@ namespace RemoteWork.WinForms.Features.Tasks
         private System.Windows.Forms.Panel panelContent;
         private System.Windows.Forms.TableLayoutPanel layoutContent3;
         private System.Windows.Forms.FlowLayoutPanel flowViewOptions;
+        private System.Windows.Forms.CheckBox chkIncludeCancelled;
+        private System.Windows.Forms.Button btnLifecycleRequests, btnLifecycleResult;
         private System.Windows.Forms.Label lblTaskScope;
         private System.Windows.Forms.ComboBox cmbTaskScope;
         private System.Windows.Forms.Label lblTaskStatusFilter;

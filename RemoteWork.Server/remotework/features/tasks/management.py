@@ -207,6 +207,8 @@ def _manage(target, action):
 
         def mutate(session):
             task, assignment = _locked_current(session, target, expected, action)
+            from .lifecycle_support import ensure_not_cancelled
+            ensure_not_cancelled(session, task.task_id)
             before = {"task_status": task.task_status, "row_version": str(task.row_version),
                       "assignment_revision": task.current_assignment_revision}
             now = utcnow()

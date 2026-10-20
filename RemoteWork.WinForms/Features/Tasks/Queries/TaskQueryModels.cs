@@ -22,7 +22,7 @@ public enum TaskDisplayStatus
     Returned
 }
 
-public sealed record TaskListQuery(TaskQueryScope Scope, TaskDisplayStatus? Status = null);
+public sealed record TaskListQuery(TaskQueryScope Scope, TaskDisplayStatus? Status = null, bool IncludeCancelled = false);
 
 /// <param name="TaskId">An opaque identifier; the UI must not parse or create database IDs.</param>
 public sealed record TaskSummary(
@@ -31,6 +31,7 @@ public sealed record TaskSummary(
     string AssigneeName,
     TaskDisplayStatus Status,
     DateOnly StartDate,
-    DateOnly DueDate);
+    DateOnly DueDate,
+    bool IsCancelled = false);
 
 public sealed record TaskDetail(TaskSummary Summary, string Description);

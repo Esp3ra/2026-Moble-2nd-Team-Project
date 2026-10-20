@@ -6,6 +6,7 @@ using RemoteWork.WinForms.Features.Tasks.Preparation;
 using RemoteWork.WinForms.Features.Tasks.Creation;
 using RemoteWork.WinForms.Features.Tasks.Starting;
 using RemoteWork.WinForms.Features.Tasks.Management;
+using RemoteWork.WinForms.Features.Tasks.Lifecycle;
 using RemoteWork.WinForms.Features.Results;
 using RemoteWork.WinForms.Infrastructure;
 
@@ -30,6 +31,7 @@ namespace RemoteWork.WinForms.Features.Tasks
         private bool startFormOpen;
         private bool submissionFormOpen;
         private bool managementFormOpen;
+        private bool lifecycleFormOpen;
         private bool lastListQuerySucceeded;
         private string? acknowledgedCreationId;
         private string? createdTaskIdForRefresh;
@@ -82,7 +84,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             lblTaskQueryStatus.Text = "업무 조회를 기다리고 있습니다.";
             if (queryService is ITaskStartSource)
                 lblTaskQuerySource.Text = queryService.SourceDescription
-                    + "\r\n신규 등록·수락·재작업: 개발 서버 요청 연결 · 수정·재배정·관리자 변경: 개발 연결 · 취소·연장: 기준 확정 / 기술 연결 준비 중";
+                    + "\r\n신규 등록·수락·재작업: 개발 서버 요청 연결 · 수정·재배정·관리자 변경: 개발 연결 · 취소·연장: 조회·폼 연결 / 공통·제출 차단 연결 확인 전 저장 잠금";
             if (queryService is HttpTaskQueryService)
                 lblTaskQuerySource.Text += "\r\n결과 제출: 선택 업무의 결과물 폼 연결 · 성공 후 업무 재조회 · 결과 미확인은 결과물 메뉴에서 확인";
             ClearDetail("목록에서 업무를 선택하면 상세 내용이 표시됩니다.");
@@ -107,7 +109,9 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnReviewRequestPreview.Visible = !managementView;
             btnDeadlineExtensionPreview.Visible = !managementView;
             btnCollaborationRequest.Visible = true;
-            btnTaskRequests.Visible = managementView;
+            btnTaskRequests.Visible = managementView && queryService is not ITaskLifecycleSource;
+            btnLifecycleRequests.Visible = queryService is ITaskLifecycleSource;
+            btnLifecycleResult.Visible = PendingLifecycleWorkflow() is not null;
             columnGridTasks3.Visible = managementView;
             lblTaskListTitle.Text = managementView ? "관리 업무" : "내 업무";
             UpdatePreparationActions();
@@ -128,31 +132,39 @@ namespace RemoteWork.WinForms.Features.Tasks
         {
             TaskDetail? detail = PreparationDetail();
             bool hasDetail = detail is not null;
+            bool mutableDetail = hasDetail && detail?.Summary.IsCancelled == false;
             bool managementConnected = queryService is ITaskManagementSource;
             bool managing = viewRole == PreviewRole.Administrator && cmbTaskScope.SelectedIndex == 1;
             bool pendingManagement = PendingManagementWorkflow() is not null;
-            bool readyManagement = managing && hasDetail && !managementFormOpen && !pendingManagement;
-            btnEditTaskPreview.Enabled = !managementConnected ? hasDetail : readyManagement && detail?.Summary.Status == TaskDisplayStatus.NotStarted;
+            bool pendingLifecycle = PendingLifecycleWorkflow() is not null;
+            bool readyManagement = managing && mutableDetail && !managementFormOpen && !pendingManagement && !pendingLifecycle;
+            btnEditTaskPreview.Enabled = !managementConnected ? mutableDetail : readyManagement && detail?.Summary.Status == TaskDisplayStatus.NotStarted;
             btnReassignTask.Enabled = readyManagement && detail?.Summary.Status == TaskDisplayStatus.NotStarted;
             btnChangeTaskManagers.Enabled = readyManagement && detail?.Summary.Status is TaskDisplayStatus.NotStarted or TaskDisplayStatus.InProgress or TaskDisplayStatus.Returned;
             btnManagementResult.Enabled = !managementFormOpen && PendingManagementWorkflow()?.IsCurrent == true;
             btnManagementResult.Visible = PendingManagementWorkflow() is not null;
             bool ownView = viewRole != PreviewRole.Administrator || cmbTaskScope.SelectedIndex == 0;
-            btnSubmitResult.Enabled = !submissionFormOpen && ownView
+            btnSubmitResult.Enabled = !submissionFormOpen && !pendingLifecycle && ownView
                 && viewSession?.Session.IsCurrent == true && currentListQuery?.Scope == TaskQueryScope.Own
-                && detail?.Summary.Status == TaskDisplayStatus.InProgress;
+                && detail?.Summary.IsCancelled == false && detail.Summary.Status == TaskDisplayStatus.InProgress;
             TaskStartWorkflow? pendingStart = PendingStartWorkflow();
             btnAcceptTask.Text = detail?.Summary.Status == TaskDisplayStatus.Returned ? "재작업 시작" : "업무 수락";
-            btnAcceptTask.Enabled = ownView && detail?.Summary.Status is TaskDisplayStatus.NotStarted or TaskDisplayStatus.Returned;
+            btnAcceptTask.Enabled = ownView && mutableDetail && !pendingLifecycle && detail?.Summary.Status is TaskDisplayStatus.NotStarted or TaskDisplayStatus.Returned;
             if (pendingStart is not null)
             {
                 btnAcceptTask.Text = "수락·재작업 결과 확인";
                 btnAcceptTask.Enabled = pendingStart.IsCurrent;
                 btnAcceptTask.Visible = true;
             }
-            btnDeadlineExtensionPreview.Enabled = hasDetail;
+            btnDeadlineExtensionPreview.Enabled = queryService is ITaskLifecycleSource
+                ? mutableDetail && !lifecycleFormOpen && !pendingLifecycle && detail?.Summary.Status is TaskDisplayStatus.InProgress or TaskDisplayStatus.Returned : mutableDetail;
+            btnCancelTask.Enabled = managing && mutableDetail && !lifecycleFormOpen && !pendingLifecycle
+                && detail?.Summary.Status is TaskDisplayStatus.NotStarted or TaskDisplayStatus.InProgress or TaskDisplayStatus.Returned;
+            btnLifecycleRequests.Enabled = !lifecycleFormOpen && HasCurrentQuerySession;
+            btnLifecycleResult.Visible = PendingLifecycleWorkflow() is not null;
+            btnLifecycleResult.Enabled = !lifecycleFormOpen && PendingLifecycleWorkflow()?.IsCurrent == true;
             btnPrepareWrite.Visible = preparationService is not null;
-            btnPrepareWrite.Enabled = hasDetail && preparationService?.IsCurrent == true;
+            btnPrepareWrite.Enabled = mutableDetail && preparationService?.IsCurrent == true;
             btnNewTaskPreview.Enabled = HasCurrentQuerySession;
         }
 
@@ -252,7 +264,7 @@ namespace RemoteWork.WinForms.Features.Tasks
                 var query = new TaskListQuery(
                     viewRole == PreviewRole.Administrator && cmbTaskScope.SelectedIndex == 1
                         ? TaskQueryScope.Managed : TaskQueryScope.Own,
-                    SelectedStatus());
+                    SelectedStatus(), chkIncludeCancelled.Checked);
                 if (query != currentListQuery) preferredTaskId = null;
                 currentListQuery = query;
                 string? taskIdToRestore = preferredTaskId;
@@ -272,7 +284,7 @@ namespace RemoteWork.WinForms.Features.Tasks
                     foreach (TaskSummary summary in summaries)
                     {
                         int row = gridTasks.Rows.Add(summary.TaskId, summary.Title, summary.AssigneeName,
-                            StatusText(summary.Status), FormatDate(summary.StartDate), FormatDate(summary.DueDate));
+                            StatusText(summary.Status) + (summary.IsCancelled ? " · 취소" : ""), FormatDate(summary.StartDate), FormatDate(summary.DueDate));
                         gridTasks.Rows[row].Tag = summary;
                     }
                     gridTasks.ClearSelection();
@@ -374,7 +386,7 @@ namespace RemoteWork.WinForms.Features.Tasks
                 TaskSummary summary = detail.Summary;
                 currentTaskDetail = detail;
                 txtContent.Text = $"{summary.TaskId}\r\n\r\n업무 제목   {summary.Title}\r\n담당자      {summary.AssigneeName}"
-                    + $"\r\n업무 상태   {StatusText(summary.Status)}\r\n\r\n시작일      {FormatDate(summary.StartDate)}"
+                    + $"\r\n업무 상태   {StatusText(summary.Status)}{(summary.IsCancelled ? " (업무 취소)" : "")}\r\n\r\n시작일      {FormatDate(summary.StartDate)}"
                     + $"\r\n현재 마감일 {FormatDate(summary.DueDate)}\r\n\r\n상세 내용\r\n{detail.Description}";
                 bool listSummaryChanged = gridTasks.SelectedRows.Count == 1
                     && gridTasks.SelectedRows[0].Tag is TaskSummary listedSummary
@@ -767,13 +779,72 @@ namespace RemoteWork.WinForms.Features.Tasks
             }
         }
 
-        private void btnDeadlineExtensionPreview_Click(object? sender, EventArgs e)
+        private async void btnDeadlineExtensionPreview_Click(object? sender, EventArgs e)
         {
+            if (queryService is ITaskLifecycleSource) { await OpenLifecycleAsync(TaskLifecycleKind.RequestExtension); return; }
             if (PreparationDetail() is { } detail)
                 PreviewActions.Open(this, preparationService is null
                     ? new DeadlineExtensionForm(previewRole, detail)
                     : new DeadlineExtensionForm(previewRole, detail, preparationService));
         }
+
+        private async void btnCancelTask_Click(object? sender, EventArgs e) => await OpenLifecycleAsync(TaskLifecycleKind.Cancel);
+        private async void btnLifecycleResult_Click(object? sender, EventArgs e) => await OpenLifecycleAsync(null);
+        private async void btnLifecycleRequests_Click(object? sender, EventArgs e)
+        {
+            if (lifecycleFormOpen || queriesDisposed || !HasCurrentQuerySession) return;
+            ITaskLifecycleSource? source; ITaskLifecycleService? service;
+            try { source = CurrentLifecycleSource(); service = source?.CreateLifecycleService(); }
+            catch (OperationCanceledException) { return; }
+            if (source is null || service?.IsCurrent != true) return;
+            lifecycleFormOpen = true; UpdatePreparationActions();
+            try
+            {
+                using var form = new TaskExtensionRequestsForm(service, source,
+                    currentListQuery?.Scope ?? TaskQueryScope.Own);
+                form.ShowDialog(FindForm());
+                if (form.ShouldRefreshList && !queriesDisposed && !IsDisposed && service.IsCurrent) await RefreshAsync();
+            }
+            finally { lifecycleFormOpen = false; if (!queriesDisposed && !IsDisposed) UpdatePreparationActions(); }
+        }
+        private async Task OpenLifecycleAsync(TaskLifecycleKind? kind)
+        {
+            if (lifecycleFormOpen || queriesDisposed || !HasCurrentQuerySession) return;
+            ITaskLifecycleSource? source; ITaskLifecycleService? service;
+            try { source = CurrentLifecycleSource(); service = source?.CreateLifecycleService(); }
+            catch (OperationCanceledException) { return; }
+            if (source is null || service?.IsCurrent != true) return;
+            TaskLifecycleWorkflow? workflow;
+            try
+            {
+                var pending = source.GetPendingLifecycleWorkflow();
+                if (kind is null || pending is not null) { workflow = pending; kind = null; }
+                else if (PreparationDetail() is { } detail && !detail.Summary.IsCancelled)
+                    workflow = source.GetLifecycleWorkflow(kind.Value, detail.Summary.TaskId);
+                else return;
+            }
+            catch (OperationCanceledException) { return; }
+            if (workflow is null) return;
+            lifecycleFormOpen = true; UpdatePreparationActions();
+            try
+            {
+                using var form = workflow.PendingRequest is not null ? new TaskLifecycleForm(workflow, service)
+                    : new TaskLifecycleForm(kind!.Value, PreparationDetail()!.Summary.TaskId, service, workflow);
+                form.ShowDialog(FindForm());
+                if (form.ShouldRefreshList && !queriesDisposed && !IsDisposed && service.IsCurrent) await RefreshAsync();
+            }
+            finally { lifecycleFormOpen = false; if (!queriesDisposed && !IsDisposed) UpdatePreparationActions(); }
+        }
+        private ITaskLifecycleSource? CurrentLifecycleSource() => !HasCurrentQuerySession ? null
+            : (viewSession?.QueryService ?? queryService) as ITaskLifecycleSource;
+        private TaskLifecycleWorkflow? PendingLifecycleWorkflow()
+        {
+            if (queriesDisposed) return null;
+            try { return CurrentLifecycleSource()?.GetPendingLifecycleWorkflow(); }
+            catch (OperationCanceledException) { return null; }
+        }
+        private async void IncludeCancelled_Changed(object? sender, EventArgs e)
+        { if (!initializing) await RefreshAsync(); }
 
         private void btnCollaborationRequest_Click(object? sender, EventArgs e)
         {

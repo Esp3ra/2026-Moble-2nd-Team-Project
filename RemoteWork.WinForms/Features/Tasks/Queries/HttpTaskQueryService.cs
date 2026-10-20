@@ -4,6 +4,7 @@ using RemoteWork.WinForms.Features.Tasks.Preparation;
 using RemoteWork.WinForms.Features.Tasks.Creation;
 using RemoteWork.WinForms.Features.Tasks.Starting;
 using RemoteWork.WinForms.Features.Tasks.Management;
+using RemoteWork.WinForms.Features.Tasks.Lifecycle;
 
 namespace RemoteWork.WinForms.Features.Tasks.Queries;
 
@@ -11,7 +12,7 @@ namespace RemoteWork.WinForms.Features.Tasks.Queries;
 /// Member 2's read-only development contract. The shared client owns authentication,
 /// transport and session cancellation; this adapter never substitutes sample data.
 /// </summary>
-public sealed class HttpTaskQueryService : ITaskQueryService, ITaskPreparationSource, ITaskCreationSource, ITaskStartSource, ITaskManagementSource
+public sealed class HttpTaskQueryService : ITaskQueryService, ITaskPreparationSource, ITaskCreationSource, ITaskStartSource, ITaskManagementSource, ITaskLifecycleSource
 {
     private readonly ApiClient api;
     private readonly ApiClient.Session? session;
@@ -70,6 +71,17 @@ public sealed class HttpTaskQueryService : ITaskQueryService, ITaskPreparationSo
     public TaskManagementWorkflow? GetPendingManagementWorkflow() =>
         InCurrentSession(() => TaskManagementSessionStore.FindPending(api));
 
+    public ITaskLifecycleService? CreateLifecycleService()
+    {
+        if (session is not null) { session.ThrowIfChanged(); return new HttpTaskLifecycleService(session); }
+        try { return new HttpTaskLifecycleService(api.CaptureSession()); }
+        catch (InvalidOperationException) { return null; }
+    }
+    public TaskLifecycleWorkflow? GetLifecycleWorkflow(TaskLifecycleKind kind, string taskId, string? extensionId = null) =>
+        InCurrentSession(() => TaskLifecycleSessionStore.Get(api, kind, taskId, extensionId));
+    public TaskLifecycleWorkflow? GetPendingLifecycleWorkflow() =>
+        InCurrentSession(() => TaskLifecycleSessionStore.FindPending(api));
+
     private T InCurrentSession<T>(Func<T> get)
     {
         session?.ThrowIfChanged();
@@ -106,6 +118,7 @@ public sealed class HttpTaskQueryService : ITaskQueryService, ITaskPreparationSo
         };
         string path = "tasks?scope=" + scope;
         if (query.Status is { } status) path += "&status=" + StatusCode(status);
+        if (query.IncludeCancelled) path += "&include_cancelled=true";
 
         try
         {
@@ -121,6 +134,7 @@ public sealed class HttpTaskQueryService : ITaskQueryService, ITaskPreparationSo
                 TaskSummary summary = MapSummary(item);
                 if (query.Status is { } requestedStatus && summary.Status != requestedStatus)
                     throw InvalidResponse();
+                if (!query.IncludeCancelled && summary.IsCancelled) throw InvalidResponse();
                 if (!identifiers.Add(summary.TaskId)) throw InvalidResponse();
                 summaries.Add(summary);
             }
@@ -173,7 +187,7 @@ public sealed class HttpTaskQueryService : ITaskQueryService, ITaskPreparationSo
             "returned" => TaskDisplayStatus.Returned,
             _ => throw InvalidResponse()
         };
-        return new TaskSummary(item.TaskId, item.Title, item.AssigneeName, status, startDate, dueDate);
+        return new TaskSummary(item.TaskId, item.Title, item.AssigneeName, status, startDate, dueDate, item.IsCancelled);
     }
 
     private static string StatusCode(TaskDisplayStatus status) => status switch
@@ -202,5 +216,5 @@ public sealed class HttpTaskQueryService : ITaskQueryService, ITaskPreparationSo
     private sealed record TaskDetailResponse(TaskResponse? Task);
     private sealed record TaskResponse(string? TaskId, string? Title, int? AssigneeId,
         string? AssigneeName, string? TaskStatus, string? StartDate, string? DueDate,
-        string? Description);
+        string? Description, bool IsCancelled = false);
 }
