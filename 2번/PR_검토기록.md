@@ -1,3 +1,34 @@
+<a id="pr44-47-recheck-20261020"></a>
+## 최신 재검토 — PR44·46·47 병합 / PR45 Draft 유지, 2026-10-20
+
+[PR44](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/44) R44-01과 [PR45](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/45) R45-01·02의 수정 업로드를 확인했습니다. **44번은 수정 재검증 후 병합, 45번은 기존 지적 해결·보존 구현 미완료로 Draft/미병합**입니다. 팀장의 이번 “46번은 수정됐으니 검토” 지시로 이전 보류를 해제하여 [PR46](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/46) 실제 제출·검토 코드를 검토했고, 신규 [PR47](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/47) 등록 중계도 검토했습니다. 44→47→46 순서로 alpha에 병합했으며 최종 코드 merge `1d2cb6b`/tree `0608974b29eb5996f67d34c14b63ae8fbf4fa51f`는 검증본과 일치합니다. 아래 이전 미해결·46보류·미병합은 작성 시점의 이력입니다.
+
+| PR | 검토 제출 head | 실제 병합 / 판정 |
+|---|---|---|
+| 44 | `75a8259935490cd70ef598fea7c64b7dbac6016c` | `fa99e83b907eb17fc88e1eec793b10ac6eb7219d`, R44-01 해결·병합 |
+| 45 | `16397286e2f34862bce855bbe48951d64f8513f1` | 기존 R45-01·02 해결, Draft·보존 구조 미완료로 미병합 |
+| 47 | `a13a1b3eff529bf8bff1c25b72bdfa95cc85d79d` | `f6a789db75d626d435c30336a33305abd082bd65`, 44 서버와 결합 검토 후 병합 |
+| 46 | `20f03641aa282440a938772573106c6404be7efc` | `1d2cb6b24ab6d27def4efe294359978b5b113fe5`, 44+47+46 최종 결합 검토 후 병합 |
+
+44 병합 tree `dd9fc272c21b47ae80fab4163e8270f5d0760e5b`, 44+47 tree `cecb5fc83ab0a07278fe9c9bd654fcd2c0772684`, 최종 tree `0608974b29eb5996f67d34c14b63ae8fbf4fa51f`를 실제 원격 병합 후 각각 대조했습니다. 제출 head 고정 조건으로 병합했으며 각 단계의 테스트와 실제 tree가 일치했습니다. 44/45 단독 검토 base는 alpha `deedce02302f5d022e9814f6b1991e796bfdda78`입니다.
+
+### 수정 확인과 직접 실행
+
+- **44 / R44-01 해결:** 후보 조회에서 비활성 장치를 제외하고 장치가 없을 때도 대상 회원·관리자·접속 검사를 유지합니다. 비활성 장치 직접 발급·승인·완료의409는 유지합니다. 새 소유 MySQL 표적 **231통과·생략0,180.43초**, 이전 독립 재현 **1통과,2.85초**입니다. 회원 관리 WinForms **46검사/14시나리오**, 공개 등록 바이트 **16검사**, Release 경고0/오류0을 직접 확인했습니다. 과거 전체 서버/환경 보완 수치를 이번 표적 실행으로 바꾸거나 중복 합산하지 않습니다.
+- **45 / R45-01·02 해결:** 실제 연결 DB와 FK 대상 schema 비교, 공식 인증 대역의 정확한 pending GET 기능off404를 확인했습니다. 원본 popup opt-in·migration **26통과·생략0,46.30초**(물리 MySQL12+SQLite/대역14), 이전 독립 FK **1통과,3.13초**, Notices **35검사**, 원본 제품/인증 대역을 유지한 표적 인증 종료 **47검사/1시나리오** 통과입니다. 원본 Activity 전체2회는 기존 PID 파일 공유 경합 `AuthenticationCloseTests.cs:239`에서 실패했습니다. PID 읽기에만 최대5초 재시도를 둔 audit 참고 복사본 **294/12통과**를 공식 원본 전체 통과로 대체하지 않습니다. 공지 삭제 후 확인 기록을 보존해야 하는 요구와 현재 CASCADE가 불일치하여 작성자가 Draft/배포 금지 비교안으로 남긴 상태를 유지합니다. 최신 alpha 반영·충돌 재검사와 보존 구현은 후속입니다.
+- **47 / 등록 코어·온라인 승인·PC 중계:** Pi Python **108통과/Windows에서 POSIX 권한 검사1생략**, C# 실제 Python loopback 중계 **114검사**, 등록 WinForms **12검사** 통과입니다. 44+47의 실제 Flask/새 소유 MySQL→Pi adapter/fake sensor 독립 **3시나리오,8.56초**를 확인했습니다. 정상 완료/만료 후 결과 읽기·동일 매핑, modeling 후 취소 시 저장0, 만료 후 최초 완료 거절/매핑0을 검사했습니다. 기존11슬롯은 가상 센서에서 보존했고 실제 센서 검증으로 표시하지 않습니다. 44+47 Release0/0입니다.
+- **46 / 제출·재제출·첨부·승인/반려·이력:** 새 소유 MySQL에서 원본 **185검사**, 실제 loopback HTTP/4개 WinForms **41검사**, raw006·권한 회수·판단 트랜잭션 rollback/replay·응답 크기 등 독립 **25검사**를 직접 통과했습니다. 실제 alpha44+47에 결합한 최종본에서도 독립 **25검사 재통과**, 새 프로세스 기본off·Release0/0·diff 검사를 확인했습니다. 두25회는 같은 검사의 반복 실행이며50개 고유 시험으로 합산하지 않습니다. C# 실행 스크립트의 고정 reference pack 경로만 audit 복사본에서 설치된8.0.31/10.0.12로 맞췄고 제품/검사 논리는 유지했습니다.
+
+모든 DB 검증은 검토자 소유 MySQL8.2/RR과 임시 경로에서 실행했고 MySQL/추가 DB/runtime 정리를 확인했습니다. Windows/.NET SDK10.0.401·Desktop8.0.31/Python3.12.14 환경입니다. 47 최초 tzdata 누락 및 통합 검사의 요청별 request_id 전체 비교는 audit 환경/검사 준비를 보완한 뒤 위 최종 결과로 확인했으며 제품 결함으로 기록하지 않습니다.
+
+### 병합 이후의 범위
+
+44는 독립 기본off 등록 API/007·생성 회원ID 보존, 47은 Pi/PC 등록 흐름과 창까지입니다. 실제 회원 생성 후 등록 버튼·주소 주입/MainForm 연결, 실제 센서·키/TLS·전원 장애·공유007적용은 완료로 선언하지 않습니다. 46은 기본off006/로컬 개발 reviewer·extension gate 어댑터이며 최종 조직/연장 모델·웹 결과물·공유 파일 재사용·MainForm/2번 ResultsSaved 연결·보존/공유006적용은 후속입니다. 업무 관리자와 제출 검토자/배정 차수 JSON정수와 BIGINT 문자열 계약은 구분합니다.
+
+공지 팝업45는 이번 코드 병합/로컬 반영에 포함하지 않습니다. 전체 서버 회귀·전체 수동GUI·실장비·실계정·공유 DB·두PC·장시간/복구 검증을 이번 수치로 대신하지 않습니다. 기존 .env/계정·사용자 실행 서버·장치 설정은 변경하지 않았습니다. 팀장은2번이며 기존 LOG/2번8문서·과거 원문·PR35 CLOSED 이력을 보존하고 추가 회신MD/PR은 요구하지 않습니다.
+
+근거: 검토자 `ES/tmp/remote_work_pr44_recheck_20261020/audit/`, `remote_work_pr45_recheck_20261020/audit/`, `remote_work_pr46_review_20261020/audit/`, `remote_work_pr46_integration_20261020/audit/`, `remote_work_pr47_review_20261020/audit/`, `remote_work_pr44_pr47_integration_20261020/audit/`의 표적/독립 결과·정리 JSON·빌드·병합 정보입니다. 기존 [1번 수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/1번/2026-10-20_PR44_비활성장치_목록조회_수정요청.md)과 [4번 수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/4번/2026-10-20_PR45_FK대상DB_종료회귀_수정요청.md)의 상단 해결 상태를 따릅니다.
+
 <a id="pr45-review-pr46-hold"></a>
 ## 최신 — PR45 Draft 수정 요청 / PR46 사용자 보류, 2026-10-20
 
