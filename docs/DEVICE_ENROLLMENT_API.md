@@ -38,7 +38,7 @@ PC의 `%LOCALAPPDATA%/RemoteWork/enrollment-endpoints.json`을 운영자가 별�
 - 등록을 한 번 시도한 창을 닫으면 같은 회원의 버튼을 다시 눌러 새 작업을 만드는 것을 막는다. 계정은 유지하고 불명 결과는 기존 작업 확인/운영 복구 대상으로 남긴다. 앱 재시작·새 관리자 접속의 복구 UI는 후속이다.
 
 1번 소유 연결: `UserManagementForm` → `CreatedUserEnrollmentLauncher` → `EnrollmentDeviceChannel`/`EnrollmentEndpoints`.
-5번 등록창에는 선택형 `Action<string> validateDevice`(발급 전 검사)와 읽기 전용 `RegistrationStarted`만 추가했다. 기존 두 인자 호출은 유지하며 서버 API·DB·키/센서·근태/MainForm을 바꾸지 않는다. 5번 소유자의 접점 재검토는 협업 회신으로 요청한다.
+5번 등록창에는 선택형 `Action<string> validateDevice`(발급 전 검사)와 읽기 전용 `RegistrationStarted`만 추가했다. 기존 두 인자 호출은 유지하며 서버 API·DB·키/센서·근태/MainForm을 바꾸지 않는다. 최초에는5번 접점 재검토를 요청했고, 이후 [5번이 고정 head4825efd를 직접 실행해 제출 접점 범위에서 수용](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/43#issuecomment-6281140854)했다. 이 수용과 팀장 최종 검토/병합·실물 배포 승인은 구분한다.
 
 실제 WinForms와 통제 공통 HTTP/장치 채널을 사용하는 연결 검사112개와 기존 계정 관리14시나리오46검사가 통과했다. 5번의 C#→실제 Python loopback HTTP 중계114검사도 재실행했다. 수치를 합산하지 않으며 실제 MySQL·UART·센서·두PC/TLS·공유 DB를 결합한 검사로 표시하지 않는다. [실행 방법과 검증 경계](../Tests/UserManagement.Ui.Tests/README.md).
 
@@ -144,7 +144,7 @@ MAC·장치/키·공통5·digest·nonce·scope를 모두 확인한다. 왕복2�
 
 완료: 서버 API·독립 DDL/초기화·장치/관리자 명시 설정·온라인 승인·수신 검증, PR47 중계/등록창과 위 관리자 버튼/주소 연결. 각각의 원본 병합·실물 검증 상태는 실제 PR에서 구분한다.
 미완료/미검증: 실제 공통 서버/MySQL+Pi+관리자 버튼의 결합·실물센서·두PC·TLS/키배포·공유적용·앱 재시작 복구·수동 전체GUI.
-협의 대기: 5번 연결 접점 재검토·실측 최악 시간, 팀장 운영 권한 부여 담당/미등록 계정/복구·삭제·재등록·이관/보존기간. 운영 활성화 전에 확인한다.
+협의 대기: 실측 최악 시간, 팀장 운영 권한 부여 담당/미등록 계정/복구·삭제·재등록·이관/보존기간. 5번의 제출 접점 수용과 운영 활성화 전 공동 확인은 구분한다.
 
 2026-10-20 최초 5번 후속 A/B/C 수신(이하 당시 이력, 현재는 위 연결 상태 참조): A의 용량/부분 구간 의미를 위와 같이 정정했다. B의 **최초 새 probe 승인/검증→신뢰 UTC 확보→어댑터 진입→단계별 갱신** 순서는 기존7필드 approval/공통 바인딩과 일치한다. C의 **result_read 전용 캐시 조회→같은 원문 complete 재전송**도 유지한다. 서버에 이미 확정된 동일 결과만 조회 창 내 재전송 가능하고, 만료/취소 뒤 처음 오는 미확정 보고는 자동 매핑하지 않는다. B/C의 Pi 실제 callback·캐시 읽기 구현은5번 담당이며 상대 구현/공동 검증 완료로 표시하지 않는다.
 날짜LOG는 팀장만 게시한다. 협업 회신은 기존 PR43 댓글 한 건으로 전달하고 팀장이 LOG1/5에 취합한다.
