@@ -1,5 +1,7 @@
 # AS608 등록 접점 회신·enroll-v1 대조안
 
+> 2026-10-20 후속 정정: 아래는 최초 오프라인 제안 당시 기록이다. 이후 사용자 승인으로 **실제 서버 API·DB·온라인 승인**을 구현했다. 최신 실행 계약/200응답/base64url 전송/복구 오류는 [DEVICE_ENROLLMENT_API.md](DEVICE_ENROLLMENT_API.md)가 우선한다. codec의 검사 범위는 그대로이며 현재 권한/소비는 새 서버 서비스가 검사한다. Pi/PC 버튼·실물 연결은 별도다.
+
 1번 → 5번·팀장 / 2026-10-20 / C10, D5-01.a·b, D5-02.a·b, D5-05.h.
 [5번 후속 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/43#issuecomment-6281140854), [기존 화면/API 제안](USER_FINGERPRINT_ENROLLMENT_DRAFT.md).
 

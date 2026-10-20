@@ -1,5 +1,7 @@
 # 관리자 계정 생성 → 새 지문 등록 연결안
 
+> 2026-10-20 후속: 아래 API/DB 미구현·201응답·ticket 필드 등은 최초 제안 당시 기록이다. 사용자 승인으로 독립 서버 API·DB·온라인 승인을 구현했으며 [현재 실행 계약](DEVICE_ENROLLMENT_API.md)의200응답/request_envelope/base64url/권한·기한 기준을 우선한다. PC 등록 버튼·Pi/실물 연결은 별도다.
+
 1번 → 5번·팀장 · 2026-10-20 · C10 / D5-01.a·b, D5-02.a·b, D5-05.h
 
 요청: [5번의 PR43 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/43#issuecomment-6279730749).
