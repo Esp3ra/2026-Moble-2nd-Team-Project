@@ -1,3 +1,10 @@
+<a id="member3-46-replies-current-20261020"></a>
+## 팀장 취합 — 전체46항목 회신 수신 완료, 2026-10-20
+
+PR46에 보존된46개 답변을 [기존 질문표의 회신 열](2026-10-19_팀원들과_합의해야_하는_기준.md#member3-reply-received-20261020)에 원문 그대로 취합했습니다. 누락/추가/중복0이며 새 답변/추가 회신 PR을 요구하지 않습니다. 3번 실제 코드는 alpha `1d2cb6b` 병합 상태를 사용합니다. 아래 회신 대기·미구현/로컬은 당시 안내입니다.
+
+2번은 같은 세션/선택 업무로 기존 SubmissionForm에 들어가는 ‘결과 제출’ 진입과 DialogResult.OK 뒤 업무 GET 재조회를 연결합니다. MainForm/ResultsSaved 전역 구독·3번 폼/서버는 변경하지 않습니다. 수정/재배정/관리자 변경/취소·실제 연장 모델·공용 첨부/이벤트/보존·웹/공유 적용은 각 답변의 협의 경계를 유지합니다. [2번 실제/미실행 기록](../2번/업무_구현검증.md#member2-results-entry-validation-20261020)을 확인합니다.
+
 ## 최신 재검토 — PR44·46·47 병합 / PR45 Draft 유지, 2026-10-20
 
 [PR44](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/44) R44-01과 [PR45](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/45) R45-01·02의 수정 업로드를 확인했습니다. **44번은 수정 재검증 후 병합, 45번은 기존 지적 해결·보존 구현 미완료로 Draft/미병합**입니다. 팀장의 이번 “46번은 수정됐으니 검토” 지시로 이전 보류를 해제하여 [PR46](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/46) 실제 제출·검토 코드를 검토했고, 신규 [PR47](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/47) 등록 중계도 검토했습니다. 44→47→46 순서로 alpha에 병합했으며 최종 코드 merge `1d2cb6b`/tree `0608974b29eb5996f67d34c14b63ae8fbf4fa51f`는 검증본과 일치합니다. 아래 이전 미해결·46보류·미병합은 작성 시점의 이력입니다.
