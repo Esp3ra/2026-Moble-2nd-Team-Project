@@ -1,3 +1,9 @@
+## 최신 — PR51·53 병합, PR52 수정 필요, 2026-10-20
+
+[PR51](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/51)의 취소·연장 성공 결과 조회/009 공통 검토를 `bb281e3`에, [PR53](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/53)의 협업 개발 환경 확인 요청 문서를 LOG `6664519`에 병합했습니다. [PR52](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52)는 기존 R52-01 P1(표시한 과거 결과물과 실제 판단 대상 불일치)을 독립 재현했고, R52-02 P2(버전 충돌 후 이전 요청만 반복하고 재준비 불가)를 추가 재현해 **OPEN·미병합**입니다. 공식 검사 통과와 이 JavaScript 결함을 구분합니다.
+
+[고정 SHA·직접 검사·수정 기준](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr51-53-review-20261020)을 따릅니다. 공유 DB 적용·통합 ACK·실제 환경 준비는 별도이며, 회신용 새 MD/PR을 요구하지 않습니다.
+
 ## 최신 — PR52 검토 회차 불일치 수정 필요·미병합, 2026-10-20
 
 [PR52](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52) head `0a7a57d`를 alpha `43f69c9` 기준으로 전체 검토했습니다. **R52-01 P1: 검토 context를 기다리는 동안 과거 회차를 선택하면 확인창의 과거 결과물과 실제 최신 제출물 판단 대상이 달라질 수 있음**을 독립 지연 대역으로 재현했습니다. 공식 서버185·웹177·C# HTTP41, cold/독립 인증·입력16, Release0/0은 통과했으나 이 JavaScript 경합을 포괄하지 않습니다. **OPEN·미병합**을 유지합니다. 1번 PR51은 이번 검토에서 제외했습니다.
