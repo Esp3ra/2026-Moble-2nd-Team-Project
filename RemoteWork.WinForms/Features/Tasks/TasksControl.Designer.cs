@@ -42,6 +42,9 @@ namespace RemoteWork.WinForms.Features.Tasks
             flowActions = new System.Windows.Forms.FlowLayoutPanel();
             btnNewTaskPreview = new System.Windows.Forms.Button();
             btnEditTaskPreview = new System.Windows.Forms.Button();
+            btnReassignTask = new System.Windows.Forms.Button();
+            btnChangeTaskManagers = new System.Windows.Forms.Button();
+            btnManagementResult = new System.Windows.Forms.Button();
             btnCancelTask = new System.Windows.Forms.Button();
             btnAcceptTask = new System.Windows.Forms.Button();
             btnSubmitResult = new System.Windows.Forms.Button();
@@ -363,6 +366,9 @@ namespace RemoteWork.WinForms.Features.Tasks
             flowActions.Name = "flowActions";
             flowActions.Controls.Add(btnNewTaskPreview);
             flowActions.Controls.Add(btnEditTaskPreview);
+            flowActions.Controls.Add(btnReassignTask);
+            flowActions.Controls.Add(btnChangeTaskManagers);
+            flowActions.Controls.Add(btnManagementResult);
             flowActions.Controls.Add(btnCancelTask);
             flowActions.Controls.Add(btnAcceptTask);
             flowActions.Controls.Add(btnSubmitResult);
@@ -435,6 +441,90 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnEditTaskPreview.FlatAppearance.BorderSize = 1;
             btnEditTaskPreview.Name = "btnEditTaskPreview";
             btnEditTaskPreview.Click += new System.EventHandler(btnEditTaskPreview_Click);
+            //
+            // btnReassignTask
+            //
+            btnReassignTask.Text = "담당자 변경";
+            btnReassignTask.Location = new System.Drawing.Point(147, 0);
+            btnReassignTask.Size = new System.Drawing.Size(111, 35);
+            btnReassignTask.MinimumSize = new System.Drawing.Size(88, 34);
+            btnReassignTask.MaximumSize = new System.Drawing.Size(0, 0);
+            btnReassignTask.Margin = new System.Windows.Forms.Padding(0, 0, 8, 6);
+            btnReassignTask.Padding = new System.Windows.Forms.Padding(12, 4, 12, 4);
+            btnReassignTask.Dock = System.Windows.Forms.DockStyle.None;
+            btnReassignTask.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left;
+            btnReassignTask.AutoSize = true;
+            btnReassignTask.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnReassignTask.ForeColor = System.Drawing.Color.FromArgb(255, 30, 42, 61);
+            btnReassignTask.BackColor = System.Drawing.Color.FromArgb(255, 255, 255, 255);
+            btnReassignTask.TabIndex = 1;
+            btnReassignTask.TabStop = true;
+            btnReassignTask.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            btnReassignTask.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            btnReassignTask.UseVisualStyleBackColor = false;
+            btnReassignTask.DialogResult = System.Windows.Forms.DialogResult.None;
+            btnReassignTask.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowOnly;
+            btnReassignTask.Cursor = System.Windows.Forms.Cursors.Hand;
+            btnReassignTask.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(255, 213, 220, 231);
+            btnReassignTask.FlatAppearance.BorderSize = 1;
+            btnReassignTask.Name = "btnReassignTask";
+            btnReassignTask.Click += new System.EventHandler(btnReassignTask_Click);
+            //
+            // btnChangeTaskManagers
+            //
+            btnChangeTaskManagers.Text = "관리자 변경";
+            btnChangeTaskManagers.Location = new System.Drawing.Point(147, 0);
+            btnChangeTaskManagers.Size = new System.Drawing.Size(111, 35);
+            btnChangeTaskManagers.MinimumSize = new System.Drawing.Size(88, 34);
+            btnChangeTaskManagers.MaximumSize = new System.Drawing.Size(0, 0);
+            btnChangeTaskManagers.Margin = new System.Windows.Forms.Padding(0, 0, 8, 6);
+            btnChangeTaskManagers.Padding = new System.Windows.Forms.Padding(12, 4, 12, 4);
+            btnChangeTaskManagers.Dock = System.Windows.Forms.DockStyle.None;
+            btnChangeTaskManagers.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left;
+            btnChangeTaskManagers.AutoSize = true;
+            btnChangeTaskManagers.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnChangeTaskManagers.ForeColor = System.Drawing.Color.FromArgb(255, 30, 42, 61);
+            btnChangeTaskManagers.BackColor = System.Drawing.Color.FromArgb(255, 255, 255, 255);
+            btnChangeTaskManagers.TabIndex = 1;
+            btnChangeTaskManagers.TabStop = true;
+            btnChangeTaskManagers.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            btnChangeTaskManagers.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            btnChangeTaskManagers.UseVisualStyleBackColor = false;
+            btnChangeTaskManagers.DialogResult = System.Windows.Forms.DialogResult.None;
+            btnChangeTaskManagers.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowOnly;
+            btnChangeTaskManagers.Cursor = System.Windows.Forms.Cursors.Hand;
+            btnChangeTaskManagers.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(255, 213, 220, 231);
+            btnChangeTaskManagers.FlatAppearance.BorderSize = 1;
+            btnChangeTaskManagers.Name = "btnChangeTaskManagers";
+            btnChangeTaskManagers.Click += new System.EventHandler(btnChangeTaskManagers_Click);
+            //
+            // btnManagementResult
+            //
+            btnManagementResult.Text = "관리 변경 결과 확인";
+            btnManagementResult.Location = new System.Drawing.Point(147, 0);
+            btnManagementResult.Size = new System.Drawing.Size(111, 35);
+            btnManagementResult.MinimumSize = new System.Drawing.Size(88, 34);
+            btnManagementResult.MaximumSize = new System.Drawing.Size(0, 0);
+            btnManagementResult.Margin = new System.Windows.Forms.Padding(0, 0, 8, 6);
+            btnManagementResult.Padding = new System.Windows.Forms.Padding(12, 4, 12, 4);
+            btnManagementResult.Dock = System.Windows.Forms.DockStyle.None;
+            btnManagementResult.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left;
+            btnManagementResult.AutoSize = true;
+            btnManagementResult.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
+            btnManagementResult.ForeColor = System.Drawing.Color.FromArgb(255, 30, 42, 61);
+            btnManagementResult.BackColor = System.Drawing.Color.FromArgb(255, 255, 255, 255);
+            btnManagementResult.TabIndex = 1;
+            btnManagementResult.TabStop = true;
+            btnManagementResult.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            btnManagementResult.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            btnManagementResult.UseVisualStyleBackColor = false;
+            btnManagementResult.DialogResult = System.Windows.Forms.DialogResult.None;
+            btnManagementResult.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowOnly;
+            btnManagementResult.Cursor = System.Windows.Forms.Cursors.Hand;
+            btnManagementResult.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(255, 213, 220, 231);
+            btnManagementResult.FlatAppearance.BorderSize = 1;
+            btnManagementResult.Name = "btnManagementResult";
+            btnManagementResult.Click += new System.EventHandler(btnManagementResult_Click);
             //
             // btnCancelTask
             //
@@ -1192,6 +1282,9 @@ namespace RemoteWork.WinForms.Features.Tasks
         private System.Windows.Forms.FlowLayoutPanel flowActions;
         private System.Windows.Forms.Button btnNewTaskPreview;
         private System.Windows.Forms.Button btnEditTaskPreview;
+        private System.Windows.Forms.Button btnReassignTask;
+        private System.Windows.Forms.Button btnChangeTaskManagers;
+        private System.Windows.Forms.Button btnManagementResult;
         private System.Windows.Forms.Button btnCancelTask;
         private System.Windows.Forms.Button btnAcceptTask;
         private System.Windows.Forms.Button btnSubmitResult;

@@ -37,6 +37,17 @@ def register_starting(state):
                            methods=["POST"])
 
 
+@bp.record_once
+def register_management(state):
+    enabled = state.app.config.get("ENABLE_TASK_MANAGEMENT_DRAFT",
+        os.getenv("REMOTEWORK_ENABLE_TASK_MANAGEMENT_DRAFT") == "1")
+    if enabled is True:
+        from .management import change_managers, reassign_task, update_task
+        state.add_url_rule("/<string:task_id>", "update", update_task, methods=["PATCH"])
+        state.add_url_rule("/<string:task_id>/reassign", "reassign", reassign_task, methods=["POST"])
+        state.add_url_rule("/<string:task_id>/managers", "change_managers", change_managers, methods=["PATCH"])
+
+
 def _query_args(allowed):
     if set(request.args) - allowed or any(len(values) != 1 for _, values in request.args.lists()):
         raise AppError(400, "INVALID_INPUT", "지원하지 않거나 중복된 업무 조회 조건입니다.")

@@ -5,6 +5,7 @@ using RemoteWork.WinForms.Features.Tasks.Queries;
 using RemoteWork.WinForms.Features.Tasks.Preparation;
 using RemoteWork.WinForms.Features.Tasks.Creation;
 using RemoteWork.WinForms.Features.Tasks.Starting;
+using RemoteWork.WinForms.Features.Tasks.Management;
 using RemoteWork.WinForms.Features.Results;
 using RemoteWork.WinForms.Infrastructure;
 
@@ -28,6 +29,7 @@ namespace RemoteWork.WinForms.Features.Tasks
         private bool creationFormOpen;
         private bool startFormOpen;
         private bool submissionFormOpen;
+        private bool managementFormOpen;
         private bool lastListQuerySucceeded;
         private string? acknowledgedCreationId;
         private string? createdTaskIdForRefresh;
@@ -80,7 +82,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             lblTaskQueryStatus.Text = "업무 조회를 기다리고 있습니다.";
             if (queryService is ITaskStartSource)
                 lblTaskQuerySource.Text = queryService.SourceDescription
-                    + "\r\n신규 등록·수락·재작업: 개발 서버 요청 연결 · 수정·재배정·연장: 협의사항";
+                    + "\r\n신규 등록·수락·재작업: 개발 서버 요청 연결 · 수정·재배정·관리자 변경: 개발 연결 · 취소·연장: 기준 확정 / 기술 연결 준비 중";
             if (queryService is HttpTaskQueryService)
                 lblTaskQuerySource.Text += "\r\n결과 제출: 선택 업무의 결과물 폼 연결 · 성공 후 업무 재조회 · 결과 미확인은 결과물 메뉴에서 확인";
             ClearDetail("목록에서 업무를 선택하면 상세 내용이 표시됩니다.");
@@ -96,6 +98,9 @@ namespace RemoteWork.WinForms.Features.Tasks
             cmbTaskScope.Visible = viewRole == PreviewRole.Administrator;
             btnNewTaskPreview.Visible = managementView;
             btnEditTaskPreview.Visible = managementView;
+            btnReassignTask.Visible = managementView && queryService is ITaskManagementSource;
+            btnChangeTaskManagers.Visible = managementView && queryService is ITaskManagementSource;
+            btnManagementResult.Visible = PendingManagementWorkflow() is not null;
             btnCancelTask.Visible = managementView;
             btnAcceptTask.Visible = !managementView || PendingStartWorkflow() is not null;
             btnSubmitResult.Visible = !managementView && queryService is HttpTaskQueryService;
@@ -123,7 +128,15 @@ namespace RemoteWork.WinForms.Features.Tasks
         {
             TaskDetail? detail = PreparationDetail();
             bool hasDetail = detail is not null;
-            btnEditTaskPreview.Enabled = hasDetail;
+            bool managementConnected = queryService is ITaskManagementSource;
+            bool managing = viewRole == PreviewRole.Administrator && cmbTaskScope.SelectedIndex == 1;
+            bool pendingManagement = PendingManagementWorkflow() is not null;
+            bool readyManagement = managing && hasDetail && !managementFormOpen && !pendingManagement;
+            btnEditTaskPreview.Enabled = !managementConnected ? hasDetail : readyManagement && detail?.Summary.Status == TaskDisplayStatus.NotStarted;
+            btnReassignTask.Enabled = readyManagement && detail?.Summary.Status == TaskDisplayStatus.NotStarted;
+            btnChangeTaskManagers.Enabled = readyManagement && detail?.Summary.Status is TaskDisplayStatus.NotStarted or TaskDisplayStatus.InProgress or TaskDisplayStatus.Returned;
+            btnManagementResult.Enabled = !managementFormOpen && PendingManagementWorkflow()?.IsCurrent == true;
+            btnManagementResult.Visible = PendingManagementWorkflow() is not null;
             bool ownView = viewRole != PreviewRole.Administrator || cmbTaskScope.SelectedIndex == 0;
             btnSubmitResult.Enabled = !submissionFormOpen && ownView
                 && viewSession?.Session.IsCurrent == true && currentListQuery?.Scope == TaskQueryScope.Own
@@ -610,10 +623,53 @@ namespace RemoteWork.WinForms.Features.Tasks
                 acknowledgedCreationId = result.TaskId;
         }
 
-        private void btnEditTaskPreview_Click(object? sender, EventArgs e)
+        private async void btnEditTaskPreview_Click(object? sender, EventArgs e)
         {
+            if (queryService is ITaskManagementSource) { await OpenManagementAsync(TaskManagementKind.Update); return; }
             if (PreparationDetail() is { } detail)
                 PreviewActions.Open(this, new TaskEditForm(detail, preparationService));
+        }
+
+        private async void btnReassignTask_Click(object? sender, EventArgs e) => await OpenManagementAsync(TaskManagementKind.Reassign);
+        private async void btnChangeTaskManagers_Click(object? sender, EventArgs e) => await OpenManagementAsync(TaskManagementKind.ChangeManagers);
+        private async void btnManagementResult_Click(object? sender, EventArgs e)
+        {
+            if (PendingManagementWorkflow() is { } pending) await OpenManagementAsync(null, pending);
+        }
+        private async Task OpenManagementAsync(TaskManagementKind? kind, TaskManagementWorkflow? recovery = null)
+        {
+            if (managementFormOpen || queriesDisposed || IsDisposed || !HasCurrentQuerySession
+                || viewSession is not { } captured || preparationService?.IsCurrent != true) return;
+            TaskDetail? detail = PreparationDetail();
+            if (recovery is null && (kind is null || detail is null || currentListQuery?.Scope != TaskQueryScope.Managed
+                || PendingManagementWorkflow() is not null)) return;
+            TaskManagementWorkflow? workflow = recovery ?? CurrentManagementSource()?.GetManagementWorkflow(kind!.Value, detail!.Summary.TaskId);
+            if (workflow is null) return;
+            managementFormOpen = true; UpdatePreparationActions();
+            try
+            {
+                using var form = recovery is not null
+                    ? new TaskManagementForm(workflow, captured.QueryService, preparationService)
+                    : new TaskManagementForm(kind!.Value, detail!, captured.QueryService, preparationService, workflow);
+                form.ShowDialog(FindForm());
+                if (form.ShouldRefreshList && !queriesDisposed && !IsDisposed && captured.Session.IsCurrent)
+                {
+                    await RefreshAsync();
+                    if (!queriesDisposed && !IsDisposed && captured.Session.IsCurrent && form.ConfirmedResult is { } confirmed)
+                        lblTaskQueryStatus.Text = $"업무 변경 성공 확인 · 버전 {confirmed.RowVersion} · " + lblTaskQueryStatus.Text;
+                    // A forbidden/empty read after self removal is not rollback.
+                    // Only the form's explicit success acknowledgement clears it.
+                }
+            }
+            finally { managementFormOpen = false; if (!queriesDisposed && !IsDisposed) UpdatePreparationActions(); }
+        }
+        private ITaskManagementSource? CurrentManagementSource() => !HasCurrentQuerySession ? null
+            : (viewSession?.QueryService ?? queryService) as ITaskManagementSource;
+        private TaskManagementWorkflow? PendingManagementWorkflow()
+        {
+            if (queriesDisposed) return null;
+            try { return CurrentManagementSource()?.GetPendingManagementWorkflow(); }
+            catch (OperationCanceledException) { return null; }
         }
 
         private void PrepareWrite_Click(object? sender, EventArgs e)

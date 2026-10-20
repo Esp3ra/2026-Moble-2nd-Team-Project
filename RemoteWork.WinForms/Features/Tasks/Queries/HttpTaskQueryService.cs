@@ -3,6 +3,7 @@ using RemoteWork.WinForms.Infrastructure;
 using RemoteWork.WinForms.Features.Tasks.Preparation;
 using RemoteWork.WinForms.Features.Tasks.Creation;
 using RemoteWork.WinForms.Features.Tasks.Starting;
+using RemoteWork.WinForms.Features.Tasks.Management;
 
 namespace RemoteWork.WinForms.Features.Tasks.Queries;
 
@@ -10,7 +11,7 @@ namespace RemoteWork.WinForms.Features.Tasks.Queries;
 /// Member 2's read-only development contract. The shared client owns authentication,
 /// transport and session cancellation; this adapter never substitutes sample data.
 /// </summary>
-public sealed class HttpTaskQueryService : ITaskQueryService, ITaskPreparationSource, ITaskCreationSource, ITaskStartSource
+public sealed class HttpTaskQueryService : ITaskQueryService, ITaskPreparationSource, ITaskCreationSource, ITaskStartSource, ITaskManagementSource
 {
     private readonly ApiClient api;
     private readonly ApiClient.Session? session;
@@ -62,6 +63,12 @@ public sealed class HttpTaskQueryService : ITaskQueryService, ITaskPreparationSo
 
     public TaskStartWorkflow? GetPendingStartWorkflow() =>
         InCurrentSession(() => TaskStartSessionStore.FindPending(api));
+
+    public TaskManagementWorkflow? GetManagementWorkflow(TaskManagementKind kind, string taskId) =>
+        InCurrentSession(() => TaskManagementSessionStore.Get(api, kind, taskId));
+
+    public TaskManagementWorkflow? GetPendingManagementWorkflow() =>
+        InCurrentSession(() => TaskManagementSessionStore.FindPending(api));
 
     private T InCurrentSession<T>(Func<T> get)
     {
