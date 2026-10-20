@@ -103,7 +103,7 @@ def test_existing_confirmation_fk_still_cascades_when_popup_off(physical):
             assert conn.execute(text("SELECT COUNT(*) FROM notice_confirmations")).scalar()==0
             assert conn.execute(text("SELECT COUNT(*) FROM audit_events WHERE action='notice.deleted'")).scalar()==1
     finally:off.extensions["db_engine"].dispose()
-    # This is evidence of retention IMPACT, not approval of the CASCADE proposal.
+    # Deletion matches the latest local user choice; shared rollout still needs approval.
 
 
 def test_concurrent_explicit_initialization_is_serialized(physical):
