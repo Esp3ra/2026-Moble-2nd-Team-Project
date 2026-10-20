@@ -43,6 +43,27 @@ I2C/UART 설정은 사용 중인 Pi OS와 기존 지문 센서 설정에 맞춰�
 sudo systemctl stop attendance-device.service
 ```
 
+## 새 지문 등록 전: 센서 정보 읽기 전용 점검
+
+[fingerprint_inventory.py](fingerprint_inventory.py)는 센서가 보고하는 용량·등록 개수·사용 중 번호와 설치된 지문 라이브러리 버전만 읽습니다. 지문 채취/원본·템플릿 읽기/저장·삭제·설정 변경은 하지 않습니다. 시스템 ID로 제조사·센서 모델을 확정하거나, 용량으로0번/마지막 등록 가능 번호를 추정하지 않습니다. `null`인 항목은 실물 라벨/제조사 자료 확인 전 미확인입니다. 목록/개수가 맞지 않으면 실패 처리하며 이 결과만으로 빈 슬롯을 할당하지 않습니다.
+
+Pi의 기존 센서 가상환경에서 실행합니다. **수동 pi_api·등록 프로그램·miniterm도 모두 종료**해야 합니다. `exclusive=True`만으로 이미 실행 중인 모든 구형 프로그램의 점유를 발견한다고 보장하지 않습니다. 실행 전 서비스가 `inactive`인지 확인하며 자동 중지·재시작은 하지 않습니다.
+
+```bash
+# 서비스가 실행 중이었다면 점검 동안 중지하고, 끝난 뒤 다시 시작합니다.
+sudo systemctl stop attendance-device.service
+python fingerprint_inventory.py --confirm-sensor-idle
+sudo systemctl start attendance-device.service
+systemctl is-active attendance-device.service
+curl http://127.0.0.1:8080/health
+```
+
+중간 조회에 실패해도 원래 실행 중이던 서비스는 마지막 명령들로 복구합니다. 이전에 정지해 두었던 서비스라면 점검 뒤 임의로 시작하지 않습니다. 센서 정보는 터미널에서만 확인하며 등록 목록 결과를 Git에 추가하지 않습니다. 실제 슬롯 등록/삭제·회원 연결·별도 enroll 서명/서버 API·재시작 복구는 이번 점검 도구에 없습니다. 1번의 PR44는 확인 시 미병합 계약 초안이므로 이번에 병합하거나 그 화면/공통 파일을 수정하지 않았습니다.
+
+구현 참고: Adafruit 공식 [API](https://docs.circuitpython.org/projects/fingerprint/en/latest/api.html)의 `read_sysparam`, `count_templates`, `read_templates`. 설치 버전/실제 센서 응답은 별도 확인하며 읽기 점검으로 실물 등록 가능 범위나 회원 신뢰를 증명하지 않습니다.
+
+장치 없는 로컬 검증: `python -m unittest -v test_fingerprint_inventory`. 이 대역 검증은 실제 UART/센서를 사용하지 않습니다.
+
 ## 표시 이름은 각 장치 안에만 보관
 
 게시본의 `USER_NAMES`는 비어 있습니다. 없어도 `사용자 N`으로 센서 슬롯을 표시합니다. 표시 이름이 필요하면 [예제](user_names.example.json)를 `pi_api.py`와 같은 폴더의 `user_names.local.json`으로 복사해 장치 안에서만 수정합니다. 이 파일과 이벤트 CSV는 Git에서 제외합니다.
