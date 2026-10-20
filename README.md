@@ -162,6 +162,10 @@ dotnet build .\Tests\TaskQueries.Http.Tests\TaskQueries.Http.Tests.csproj -c Rel
 
 ## 2026-10-19 PR 검토 상태
 
+**2026-10-20 추가:** [PR45](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/45) 최신8f9e2d2는 Draft·FK 대상DB 검사/기존 인증종료 회귀 P2수정 요청2건으로 미병합입니다. 서버118통과와 독립1실패·공지35/빌드0·활동원본실패/보완대역복사본294를 구분합니다. 확인 기록 보존·로그인 경계/008적용은 후속입니다. [수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/4번/2026-10-20_PR45_FK대상DB_종료회귀_수정요청.md)을 따르며, **PR46은 사용자 지시로 검토·병합 보류**입니다. PR44의 수정 필요·미병합도 유지합니다.
+
+**2026-10-20:** [PR44](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/44) 지문 등록 API/독립DB·회원 생성ID 보존은 R44-01 P2로 수정 필요·미병합입니다. 권한 있는 비활성 장치 하나가 정상 장치 후보 조회도409로 중단합니다. 전체1차704통과/3환경실패/12미설정생략→보완 관련23통과와 별도 독립1실패, 회원창46/14·바이트16·Release0/0을 구분합니다. [수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/1번/2026-10-20_PR44_비활성장치_목록조회_수정요청.md)을 따릅니다. 미병합 등록 API/007·물리 등록/공유 적용을 현재alpha 완료로 표시하지 않습니다.
+
 [PR40](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/40) 공통 읽기 점검/공개 바이트 초안/FeatureUiScope와 [PR41](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/41) 독립 감지 서비스/공유 상태 view를 검토 후 alpha7073817/763f11e에 병합했습니다. Python107·C#31, 감지C#294/12·Python30, 결합 Release 경고0/오류0과 검증/병합 tree 일치를 확인했습니다. 기존 기본 진입은 수동 점검이며 실제 MainForm 소유/출퇴근 저장·본인 확인 API/DB·실물/공유/두PC는 후속입니다. [PR42](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/42)는4번24개 통합 회신으로 LOG2e6a439에 수신했고 제안 정책은 협의사항입니다. [상세 검토](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr40-pr41-pr42-review)를 따릅니다.
 
 [웹 공지PR38](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/38)은4번 수정본8b57ed1의 페이지 선택 오류R38-01 해결을 확인해 alpha `8cfdfea`에 병합했습니다. 소유MySQL 원본75검사·이전 실패 재현1검사 통과, 검증/병합 tree 일치를 확인했습니다. [최종 검토](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/4번/2026-10-19_PR38_웹공지_페이지선택_수정요청.md)와 [LOG 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md)을 따릅니다. 아래PR38미병합/실패 설명은 이전 검토 회차의 기록입니다.
