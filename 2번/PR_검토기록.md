@@ -1,3 +1,35 @@
+<a id="pr52-review-20261020"></a>
+## PR52 전체 검토 — R52-01 P1 수정 필요·미병합, 2026-10-20
+
+사용자의 병합 가능 확인에 따라3번 회신/부분 정적 대조를 넘어 전체15파일을 검토했습니다. [PR52](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52) head `0a7a57df97767e81680484222587974747bf6dab`, alpha `43f69c99632b1a084e0bc1c441f46d7f1a8eb26d`를 고정했습니다. GitHub상 CLEAN/무충돌·CI검사 없음과 실제 검토 결과를 구분합니다. **R52-01 P1 재현으로 OPEN·미병합**입니다.1번 PR51은 이번 검토에서 제외했습니다.
+
+### 병합 차단 — 화면 결과물과 실제 판단 대상 불일치
+
+`RemoteWork.Server/remotework/static/results.js`의 `openDecision`은188~201행에서 최신 제출 ID의 context를 기다립니다. 그동안 과거 회차 선택은 활성이고 selected만 변경합니다. 응답 뒤198~200행은 바뀐 selected의 회차/본문/파일을 표시하지만285행의 실제 POST는 최초 context.submission_id를 사용합니다. 따라서 검토자는 과거 반려 결과물을 보고 최신 제출물을 승인·반려할 수 있습니다. 서버 권한/버전 검사만으로 화면의 동일성을 보장하지 못합니다.
+
+원본 JS를 Node VM에서 실행하고 명시 DOM/HTTP 대역으로 실제 등록된 과거 회차 handler를 지연 응답 사이 호출했습니다. `request=/results/data/submissions/202/context`, `writeTarget=202`, `shownSubmission=201`, `dialog=1차`, `roundButtonsEnabled=true`로 **불일치를 재현**했습니다. 실제 브라우저/공유 DB 판단 쓰기 재현으로 표시하지 않습니다. [3번 수정 요청·정확한 원본 행·재검증 조건](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/PR/3번/2026-10-20_PR52_검토회차_불일치_수정요청.md)을 게시하며,업무/제출 캡처와 확인창/POST의 동일성·선택 변경 무효화·승인/반려 지연 회귀가 필요합니다.3번 제품 코드는 대신 수정하지 않았습니다.
+
+### 검토자 직접 실행 — 통과 범위와 실패를 구분
+
+| 검사 | 결과 |
+|---|---|
+| 공식 결과물 서버 회귀 |**185검사 통과**, 새 소유 MySQL/합성 사용자·업무·파일 |
+| 공식 웹 회귀 |**177검사 통과**, 실제 cookie/CSRF/MySQL·결과물/첨부/이력,Flask 요청 검사 |
+| 공식 C# HTTP |**41검사 통과**, 실제 loopback HTTP·WinForms controls·파일 bytes·receipt 복구,114소스 컴파일0/0 |
+| 기본 off/cold / 독립 인증·입력 |cold 통과 / 명시 identity 대역16검사 통과 |
+| Release / JS 구문 |경고0·오류0 / 통과 |
+| 별도 JS 지연 재현 |**R52-01 재현 성공·수정 필요** |
+
+소유 MySQL fixture를 사용하는 공식 verify_web→서버/C# 검사를 실행했습니다. 제출 검증 스크립트의 설치되지 않은.NET ref8.0.29/desktop10.0.9 경로만 외부 wrapper에서 설치된8.0.31/10.0.12로 대체했습니다. 원본 제품/검사 assertion은 무수정입니다. 실행25.78초,소유 테스트 MySQL 정리 성공을 확인했고 사용자DB/.env는 사용하지 않았습니다. 웹177은 실제 브라우저 JS를 구동하지 않으므로 화면 경합을 포괄하지 않습니다. 기존3번 작성자 보고 수치를 이번 직접 실행과 중복 합산하지 않습니다.
+
+cookie와API Bearer 채널·CSRF/페이지 session·현재 권한/본문형식 검사와 기존 TX/receipt 재사용에서 추가 구체적인 차단 결함은 찾지 못했습니다. starting.py의 선택body는 expected두필드와 기존 수락/재작업 권한·잠금·KST·취소guard를 유지합니다. 이 사실이 JS 차단 결함을 상쇄하지 않습니다.
+
+실제3번 취소/pending helper 소비·제출/첨부와 취소·연장 경합,공용 첨부·새8행동 표시·공유DB/실계정·두PC·실제 브라우저 전체 흐름은 미실행/후속입니다. 취소/연장503 해제·통합 ack 설치·공유 이관을 실행하지 않았습니다. 회신용 별도 MD/PR은 요구하지 않으며 기존 코드 PR52 수정 후 재검토합니다. 병행2번 읽기 구현/396대역검사는[별도 기록](업무_구현검증.md#member2-read-session-check-20261020)입니다.
+
+수정 요청은 PR 브랜치 [8967d8e](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/8967d8e9a64315e19c79424c5d259b89ab71de2a)에 기존 README와3번 새1문서로 푸시하고 원격 SHA를 확인했습니다. PR52 제품 브랜치/타 담당 코드는 수정하지 않았습니다.
+
+근거: `ES/tmp/remote_work_pr52_review_20261020/web_review_race.cjs`, `official-checks.json`과 고정 소스·공식 검사 직접 실행입니다. 이전 [3번 회신 수신](공통규약.md#member3-followup-received-20261020)의 '전체 승인/실행 아님'은 당시 기록으로 보존합니다.
+
 <a id="pr50-review-20261020"></a>
 ## 최신 — PR49 코드·PR50 기술 문서 검토 병합, 2026-10-20
 
