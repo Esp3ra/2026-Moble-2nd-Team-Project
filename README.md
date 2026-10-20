@@ -3,6 +3,18 @@
 
 1·3·4·5번 통합 회신을 모두 수신했습니다. 3번46개는 [기존 질문표](3번/2026-10-19_팀원들과_합의해야_하는_기준.md#member3-reply-received-20261020)에 원문 취합했고 누락/추가/중복0입니다. 2번은 선택 업무의 기존 결과 제출 폼 진입과 성공 후 GET 재조회를 연결했습니다. 수정/재배정·취소·실제 연장·공용 파일/알림/보존·공유 환경은 협의사항입니다. [적용/검증/미실행](2번/업무_구현검증.md#member2-results-entry-validation-20261020)을 따릅니다. 기존 담당 문서와 LOG/2번8개 구조를 유지하며 추가 회신 PR/문서는 요구하지 않습니다.
 
+## PR45 최신 추가분 — 삭제 정책 문서 정정·Draft 유지, 2026-10-20
+
+[PR45](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/45) 검토 마무리 중 head `c5dad3b`이 추가됐습니다. Markdown3개·SQL/시험 주석만 바뀌었고 실행 로직·DDL은 이전 검증본 `0dfa517`과 동일합니다. **4번 문서는 로컬 선택을 “공지 삭제 시 확인 기록도 함께 삭제”로 정정**했으므로, 아래 “보존 요구와 CASCADE 불일치”는 이전 요구 시점 기록입니다. 이 보고를 팀장의 공통 삭제 정책·최종008/공유 적용 승인으로 확대하지 않습니다. 최신 head는 충돌 없이 결합되며 **Draft·미병합을 유지**합니다.
+
+[최신 고정 head·기능 동일성·문서 정정](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr45-policy-followup-20261020)를 따릅니다.
+
+## PR45 후속 수정 확인 — 충돌·PID 경합 해결 / Draft 유지, 2026-10-20
+
+[PR45](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/45) head `0dfa517`에서 최신 alpha `14c1c80` 반영과 병합 충돌 해소, 공식 Activity 회귀의 PID 파일 읽기 보완을 확인했습니다. 공식 원본 전체 **297검사/12시나리오를2회 통과**, 공지35검사·Release 경고0/오류0입니다. R45-01·02 해결도 유지됩니다. **공지 삭제 후 확인 기록 보존 구조는 여전히 미구현이므로 Draft·미병합·008공유 적용 보류**입니다. 아래 과거 “alpha 충돌/공식 Activity PID 경합 실패”는 해당 head 시점 이력이며 최신 해결 상태와 구분합니다.
+
+[최신 원본 실행·고정 SHA·보류 범위](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr45-pid-recheck-20261020)를 따릅니다.
+
 ## 최신 재검토 — PR44·46·47 병합 / PR45 Draft 유지, 2026-10-20
 
 [PR44](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/44) R44-01과 [PR45](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/45) R45-01·02의 수정 업로드를 확인했습니다. **44번은 수정 재검증 후 병합, 45번은 기존 지적 해결·보존 구현 미완료로 Draft/미병합**입니다. 팀장의 이번 “46번은 수정됐으니 검토” 지시로 이전 보류를 해제하여 [PR46](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/46) 실제 제출·검토 코드를 검토했고, 신규 [PR47](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/47) 등록 중계도 검토했습니다. 44→47→46 순서로 alpha에 병합했으며 최종 코드 merge `1d2cb6b`/tree `0608974b29eb5996f67d34c14b63ae8fbf4fa51f`는 검증본과 일치합니다. 아래 이전 미해결·46보류·미병합은 작성 시점의 이력입니다.

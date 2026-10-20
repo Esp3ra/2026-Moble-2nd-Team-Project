@@ -1,3 +1,43 @@
+<a id="pr45-policy-followup-20261020"></a>
+## PR45 최신 추가분 — 삭제 정책 문서 정정·Draft 유지, 2026-10-20
+
+[PR45](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/45) 검토 마무리 중 head `c5dad3b`이 추가됐습니다. Markdown3개·SQL/시험 주석만 바뀌었고 실행 로직·DDL은 이전 검증본 `0dfa517`과 동일합니다. **4번 문서는 로컬 선택을 “공지 삭제 시 확인 기록도 함께 삭제”로 정정**했으므로, 아래 “보존 요구와 CASCADE 불일치”는 이전 요구 시점 기록입니다. 이 보고를 팀장의 공통 삭제 정책·최종008/공유 적용 승인으로 확대하지 않습니다. 최신 head는 충돌 없이 결합되며 **Draft·미병합을 유지**합니다.
+
+후속 제출 head `c5dad3bfef863ea798cf2dafe5b90ecb91ff5cef`과 당시 실제 alpha `73488a407c14260bd43b862fb1f9bc010db513bd`를 무충돌 결합했고 tree `3b3a9eaf81acf64c248ed0012f4ba6520a7502b6`/diff 검사를 확인했습니다. 이 alpha의 변경은 앞선45 검토 상태 README뿐이며44·46·47 제품은 유지됩니다.
+
+`0dfa517→c5dad3b`는 정확히5파일25추가/4삭제입니다. Markdown3파일과 raw008 주석·migration시험 주석만 바뀌었습니다. Python AST·주석 제외SQL이 동일하고 C#146파일이 byte동일합니다. **직접 실행은0dfa517에서 공식 Activity297검사/12시나리오2회, Notices35, popup26(물리MySQL12+SQLite/대역14), 독립FK1, Release0/0**이며 최신 head에서는 기능 동일성과 결합을 검증했습니다. 주석 추가 때문에 전체 시험을 다시 실행한 것으로 표시하지 않습니다. PID helper의 파일없음/음수/비정상값도 독립 하네스에서 각각 약5.02/5.02/5.01초 제한 예외 종료를 확인했습니다.
+
+최신4번 문서는 앞선 로컬 보존 요구가 철회되고 공지/직원별 확인 행을 함께 CASCADE 삭제하는 선택으로 바뀌었다고 보고합니다. 현재 ORM/raw008과 일치하며 감사 기록을 같이 삭제하지 않습니다. 따라서 보존 필드/이관 미구현을 현재 로컬 선택과의 코드 충돌로 계속 기재하지 않습니다. 다만 해당 문서도 로컬 선택과 팀장/1번의 최종 공통DDL·공유 적용 승인을 구분합니다. 이 검토에서 새로운 공통 정책 확정이나 Ready 전환·병합·공유008적용은 하지 않았습니다. 로그인 시작 경계/cursor·부서 변경/주기/다중PC 등 기존 협의도 남습니다. PR본문이 이전head/보존 요구를 표시하는 동안은 고정 head의 최신 문서와 구분합니다.
+
+새 실행 결함은 발견하지 못했습니다. 위 정책 보고를 본 채팅 사용자의 추가 지시로 취급하지 않았고, 다른 채팅/팀원에 메시지를 보내지 않았습니다. 원문·직전 검토/이전 실패 근거·LOG/2번8문서 구조를 보존합니다. 실제 프로젝트에는 상태 README만 추가하며 검토자가 미병합45 제품 소스를 복사하지 않습니다. 실장비·공유DB/계정/.env는 사용/변경하지 않았습니다.
+
+근거: `ES/tmp/remote_work_pr45_static_final_20261020/audit/comment-only-recheck.json`, `preservation.json`, `owned-review-summary.json`, `remote_work_pr45_pid_recheck_20261020/audit/recheck-summary.json` 및 각 고정 head diff입니다.
+
+<a id="pr45-pid-recheck-20261020"></a>
+## PR45 후속 수정 확인 — 충돌·PID 경합 해결 / Draft 유지, 2026-10-20
+
+[PR45](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/45) head `0dfa517`에서 최신 alpha `14c1c80` 반영과 병합 충돌 해소, 공식 Activity 회귀의 PID 파일 읽기 보완을 확인했습니다. 공식 원본 전체 **297검사/12시나리오를2회 통과**, 공지35검사·Release 경고0/오류0입니다. R45-01·02 해결도 유지됩니다. **공지 삭제 후 확인 기록 보존 구조는 여전히 미구현이므로 Draft·미병합·008공유 적용 보류**입니다. 아래 과거 “alpha 충돌/공식 Activity PID 경합 실패”는 해당 head 시점 이력이며 최신 해결 상태와 구분합니다.
+
+제출 head `0dfa517811049d53b8aedbf97761205dd2d05afd`, 검토 base alpha `14c1c806c56ca0b2b701ad98ee427a55f46f71cd`, 결합 tree `2d81def261ffc075b588dcb739cf6a828004a4ac`입니다. 최신 alpha가 제출 head의 조상이며 무충돌 결합을 확인했습니다. 기존 PR44·46·47의 장치/Pi·Enrollment·Results·공통 ApiClient 소스는 alpha와 동일합니다. `.env.example`에는 기본off popup2줄만, registry에는 기존 notice 분기 안 popup3줄만 추가했고 enrollment 설정과 독립 Results 분기를 보존했습니다. 이전45 검토본과18개 제품/문서/시험 파일이 byte동일하며 migration README에는 upstream007 안내1줄이 반영됐습니다.
+
+마지막 커밋은 `Tests/ActivityPresence.Tests/AuthenticationCloseTests.cs`1파일39추가/2삭제입니다. 파일 생성 직후 독점 writer가 닫히기 전 읽는 경합을 `ReadOwnedPid`로 보완했습니다. IOException·빈 값/잘못된 PID를 최대5초·15ms 간격으로 기다리고 실패를 명시하며, 종료 동작 자체의 재시도·종료 제한 완화·무조건 예외 무시는 추가하지 않았습니다. 동일 exclusive writer를 유지하다 PID를 기록/닫는 결정적 회귀3검사를 공식 원본에 추가했습니다. 검사상 가상 PID는 읽기 비교에만 쓰며 프로세스 종료 대상으로 사용하지 않습니다.
+
+| 검토자 직접 실행 | 결과·구분 |
+|---|---|
+| 공식 원본 ActivityPresence 전체 | **297검사/12시나리오를2회 통과**. 같은297검사 반복이며594개 고유 검사로 합산하지 않음. 제품/공식 검사·진입점 무수정 |
+| Notices.Tests 공식 원본 | **35검사 통과**, 실제 WinForms/합성HTTP이며 공유DB 시험은 아님 |
+| popup opt-in·물리 migration 공식 원본 | **26통과·생략0,32.67초**, 소유 MySQL12+임시 SQLite/대역14 |
+| 이전 독립 외부DB FK 회귀 | **1통과,2.04초**, 새 소유 MySQL에서 다른DB 부모 거절·무변경 확인 |
+| Release / diff | **경고0/오류0**, diff --check 통과 |
+
+R45-01 현재DB/FK 검사와 R45-02 정확한 pending GET off404 대역은 유지되며 새 차단 결함은 발견하지 못했습니다. Python popup 기능/검사는 이전 검토본과 동일하지만 최신44·46·47 결합 후 위 표적 검사를 재실행했습니다. 공통/init-db 모델/DDL 버전1과 기본off 경계를 유지합니다.
+
+남은 보존 문제는 기존 `popup_models.py:15`와 raw008의 notice FK `ON DELETE CASCADE`입니다. 문서에 보고된 공지 삭제 후 확인 기록 보존 요구를 아직 충족하지 않아 작성자도 배포금지 비교안/Draft를 유지합니다. 이번 PID 수정과 충돌 해소는 보존 구조·이관/백필·로그인 시작 경계/cursor·부서 변경/주기/다중PC 정책 승인이나 Ready 전환을 뜻하지 않습니다. 실앱/공유DB의008적용·활성화와 코드 병합은 진행하지 않았습니다.
+
+검토 환경: Windows/.NET SDK10.0.401·Desktop8.0.31/Python3.12.14. Activity는 기존 검토용 venv(OpenCV5/NumPy2.3.5/Pillow12.3)를 junction으로 재사용했으며 작성자의 pin 조합과 다릅니다. 합성 이미지·주입 카메라·소유 Python stdio·loopback HTTP/인증 대역 범위로, 실장비/실제 공통 서버·DB/두PC·전체MySQL 회귀·전체 GUI→HTTP→MySQL E2E는 이번에 검증하지 않았습니다. 새 소유 MySQL/DB/runtime 정리를 확인했고 실제 .env/계정·사용자 실행 서버·장치는 변경하지 않았습니다. 미병합45 제품 소스를 검토자가 로컬 프로젝트에 복사하지 않았습니다.
+
+근거: `ES/tmp/remote_work_pr45_pid_recheck_20261020/audit/`, `remote_work_pr45_static_final_20261020/audit/`의 원본 실행 결과·격리 정리 JSON과 `remote_work_pr45_recheck_20261020/audit/updated-review/scope-review.json`, `pid.diff`입니다. 기존 원문과 과거 실패/참고 복사본 결과는 보존하고 새 협의 회신MD/PR은 요구하지 않습니다.
+
 <a id="pr44-47-recheck-20261020"></a>
 ## 최신 재검토 — PR44·46·47 병합 / PR45 Draft 유지, 2026-10-20
 
