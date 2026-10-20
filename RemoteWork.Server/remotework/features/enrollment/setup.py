@@ -66,7 +66,7 @@ def install(app):
     @click.option("--display-name", required=True)
     @click.option("--minimum-slot", type=int, required=True)
     @click.option("--maximum-slot", type=int, required=True)
-    @click.option("--capacity", type=int, required=True)
+    @click.option("--capacity", type=int, required=True, help="Sensor-reported total capacity; allowed slots may be a narrower range")
     @click.option("--candidate-slots", required=True, help="Operator-confirmed empty slot IDs as comma-separated integers")
     def add_device(device_id, display_name, minimum_slot, maximum_slot, capacity, candidate_slots):
         wire.canonical_uuid(device_id)
@@ -76,7 +76,7 @@ def install(app):
             slots = [int(s) for s in candidate_slots.split(",")]
         except ValueError:
             raise click.ClickException("후보 슬롯을 정수로 지정해 주세요.")
-        if (not 0 <= minimum_slot <= maximum_slot or not 1 <= capacity <= maximum_slot - minimum_slot + 1
+        if (not 0 <= minimum_slot <= maximum_slot < capacity
                 or not slots or len(slots) > capacity or len(set(slots)) != len(slots)
                 or any(not minimum_slot <= s <= maximum_slot for s in slots)
                 or not 1 <= len(display_name.strip()) <= 80):

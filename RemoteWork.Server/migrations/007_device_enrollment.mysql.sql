@@ -12,7 +12,7 @@ CREATE TABLE enrollment_devices (
 	capacity INTEGER NOT NULL,
 	candidate_slots_json TEXT NOT NULL,
 	PRIMARY KEY (device_id),
-	CONSTRAINT ck_enrollment_profile CHECK (key_epoch > 0 AND minimum_slot >= 0 AND maximum_slot >= minimum_slot AND capacity > 0 AND capacity <= maximum_slot - minimum_slot + 1)
+	CONSTRAINT ck_enrollment_profile CHECK (key_epoch > 0 AND capacity > 0 AND minimum_slot >= 0 AND maximum_slot >= minimum_slot AND maximum_slot < capacity)
 )ENGINE=InnoDB CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE enrollment_jobs (

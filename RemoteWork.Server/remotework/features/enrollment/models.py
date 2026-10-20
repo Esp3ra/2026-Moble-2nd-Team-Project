@@ -11,7 +11,7 @@ class EnrollmentBase(DeclarativeBase):
 
 class Device(EnrollmentBase):
     __tablename__ = "enrollment_devices"
-    __table_args__ = (CheckConstraint("key_epoch > 0 AND minimum_slot >= 0 AND maximum_slot >= minimum_slot AND capacity > 0 AND capacity <= maximum_slot - minimum_slot + 1", name="ck_enrollment_profile"),
+    __table_args__ = (CheckConstraint("key_epoch > 0 AND capacity > 0 AND minimum_slot >= 0 AND maximum_slot >= minimum_slot AND maximum_slot < capacity", name="ck_enrollment_profile"),
                      {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_unicode_ci"})
     device_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     display_name: Mapped[str] = mapped_column(String(80))

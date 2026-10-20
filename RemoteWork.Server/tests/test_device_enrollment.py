@@ -108,6 +108,12 @@ def test_commit_and_identical_lost_response_replay(env):
     first = complete(env, job, raw)
     assert first.status_code == 200 and first.json["data"]["state"] == "completed"
     clock[0] += timedelta(minutes=10)  # Original ticket expired, committed receipt still replays.
+    read_body = {f: job[f] for f in wire.COMMON - {"enrollment_id"}} | dict(
+        ticket_digest=wire.ticket_digest(wire.b64decode(job["request_envelope"])),
+        probe_nonce=wire.b64encode(os.urandom(32)), scope="result_read")
+    approval_path = ROOT + "/" + job["enrollment_id"] + "/approval"
+    assert client.post(approval_path, headers=headers, json=read_body).status_code == 200
+    assert client.post(approval_path, headers=headers, json=read_body | {"scope": "sensor_write"}).status_code == 409
     assert complete(env, job, raw).json["data"] == first.json["data"]
     assert count(app, Job) == count(app, Mapping) == count(app, Claim) == 1
     with app.app_context():
@@ -401,3 +407,99 @@ def test_enrollment_actual_dump_new_database_restore(env, owned_databases, tmp_p
         assert snapshot(restored) == before
     finally:
         config.unlink(missing_ok=True); dump.unlink(missing_ok=True)
+
+
+@pytest.mark.parametrize("schema", ["orm", "raw"])
+@pytest.mark.parametrize("capacity,minimum,maximum,slot,valid", [
+    (300, 1, 299, 12, True),  # Allowed subset, not a claim that slot0/299 was measured.
+    (300, 299, 299, 299, True),
+    (300, 0, 299, 7, True),
+    (1, 0, 0, 0, True),
+    (300, 0, 999, 999, False),
+    (300, 1, 300, 12, False),
+    (300, -1, 299, 12, False),
+    (300, 20, 10, 12, False),
+    (0, 0, 0, 0, False),
+])
+def test_reported_capacity_and_allowed_subset_cli_and_mysql(env, schema, capacity, minimum, maximum, slot, valid):
+    app = env[0]
+    engine = app.extensions["db_engine"]
+    if schema == "raw":
+        with app.app_context(), transaction() as db:
+            for table in reversed(EnrollmentBase.metadata.sorted_tables):
+                db.execute(delete(table))
+        EnrollmentBase.metadata.drop_all(engine)
+        ddl = (Path(__file__).parents[1] / "migrations/007_device_enrollment.mysql.sql").read_text(encoding="utf-8")
+        with engine.begin() as connection:
+            for statement in ddl.split(";"):
+                if statement.strip():
+                    connection.exec_driver_sql(statement)
+    else:
+        mutate(env, lambda db: db.delete(db.get(Device, DID)))
+    args = ["add-enrollment-device", "--device-id", DID, "--display-name", "Synthetic profile",
+        "--capacity", str(capacity), "--minimum-slot", str(minimum), "--maximum-slot", str(maximum),
+        "--candidate-slots", str(slot)]
+    result_cli = app.test_cli_runner().invoke(args=args)
+    assert (result_cli.exit_code == 0) is valid, result_cli.output
+    assert count(app, Device) == int(valid)
+    # Bypass CLI and exercise the independently created physical CHECK too.
+    def insert_direct():
+        with app.app_context(), transaction() as db:
+            db.add(Device(device_id=str(uuid4()), display_name="Direct CHECK probe", enabled=True,
+                key_id=KEYS["key_id"], key_epoch=1, capacity=capacity, minimum_slot=minimum,
+                maximum_slot=maximum, candidate_slots_json=json.dumps([slot])))
+            db.flush()
+    if valid:
+        insert_direct()
+        assert count(app, Device) == 2
+        mutate(env, lambda db: grant_resource(db, env[3]["admin1"], "enrollment_device", DID))
+        job, _ = issue(env)
+        assert job["reserved_slot"] == slot
+        assert complete(env, job, result(job)).status_code == 200
+    else:
+        with pytest.raises(OperationalError) as error:
+            insert_direct()
+        assert error.value.orig.args[0] == 3819
+        assert count(app, Device) == 0
+
+
+@pytest.mark.parametrize("candidate", [0, 300])
+def test_cli_candidate_must_stay_in_allowed_subset(env, candidate):
+    mutate(env, lambda db: db.delete(db.get(Device, DID)))
+    result_cli = env[0].test_cli_runner().invoke(args=["add-enrollment-device", "--device-id", DID,
+        "--display-name", "Synthetic subset", "--capacity", "300", "--minimum-slot", "1",
+        "--maximum-slot", "299", "--candidate-slots", str(candidate)])
+    assert result_cli.exit_code != 0 and count(env[0], Device) == 0
+
+
+def test_legacy_check_requires_explicit_review_and_preserves_rows(env):
+    app, client, headers, ids, *_ = env
+    engine = app.extensions["db_engine"]
+    old = "key_epoch > 0 AND minimum_slot >= 0 AND maximum_slot >= minimum_slot AND capacity > 0 AND capacity <= maximum_slot - minimum_slot + 1"
+    new = "key_epoch > 0 AND capacity > 0 AND minimum_slot >= 0 AND maximum_slot >= minimum_slot AND maximum_slot < capacity"
+    def replace_check(expression):
+        with engine.begin() as connection:
+            connection.exec_driver_sql("ALTER TABLE enrollment_devices DROP CHECK ck_enrollment_profile, "
+                "ADD CONSTRAINT ck_enrollment_profile CHECK (" + expression + ")")
+    replace_check(old)
+    # Reproduce old over-acceptance in this owned DB; the runtime must still deny.
+    mutate(env, lambda db: (setattr(db.get(Device, DID), "maximum_slot", 999),
+                           setattr(db.get(Device, DID), "candidate_slots_json", "[999]")))
+    body = dict(client_request_id=str(uuid4()), device_id=DID, target_user_id=ids["staff1"])
+    assert client.post(ROOT, headers=headers, json=body).status_code == 503
+    with pytest.raises(OperationalError) as error:
+        replace_check(new)
+    assert error.value.orig.args[0] == 3819
+    with engine.connect() as connection:
+        assert connection.exec_driver_sql("SELECT capacity,maximum_slot,candidate_slots_json FROM enrollment_devices").one() == (300, 999, "[999]")
+    # Explicit fixture correction only: no application startup auto-ALTER or auto-repair.
+    mutate(env, lambda db: (setattr(db.get(Device, DID), "maximum_slot", 299),
+                           setattr(db.get(Device, DID), "candidate_slots_json", "[7,8]")))
+    with engine.connect() as connection:
+        before = list(connection.exec_driver_sql("SELECT * FROM enrollment_devices").tuples())
+    replace_check(new)
+    with engine.connect() as connection:
+        assert list(connection.exec_driver_sql("SELECT * FROM enrollment_devices").tuples()) == before
+    mutate(env, lambda db: setattr(db.get(Device, DID), "minimum_slot", 1))
+    job, _ = issue(env)
+    assert complete(env, job, result(job)).status_code == 200

@@ -47,7 +47,8 @@ def keys(device):
 def candidates(device):
     try:
         slots = json.loads(device.candidate_slots_json)
-        valid = (type(slots) is list and 1 <= len(slots) <= device.capacity
+        valid = (0 <= device.minimum_slot <= device.maximum_slot < device.capacity
+            and type(slots) is list and 1 <= len(slots) <= device.capacity
             and len(set(slots)) == len(slots)
             and all(type(s) is int and device.minimum_slot <= s <= device.maximum_slot for s in slots))
     except (ValueError, TypeError):

@@ -35,6 +35,7 @@ python -m flask --app remotework grant-enrollment-device --help
 ```
 
 `add-enrollment-device` 필수 옵션: `--device-id`, `--display-name`, `--minimum-slot`, `--maximum-slot`, `--capacity`, `--candidate-slots`(쉼표 구분 정수).
+`capacity`는 센서가 보고한 전체 용량이며 허용 구간의 길이가 아니다. `0 <= minimum_slot <= maximum_slot < capacity`를 적용한다. 따라서 용량300에서1~299 같은 부분 구간은 허용하고, 상한300/999는 거절한다. 후보도 허용 구간 안에 있어야 한다. 이 숫자 예시는 실물0/299 등록 승인이 아니다.
 이 명령이 센서를 읽어 빈 슬롯을 확인하는 것은 아니다. 운영자 사전 확인과 Pi 쓰기 직전 확인이 모두 필요하며 기존 프로필을 덮어쓰지 않는다.
 `grant-enrollment-device --device-id <장치UUID> --login-id <활성관리자ID>`는 해당 장치 권한만 부여한다. HTTP 권한 상승 경로는 없다.
 초기화와 [raw007 SQL](../RemoteWork.Server/migrations/007_device_enrollment.mysql.sql)을 중복 적용하지 않는다.
@@ -103,9 +104,11 @@ MAC·장치/키·공통5·digest·nonce·scope를 모두 확인한다. 왕복2�
 재현 환경은 운영DB와 분리된 loopback MySQL8 전용DB(`remote_work_test_` 접두사), 새 테스트DB 생성/삭제 권한, PATH의 mysql/mysqldump다.
 비공개 환경에 `MYSQL_TEST_URL`과 `MYSQL_MIGRATION_TEST_URL`을 그 전용DB URL로 설정하고 `REMOTEWORK_RUN_TASK_MIGRATION_DRAFT_TESTS=1`, `PYTHON_DOTENV_DISABLED=1`로 실행한다. 일반 `.env`/사용 중인 DB URL은 넣지 않는다.
 `RemoteWork.Server`에서 `python -m pytest -q tests/test_device_enrollment.py tests/test_enrollment_approval_draft.py tests/test_enrollment_protocol_draft.py tests/test_device_protocol_draft.py`를 실행한다.
-전체 모듈 실행은 기존 채팅 raw005 테스트가 빈 테이블을 요구하므로 `test_chat_migration_draft.py`를 먼저 실행한 뒤 나머지 모듈을 실행한다. 기본 순서 의존은 변경 전 코드에도 재현되며 제품 수정으로 숨기지 않는다.
+전체 모듈은 `python -m pytest -q`로 기본 순서에서 실행한다. 채팅 raw005 검사는 앞선 채팅 모델 import/공통 초기화의 영향을 받지 않도록 검사마다 별도의 빈 소유 테스트 DB를 생성한다. 이전에는 raw005를 먼저 실행하는 우회가 필요했으나 이 격리 보완으로 순서 조건을 제거했다. 제품 채팅 테이블이나 사용 중인 DB를 지워 해결하지 않는다.
 
 완료: 서버 API·독립 DDL/초기화·장치/관리자 명시 설정·온라인 승인·참고 수신 검증.
 미완료/미검증: Pi 실제 callback/만료 결과 캐시·PC 등록 버튼/중계·실물센서·두PC·TLS/키배포·공유적용·수동 전체GUI.
 협의 대기: 5번 수신/최종 바이트 대조·실측 최악 시간, 팀장 운영 권한 부여 담당/미등록 계정/복구·삭제·재등록·이관/보존기간. 운영 활성화 전에 확인한다.
+
+2026-10-20 5번 후속 A/B/C 수신: A의 용량/부분 구간 의미를 위와 같이 정정했다. B의 **최초 새 probe 승인/검증→신뢰 UTC 확보→어댑터 진입→단계별 갱신** 순서는 기존7필드 approval/공통 바인딩과 일치한다. C의 **result_read 전용 캐시 조회→같은 원문 complete 재전송**도 유지한다. 서버에 이미 확정된 동일 결과만 조회 창 내 재전송 가능하고, 만료/취소 뒤 처음 오는 미확정 보고는 자동 매핑하지 않는다. B/C의 Pi 실제 callback·캐시 읽기 구현은5번 담당이며 상대 구현/공동 검증 완료로 표시하지 않는다.
 날짜LOG는 팀장만 게시한다. 협업 회신은 기존 PR43 댓글 한 건으로 전달하고 팀장이 LOG1/5에 취합한다.
