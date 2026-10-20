@@ -1,6 +1,6 @@
 # 2번 업무 수락·재작업 시작
 
-2026-10-19. [PR34의1번 기술 수용 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/1번/2026-10-19_수락_재작업_API_기술수용회신.md)을 받아 기존 업무 화면에 수락·재작업 시작을 연결했다. 공통 인증/HTTP/쓰기 지원을 재사용하며1번 코드·3번 제출/판단/회차/파일/이력과 DB 구조는 변경하지 않는다. **기본off 개발 기능**이며 공유 적용·3번 실제 통합은 별도다. 수정·재배정·마감 연장과 모든 미확정 내용은 협의사항으로 유지한다.
+2026-10-20 최신화. [PR34의1번 기술 수용 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/1번/2026-10-19_수락_재작업_API_기술수용회신.md)에 맞춰 수락·재작업 시작을 기존 업무 화면에 연결했습니다. 공통 인증/HTTP/쓰기 지원을 재사용하고1번 코드·3번 제출/판단/회차/파일/이력과 DB 구조를 대신 변경하지 않습니다. **기본off 개발 기능**이며 정식 공유 적용은 별도입니다. 수정·재배정·관리자 변경은 [확정 A/B/C 구현](TASK_MANAGEMENT.md), 취소·연장은 [확정 D/E 구현](TASK_LIFECYCLE.md)을 따릅니다. 새 취소/대기 연장 차단의 실제3번 소비 연결 전 lifecycle 변경503을 유지합니다.
 
 ## 화면 흐름과 조회 시점
 
@@ -77,4 +77,4 @@ Starting의 HTTP 서비스와 workflow는 하나의 captured ApiClient.Session�
 - 서버 `test_task_start_registration.py`: cold 등록/비활성 metadata·strict 입력·HTTP 어댑터 순서. `test_task_start_api.py`: 명시 별도 MySQL DB의 실제 상태/권한·키·실패 rollback/경합.
 - 기존 TaskStartPreparation.Tests의 읽기 전용 생성자·조회 회귀는 유지한다. MySQL/HTTP·대역·사용자 수동 GUI·3번 제출 통합은 각각 구분한다.
 
-실제 실행 수치·미실행은 [LOG/2번 구현 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md), 담당별 회신 항목은 [협의사항](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md)을 따른다.3번은 최신 버전 재조회·후속 제출/판단 경합·과거 자료 보존과 화면용 이벤트 계약을 회신해야 한다. 업무 수정·담당자 변경·마감 연장은3번과 협의 후 결정하며, 자동 결과 제출은 제외·자동 검토 요청은 협의사항으로 유지한다. 공유 DB/서버 적용·두 PC는 별도다.
+실제 실행 수치·미실행은 [LOG/2번 구현 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md), 남은 담당별 접점은 [공통규약](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md)을 따릅니다. 업무→기존3번 제출 폼 연결과 소유 환경의 실제 HTTP/UI 검증은 존재합니다. 새 lifecycle과 제출/판단/첨부의 충돌·과거 자료 보존은3번의 실제 소비 연결 후 검증해야 하며, 공용 이벤트/성공 구독과 공유 DB/서버·두 PC는 별도입니다. 수정·재배정·취소·연장 정책은2026-10-20 A~E로 확정됐습니다. 자동 결과 제출은 제외하고 별도 자동 검토 요청은 협의사항으로 유지합니다.
