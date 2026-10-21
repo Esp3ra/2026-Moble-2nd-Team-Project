@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}{{ action_label }}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='tasks.css') }}">{% endblock %}
+{% block content %}
+<div class="task-page">
+<a class="task-back" href="{{ url_for('task_web.detail', task_id=draft.target|int, **filters) }}">← 업무 상세로</a>
+<p class="eyebrow">TASK MANAGEMENT</p><h1>{{ action_label }}</h1>
+<section class="card"><h2>{{ draft.before.title }}</h2><p>현재 마감일: {{ draft.before.due_date }}</p>
+{% if draft.before.pending_extension %}<p>신청한 마감일: {{ draft.before.pending_extension.requested_due_date }}</p><p class="task-description">신청 사유: {{ draft.before.pending_extension.reason }}</p>{% endif %}
+<p class="muted">이 화면을 처음 열었을 때의 업무와 신청을 기준으로 확인합니다.</p>
+<a href="{{ source_url }}">최신 업무 다시 불러오기 (입력 초기화)</a></section>
+{% if not write_enabled %}<section class="card task-write-error" role="status"><h2>기술 연결 확인 필요</h2><p>취소·연장 정책은 확정됐습니다. 공통 저장과 제출 차단 연결을 확인한 뒤 실행할 수 있습니다.</p></section>{% endif %}
+{% if error %}<section class="card task-write-error" role="alert"><h2>입력을 확인해 주세요</h2><p>{{ error.message }}</p><p class="muted">오류 코드: {{ error.code }}</p></section>{% endif %}
+<form class="task-create-form" method="post" action="{{ source_url }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="draft_ticket" value="{{ draft_ticket }}">
+<section class="card">
+{% if action == 'cancel' %}<p>취소하면 새 작업을 진행할 수 없으며 대기 중인 연장 신청도 종료됩니다. 기존 업무 상태·배정·결과 기록은 보존됩니다. 취소를 복원하는 기능은 없습니다.</p>
+{% elif action == 'request-extension' %}<label for="requested-due">희망 마감일</label><input id="requested-due" type="date" name="requested_due_date" value="{{ fields.requested_due_date }}"><p class="muted">현재 마감일보다 뒤이며 한국 시간 기준 오늘 또는 그 이후인 날짜를 선택하세요. 신청 중에는 결과를 제출할 수 없으며 다른 지정 관리자가 판단합니다.</p>
+{% elif action == 'approve-extension' %}<p>신청한 마감일 그대로 승인합니다. 업무 상태와 배정은 유지됩니다.</p>
+{% elif action == 'reject-extension' %}<p>연장 신청을 반려하고 기존 마감일을 유지합니다.</p>
+{% else %}<p>본인의 연장 신청을 철회하고 기존 마감일을 유지합니다. 필요한 경우 다시 신청할 수 있습니다.</p>{% endif %}
+{% if action in ('cancel', 'request-extension', 'reject-extension') %}<label for="lifecycle-reason">{% if action == 'reject-extension' %}판단 사유 (선택){% else %}사유 (필수){% endif %}</label><textarea id="lifecycle-reason" name="reason" rows="5">{{ fields.reason }}</textarea>{% endif %}
+<p>다음 확인 화면에서 내용을 확인한 뒤 실행합니다.</p><button type="submit" name="op" value="prepare" {% if not write_enabled %}disabled{% endif %}>{{ action_label }} 내용 확인</button>
+</section></form></div>
+{% endblock %}

@@ -13,6 +13,16 @@ bp = Blueprint("task_queries", __name__, url_prefix="/api/v1/tasks")
 
 
 @bp.record_once
+def register_continuity_reader(state):
+    # Only the existing task-query + common-write opt-in supplies this hook.
+    # Collaboration installation, routes and operational settings stay owned
+    # by the existing common/member 4 entry point.
+    if state.app.config.get("ENABLE_COMMON_WRITE_DRAFT") is True:
+        from .continuity import register_reader
+        register_reader(state.app)
+
+
+@bp.record_once
 def register_web_reads(state):
     # The query blueprint is explicitly enabled by the existing feature registry.
     # Register a separate web prefix so common cookie authentication still applies.

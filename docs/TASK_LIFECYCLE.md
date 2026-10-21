@@ -1,6 +1,22 @@
 # 업무 취소·마감 연장
 
-2026-10-20 팀장의 [확정 D/E 정책](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-management-policy-approved-20261020)에 따른2번 소유 저장·조회·폼입니다. 2026-10-21 현재 PR51의 공통 등록·성공 결과 읽기와 실제009 검토 SQL은 alpha에 반영됐습니다. **3번 제출/첨부의 실제 취소·대기 연장 소비와 같은 배포의 연결 검증 전 실제 변경은503으로 차단**합니다. 다른 담당 제품 코드를 수정하지 않습니다. 테스트 대역으로2번 기능을 검증한 것을3번 실제 통합·공유 적용 완료로 표시하지 않습니다.
+2026-10-20 팀장의 [확정 D/E 정책](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-management-policy-approved-20261020)에 따른2번 소유 저장·조회·폼입니다. PR51의 공통 등록·성공 결과 읽기와009 검토 SQL, PR52의3번 취소·연장 대기 소비 코드가 alpha에 반영됐습니다. 현재 2번은 취소·연장 웹과 취소 시 업무 첨부 참조 해제까지 연결합니다. **같은 배포의 연결 검증과 통합 ACK 전 실제 변경은503으로 차단**하며, 다른 담당 제품 코드를 직접 수정하지 않습니다. 소유 환경·명시 대역 검증과 실제 공용 적용을 구분합니다.
+
+<a id="task-lifecycle-web"></a>
+## 웹 입력·실행·결과 확인
+
+[업무 웹](TASK_WEB.md#task-web-lifecycle-writes)은 기존 정책·권한·W1 함수로 취소·연장 신청·승인·반려·철회를 연결합니다. 처음 연 업무와 배정 버전, 선택한 연장 신청 ID, 로그인 접속을 서명 초안에 고정하고, 입력 확인과 실제 실행에서 현재 조건을 다시 검사합니다. 실행 함수는 API와 공유하며 선택한 신청 ID까지 동일 요청 지문에 묶습니다. 자기 신청 판단 금지, 승인 전 기한 유지, 취소 후 복원 없음과 기존5상태 보존을 유지합니다.
+
+ACK 미설치에서는 확인·실행을 차단하고 강제 POST도503입니다. 결과 읽기는 별도 현재 권한 검사로 이미 저장된 성공을 확인하므로 이후 ACK 해제나 명시 결과 읽기 전용 재시작에서도 보관된 결과를 조회할 수 있습니다. 읽기 전용에서는 신규 실행·키 발급을 허용하지 않습니다. 웹은 열린 확인폼의 원래 키/본문만 보존하며 브라우저 종료 후 자동 복원은 제공하지 않습니다. WinForms의 접속별 미해결 요청 보관과 구분합니다.
+
+<a id="task-cancellation-attachments"></a>
+## 취소와 업무 첨부 참조
+
+취소의 같은 인증 트랜잭션에서 현재 권한·버전·취소 상태를 검사한 뒤, 취소 마커 저장과 업무 버전 증가 전에3번이 등록한 `release_task_files(db, task_id, expected=...)`를 호출합니다. 업무 첨부 참조만 해제하고 과거 제출 첨부와 다른 업무의 참조는 보존합니다. 참조·업무·신청·감사·성공 receipt는 함께 commit 또는 rollback하며, 물리 파일 정리는3번 제공부의 기존 commit 이후 처리에 맡깁니다.
+
+제공부가 꺼져 있어도 저장된 공용 첨부 테이블을 확인합니다. 현재 업무 참조가 남아 있으면 취소를503으로 막아 참조를 남긴 채 취소 성공으로 처리하지 않습니다. 부분·잘못된 스키마도503이며 자동 DDL이나 공용 파일 모델 import로 복구하지 않습니다. 준비된 저장소에 현재 업무 참조가 없거나 공용 저장소 자체가 없는 기존 업무는 원래 취소 조건을 따릅니다.
+
+생성·수정의 첨부 최종 목록을 업무 본문에 연결하는 것은 사용자 결정대로 **3번과 협의 후 결정**입니다. 이 취소 소비는 새 `attachment_ids` HTTP 필드·업로드 UI·웹 cookie 첨부 접점의 확정이나 공용013 적용 완료를 뜻하지 않습니다. 최종 실행 결과는 [LOG/2번 구현·검증의 최신 회차](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md)에 기록합니다.
 
 ## 실행 경계
 
@@ -26,7 +42,7 @@
 | 반려 | 현재 지정 관리자, 신청자 본인 금지, pending | 기존 기한 유지.판단 사유 내용은 선택 |
 | 철회 | 현재 담당자인 신청자 본인, pending | 기존 기한 유지.재신청 가능 |
 
-모든 성공은 task.row_version을 한 번 증가시키며 assignment_revision과 업무5상태는 유지합니다. 반려완료/마감 경과도 연장을 신청할 수 있습니다. 승인 후에도 반려완료이므로 명시 재작업 시작→진행중→재제출이 필요합니다. 대기 중 제출 차단은3번이 실제 신청 조회를 연결해야 완성됩니다. 자동 결과 제출은 없습니다.
+모든 성공은 task.row_version을 한 번 증가시키며 assignment_revision과 업무5상태는 유지합니다. 반려완료/마감 경과도 연장을 신청할 수 있습니다. 승인 후에도 반려완료이므로 명시 재작업 시작→진행중→재제출이 필요합니다. 대기 중 제출 차단을 위한3번의 실제 신청 조회 소비 코드는 PR52로 제공됐으며 같은 공용 배포의 검증은 별도입니다. 자동 결과 제출은 없습니다.
 
 ## API
 
@@ -60,18 +76,18 @@
 
 모든 쓰기는 공통 guard/인증 재검사와 부모 업무→현재 배정/관리자→정렬 사용자→취소/신청 행 잠금 안에서 권한·버전·상태·KST 날짜를 검사합니다. 업무/신청/취소·감사·성공 receipt는 같은 트랜잭션입니다. 현재 활성 관리자 중 다른 판단자가 없으면 신청을 거절하며 현재 관계를 서버에서 재검사합니다. 취소는 이후 수락·재작업·일반 수정·재배정·관리자 변경/연장 신규 쓰기를 차단합니다.
 
-응답이 불명확하면 같은 접속의 불변 본문/키를 보존하고 빈 목록·화면 이동 후에도 명시 결과 확인으로 복구합니다. not_recorded 확인 뒤에만 같은 요청/키를 재전송합니다. 자동 재전송/새 키 발급은 없습니다. PR51은 쓰기와 성공 결과 조회 authorizer를 분리합니다. 쓰기off 재시작에서 `REMOTEWORK_ENABLE_TASK_LIFECYCLE_RESULT_READS_DRAFT=1`을 명시하면 현재 권한·기존 키/보관기간·스키마를 검사해 이미 확정된 성공만 읽습니다. 새 키/쓰기나 통합ACK를 허용하지 않으며 기존 대역값을 일반 실행에 설치하지 않습니다. 현재 권한 상실·키 만료·미기록은 성공으로 추정하지 않고 현재 관리자에게 확인합니다. 로그아웃·401·계정 변경은 이전 자료를 폐기하고 늦은 응답을 반영하지 않습니다.
+응답이 불명확하면 같은 접속의 불변 본문/키를 보존합니다. WinForms는 빈 목록·화면 이동 후에도 명시 결과 확인을 제공하고 웹은 열린 원래 확인폼에서 복구합니다. not_recorded 확인 뒤 현재 쓰기가 허용될 때만 같은 요청/키를 명시적으로 재전송합니다. 자동 재전송/새 키 발급은 없습니다. PR51은 쓰기와 성공 결과 조회 authorizer를 분리합니다. 쓰기off 재시작에서 `REMOTEWORK_ENABLE_TASK_LIFECYCLE_RESULT_READS_DRAFT=1`을 명시하면 현재 권한·기존 키/보관기간·스키마를 검사해 보관된 성공 결과를 읽습니다. 새 키/쓰기나 통합ACK를 허용하지 않으며 기존 대역값을 일반 실행에 설치하지 않습니다. 현재 권한 상실·키 만료·미기록은 성공으로 추정하지 않고 현재 관리자에게 확인합니다. 로그아웃·401·계정 변경은 이전 자료를 폐기하고 늦은 응답을 반영하지 않습니다.
 
 ## 1·3번 제공 접점과 남은 통합
 
 1번의 [공통 쓰기/DDL·등록 대조](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-lifecycle-member1-connection)는 PR51로 코드 제공됐습니다.2번의 `register_lifecycle_actions`와 `register_lifecycle_result_readers`를 startup에서 연결하며 기존 requested callback·현재 권한과8필드 최소 결과를 재사용합니다. 결과 읽기 등록은 신규 쓰기와 분리됐고,기존 owner callback을 덮지 않습니다. 실제 배포의 옵션/정식009·공유 적용/복구 대조와3번 소비 검증은 여전히 별도입니다.
 
-3번은 [취소·연장 대기 소비 경로](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-lifecycle-member3-connection)를 확인합니다.2번 helper는 `ensure_not_cancelled(db,task_id)`와 `pending_extension_facts(db,task_id,assignment_revision,lock=False)`입니다. 실제 pending 어댑터는 미준비를False로 숨기지 않습니다. 기존 `ExternalFacts`의 검토자 원본은 유지하며 취소를 pending=True로 위장하지 않습니다. 제출·판단·legacy multipart 및 JSON 업로드 start/chunk/complete의 쓰기에 취소 guard를 같은TX/잠금으로 연결해야 합니다. 과거 결과물/이력/다운로드는 현재 합의된 읽기 권한으로 유지합니다.
+3번의 [취소·연장 대기 소비 경로](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-lifecycle-member3-connection)는 PR52에 반영됐습니다.2번 helper는 `ensure_not_cancelled(db,task_id)`와 `pending_extension_facts(db,task_id,assignment_revision,lock=False)`이며3번 쓰기에서는 잠금 옵션을 소비합니다. 실제 pending 어댑터는 미준비를False로 숨기지 않습니다. 기존 `ExternalFacts`의 검토자 원본은 유지하며 취소를 pending=True로 위장하지 않습니다. 제공된 제출·판단·첨부 쓰기 연결과 같은 공용 배포에서의 활성화·동시성 증거를 구분합니다. 과거 결과물/이력/다운로드는 현재 합의된 읽기 권한으로 유지합니다.
 
-실제3번 제출/첨부와 취소·신청의 경합, 공유 DB/실계정·두PC·수동 GUI/다중DPI는 아직 검증 완료가 아닙니다.4번 [알림 A1~A6·협업 B1~B7](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member4-policy-adopted-20261021)은 진행 기준으로 채택됐으며 추가 DTO/기한 사건 식별·공용 이벤트·웹/공용 첨부의 기술 연결은 후속입니다. 별도 검토 요청은 이번 확정에 포함되지 않습니다. 새 회신 MD/브랜치/추가 PR은 요구하지 않습니다.
+실제 공용 배포에서3번 제출/첨부와 취소·신청의 경합, 공유 DB/실계정·두PC·수동 GUI/다중DPI는 별도 확인 대상입니다.4번 [알림 A1~A6·협업 B1~B7](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member4-policy-adopted-20261021)은 진행 기준으로 채택됐으며2번의 [보수적인 버전 이력 reader](TASK_QUERIES.md#task-continuity-reader)는 알려진2번 행동의 완전한 구간만 판정합니다. 새 기한 사건 필드·공용 이벤트,3번의 웹 첨부/관리 읽기/복귀 접점과 생성·수정 첨부 쓰기는 후속입니다. 별도 검토 요청은 이번 확정에 포함되지 않습니다. 새 회신 MD/브랜치/추가 PR은 요구하지 않습니다.
 
 ## 검증 안내
 
 [소유 MySQL·실제 HTTP 및 서버 검사](../Tests/TaskLifecycle.Integration.Tests/README.md)는 TESTING의 명시 연결 대역을 사용합니다. [클라이언트 제어 검사](../Tests/TaskLifecycle.Tests/README.md)는 공통 ApiClient/실제 폼과 명시 HTTP·workflow 대역을 사용합니다. 실행 수치와 미실행은 [LOG 구현·검증](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md)에 별도로 기록합니다.
 
-새 서버 검사는 실제 results blueprint도 등록해 정상 결과물 GET을 확인한 뒤,유효한 통합ACK가 없을 때 취소·연장5경로가503·저장 무효과인지 검사합니다. 이것은 **미연결 차단 검증**이며 실제3번 guard/pending 소비·쓰기 성공/경합 검증이 아닙니다. 다른 MySQL 기본 엔진/문자셋에서도 ORM 두 테이블이009 옵션과 한글·이모지를 유지하는 검사도 포함합니다.
+기존 서버 검사는 실제 results blueprint도 등록해 정상 결과물 GET을 확인한 뒤,유효한 통합ACK가 없을 때 취소·연장5경로가503·저장 무효과인지 검사했습니다. 이것은 **미연결 차단 검증**이며 실제3번 guard/pending 소비·쓰기 성공/경합 검증으로 세지 않습니다. 다른 MySQL 기본 엔진/문자셋에서도 ORM 두 테이블이009 옵션과 한글·이모지를 유지하는 검사를 포함했습니다. 현재 웹·취소 첨부 소비의 추가 검사 대상과 최종 실행 결과는 [업무 웹 검증 안내](../Tests/TaskWeb.Tests/README.md) 및 LOG 최신 회차에서 구분합니다.
