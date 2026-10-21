@@ -349,23 +349,46 @@ def _query(allowed):
         raise AppError(400, "INVALID_INPUT", "지원하지 않거나 중복된 조회 조건입니다.")
 
 
+def _lifecycle_context_data(db, task, assignment, managers):
+    require_lifecycle_schema(db)
+    cancellation = db.scalar(select(TaskCancellation).where(TaskCancellation.task_id == task.task_id)
+        .with_for_update().execution_options(populate_existing=True))
+    pending = _pending(db, task)
+    return {"task_id": str(task.task_id), "row_version": str(task.row_version),
+        "assignment_revision": assignment.revision, "task_status": task.task_status,
+        "start_date": task.start_date.isoformat(), "due_date": task.due_date.isoformat(),
+        "updated_at": iso(task.updated_at), "assignee_id": assignment.assignee_id,
+        "manager_user_ids": managers, "is_cancelled": cancellation is not None,
+        "cancellation": None if cancellation is None else {"cancelled_by": cancellation.cancelled_by,
+            "cancelled_at": iso(cancellation.cancelled_at), "reason": cancellation.reason},
+        "pending_extension": None if pending is None else _serialize(pending),
+        "write_enabled": bool(current_app.config.get("ENABLE_COMMON_WRITE_DRAFT") and integration_acknowledged())}
+
+
+def read_lifecycle_context(db, task_id):
+    """Existing context read; callers first enter authenticated_transaction."""
+    task, assignment, managers, _users = _current(db, task_id)
+    return _lifecycle_context_data(db, task, assignment, managers)
+
+
+def read_lifecycle_detail(db, task_id):
+    """Return context and normal detail from the same locked current rows."""
+    from .queries import _summary
+
+    task, assignment, managers, users = _current(db, task_id)
+    context = _lifecycle_context_data(db, task, assignment, managers)
+    assignee = users.get(assignment.assignee_id)
+    if assignee is None:
+        raise AppError(503, "TASK_RELATION_INCOMPLETE", "현재 업무 담당자의 정합성을 확인해 주세요.")
+    detail = _summary((task, assignment, assignee.display_name, context["is_cancelled"]))
+    return context, detail | {"description": task.description}
+
+
 @login_required
 def lifecycle_context(task_id):
     with authenticated_transaction() as db:
         _query(set())
-        task, assignment, managers, _users = _current(db, task_id)
-        require_lifecycle_schema(db)
-        cancellation = db.get(TaskCancellation, task.task_id)
-        pending = _pending(db, task)
-        data = {"task_id": str(task.task_id), "row_version": str(task.row_version),
-            "assignment_revision": assignment.revision, "task_status": task.task_status,
-            "start_date": task.start_date.isoformat(), "due_date": task.due_date.isoformat(),
-            "updated_at": iso(task.updated_at), "assignee_id": assignment.assignee_id,
-            "manager_user_ids": managers, "is_cancelled": cancellation is not None,
-            "cancellation": None if cancellation is None else {"cancelled_by": cancellation.cancelled_by,
-                "cancelled_at": iso(cancellation.cancelled_at), "reason": cancellation.reason},
-            "pending_extension": None if pending is None else _serialize(pending),
-            "write_enabled": bool(current_app.config.get("ENABLE_COMMON_WRITE_DRAFT") and integration_acknowledged())}
+        data = read_lifecycle_context(db, task_id)
     return success({"context": data})
 
 
