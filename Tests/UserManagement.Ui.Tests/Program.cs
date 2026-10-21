@@ -12,8 +12,10 @@ internal static class Program
     private static readonly UserInfo Admin = new(1, "admin-test", "관리자", "A", "개발", "admin", true);
     private static readonly UserInfo Created = new(88, "new-test", "새 직원", "B", "개발", "employee", true);
     [STAThread]
-    private static int Main()
+    private static int Main(string[] args)
     {
+        if (args.Length > 1 || (args.Length == 1 && args[0] != "--require-mysql-enrollment"))
+        { Console.Error.WriteLine("Usage: UserManagement.Ui.Tests [--require-mysql-enrollment]"); return 2; }
         ApplicationConfiguration.Initialize();
         Control.CheckForIllegalCrossThreadCalls = true;
         int exit = 1;
@@ -25,7 +27,7 @@ internal static class Program
                 CreatedIdentity(false); CreatedIdentity(true); RefreshFailure(); PatchIsNotEnrollment();
                 foreach (string change in new[] { "selection", "clear", "relogin", "close", "dispose" }) LateCreate(change);
                 LostResponse(); TargetLifetime(); ReentrantHandoff(); Unauthorized(); Disconnected();
-                EnrollmentConnectionChecks.Run();
+                EnrollmentConnectionChecks.Run(args.Length == 1);
                 Console.WriteLine($"PASS UserManagement UI: {scenarios} scenarios / {checks} assertions; actual WinForms + controlled HTTP; no device/server/DB.");
                 exit = 0;
             }

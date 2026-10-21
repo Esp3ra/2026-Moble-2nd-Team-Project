@@ -6,7 +6,7 @@ from datetime import timedelta
 from uuid import uuid4
 
 from flask import current_app, g
-from sqlalchemy import select
+from sqlalchemy import inspect, select, text
 
 from ... import enrollment_protocol_draft as wire
 from ... import enrollment_approval_draft as approval
@@ -171,7 +171,29 @@ def issue(db, body):
     return view(job, device)
 
 
-def current_permit(job, device, body):
+def mysql_evidence_required(db, job):
+    """Persisted evidence cannot be downgraded by a process-local flag.
+
+    Cold OFF startup still imports no optional model/route/CLI and does no DDL.
+    Legacy requests inspect existing MySQL evidence with CURRENT locking reads.
+    """
+    if current_app.config.get("ENABLE_ENROLLMENT_DURABILITY_DRAFT", False):
+        return True
+    if db.bind.dialect.name != "mysql":
+        return False
+    inspector = inspect(db.connection())
+    if inspector.has_table("enrollment_physical_receipts"):
+        from .durability import row
+        if row(db, job) is not None:
+            return True
+    # A newly reissued job is also explicitly MySQL-only before its first intent.
+    if inspector.has_table("enrollment_recoveries"):
+        return db.scalar(text("SELECT recovery_id FROM enrollment_recoveries "
+            "WHERE new_enrollment_id=:job FOR UPDATE"), {"job": job.enrollment_id}) is not None
+    return False
+
+
+def current_permit(job, device, body, *, allowed_scopes=("sensor_write", "sensor_capture", "result_read")):
     strict(body, wire.COMMON - {"enrollment_id"} | {"probe_nonce", "ticket_digest", "scope"})
     for field in ("operation_revision", "claim_revision", "key_epoch"):
         wire._revision(body[field])
@@ -180,8 +202,21 @@ def current_permit(job, device, body):
         fail(400, "INVALID_INPUT")
     if any(body[f] != binding(job)[f] for f in wire.COMMON - {"enrollment_id"}) or body["ticket_digest"] != job.ticket_digest:
         fail(409, "ENROLLMENT_BINDING_MISMATCH")
+    if body["scope"] not in allowed_scopes:
+        fail(400, "INVALID_INPUT")
+    durable = current_app.config.get("ENABLE_ENROLLMENT_DURABILITY_DRAFT", False)
+    from ...db import get_db
+    db = get_db()
+    if body["scope"] == "sensor_write" and mysql_evidence_required(db, job):
+        fail(409, "ENROLLMENT_MYSQL_PROTOCOL_REQUIRED")
+    if body["scope"] == "sensor_capture":
+        if not durable:
+            fail(400, "INVALID_INPUT")
+        from .durability import row
+        if row(db, job) is not None:
+            fail(409, "ENROLLMENT_PHYSICAL_RECOVERY_REQUIRED")
     stamp = now()
-    if body["scope"] == "sensor_write":
+    if body["scope"] in ("sensor_write", "sensor_capture", "sensor_store"):
         if job.state != "issued" or stamp >= job.expires_at:
             fail(409, "ENROLLMENT_WRITE_NOT_ALLOWED")
         deadline = job.expires_at
@@ -209,6 +244,9 @@ def complete(db, job, device, claim, body):
     result = wire.verify_completion(ticket(job, device), raw, device_id=device.device_id, key_id=context["key_id"],
         key_epoch=str(device.key_epoch), request_key=context["request_key"], result_key=context["result_key"])
     digest = hashlib.sha256(raw).hexdigest()
+    if not job.result_hash and mysql_evidence_required(db, job):
+        from .durability import require_recorded_result
+        require_recorded_result(db, job, digest)
     if job.result_hash:
         if not hmac.compare_digest(job.result_hash, digest):
             fail(409, "ENROLLMENT_RESULT_CONFLICT")

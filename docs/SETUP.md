@@ -82,6 +82,34 @@ Windows 방화벽은 필요한 사설 네트워크와 포트만 허용합니다.
 
 ## 5 점검과 문제 해결
 
+### 업무 등록·조회·명시 수락 개발 환경
+
+공통 schema1을 유지하며 검토된 `002_task_queries.mysql.sql`의 업무 세 테이블과
+`004_write_receipts.mysql.sql`의 receipt 테이블이 필요합니다. 기존 DB는 먼저 백업하고
+실제 테이블 정의와 적용 이력을 확인하세요. 이미 있는 테이블에 SQL을 반복 실행하거나
+전체 `init-db`로 초기화하지 않습니다.
+
+서버의 비공개 `.env`에서 아래 네 옵션을 켜고 **같은 서버를 재시작**해야 합니다.
+파일만 수정해도 실행 중인 프로세스 설정이 바뀌지는 않습니다.
+
+```dotenv
+REMOTEWORK_ENABLE_TASK_QUERY_DRAFT=1
+REMOTEWORK_ENABLE_COMMON_WRITE_DRAFT=1
+REMOTEWORK_ENABLE_TASK_CREATE_DRAFT=1
+REMOTEWORK_ENABLE_TASK_START_DRAFT=1
+```
+
+활성 관리자와 활성 담당자 계정을 각각 준비합니다. 최신 WinForms에서 관리자 로그인 →
+관리 업무 → 업무 등록 → 담당자·관리자 선택 → 입력 확인 → 별도 등록을 실행합니다.
+날짜 입력기의 체크박스를 체크하고 수락 시험일이 시작일·마감일 범위에 들도록 합니다.
+담당자는 내 업무를 GET 재조회한 뒤 업무 수락 창에서 대상 확인과 별도 수락을 실행합니다.
+신규 업무는 `not_started`·버전/배정 `1/1`, 수락 성공은 `in_progress`·버전 `2`입니다.
+웹 업무 메뉴와 미리보기 폼은 실제 등록 경로가 아닙니다.
+
+등록과 수락의 성공은 제출·승인·취소·연장 전체 통합 완료를 뜻하지 않습니다.
+취소·연장 통합 확인 ACK나 다른 기능 옵션을 이 점검만으로 설치·활성화하지 않습니다.
+다른 PC에는 서버 주소와 개발용 계정만 비공개로 전달하며 DB 계정·장치 키는 주지 않습니다.
+
 ```powershell
 cd .\RemoteWork.Server
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
