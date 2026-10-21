@@ -46,3 +46,15 @@
 추가 테이블은 파일 메타정보 `result_shared_files`, 전송 조각 `result_shared_chunks`, 자원별 연결 `result_shared_links`다. 업무 취소 상태나 업무 상태를 별도로 복제하지 않는다. 기존 파일 저장소의 shared 하위 경로를 쓴다. 업무 등록 전에 올린 파일을 기존의 필수 task_id/단일 submission_id에 억지로 넣거나 가짜 업무를 생성하지 않는다.
 
 최종 참조 해제 시 같은 TX에서 파일을 deleting 상태로 표시하고, 요청 종료 후 별도 정리 TX와 파일 IO로 실제 삭제한다. 삭제 실패는 deleting을 유지하며 기존 앱 팩토리/설정에 연결한 `shared-attachments cleanup` CLI 또는 `cleanup_shared_files()`로 재시도한다. 연결/해제 TX가 rollback되면 정리 대상이 되지 않는다. 24시간이 지난 파일도 살아 있는 참조가 있으면 지우지 않는다.
+
+## R52-03 수정·검증 — 2026-10-21
+
+기준 alpha `44c85f322d22a3f48422353aedb45a09e8970e3c`를 로컬 결합했다. 공용 참조 조회 `_links`와 업무 교체/해제의 참조 목록 조회를 `FOR UPDATE` 및 `populate_existing=True`로 변경했다. 인증에서 만들어진 REPEATABLE READ snapshot에 의존하지 않고, 기존 공통 guard 안에서 현재 commit된 참조와 같은 TX의 변경을 읽는다. 별도 commit·전역 격리 수준 변경·새 정책·DDL·폼 변경은 없다.
+
+`verify_shared.py`의 실제 인증 뒤/guard 전 대기 장치는 테스트 전용이다. A만 보이는 snapshot → 별도 HTTP 요청의 B 연결 commit → A 해제 순서를 실제 소유 MySQL에서 재현했다. 수정 전에는 B 참조가 남았는데 ready 상태 검사에 실패했다. 수정 후에는 B 참조·ready 상태·원본 다운로드·정리 후 바이트가 유지되고, 마지막 B 해제 때만 파일이 정리된다.
+
+추가로 인증 snapshot 뒤 같은 업무 첨부가 교체된 상황의 release/replace 및 각 rollback, 미연결 snapshot 뒤 연결된 파일의 업로드 삭제 거부를 확인했다. 일반 조회 snapshot은 옛 상태를 유지함도 별도로 검사해 이 순서가 우연히 새 snapshot으로 실행된 것은 아닌지 확인한다. 기존 과거 제출 참조·현재 권한·정리 실패 재시도 검사를 유지했다.
+
+이번 직접 결과: 공용 첨부 **239개 통과**(추가 회귀105 + 기존134). 기존 서버191·웹183·실제 C# HTTP/WinForms41, C#115소스 컴파일 오류0/경고0, 실제2·3번 취소·연장 MySQL/HTTP258, JS 명시 DOM/HTTP 대역52 및 기본off 검사 통과. 추가 회귀105를239에 다시 합산하지 않는다. lifecycle 검사 중 RuntimeError 로그는 기존 의도적 rollback fixture이며 최종 종료0이다.
+
+사용자 DB·실행 중 제품 서버·실제 공유DB 적용·배포 ACK·두PC/장비는 변경/검증하지 않았다. 업무 소비 route는 명시 테스트 fixture이며 2번 실제 업무 UI/TX 연결 완료를 뜻하지 않는다. 이미 잘못 저장된 실제 데이터의 일괄 복구/삭제 작업도 하지 않았다. 1번 DDL 검토·공유 적용과2번 소비 후속은 위 계약대로 남는다. PR52의 R52-03은 **3번 수정·격리 검증 완료, 2번 재검토 대기**로 회신한다.

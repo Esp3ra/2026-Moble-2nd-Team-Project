@@ -17,7 +17,7 @@ import run_mysql_http_check as owned
 from sqlalchemy import select, func
 from werkzeug.security import generate_password_hash
 from waitress import create_server
-from flask import g
+from flask import g, request
 from remotework import create_app
 from remotework.auth import authenticated_transaction, login_required
 from remotework.common import AppError, payload, success
@@ -55,7 +55,7 @@ def run(url, directory):
                 employee_no='TEST-'+login,display_name='TEST-'+login,department='TEST',role=role,is_active=True)
             db.add(user);db.flush();ids[login]=user.id
         db.add(results.DepartmentReviewer(department='TEST',reviewer_id=ids['manager']))
-        for number in (100,200,300):
+        for number in (100,200,300,500,600):
             db.add(TaskRecord(task_id=number,title='TEST shared '+str(number),description='TEST isolated',
                 task_status='in_progress',start_date=date.today()-timedelta(days=2),due_date=date.today()+timedelta(days=3),
                 current_assignment_revision=1,row_version=1,created_by=ids['manager'],created_at=utcnow(),updated_at=utcnow()))
@@ -63,6 +63,24 @@ def run(url, directory):
             db.add(TaskAssignment(task_id=number,revision=1,assignee_id=ids['worker'],assigned_by=ids['manager'],
                 assigned_at=utcnow()-timedelta(days=1),accepted_at=utcnow()-timedelta(hours=1)))
             db.add(TaskManager(task_id=number,user_id=ids['other'] if number==300 else ids['manager']))
+
+    snapshot_gates = {}
+
+    @app.before_request
+    def wait_after_auth_snapshot():
+        # Test-only scheduling after real load_identity, before the shared guard.
+        label = request.headers.get('X-Test-Snapshot')
+        if label not in snapshot_gates:
+            return
+        gate = snapshot_gates[label]
+        db = get_db()
+        query = select(shared.SharedLink).where(shared.SharedLink.attachment_id == gate['file'])
+        gate['cached'] = list(db.scalars(query))
+        gate['before'] = sorted(link.task_id for link in gate['cached'])
+        gate['ready'].set()
+        if not gate['resume'].wait(8):
+            raise AppError(503,'TEST_GATE_TIMEOUT','TEST snapshot scheduling failed')
+        gate['after'] = sorted(link.task_id for link in db.scalars(query))
 
     @app.post('/api/v1/_shared_test/task/<int:task_id>/<operation>')
     @login_required
@@ -102,8 +120,9 @@ def run(url, directory):
     thread=threading.Thread(target=server.run,daemon=True);thread.start()
     base='http://127.0.0.1:'+str(server.effective_port)
     tokens={}
-    def call(who,path,body=None,method=None,status=200,key=None):
+    def call(who,path,body=None,method=None,status=200,key=None,snapshot=None):
         headers={} if who is None else {'Authorization':'Bearer '+tokens[who]}
+        if snapshot:headers['X-Test-Snapshot']=snapshot
         if key:headers['Idempotency-Key']=key
         data=None
         if body is not None:data=json.dumps(body).encode();headers['Content-Type']='application/json'
@@ -122,10 +141,28 @@ def run(url, directory):
                 {'offset':offset,'data':base64.b64encode(content[offset:offset+results.CHUNK_BYTES]).decode()})
         api(who,'results/shared/uploads/'+item['attachment_id']+'/complete',{})
         return item['attachment_id']
-    def change(who,task,files=None,operation='replace',status=200,rollback=False,version='1'):
+    def change(who,task,files=None,operation='replace',status=200,rollback=False,version='1',snapshot=None):
         return call(who,f'/api/v1/_shared_test/task/{task}/{operation}',{'expected_row_version':version,
-            'expected_assignment_revision':1,'attachment_ids':files or [],'rollback':rollback},status=status)
+            'expected_assignment_revision':1,'attachment_ids':files or [],'rollback':rollback},status=status,snapshot=snapshot)
     def download(who,file,status=200):return api(who,'results/shared/files/'+file+'/download',status=status)
+    def delayed(file, action, concurrent):
+        label=secrets.token_hex(8)
+        gate={'file':file,'ready':threading.Event(),'resume':threading.Event()}
+        snapshot_gates[label]=gate
+        try:
+            with ThreadPoolExecutor(1) as pool:
+                future=pool.submit(action,label)
+                try:
+                    check(gate['ready'].wait(8),'real authenticated request paused before write guard')
+                    concurrent()
+                finally:
+                    gate['resume'].set()
+                future.result(timeout=12)
+            check(gate['before']==gate['after'],'ordinary RR read still uses the pre-commit snapshot')
+            return gate['before']
+        finally:
+            gate['resume'].set()
+            snapshot_gates.pop(label,None)
     try:
         for login in ids:
             reply=api(None,'auth/login',{'login_id':login,'password':password})
@@ -138,6 +175,52 @@ def run(url, directory):
             for statement in sql.split(';'):
                 if statement.strip():conn.exec_driver_sql(statement)
         check(True,'actual review SQL applied only to owned DB')
+        # R52-03: B commits AFTER A's authenticated RR snapshot, BEFORE A locks.
+        race_start=COUNT
+        race_bytes=b'TEST R52-03 current reference'
+        race_file=upload('manager',race_bytes)
+        change('manager',500,[race_file])
+        before=delayed(race_file,
+            lambda label:change('manager',500,operation='release',snapshot=label),
+            lambda:change('manager',600,[race_file]))
+        check(before==[500],'R52-03 snapshot originally contains only A')
+        with app.app_context():
+            db=get_db()
+            check(list(db.scalars(select(shared.SharedLink.task_id).where(shared.SharedLink.attachment_id==race_file)))==[600],
+                'R52-03 only newly committed B reference remains')
+            check(db.get(shared.SharedFile,race_file).state=='ready','R52-03 B reference keeps file ready')
+            shared.cleanup_shared_files()
+        check(download('worker',race_file)==race_bytes,'R52-03 B download returns original bytes after cleanup')
+        check((directory/'files/shared'/race_file).is_file(),'R52-03 physical bytes retained')
+        change('manager',600,operation='release')
+        check(not (directory/'files/shared'/race_file).exists(),'R52-03 last reference still cleans bytes')
+        # Both task mutation queries must see a replacement committed after auth.
+        for operation in ('release','replace'):
+            for rollback in (False,True):
+                old=upload('manager',b'TEST snapshot old')
+                new=upload('manager',b'TEST snapshot new')
+                change('manager',500,[old]);change('manager',600,[old])
+                delayed(old,
+                    lambda label:change('manager',500,operation=operation,rollback=rollback,
+                        status=409 if rollback else 200,snapshot=label),
+                    lambda:change('manager',500,[new]))
+                current=api('manager','results/shared/tasks/500')['items']
+                check([item['attachment_id'] for item in current]==([new] if rollback else []),
+                    operation+' sees current replacement and preserves TX rollback')
+                check(download('worker',old)==b'TEST snapshot old','old B reference survives current mutation')
+                if rollback:
+                    check(download('worker',new)==b'TEST snapshot new','rollback retains replacement bytes')
+                    change('manager',500,operation='release')
+                check(not (directory/'files/shared'/new).exists(),'last replacement reference cleanup retained')
+                change('manager',600,operation='release')
+        # A stale "unbound" snapshot cannot authorize deleting a now-bound upload.
+        bound=upload('manager',b'TEST binding after snapshot')
+        check(delayed(bound,
+            lambda label:call('manager','/api/v1/results/shared/uploads/'+bound,method='DELETE',status=403,snapshot=label),
+            lambda:change('manager',500,[bound]))==[], 'upload snapshot initially had no references')
+        check(download('worker',bound)==b'TEST binding after snapshot','current binding prevents uploader deletion')
+        change('manager',500,operation='release')
+        print(f'PASS {COUNT-race_start} R52-03/current-reference regression checks against owned MySQL/HTTP.')
         api('manager','results/shared/uploads/start',{**meta,'size':results.MAX_FILE_BYTES+1},status=413)
         api('manager','results/shared/uploads/start',{**meta,'name':'../bad'},status=400)
         api('manager','results/shared/uploads/start',{**meta,'sha256':'bad'},status=400)

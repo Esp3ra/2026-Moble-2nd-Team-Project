@@ -92,8 +92,10 @@ def storage():
 
 
 def _links(db, attachment_id):
+    # Authentication may have opened an older RR snapshot before the write guard.
     return list(db.scalars(select(SharedLink).where(SharedLink.attachment_id == attachment_id)
-                          .order_by(SharedLink.task_id, SharedLink.resource_type, SharedLink.resource_id)))
+                          .order_by(SharedLink.task_id, SharedLink.resource_type, SharedLink.resource_id)
+                          .with_for_update().execution_options(populate_existing=True)))
 
 
 def _file(db, attachment_id):
@@ -186,7 +188,8 @@ def replace_task_files(db, task_id, attachment_ids, *, expected):
     ensure_not_cancelled(db, task_id)
     files = selection(db, attachment_ids)
     wanted = {f.id for f in files}
-    current = list(db.scalars(select(SharedLink).where(SharedLink.resource_type == "task", SharedLink.resource_id == task_id)))
+    current = list(db.scalars(select(SharedLink).where(SharedLink.resource_type == "task", SharedLink.resource_id == task_id)
+                              .order_by(SharedLink.attachment_id).with_for_update().execution_options(populate_existing=True)))
     present = {link.attachment_id for link in current}
     for link in current:
         if link.attachment_id not in wanted:
@@ -217,7 +220,8 @@ def release_task_files(db, task_id, *, expected):
     if not isinstance(expected, ExpectedVersions):
         raise AppError(400, "INVALID_INPUT", "현재 업무 버전·배정 정보가 필요합니다.")
     expected.check(row_version=task.row_version, assignment_revision=task.current_assignment_revision)
-    links = list(db.scalars(select(SharedLink).where(SharedLink.resource_type == "task", SharedLink.resource_id == task_id)))
+    links = list(db.scalars(select(SharedLink).where(SharedLink.resource_type == "task", SharedLink.resource_id == task_id)
+                            .order_by(SharedLink.attachment_id).with_for_update().execution_options(populate_existing=True)))
     ids = {link.attachment_id for link in links}
     for link in links:
         db.delete(link)
