@@ -19,6 +19,21 @@ dotnet run --project .\Tests\TaskQueries.Http.Tests\TaskQueries.Http.Tests.cspro
 
 경합 시점은 수동 continuation 큐·HTTP 완료 신호·UI callback barrier로 정하며 새 경합 검사에 고정 sleep을 사용하지 않습니다. 기존 HTTP·필터·오류 검사를 포함한 수치이므로 따로 합산하지 않습니다. 실제 서버/DB·공유 계정·두 PC·수동 전체 UI 검수는 이 실행의 검증 범위가 아닙니다.
 
+## 2026-10-21 특정 업무 탐색의 독립 HTTP 대역 검증
+
+```powershell
+dotnet run --project .\Tests\TaskQueries.Http.Tests\TaskQueries.Http.Tests.csproj -c Release -- --navigation
+```
+
+이 옵션은 실제 WinForms와 공통 ApiClient를 사용하고 HTTP 응답은 명시적인 대역으로 제공합니다. 업무 응답과 선택 상세의 첨부 `items=[]` 응답을 분리하므로 선택적 첨부 GET이 업무 조회 응답을 소비하지 않습니다. 기존 기본 실행과 `--live`를 대체하지 않으며 실제 알림 source·MainForm 조립·서버 권한·DB·공유 환경 검증은 아닙니다.
+
+- `CaptureOwnTaskNavigator()`가 만든 callback은 캡처한 로그인에 고정됩니다. 명시 탐색은 **내 업무/전체 상태/취소 미포함**으로 전환해 현재 own 목록에서 정확한 대상만 선택하고 상세를 조회합니다. 다른 업무로 대체하거나 managed 범위로 확장하지 않습니다. 이 동작이 알림의 현재 own 관계나 목록·상세 사이의 원자적 권한을 증명하지는 않습니다.
+- `2^53+1`과 signed BIGINT 최댓값 문자열, 잘못된 ID 무요청, 목록에 없는 ID의 첫 행 자동 선택·상세 요청 금지, 403/404/503 안내·기존 상세/버튼 초기화를 검사합니다.
+- 늦은 목록 성공/실패, 늦은 상세 중 사용자 행 선택·필터 변경, 다른 계정·동일 계정 재로그인·서버 변경, 새 로그인 뒤 도착하는 이전401을 검사합니다. 전송 완료 뒤 UI continuation 직전 로그아웃/폐기도 명시적으로 제어합니다.
+- 작업 스레드 호출과 폐기한 화면의 callback은 HTTP 없이 거절합니다. 모든 업무 요청은 GET이며 작업 쓰기·알림 확인 요청이 발생하지 않는지도 대조합니다.
+
+2026-10-21 직접 실행: **9개 시나리오·130개 검사 통과**. 전송 완료 관찰 뒤 현재 UI continuation을 명시적으로 보류하며, 탐색 대역의 `Task.Yield`도 같은 수동 UI 큐에 남겨 작업 스레드로 잘못 이동시키지 않습니다. 이 수치는 해당 옵션만의 결과이며 기존 테스트 수치나 팀원 보고와 합산하지 않습니다.
+
 ## 격리 서버의 실제 HTTP 검증
 
 ### MySQL 전용 서버·DB를 자동 준비하는 실행기
