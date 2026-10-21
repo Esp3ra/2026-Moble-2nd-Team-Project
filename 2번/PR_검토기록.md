@@ -1,3 +1,53 @@
+<a id="pr55-56-merged-20261021"></a>
+## 최신 재검토 — PR55·PR56 병합 완료, PR52 코드 수정 대기, 2026-10-21
+
+[PR55](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/55) headbc1751d의 R55-04 단일 종료 시각 수정과 회원관리 연결 fixture 보완을 최신 alpha864a2a6에서 검증하고 **`b37fe3a38babe1553fc6d78e39e4b8c07ce0d822`**로 선행 병합했습니다. 공식8모듈239통과·독립 초 경계4통과·Release0/0이며 기존R55-01~04는 모두 해결 확인입니다. [최종 검토/범위](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/55#issuecomment-6306967504)를 따릅니다.
+
+이어서 [PR56](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/56) head0bf93bc를 **`395d70d84172f332d9f47e162aa64b9bb5adaa57`**로 병합했습니다. C#중계540·전용WinForms31·회원관리 기본173/필수177(각 기존14시나리오46)·Python168통과/Linux2생략·실제서버/소유MySQL 어댑터2가 통과했습니다. 두 병합의 실제tree가 사전 검토tree와 일치합니다. [최종 검토/미실행 범위](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/56#issuecomment-6306967787), [중앙 근거](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr55-56-merged-20261021)를 따릅니다.
+
+실제 작업 폴더에는 병합된46경로만 백업 후 동기화했고 DOCX·실제설정은 보존했습니다. 실행 서버 재시작·실제010/011·옵션/서비스 전환·운영자close/reissue·Pi/센서·실물 등록은 실행하지 않았습니다. 코드 병합과 실제 서버의 새 경로404 해소/실물 검증은 별도입니다. PR52 head0a7a57d는 동일하여 기존R52-01/P1·R52-02/P2 코드 수정 대기를 유지합니다.
+
+### 고정된 최신 기준과 실제 병합
+
+실제 alpha base `864a2a6a223d7dc6f4ab6759ed091b0d390b1565`에는 이전bb281e3 이후2번의 raw009 정합성/읽기 전용 업무 웹 커밋이 있습니다. 이번 검토는 이 기준을 보존해 결합했으며 PR 메타데이터의 예전basebb281e3만 기준으로 병합하지 않았습니다.
+
+| PR | 고정 head | 검토/실제 tree | 실제 merge |
+|---|---|---|---|
+|55|`bc1751d560f4f407af18bae118c4ac0e39d4c091`|`eddf889e5a3ac656bdbce73f748c029b28ede4b3`|`b37fe3a38babe1553fc6d78e39e4b8c07ce0d822`|
+|56|`0bf93bca7891c3ae73e00a5ceb3f3b9465f85dd6`|`f4d7e75b026ecbd6f8794288fb2cfc03f12d2c87`|`395d70d84172f332d9f47e162aa64b9bb5adaa57`|
+
+PR55부터expected_head_sha를 지정해 병합하고 실제commit/tree/원격alpha를 확인한 뒤 PR56을 같은 방법으로 병합했습니다. 별도 audit commit은 로컬 검토용이며 원본에 push하지 않았습니다. 제품46경로 이외 최신2번 업무 웹/정책/다른 팀원의 코드는 병합 과정에서 보존했습니다.
+
+### PR55 재검토와 이전 결함 해결
+
+이전0871b2c 이후 델타는5파일이며 제품 로직 수정은 recovery.close의 단일 stamp입니다. `Recovery.closed_at`과 source `Job.updated_at`에 같은 값을 기록하고 `check_binding`의 정확한 동일성·현재권한·원래ticket/접속/만료·claim 보존을 그대로 유지합니다. 나머지는 초 경계2회귀와1번 소유 회원관리 fixture3파일 보완입니다.
+
+원래 독립 재현을 안전성 기대로 바꾼 같은 초/매호출+1초2검사와 공개 초/소초 경계2검사가 **4통과/26.11초**입니다. 초가 바뀌어도 close commit 후 같은 확인서 재실행exit0, 상태GET200·새 로그인reissue200, claim2·old/new ID 분리·정확한 시각 결합을 확인했습니다. 공식239에 포함되는2개와 합산하지 않습니다. R55-01~03은 앞선 수정 확인을 유지하고 이번 공식 회귀에도 포함됩니다.
+
+새 fixture는 GET/POST physical-result의15필드·같은job/revision·원문 선보관→complete·동일재전송/충돌과 창닫기/로그아웃 뒤 늦은쓰기0을 검사합니다. 명시 취소 버튼/서버 cancel API 검사를 새 fixture가 포함했다고 표시하지 않습니다. PR55만의 기본모드는 연결153+기존14시나리오46통과/exit0, 같은옛중계에 대한 필수모드는 선행physical조회 누락으로 예상대로exit1을 확인했습니다. fixture의 메모리 검사를 MySQL 영속성 검사로 확대하지 않습니다.
+
+### 이번 직접 실행한 검증
+
+Python3.12.14/pytest9.1.1·소유 MySQL8.2 InnoDB/RR에서 공식 durability/device/approval/protocol/task_creation_migration/task_write_support/recovery/durability_review **8모듈239통과·실패/skip/경고0·381.21초**입니다. WriteSupport HTTP DLL 선행 빌드로 실제C# HTTP검사를 생략하지 않았고 thread warning을 오류로 처리했습니다. WriteSupport 및 솔루션Release 경고0/오류0, diff검사 통과입니다. 작성자의Python3.14/151.27초와 이번 실행의 로그를 구분하고 과거237과 합산하지 않습니다.
+
+최신55+56 결합본에서 C#중계·실제Python loopback **540통과/6.08초**, 전용WinForms **31통과/8.61초**, 원본UserManagement 기본 **연결173 + 기존14시나리오46/17.67초**, `--require-mysql-enrollment` **연결177 + 기존14시나리오46/11.39초**가 통과했습니다. 앞선 원본Modal registration driver timeout은 해결됐습니다. 테스트 입력/서버/장치는 통제된 대역이며 실제공유DB/센서 검사가 아닙니다.
+
+Python전체unittest **170실행/168통과/Linuxflock2생략/실패0·4.750초**, 실제Flask/소유MySQL+Pi어댑터 독립 **2통과/11.02초**입니다. 후자는 합성키/가짜센서에서 기존11개 보존·slot12 단일store·정확BLOB·servercomplete후mapping·재시작동일읽기sensorIO0, intent응답 직후취소store0/mapping0/증거유지를 확인했습니다. 실제11개 지문을 검토자가 조작한 검사가 아닙니다. 소유MySQL/프로세스·임시runtime 정리를 확인했습니다.
+
+증거: `remote_work_pr55_final_independent_20261021/audit/official.txt`, `official-summary.json`, 빌드로그; `remote_work_pr55_recovery_fixed_review_20261021/audit/recheck-review.json`, `clock-owned.txt`, UI모드로그; `remote_work_pr55_56_final47_20261021/audit/final-review.md`, `client-checks-summary.json`, `real-integration-summary.json`; root `remote_work_pr55_final_review_20261021/audit/merge-results.json`, `sync-result.json`입니다.
+
+### 실제 작업 폴더 반영과 환경 적용 구분
+
+최종 실제merge의tree를 검토tree와 대조한 뒤 base864a2a6 대비 PR55의22경로+PR56의24경로, 총46경로만 동기화했습니다. 기존파일은base일치 또는이미incoming일치일 때만 허용하고 각파일 쓰기 직전 재검사·이전내용 백업을 했습니다. DOCX·실제.env/설정과 범위외소스는 건드리지 않았습니다. 실제작업폴더의WinForms Release는 별도출력경로에서 경고0/오류0을 확인했습니다. 최초출력의한글인코딩문제로 child CLI언어만영문으로설정해 읽기쉬운로그를확보했으며 실제앱설정은바꾸지않았습니다. DB자료/스키마/서버프로세스나 센서작업을 동기화하지 않았습니다.
+
+실행서버의 새physical-result/recovery404와010/011·옵션off는 작성자의 읽기확인 보고이며 이번 코드병합으로 실제서버를 재시작하거나 적용했다고 쓰지 않습니다. 새PC만 구형서버에 연결하면 계약을 소비할 수 없다는 기존 준비조건은 유지합니다. 실제DDL/설정·단일서비스 전환·운영자close/reissue·Pi/PC배포·실물지문과회원매핑·Linuxflock/두PC·전원차단 검증은 별도입니다.
+
+### PR52와 정책 후속
+
+PR52 `0a7a57df97767e81680484222587974747bf6dab`는 코드 변경이 없어 R52-01/P1 표시와POST판단대상 불일치·R52-02/P2 버전충돌 후 재준비 경로 수정 대기를 유지합니다. 1번의 공통3파일 수용 확인은 이 두 결함 해결이나 전체ACK/쓰기503 해제의 대체가 아닙니다. 같은head의 과거185/41/177을 이번에 재실행하지 않았습니다.
+
+기존 팀장 채택A1~A6/B1~B7과90일 화면조회/물리삭제 미확정, 취소/pending의 실제쓰기TX 소비·경합,4번 PC/GUI와 새 정책서비스 후속은 유지합니다. 날짜LOG·기존PR/회신이력을 삭제하거나 별도 회신용MD/PR을 만들지 않았습니다.
+
 <a id="pr55-56-recheck-20261021"></a>
 ## 최신 재검토 — PR55 추가 수정·PR56 연결 검사 보완·PR52 대기, 2026-10-21
 
