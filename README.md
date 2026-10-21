@@ -1,3 +1,14 @@
+## 최종 — PR52·59 병합 / PR57·58 수정 대기, 2026-10-21
+
+| PR | 현재 상태 |
+|---|---|
+| [52](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52#issuecomment-6287667210) | 기존R52-01/02/03 모두 해결. **merge cbda025ea9b2f83e8f63f5bca45bed74cec7ef77**, 최종tree68b87114 검토본과 일치 |
+| [59](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/59#issuecomment-6309450248) | 업무 메뉴 실제 웹 연결 **merge f0430b7** 완료 |
+| [57](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/57#issuecomment-6308590391) | 기존5건 해결, 새R57-04/P2 조회중 수동창/자동창 중복으로 Draft·미병합 |
+| [58](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309407344) | R58-01/P2 확정거절 뒤 장치재선택/실제채널 불일치로 미병합. 후속6886aa1은 메뉴수신뿐이고 UI수정없음 |
+
+[최종 직접 검사·재사용·담당 경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr52-merged-final-20261021)를 따릅니다. 검토중 도착한52수정cc84c1c와 최신2번 업무웹96734bc까지 결합했습니다. 아래52 미업로드/보류/메뉴충돌 표시는 당시 기록이며 현재는 해결·병합 상태입니다. 코드 병합과 실제DDL/설정/배포ACK/쓰기503·작업폴더 동기화/공유환경·두PC 검증은 구분합니다.
+
 ## 최신 검토 — PR59 병합 / PR57·58 수정 요청 / PR52 대기, 2026-10-21
 
 | PR | 현재 판정 |

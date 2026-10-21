@@ -1,3 +1,38 @@
+<a id="pr52-merged-final-20261021"></a>
+## PR52 최종 수정 검토·충돌 통합·병합, 2026-10-21
+
+새cc84c1c를 수신하여 앞서 보류한R52-03을 재검증했습니다. **R52-01/02/03 모두 해결, PR52 병합 완료**입니다. [기존 위치 최종 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52#issuecomment-6287667210)을 따릅니다. 아래 현재 회차 중간의 미업로드/보류/충돌 안내도 당시 사실로 보존합니다.
+
+- 작성자 수정head `cc84c1cd11a65f7af4a42e7f0e5752d29b6fd319`
+- 최종실제alpha base `96734bcb29eead01369584c0968fa07361f7f7bc`
+- 최종PR head `21faf3465e4aeedc275dc201a77a7070fbc7ef9a`
+- **merge `cbda025ea9b2f83e8f63f5bca45bed74cec7ef77`**
+- 실제merge tree **`68b87114ed9c84392195c8442173fdcdd3ac41a0`**, 사전검토tree와일치/원격alpha·merged=true확인
+
+### R52-03 해결과 보존한 소유 접점
+
+공유 참조3조회는FOR UPDATE/populate_existing을 사용합니다. 공식shared239(신규105포함) 및 이전독립snapshot 경합을 안전성기대로 바꾼2검사 통과: 인증snapshot에A100만 보여도B200의최종참조·ready·원문·다운로드200을 보존합니다. rollback/마지막참조·과거제출/현재권한도 기존239범위로 대조했습니다. 이 공유코드/results/UI·검사원본은 이후최종tree와blob동일하여 결과를 재사용했습니다. 반복/이전134/이전회차와 합산하지 않았습니다.
+
+최신alpha를 두번 일반merge해 원작성자이력과1·2번 새코드를 보존했습니다. 첫번째는 PR59의task_web.index와results_web.index 메뉴를 함께 유지한da52462이고, 두번째는 최신업무웹96734bc의execute_start 전체를 보존한21faf34입니다. `_start(...,body=None)`에서 현재인증·권한 뒤 입력을validate_start_body로 검증해같은execute_start로 넘기며 KST/취소/W1/receipt/TX로직을 되돌리지 않았습니다. README도2번최신웹등록/수락/재작업과3번결과물설명을 함께보존했습니다. 테스트통과뒤 기존PR52branch에 일반push하고 expectedhead고정merge했으며 강제push/새PR은 없습니다.
+
+### 최종 검증 구분
+
+| 범위 | 직접 결과 |
+|---|---|
+| 새공유첨부·R52-03 |239통과+독립안전성2통과; 1차tree3aacbfe0 실행·최종68b87114 해당제품/검사blob동일성확인 |
+| 최신alpha 결과물 |실제소유MySQL 서버191·쿠키/CSRF웹183·실제loopback HTTP/WinForms41; C#115소스0오류0경고 |
+| 최신alpha 취소·연장·제출 |소유MySQL/HTTP258통과; 새execute_start수락/재작업소비·rollback포함 |
+| 최신2번 업무웹 결합 |test_task_web.py+test_task_web_writes.py **81통과/171.46초**; 실제소유MySQL·물리DDL변경0/schema1·자원정리확인 |
+| UI/기본off/빌드 |원본JS52·cold/구문/diffcheck, 전체솔루션Release0오류0경고 |
+
+최신alpha의서비스가바뀐뒤에는191/183/41·258·81을 다시실행했습니다. shared239/독립2/UI기존race를 매번실행한것으로표시하지않고 동일원본을 근거로재사용했습니다. 외부offline참조팩8.0.31/산출물경로만사용했고 제품csproj는 무수정입니다. 소유테스트DB/HTTP/MySQL프로세스·runtime정리를 확인했습니다.
+
+### 남은 작업·다른 PR
+
+추가3테이블 실제검토/적용·최종조직자료는1번, 실제업무TX의첨부연결/해제·파일UI/업무웹결과물 이동·갱신은2번후속입니다.3번제공부병합이 실제2번소비/공유DB적용완료를 뜻하지 않습니다. 기본off/명시검토자/정식제출과통합ACK/변경503경계를새로변경하지 않았습니다. 실제제품폴더/.env/설정/사용자DB·실계정재발급·공유서버/DDL·Pi/센서/두PC는 변경·실행하지 않았습니다.
+
+PR59는f0430b7로병합했고새alpha에도보존됐습니다. PR57head8613c947은R57-04알림중복/Draft유지, PR58후속head6886aa1은2910cbb대비메뉴3파일수신뿐/UI원본diff0으로R58-01미해결입니다. 각기존댓글에수정요청/후속확인을 남겼습니다. 기존문서만갱신하며별도회신MD/문서PR을 만들지않았습니다.
+
 <a id="pr57-59-review-20261021"></a>
 ## PR57·58·59 검토와 PR52 대기 상태, 2026-10-21
 
