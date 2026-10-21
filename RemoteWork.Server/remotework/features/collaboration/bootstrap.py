@@ -10,7 +10,7 @@ from .task_bridge import current_task_context
 
 def create_collaboration_app(config=None, *, continuity_reader=None):
     config = dict(config or {})
-    if config.get("ENABLE_COLLABORATION_DRAFT") is not True:
+    if type(config.get("ENABLE_COLLABORATION_DRAFT")) is not bool:
         raise RuntimeError("Explicit collaboration draft configuration required")
     if config.get("ENABLE_COMMON_WRITE_DRAFT") is not True:
         raise RuntimeError("Explicit common write support required")

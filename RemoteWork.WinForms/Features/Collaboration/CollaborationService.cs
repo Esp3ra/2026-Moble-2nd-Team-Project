@@ -11,12 +11,24 @@ public sealed record CollaborationEntry(string RequestId, string TaskId, int Ass
     string RequestText, DateOnly DesiredDate, string Status, string RowVersion,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, string? EndReason, bool IsLate)
 {
-    public override string ToString() => $"[{StatusText(Status)}] {TaskTitle} · {Title}";
+    public override string ToString() => $"[{StatusText(Status)}{(IsLate ? " · 지연" : "")}] {TaskTitle} · {Title}";
     public static string StatusText(string value) => value switch
     {
         "pending" => "응답 대기", "accepted" => "승인", "declined" => "거절",
         "withdrawn" => "철회", "completed" => "협업 완료", "left" => "참여 종료",
         "expired" => "기한 만료", "ended" => "업무 변경으로 종료", _ => "알 수 없음"
+    };
+}
+public sealed record CollaborationHistoryEntry(string EventId, string Status, string? Reason,
+    int? ActorId, DateTimeOffset OccurredAt)
+{
+    public override string ToString() => $"{OccurredAt.ToOffset(TimeSpan.FromHours(9)):yyyy-MM-dd HH:mm:ss} · {CollaborationEntry.StatusText(Status)} · {ReasonText(Reason)}";
+    public static string ReasonText(string? reason) => reason switch
+    {
+        null => "요청 등록", "recipient_response" => "수신자 응답", "withdraw" => "요청자 철회",
+        "complete" => "요청자 완료", "leave" => "수신자 참여 종료", "desired_date_elapsed" => "희망 기한 만료",
+        "source_task_changed" => "업무 상태·배정·취소 변경", "source_task_interrupted" => "업무 진행 중단",
+        _ => "상태 변경"
     };
 }
 public sealed record CollaborationResult(string RequestId, string Status, string RowVersion, DateTimeOffset UpdatedAt);
@@ -31,6 +43,7 @@ public interface ICollaborationService
     bool IsCurrent { get; }
     CancellationToken Cancellation { get; }
     Task<IReadOnlyList<CollaborationEntry>> ListAsync(bool sent, CancellationToken ct);
+    Task<IReadOnlyList<CollaborationHistoryEntry>> GetHistoryAsync(CollaborationEntry item, CancellationToken ct);
     Task<CollaborationOperation> PrepareCreateAsync(string taskId, int recipientId, string title,
         string text, DateOnly desired, CancellationToken ct);
     Task<CollaborationOperation> PrepareResponseAsync(CollaborationEntry item, string decision, CancellationToken ct);
@@ -49,6 +62,7 @@ public sealed class HttpCollaborationService : ICollaborationService
     private sealed record Page(CollaborationEntry[] Items, DateTimeOffset ServerTime);
     private sealed record KeyData(string RequestKey, DateTimeOffset ExpiresAt);
     private sealed record Lookup(string State, int? HttpStatus, CollaborationResult? Result);
+    private sealed record HistoryPage(string RequestId, CollaborationHistoryEntry[] Items, DateTimeOffset ServerTime);
     private static readonly HashSet<string> States = ["pending", "accepted", "declined", "withdrawn", "completed", "left", "expired", "ended"];
     private static string BigInt(string value)
     {
@@ -83,6 +97,25 @@ public sealed class HttpCollaborationService : ICollaborationService
                 || string.IsNullOrWhiteSpace(item.RequesterName) || string.IsNullOrWhiteSpace(item.RequestText)
                 || !identifiers.Add(item.RequestId)) throw new ApiException("협업 목록 형식이 올바르지 않습니다.");
             BigInt(item.TaskId); Validate(new(item.RequestId, item.Status, item.RowVersion, item.UpdatedAt));
+        }
+        return page.Items;
+    }
+    public async Task<IReadOnlyList<CollaborationHistoryEntry>> GetHistoryAsync(CollaborationEntry item, CancellationToken ct)
+    {
+        Id(item.RequestId);
+        var page = await session.GetAsync<HistoryPage>($"collaboration-requests/{item.RequestId}/history", ct);
+        session.ThrowIfChanged();
+        if (page is null || page.RequestId != item.RequestId || page.Items is null || page.ServerTime == default)
+            throw new ApiException("협업 이력 형식이 올바르지 않습니다.");
+        long previous = 0;
+        foreach (var entry in page.Items)
+        {
+            if (entry is null || !States.Contains(entry.Status) || entry.OccurredAt == default
+                || entry.ActorId is not null && entry.ActorId != item.RequesterId && entry.ActorId != item.RecipientId)
+                throw new ApiException("협업 이력 형식이 올바르지 않습니다.");
+            long current = long.Parse(BigInt(entry.EventId), CultureInfo.InvariantCulture);
+            if (current <= previous) throw new ApiException("협업 이력 순서가 올바르지 않습니다.");
+            previous = current;
         }
         return page.Items;
     }

@@ -85,6 +85,7 @@ def locked(db, request_id):
 
 
 def authorize_create(db, target):
+    require_storage(db)
     context = task_context(db, integer(target))
     if context["assignee_id"] != g.user.id:
         raise AppError(403, "FORBIDDEN", "본인 담당 업무에만 요청할 수 있습니다.")
@@ -258,12 +259,32 @@ def decide(request_id, decision):
                 raise AppError(403, "COLLABORATION_ACTION_FORBIDDEN", "현재 수행할 수 없는 응답입니다.")
             if decision in ("accept", "complete") and context["continuous_in_progress"] is not True:
                 raise AppError(503, "COLLABORATION_CONTINUITY_REQUIRED", "업무 변경 이력 검증이 필요합니다.")
-            for user_id in sorted((item.requester_id, item.recipient_id)):
-                user = session.scalar(select(User).where(User.id == user_id).with_for_update().execution_options(populate_existing=True))
-                if user is None or not user.is_active:
-                    raise AppError(409, "RECIPIENT_UNAVAILABLE", "현재 참여할 수 없는 계정입니다.")
+            # B1 requires active parties for new acceptance. B5 lets the current
+            # authenticated party terminate even after the other is disabled.
+            if decision == "accept":
+                for user_id in sorted((item.requester_id, item.recipient_id)):
+                    user = session.scalar(select(User).where(User.id == user_id).with_for_update().execution_options(populate_existing=True))
+                    if user is None or not user.is_active or user.role not in ("employee", "admin"):
+                        raise AppError(409, "RECIPIENT_UNAVAILABLE", "현재 참여할 수 없는 계정입니다.")
             transition(session, item, DECISIONS[decision], "recipient_response" if decision in ("accept", "decline") else decision)
             return WriteResult(result(item))
         value = perform_once(db, key=request.headers.get("Idempotency-Key"), action=action, target=request_id,
             body=data, authorize=authorize_request, mutate=mutate)
     return success(value.data, value.status)
+
+
+@bp.get("/<request_id>/history")
+@login_required
+def history(request_id):
+    if request.args:
+        raise AppError(400, "INVALID_INPUT", "이력 조회 조건을 확인해 주세요.")
+    with authenticated_transaction() as db:
+        item = locked(db, request_id)  # Same parties and ended+90-day boundary.
+        if item.status in ("pending", "accepted"):
+            reconcile(db, item, task_context(db, item.task_id, item.task_row_version))
+        events = list(db.scalars(select(Event).where(Event.request_id == item.request_id)
+            .order_by(Event.event_id).with_for_update().execution_options(populate_existing=True)))
+        data = {"request_id": item.request_id, "items": [{"event_id": str(event.event_id),
+            "status": event.status, "reason": event.reason, "actor_id": event.actor_id,
+            "occurred_at": iso(event.occurred_at)} for event in events], "server_time": iso(now())}
+    return success(data)

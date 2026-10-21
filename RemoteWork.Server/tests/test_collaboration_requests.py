@@ -51,6 +51,7 @@ def app(tmp_path):
             db.flush()
             db.add(TaskAssignment(task_id=1, revision=1, assignee_id=1, assigned_by=1))
     yield app
+    FeatureBase.metadata.drop_all(engine)
     engine.dispose()
 
 
@@ -316,7 +317,7 @@ def test_exact_proposed_mysql_ddl_can_store_request(app, client):
     a = headers(client)
     engine = app.extensions["db_engine"]
     FeatureBase.metadata.drop_all(engine)
-    sql = (Path(__file__).resolve().parents[1] / "remotework/features/collaboration/collaboration.proposal.mysql.sql").read_text(encoding="utf-8")
+    sql = (Path(__file__).resolve().parents[1] / "migrations/012_collaboration_requests.mysql.sql").read_text(encoding="utf-8")
     with engine.begin() as connection:
         for statement in sql.split(";"):
             if statement.strip():

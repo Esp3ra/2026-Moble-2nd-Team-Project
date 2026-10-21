@@ -29,11 +29,17 @@ public sealed class CollaborationNotificationCoordinator : Component
     {
         if (!Current) { timer.Stop(); popup?.Close(); return; }
         if (checking || popup is not null || !owner.Visible || owner.WindowState == FormWindowState.Minimized) return;
+        // Yield to an already visible important notice or manually opened
+        // collaboration response. Do not mark candidates displayed yet.
+        if (Application.OpenForms.Cast<Form>().Any(f => f.Visible &&
+                (f is ImportantNoticeForm || f is CollaborationResponseForm))) return;
         checking = true;
         try
         {
-            var received = await service.ListAsync(false, lifetime.Token);
-            var sent = await service.ListAsync(true, lifetime.Token);
+            var ct = lifetime.Token;
+            var received = await service.ListAsync(false, ct);
+            if (!Current) return;
+            var sent = await service.ListAsync(true, ct);
             if (!Current) return;
             StatusChanged?.Invoke("");
             var candidate = received.Where(x => x.Status == "pending")

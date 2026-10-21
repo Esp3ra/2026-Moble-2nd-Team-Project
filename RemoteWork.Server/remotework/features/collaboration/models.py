@@ -1,4 +1,4 @@
-"""Unnumbered model proposal. Separate metadata keeps common init-db unchanged."""
+"""012 collaboration model. Separate metadata keeps common init-db unchanged."""
 from sqlalchemy import (BigInteger, CheckConstraint, Computed, Date, DateTime,
     ForeignKey, ForeignKeyConstraint, Index, Integer, String, Text, UniqueConstraint)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column

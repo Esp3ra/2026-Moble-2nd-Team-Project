@@ -1,4 +1,4 @@
--- UNNUMBERED PROPOSAL. Owner review/backup and explicit application required.
+-- 012 reserved by member 1 on 2026-10-21. Explicit review/backup/application required.
 -- Does not alter existing tables or common schema_versions.
 -- Requires existing users/tasks/task_assignments and common W1 storage.
 

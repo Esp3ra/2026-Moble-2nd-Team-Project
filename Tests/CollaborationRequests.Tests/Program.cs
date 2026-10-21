@@ -59,6 +59,12 @@ internal static class Program
         try { await service.PrepareCreateAsync("1", 1, "t", "b", new(2026, 10, 25), default); throw new Exception("string revision accepted"); }
         catch (ApiException) { checks++; }
         handler.StringRevision = false;
+        var history = await service.GetHistoryAsync(received[0], default);
+        Check(history.Count == 2 && history[1].EventId == "9223372036854775807", "history preserves BIGINT and event order");
+        handler.ForgedHistory = true;
+        try { await service.GetHistoryAsync(received[0], default); throw new Exception("foreign history actor accepted"); }
+        catch (ApiException) { checks++; }
+        handler.ForgedHistory = false;
 
         var fake = new FakeService();
         using (var form = new CollaborationRequestForm(new Directory(), fake))
@@ -83,6 +89,7 @@ internal static class Program
             Check(popup.Width < 500 && !popup.Modal, "small nonmodal notification");
             popup.Close(); Check(fake.Writes == 1, "close postpones without server response");
         }
+        await CollaborationReviewChecks.Run(Check);
         api.ClearIdentity(); api.SetServer("http://localhost:5001/");
         Check(!service.IsCurrent, "server/login lifetime bound");
         try { await service.ListAsync(false, default); throw new Exception("stale session allowed"); }
@@ -100,6 +107,7 @@ internal static class Program
     {
         public int UserId => 2; public bool IsCurrent => true; public CancellationToken Cancellation => default; public int Writes;
         public Task<IReadOnlyList<CollaborationEntry>> ListAsync(bool sent, CancellationToken ct) => Task.FromResult<IReadOnlyList<CollaborationEntry>>([]);
+        public Task<IReadOnlyList<CollaborationHistoryEntry>> GetHistoryAsync(CollaborationEntry item, CancellationToken ct) => Task.FromResult<IReadOnlyList<CollaborationHistoryEntry>>([]);
         public Task<CollaborationOperation> PrepareCreateAsync(string id, int person, string title, string text, DateOnly desired, CancellationToken ct) => Task.FromResult(new CollaborationOperation("collaboration.created",id,"collaboration-requests",JsonSerializer.SerializeToElement(new {}),new string('k',32)));
         public Task<CollaborationOperation> PrepareResponseAsync(CollaborationEntry item, string decision, CancellationToken ct) => throw new NotImplementedException();
         public Task<CollaborationResult> ExecuteAsync(CollaborationOperation operation, CancellationToken ct) { Writes++; return Task.FromResult(new CollaborationResult(Handler.Identifier,"pending","1",DateTimeOffset.UtcNow)); }
@@ -108,7 +116,7 @@ internal static class Program
     private sealed class Handler : HttpMessageHandler
     {
         public const string Identifier = "118b8178-83b5-4b92-a610-8ff777e9a05e";
-        public bool DropResponse, Recorded, ForgedRecipient, StringRevision;
+        public bool DropResponse, Recorded, ForgedRecipient, StringRevision, ForgedHistory;
         public int Writes; public List<string> Keys = [];
         public static CollaborationEntry Entry() => new(Identifier,"1",1,1,2,"직원1","업무","검토","검토 부탁",new(2026,10,25),"pending","1",DateTimeOffset.UtcNow,DateTimeOffset.UtcNow,null,false);
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
@@ -120,6 +128,9 @@ internal static class Program
             else if (path.Contains("task-context/")) data = new {task_id=path.Split('/').Last(),row_version="1",assignment_revision=StringRevision ? (object)"1" : 1,due_date="2026-10-30",server_time="2026-10-21T03:00:00Z"};
             else if (path.EndsWith("write-requests/keys")) data = new {request_key=new string('k',40),expires_at="2099-01-01T00:00:00Z"};
             else if (path.EndsWith("write-requests/result")) data = Recorded ? new {state="completed",http_status=200,result=new CollaborationResult(Identifier,"declined","2",DateTimeOffset.UtcNow)} : (object)new {state="not_recorded"};
+            else if (path.EndsWith("/history")) data = new {request_id=Identifier,items=new[]{
+                new CollaborationHistoryEntry("9223372036854775806","pending",null,1,DateTimeOffset.UtcNow),
+                new CollaborationHistoryEntry("9223372036854775807","declined","recipient_response",ForgedHistory ? 3 : 2,DateTimeOffset.UtcNow)},server_time=DateTimeOffset.UtcNow};
             else if (request.Method == HttpMethod.Get) data = new {items=new[]{ Entry() with {RecipientId=ForgedRecipient ? 3 : 2} },server_time=DateTimeOffset.UtcNow};
             else
             {

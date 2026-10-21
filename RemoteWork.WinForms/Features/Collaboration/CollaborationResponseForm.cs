@@ -27,7 +27,7 @@ public sealed class CollaborationResponseForm : Form
         ShowInTaskbar = false; StartPosition = FormStartPosition.Manual; Padding = new Padding(14);
         var details = new TextBox { Multiline = true, ReadOnly = true, BorderStyle = BorderStyle.None,
             Dock = DockStyle.Fill, ScrollBars = ScrollBars.Vertical, BackColor = SystemColors.Window,
-            Text = $"{item.RequesterName} · {item.TaskTitle}\r\n{item.Title}\r\n\r\n{item.RequestText}\r\n\r\n희망 기한: {item.DesiredDate:yyyy-MM-dd}\r\n상태: {CollaborationEntry.StatusText(item.Status)}" };
+            Text = $"{item.RequesterName} · {item.TaskTitle}\r\n{item.Title}\r\n\r\n{item.RequestText}\r\n\r\n희망 기한: {item.DesiredDate:yyyy-MM-dd}\r\n상태: {CollaborationEntry.StatusText(item.Status)}{(item.IsLate ? " · 희망 기한이 지난 협업입니다(지연)." : "")}" };
         Controls.Add(details); Controls.Add(status); Controls.Add(actions);
         if (item.RecipientId == service.UserId && item.Status == "pending")
         { AddDecision("승인", "accept"); AddDecision("거절", "decline"); }

@@ -10,6 +10,8 @@ namespace RemoteWork.WinForms.Features.Collaboration
         private readonly ICollaborationService? delivery;
         private CollaborationOperation? pendingSend;
         private CollaborationNotificationCoordinator? notifications;
+        private readonly CollaborationNotificationScope? requestedNotifications;
+        private CollaborationNotificationScope? borrowedNotifications;
         private readonly Button inboxButton = new() { Text = "받은·보낸 요청", AutoSize = true };
         private readonly Button resolveSendButton = new() { Text = "전송 결과 확인", AutoSize = true, Visible = false };
         private bool sending, retrySend;
@@ -29,9 +31,11 @@ namespace RemoteWork.WinForms.Features.Collaboration
         }
 
         public CollaborationRequestForm() : this(null) { }
-        public CollaborationRequestForm(ICollaborationDirectory? source, ICollaborationService? service = null)
+        public CollaborationRequestForm(ICollaborationDirectory? source, ICollaborationService? service = null,
+            CollaborationNotificationScope? sharedNotifications = null)
         {
             InitializeComponent();
+            requestedNotifications = sharedNotifications;
             if (PreviewActions.IsDesignMode(this)) return;
             try { directory = source ?? new HttpCollaborationDirectory(AppServices.Api); }
             catch (Exception ex) when (ex is InvalidOperationException or OperationCanceledException) { }
@@ -56,9 +60,17 @@ namespace RemoteWork.WinForms.Features.Collaboration
             Shown += async (_, _) =>
             {
                 if (delivery?.IsCurrent != true) return;
+                var shared = requestedNotifications ?? CollaborationNotificationScope.Find(Owner);
+                if (shared is not null)
+                {
+                    if (!shared.Matches(delivery)) { ClearForIdentityChange(); return; }
+                    borrowedNotifications = shared;
+                    shared.StatusChanged += NotificationStatusChanged;
+                    return; // No second timer/queue; MainForm owns start/dispose.
+                }
                 // Local UI proposal, not a team-approved polling policy.
                 notifications = new(this, delivery, TimeSpan.FromSeconds(10));
-                notifications.StatusChanged += message => { deliveryStatus = message; SetState(); };
+                notifications.StatusChanged += NotificationStatusChanged;
                 await notifications.StartAsync();
             };
             Disposed += (_, _) => EndView();
@@ -78,6 +90,23 @@ namespace RemoteWork.WinForms.Features.Collaboration
 
         private bool Current(int request) => !stopped && !IsDisposed &&
             generation == request && directory?.IsCurrent == true;
+
+        private void NotificationStatusChanged(string message)
+        {
+            if (stopped || IsDisposed) return;
+            if (message.Length > 0 || deliveryStatus.StartsWith("협업 알림 연결 실패:")) deliveryStatus = message;
+            SetState();
+        }
+
+        private void DetachNotifications()
+        {
+            notifications?.Dispose(); notifications = null;
+            if (borrowedNotifications is not null)
+            {
+                borrowedNotifications.StatusChanged -= NotificationStatusChanged;
+                borrowedNotifications = null;
+            }
+        }
 
         public async Task ReloadDirectoryAsync()
         {
@@ -141,7 +170,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
 
         private void ClearForIdentityChange()
         {
-            notifications?.Dispose();
+            DetachNotifications();
             foreach (var child in OwnedForms) child.Close();
             pendingSend = null;
             txtContent.Clear(); txtCollaborationReason.Clear();
@@ -174,7 +203,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
         {
             if (stopped) return;
             stopped = true;
-            notifications?.Dispose();
+            DetachNotifications();
             generation++;
             identityEnded.Dispose();
             lifetime.Cancel();
@@ -208,14 +237,16 @@ namespace RemoteWork.WinForms.Features.Collaboration
         {
             if (stopped || delivery?.IsCurrent != true) return;
             pendingSend = null; retrySend = false; resolveSendButton.Visible = false;
+            resolveSendButton.Text = "전송 결과 확인";
             txtContent.Clear(); txtCollaborationReason.Clear();
             deliveryStatus = "협업 요청이 서버 DB에 저장됐습니다. 보낸 요청에서 상대방의 응답을 확인할 수 있습니다.";
         }
 
-        private async Task ResolveSendAsync()
+        public async Task ResolveSendAsync()
         {
             if (sending || pendingSend is null || delivery?.IsCurrent != true) return;
             sending = true; SetState();
+            bool replaying = retrySend;
             try
             {
                 if (retrySend) { await delivery.ExecuteAsync(pendingSend, lifetime.Token); Sent(); return; }
@@ -227,7 +258,21 @@ namespace RemoteWork.WinForms.Features.Collaboration
             }
             catch (OperationCanceledException) { }
             catch (CollaborationOutcomeUnknownException ex) { if (!stopped) { retrySend = false; resolveSendButton.Text = "전송 결과 확인"; deliveryStatus = ex.Message; } }
-            catch (ApiException ex) { if (!stopped) { retrySend = false; resolveSendButton.Text = "전송 결과 확인"; deliveryStatus = ex.Message; } }
+            catch (ApiException ex)
+            {
+                if (!stopped)
+                {
+                    // A definite failed replay after not_recorded releases the
+                    // old context. Failed lookups/unknown outcomes retain it.
+                    if (replaying && ex.StatusCode is >= 400 and < 500)
+                    {
+                        pendingSend = null; resolveSendButton.Visible = false;
+                        deliveryStatus = ex.Message + " 입력은 유지됩니다. 목록을 새로 조회한 뒤 다시 보내 주세요.";
+                    }
+                    else deliveryStatus = ex.Message;
+                    retrySend = false; resolveSendButton.Text = "전송 결과 확인";
+                }
+            }
             finally { if (!stopped) { sending = false; SetState(); } }
         }
 

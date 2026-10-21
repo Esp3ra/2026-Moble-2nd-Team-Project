@@ -12,6 +12,7 @@ public sealed class CollaborationInboxForm : Form
     private readonly Label status = new() { Dock = DockStyle.Bottom, Height = 50 };
     private readonly Button refresh = new() { Text = "조회", AutoSize = true };
     private readonly Button open = new() { Text = "내용·응답", AutoSize = true };
+    private readonly Button history = new() { Text = "상태 이력", AutoSize = true };
     private bool loading, ended;
     public CollaborationInboxForm(ICollaborationService service)
     {
@@ -20,11 +21,17 @@ public sealed class CollaborationInboxForm : Form
         Text = "협업 요청 내역"; ClientSize = new Size(700, 430); Padding = new Padding(14);
         var bar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 40 };
         scope.Items.AddRange(["받은 요청", "보낸 요청"]); scope.SelectedIndex = 0;
-        bar.Controls.AddRange([scope, refresh, open]);
+        bar.Controls.AddRange([scope, refresh, open, history]);
         Controls.Add(list); Controls.Add(status); Controls.Add(bar);
         refresh.Click += async (_, _) => await ReloadAsync();
         scope.SelectedIndexChanged += async (_, _) => await ReloadAsync();
         open.Click += (_, _) => OpenSelected(); list.DoubleClick += (_, _) => OpenSelected();
+        history.Click += (_, _) =>
+        {
+            if (!Current || loading || list.SelectedItem is not CollaborationEntry item || OwnedForms.Any(f => f.Visible)) return;
+            var view = new CollaborationHistoryForm(service, item);
+            view.FormClosed += (_, _) => view.Dispose(); view.Show(this);
+        };
         Shown += async (_, _) => await ReloadAsync();
         FormClosed += (_, _) => lifetime.Cancel();
         Disposed += (_, _) => { if (!ended) { ended = true; identityEnded.Dispose(); lifetime.Cancel(); lifetime.Dispose(); } };
