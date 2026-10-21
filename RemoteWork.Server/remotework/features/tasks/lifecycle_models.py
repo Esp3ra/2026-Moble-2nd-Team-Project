@@ -26,6 +26,8 @@ class TaskCancellation(Base):
 
     __table_args__ = (
         CheckConstraint("LENGTH(TRIM(reason)) > 0", name="ck_task_cancellation_reason"),
+        {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4",
+         "mysql_collate": "utf8mb4_unicode_ci"},
     )
 
 
@@ -63,4 +65,6 @@ class TaskDeadlineExtension(Base):
         UniqueConstraint("task_id", "pending_revision", name="uq_task_extension_one_pending"),
         Index("ix_task_extension_requested", "requested_by", "status", "extension_id"),
         Index("ix_task_extension_task", "task_id", "assignment_revision", "extension_id"),
+        {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4",
+         "mysql_collate": "utf8mb4_unicode_ci"},
     )
