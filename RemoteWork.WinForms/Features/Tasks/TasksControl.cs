@@ -398,6 +398,12 @@ namespace RemoteWork.WinForms.Features.Tasks
                     ? "상세 조회 완료 · 목록 정보 변경 감지 · 목록을 다시 조회해 주세요."
                     : "상세 조회 완료";
                 if (listSummaryChanged) btnRetryQuery.Text = "목록 새로고침";
+                // Attachment availability is independent of the successful task read.
+                // Keep its request bound to this detail, without holding task actions
+                // or an explicit refresh behind an optional endpoint's latency.
+                detailLoading = false;
+                btnRetryQuery.Enabled = true;
+                UpdatePreparationActions();
                 await LoadTaskAttachmentsAsync(summary, parentGeneration, generation, token);
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
