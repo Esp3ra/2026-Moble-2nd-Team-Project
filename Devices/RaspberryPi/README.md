@@ -1,5 +1,9 @@
 # 5번 라파 지문·조도 독립 시연
 
+> **2026-10-21 등록 전환 준비:** 1번 PR55의 고정 `enrollment-mysql-v1`에 맞춘 [MySQL 전용 후보 코드·검증/전환 경계](ENROLLMENT_MYSQL_CLIENT.md)를 준비했다. 새 실행 파일은 `pi_api_enrollment_mysql.py`이며 SQLite를 열거나 생성하지 않는다. 사용자 점검으로 기존 서비스는 중지·시작 차단됐고 예약12는 비어 있지만 기존 시험 지문11개는 남아 있다. 서버 복구·새 코드 배포·센서 초기화는 아직 수행하지 않았다. **현재 복구 대상 Pi에서는 아래 일반 설치/재시작 명령을 실행하지 않고 hold를 유지한다.**
+
+> **2026-10-20 사용자 기준 정정 — DB는 MySQL만 사용.** Pi 등록 ledger/cache의 SQLite는 Codex가 독자적으로 선택한 구현이며 사용자 선택이 아니다. [MySQL 전용 재설계·실패 작업 복구 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/43#issuecomment-6281140854)을1번에게 전달했다. 아래 SQLite 기반 등록 시작/배포 절차는 이전 구현 이력이며 추가 등록·새 배포에 사용하지 않는다. 기존 실물 서비스/복구 기록·키·지문은 보존하고,1번 서버 접점을 합의·구현·검증한 뒤 전환한다. 아직 MySQL 전용 전환/이관을 완료한 상태가 아니다.
+
 Raspberry Pi 한 프로세스에서 UART 지문 인식, SH1106 OLED 표시, Arduino Mega USB 조도 수신을 함께 실행합니다. 공통 회원·로그인·근태 DB와 분리된 장치 시연 코드입니다. Windows 확인 화면은 [Tools/DeviceCheck](../../Tools/DeviceCheck/README.md)에 있습니다.
 
 새 계정/새 지문 흐름은 [AS608 등록 코어와 전용 중계](FINGERPRINT_ENROLLMENT.md)를 참고합니다. 등록 경로는 선택 주입 방식으로 제공하며 현재 실행 중인 장치 서비스에는 배포하지 않았습니다.
@@ -8,7 +12,7 @@ Raspberry Pi 한 프로세스에서 UART 지문 인식, SH1106 OLED 표시, Ardu
 
 추가로 C# HTTP 중계/전용 등록창과 Pi의 비동기 `EnrollmentRelayJobs`·선택 등록 경로를 준비했습니다. `create_app(..., enrollment_jobs=jobs)`를 **명시적으로 주입했을 때만** `/enrollments/jobs` 경로가 열리며 기본 `main()`·현재 실행 서비스는 이를 활성화하지 않습니다. 공개 테스트 키나 무조건 허용 승인으로 운영 설정을 대체하지 않습니다. 서버 원래 관리자 접속·장치별 키/프로필·기존 UART/잠금 공유와 신뢰할 TLS/전용 통신 설정을 준비한 뒤 연결합니다. 상세와 실제 검사 결과는 위 등록 문서의 최신 절을 참고합니다.
 
-`fingerprint_enrollment_runtime.EnrollmentRuntime`은 기존 `FingerprintService`의 센서·잠금·OLED를 빌려 조립합니다. 승인된 키/프로필과 비공개 ledger/cache를 준비한 호출자만 `main(enrollment_factory=...)`로 명시 주입할 수 있습니다. 기본 실행은 계속 등록 비활성이며 설정 파일 자동 로드·키 생성·서비스 설치를 하지 않습니다. 등록 중 조도 수신/조회는 유지하고 OLED는 등록 안내를 우선합니다. 현재는 로컬 대역 검증 단계이며 실물 서비스 적용 절차는 위 문서의 최신 절을 확인합니다.
+새 `fingerprint_enrollment_runtime.MySqlEnrollmentRuntime`은 기존 `FingerprintService`의 센서·잠금·OLED를 빌려 조립하고 결과 보관은 서버 MySQL로 중계합니다. 승인된 키/프로필과 version2 설정을 명시해야 하며 기본 실행은 등록 비활성입니다. 이전 `EnrollmentRuntime`/ledger/cache는 기존 구현 회귀·증거 해석용으로 남아 있지만 새 배포 경로가 아닙니다. 등록 중 조도 수신/조회는 유지하고 OLED는 등록 안내를 우선합니다. 실제 전환 조건과 새 설정 예제는 위 MySQL 문서를 따릅니다.
 
 ## 구성과 배선
 

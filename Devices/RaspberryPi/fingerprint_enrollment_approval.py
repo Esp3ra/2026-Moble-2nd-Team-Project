@@ -63,7 +63,8 @@ def verify_approval(raw, *, keys, expected):
     require(set(payload) == APPROVAL_FIELDS)
     validate_context({name: payload[name] for name in CONTEXT})
     require(payload["key_epoch"] == keys.key_epoch)
-    require(type(payload["scope"]) is str and payload["scope"] in ("sensor_write", "result_read"))
+    require(type(payload["scope"]) is str and payload["scope"] in (
+        "sensor_write", "sensor_capture", "sensor_store", "result_read"))
     require(payload["decision"] == "allow")
     require(16 <= len(decode64(payload["probe_nonce"], 64)) <= 64)
     require(set(expected) == CONTEXT | {"scope", "probe_nonce"})
@@ -97,7 +98,7 @@ class OnlineEnrollmentApproval:
     def __init__(self, *, context, keys, scope, exchange, cancellation,
                  monotonic=suspend_aware_clock):
         validate_context(context)
-        require(scope in ("sensor_write", "result_read"))
+        require(scope in ("sensor_write", "sensor_capture", "sensor_store", "result_read"))
         require(context["key_epoch"] == keys.key_epoch)
         self.context = MappingProxyType(dict(context))
         self.keys, self.scope, self.exchange = keys, scope, exchange

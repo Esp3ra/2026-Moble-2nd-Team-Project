@@ -15,6 +15,29 @@ public sealed record EnrollmentJob(string EnrollmentId, string OperationRevision
     string ExpiresAt, bool RecoveryRequired, string? RequestEnvelope, EnrollmentReceipt? Result);
 internal sealed record EnrollmentApproval(string ApprovalEnvelope);
 
+public sealed record EnrollmentRecovery(string RecoveryId, string SourceEnrollmentId, string DeviceId,
+    int ReservedSlot, string SourceOperationRevision, string SourceClaimRevision, string State,
+    string? NewEnrollmentId, string EvidenceKind, string ClosedAt, string? ReissuedAt);
+
+/// <summary>A read-only operator closure, pinned to this created member and current login.</summary>
+public sealed class EnrollmentRecoverySelection
+{
+    internal readonly EnrollmentTarget Target;
+    public EnrollmentRecovery Recovery { get; }
+    internal EnrollmentRecoverySelection(EnrollmentTarget target, EnrollmentRecovery recovery)
+    { Target = target; Recovery = recovery; }
+}
+
+/// <summary>Display-only Pi report. Never grants retry, releases a claim or proves storage state.</summary>
+public sealed class EnrollmentPiFailureException : InvalidOperationException
+{
+    public bool AlreadyRegistered { get; }
+    public EnrollmentPiFailureException(string? code) : base(code == "already_registered"
+        ? "이미 등록된 지문으로 판정되어 등록이 중단됐습니다. 현재 등록 작업과 기존 시험 지문 상태를 확인해 주세요."
+        : "라파 등록 상태 확인이 필요합니다. 다시 스캔하지 않고 저장 결과를 확인해 주세요.")
+    { AlreadyRegistered = code == "already_registered"; }
+}
+
 public sealed class EnrollmentTarget
 {
     public int UserId { get; }
@@ -47,8 +70,12 @@ public sealed class EnrollmentAttempt
     internal int Running;
     internal bool DeviceStarted;
     internal string? PendingResult;
+    internal EnrollmentRecoverySelection? RecoverySelection { get; }
+    internal string? ExpectedKeyEpoch { get; }
     public EnrollmentJob? Job { get; internal set; }
-    internal EnrollmentAttempt(EnrollmentTarget target, string deviceId) { Target = target; DeviceId = deviceId; }
+    internal EnrollmentAttempt(EnrollmentTarget target, string deviceId,
+        EnrollmentRecoverySelection? recovery = null, string? keyEpoch = null)
+    { Target = target; DeviceId = deviceId; RecoverySelection = recovery; ExpectedKeyEpoch = keyEpoch; }
 }
 
 public interface IEnrollmentPiChannel
@@ -90,6 +117,7 @@ internal static class EnrollmentValidation
         Uuid(job.EnrollmentId); Uuid(job.ClientRequestId); Uuid(job.DeviceId);
         Revision(job.OperationRevision); Revision(job.ClaimRevision); Revision(job.KeyEpoch);
         Require(job.ClientRequestId == attempt.ClientRequestId && job.DeviceId == attempt.DeviceId && job.ReservedSlot >= 0);
+        if (attempt.ExpectedKeyEpoch is { } epoch) Require(job.KeyEpoch == epoch);
         Require(job.State is "issued" or "completed" or "failed" or "recovery_required" or "cancelled" or "expired");
         if (attempt.Job is { } prior)
             Require(prior.EnrollmentId == job.EnrollmentId && prior.OperationRevision == job.OperationRevision
@@ -107,6 +135,114 @@ public sealed class FingerprintEnrollmentRelay(EnrollmentTarget target, IEnrollm
 
     public EnrollmentAttempt CreateAttempt(string deviceId)
     { target.ThrowIfChanged(); EnrollmentValidation.Uuid(deviceId); return new(target, deviceId); }
+
+    public EnrollmentAttempt CreateRecoveryAttempt(EnrollmentRecoverySelection selection, EnrollmentDevice device)
+    {
+        target.ThrowIfChanged();
+        if (!ReferenceEquals(selection.Target, target)) throw new ArgumentException("복구 등록 대상이 다릅니다.");
+        EnrollmentValidation.Require(selection.Recovery.State == "closed_awaiting_explicit_reissue"
+            && selection.Recovery.DeviceId == device.DeviceId);
+        EnrollmentValidation.Revision(device.KeyEpoch);
+        return new(target, device.DeviceId, selection, device.KeyEpoch);
+    }
+
+    public async Task<EnrollmentRecoverySelection> GetRecoveryAsync(string recoveryId, CancellationToken ct = default)
+    {
+        target.ThrowIfChanged(); EnrollmentValidation.Uuid(recoveryId);
+        using var linked = Link(ct);
+        var recovery = await ReadRecoveryAsync(recoveryId, linked.Token).ConfigureAwait(false);
+        if (recovery.State != "closed_awaiting_explicit_reissue")
+            throw new InvalidOperationException("이미 새 등록이 발급된 복구 작업입니다. 기존 등록 결과를 확인해 주세요.");
+        return new(target, recovery);
+    }
+
+    private async Task<EnrollmentRecovery> ReadRecoveryAsync(string id, CancellationToken ct)
+    {
+        var value = await target.AdministratorSession.GetAsync<JsonElement>($"{Root}/recoveries/{id}", ct).ConfigureAwait(false);
+        target.ThrowIfChanged(); ct.ThrowIfCancellationRequested();
+        EnrollmentValidation.Fields(value, "recovery");
+        return ParseRecovery(value.GetProperty("recovery"), id);
+    }
+
+    private static DateTimeOffset RecoveryTime(string? text)
+    {
+        EnrollmentValidation.Require(text is not null && Regex.IsMatch(text,
+            @"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,6})?(?:Z|\+00:00)$"));
+        EnrollmentValidation.Require(DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture,
+            DateTimeStyles.None, out var value) && value.Offset == TimeSpan.Zero);
+        return value;
+    }
+
+    private static EnrollmentRecovery ParseRecovery(JsonElement value, string id)
+    {
+        try { return ReadRecoveryValue(value, id); }
+        catch (JsonException) { throw new InvalidDataException("복구 작업 응답 형식을 확인해 주세요."); }
+    }
+
+    private static EnrollmentRecovery ReadRecoveryValue(JsonElement value, string id)
+    {
+        EnrollmentValidation.Fields(value, "recovery_id", "source_enrollment_id", "device_id", "reserved_slot",
+            "source_operation_revision", "source_claim_revision", "state", "new_enrollment_id", "evidence_kind", "closed_at", "reissued_at");
+        var result = value.Deserialize<EnrollmentRecovery>(ApiClient.Json)!;
+        EnrollmentValidation.Require(result is not null && result.RecoveryId == id && result.ReservedSlot >= 0
+            && result.EvidenceKind == "operator_observation_not_signed_result");
+        EnrollmentValidation.Uuid(result!.RecoveryId); EnrollmentValidation.Uuid(result.SourceEnrollmentId);
+        EnrollmentValidation.Uuid(result.DeviceId); EnrollmentValidation.Revision(result.SourceOperationRevision);
+        EnrollmentValidation.Revision(result.SourceClaimRevision);
+        EnrollmentValidation.Require(long.Parse(result.SourceClaimRevision, CultureInfo.InvariantCulture) < long.MaxValue);
+        var closed = RecoveryTime(result.ClosedAt);
+        if (result.State == "closed_awaiting_explicit_reissue")
+            EnrollmentValidation.Require(result.NewEnrollmentId is null && result.ReissuedAt is null);
+        else
+        {
+            EnrollmentValidation.Require(result.State == "reissued" && result.NewEnrollmentId is not null);
+            EnrollmentValidation.Uuid(result.NewEnrollmentId!);
+            EnrollmentValidation.Require(result.NewEnrollmentId != result.SourceEnrollmentId && RecoveryTime(result.ReissuedAt) >= closed);
+        }
+        return result;
+    }
+
+    private static void RecoveryBinding(EnrollmentRecovery expected, EnrollmentRecovery actual)
+        => EnrollmentValidation.Require(expected.RecoveryId == actual.RecoveryId
+            && expected.SourceEnrollmentId == actual.SourceEnrollmentId && expected.DeviceId == actual.DeviceId
+            && expected.ReservedSlot == actual.ReservedSlot && expected.SourceOperationRevision == actual.SourceOperationRevision
+            && expected.SourceClaimRevision == actual.SourceClaimRevision && expected.ClosedAt == actual.ClosedAt);
+
+    private async Task<EnrollmentJob> ReissueAsync(EnrollmentAttempt attempt, CancellationToken ct)
+    {
+        var expected = attempt.RecoverySelection!.Recovery;
+        EnrollmentRecovery recovery;
+        EnrollmentJob job;
+        try
+        {
+            var response = await target.AdministratorSession.PostAsync<JsonElement>($"{Root}/recoveries/{expected.RecoveryId}/reissue",
+                new { client_request_id = attempt.ClientRequestId, target_user_id = target.UserId }, ct).ConfigureAwait(false);
+            target.ThrowIfChanged(); ct.ThrowIfCancellationRequested();
+            EnrollmentValidation.Fields(response, "recovery", "job");
+            recovery = ParseRecovery(response.GetProperty("recovery"), expected.RecoveryId);
+            try { job = response.GetProperty("job").Deserialize<EnrollmentJob>(ApiClient.Json)!; }
+            catch (JsonException) { throw new InvalidDataException("새 등록 응답 형식을 확인해 주세요."); }
+        }
+        catch (ApiException error) when (error.StatusCode == 0 || error.StatusCode >= 500)
+        {
+            // A lost reply never falls back to ordinary issue or another request UUID.
+            recovery = await ReadRecoveryAsync(expected.RecoveryId, ct).ConfigureAwait(false);
+            RecoveryBinding(expected, recovery);
+            if (recovery.State != "reissued")
+                throw new InvalidOperationException("새 등록 발급 결과를 확인하지 못했습니다. 같은 작업으로 다시 확인해 주세요.");
+            job = await target.AdministratorSession.GetAsync<EnrollmentJob>(
+                $"{Root}/{recovery.NewEnrollmentId}", ct).ConfigureAwait(false);
+        }
+        target.ThrowIfChanged(); ct.ThrowIfCancellationRequested();
+        RecoveryBinding(expected, recovery);
+        EnrollmentValidation.Require(recovery.State == "reissued" && job is not null
+            && job.EnrollmentId == recovery.NewEnrollmentId && job.EnrollmentId != expected.SourceEnrollmentId
+            && job.ReservedSlot == expected.ReservedSlot && job.OperationRevision == "1"
+            && job.ClaimRevision == (long.Parse(expected.SourceClaimRevision, CultureInfo.InvariantCulture) + 1).ToString(CultureInfo.InvariantCulture));
+        EnrollmentValidation.Job(job!, attempt);
+        EnrollmentValidation.Require(job!.State != "issued" || job.RequestEnvelope is not null);
+        return job;
+    }
 
     public async Task<IReadOnlyList<EnrollmentDevice>> GetDevicesAsync(CancellationToken ct = default)
     {
@@ -138,7 +274,9 @@ public sealed class FingerprintEnrollmentRelay(EnrollmentTarget target, IEnrollm
         {
             target.ThrowIfChanged();
             EnrollmentJob job;
-            if (attempt.Job is { } known)
+            if (attempt.RecoverySelection is not null)
+                job = await ReissueAsync(attempt, linked.Token).ConfigureAwait(false);
+            else if (attempt.Job is { } known)
                 job = await target.AdministratorSession.GetAsync<EnrollmentJob>($"{Root}/{known.EnrollmentId}", linked.Token).ConfigureAwait(false);
             else
             {
@@ -161,9 +299,19 @@ public sealed class FingerprintEnrollmentRelay(EnrollmentTarget target, IEnrollm
             if (job.State == "completed") return job;
             if (job.State is not ("issued" or "expired"))
                 throw new InvalidOperationException("등록 상태 확인이 필요합니다. 새 지문을 자동 등록하지 않습니다.");
+            var physical = await ReadPhysicalAsync(job, linked.Token).ConfigureAwait(false);
+            target.ThrowIfChanged();
+            linked.Token.ThrowIfCancellationRequested();
+            if (physical.GetProperty("phase").GetString() == "result_recorded")
+            {
+                string recorded = physical.GetProperty("result_envelope").GetString()!;
+                EnrollmentValidation.Require(attempt.PendingResult is null || attempt.PendingResult == recorded);
+                attempt.PendingResult = recorded;
+            }
             if (attempt.PendingResult is null)
             {
-                bool readOnly = attempt.DeviceStarted || job.State == "expired";
+                bool readOnly = attempt.DeviceStarted || job.State == "expired"
+                    || physical.GetProperty("phase").GetString() == "store_intent";
                 if (!readOnly && job.RequestEnvelope is null) throw new InvalidDataException("등록 요청이 없습니다.");
                 attempt.DeviceStarted = true; // Set BEFORE sending; an uncertain send never triggers automatic rescan.
                 progress?.Report(readOnly ? "저장 결과 확인 중" : "지문 등록 준비 중");
@@ -173,6 +321,16 @@ public sealed class FingerprintEnrollmentRelay(EnrollmentTarget target, IEnrollm
                 linked.Token.ThrowIfCancellationRequested();
                 EnrollmentValidation.Base64(attempt.PendingResult);
             }
+            // Preserve exact signed bytes in MySQL before asking for member mapping.
+            // If this response is lost, the attempt retains the same bytes; the next
+            // call reads the server receipt and never starts another sensor write.
+            var recordedPhysical = await target.AdministratorSession.PostAsync<JsonElement>(
+                $"{Root}/{job.EnrollmentId}/physical-result", new
+                { operation_revision = job.OperationRevision, result_envelope = attempt.PendingResult }, linked.Token).ConfigureAwait(false);
+            target.ThrowIfChanged(); linked.Token.ThrowIfCancellationRequested();
+            ValidatePhysical(recordedPhysical, job);
+            EnrollmentValidation.Require(recordedPhysical.GetProperty("phase").GetString() == "result_recorded"
+                && recordedPhysical.GetProperty("result_envelope").GetString() == attempt.PendingResult);
             progress?.Report("서버에 계정 연결 확인 중");
             var completed = await target.AdministratorSession.PostAsync<EnrollmentJob>($"{Root}/{job.EnrollmentId}/complete",
                 new { operation_revision = job.OperationRevision, result_envelope = attempt.PendingResult }, linked.Token).ConfigureAwait(false);
@@ -180,6 +338,8 @@ public sealed class FingerprintEnrollmentRelay(EnrollmentTarget target, IEnrollm
             linked.Token.ThrowIfCancellationRequested();
             EnrollmentValidation.Job(completed, attempt);
             attempt.Job = completed;
+            if (completed.State is "failed" or "recovery_required")
+                throw new EnrollmentPiFailureException(completed.Result?.FailureCode == "duplicate_finger" ? "already_registered" : null);
             EnrollmentValidation.Require(completed.State == "completed");
             progress?.Report("지문 등록 완료");
             return completed;
@@ -190,21 +350,107 @@ public sealed class FingerprintEnrollmentRelay(EnrollmentTarget target, IEnrollm
     private async Task<string> ApproveAsync(EnrollmentJob job, bool readOnly, JsonElement body, CancellationToken ct)
     {
         target.ThrowIfChanged();
+        if (body.TryGetProperty("action", out var action))
+        {
+            string? kind = action.GetString();
+            bool record = kind == "record_physical_result";
+            EnrollmentValidation.Require(record || kind == "read_physical_result");
+            if (record) EnrollmentValidation.Fields(body, "action", "operation_revision", "probe_nonce", "result_envelope");
+            else EnrollmentValidation.Fields(body, "action", "operation_revision", "probe_nonce");
+            EnrollmentValidation.Require(body.GetProperty("operation_revision").ValueKind == JsonValueKind.Null && !record
+                || body.GetProperty("operation_revision").GetString() == job.OperationRevision);
+            EnrollmentValidation.Require(EnrollmentValidation.Base64(body.GetProperty("probe_nonce").GetString()!, 64).Length >= 16);
+            JsonElement receipt;
+            if (record)
+            {
+                string raw = body.GetProperty("result_envelope").GetString()!;
+                EnrollmentValidation.Base64(raw);
+                receipt = await target.AdministratorSession.PostAsync<JsonElement>($"{Root}/{job.EnrollmentId}/physical-result",
+                    new { operation_revision = job.OperationRevision, result_envelope = raw }, ct).ConfigureAwait(false);
+                ValidatePhysical(receipt, job);
+                EnrollmentValidation.Require(receipt.GetProperty("phase").GetString() == "result_recorded"
+                    && receipt.GetProperty("result_envelope").GetString() == raw);
+            }
+            else receipt = await ReadPhysicalAsync(job, ct).ConfigureAwait(false);
+            target.ThrowIfChanged(); ct.ThrowIfCancellationRequested();
+            return EnrollmentValidation.Encode(JsonSerializer.SerializeToUtf8Bytes(receipt));
+        }
         EnrollmentValidation.Fields(body, "operation_revision", "reserved_slot", "claim_revision", "key_epoch", "ticket_digest", "probe_nonce", "scope");
+        string? requestedScope = body.GetProperty("scope").GetString();
         EnrollmentValidation.Require(body.GetProperty("operation_revision").GetString() == job.OperationRevision
             && body.GetProperty("reserved_slot").GetInt32() == job.ReservedSlot
             && body.GetProperty("claim_revision").GetString() == job.ClaimRevision
             && body.GetProperty("key_epoch").GetString() == job.KeyEpoch
-            && body.GetProperty("scope").GetString() == (readOnly ? "result_read" : "sensor_write"));
+            && (requestedScope == "result_read" || !readOnly && (requestedScope is "sensor_capture" or "sensor_store")));
         var digest = body.GetProperty("ticket_digest").GetString();
         EnrollmentValidation.Require(digest is not null && Regex.IsMatch(digest, "^[0-9a-f]{64}$"));
         int nonceLength = EnrollmentValidation.Base64(body.GetProperty("probe_nonce").GetString()!, 64).Length;
         EnrollmentValidation.Require(nonceLength >= 16);
+        if (requestedScope == "sensor_store")
+        {
+            var receipt = await target.AdministratorSession.PostAsync<JsonElement>(
+                $"{Root}/{job.EnrollmentId}/storage-intent", body, ct).ConfigureAwait(false);
+            target.ThrowIfChanged(); ct.ThrowIfCancellationRequested();
+            ValidatePhysical(receipt, job, storeReply: true);
+            // Forward false/null unchanged too: the Pi must reject a replayed intent.
+            return EnrollmentValidation.Encode(JsonSerializer.SerializeToUtf8Bytes(receipt));
+        }
         var response = await target.AdministratorSession.PostAsync<EnrollmentApproval>($"{Root}/{job.EnrollmentId}/approval", body, ct).ConfigureAwait(false);
         target.ThrowIfChanged();
         ct.ThrowIfCancellationRequested();
         EnrollmentValidation.Base64(response.ApprovalEnvelope);
         return response.ApprovalEnvelope;
+    }
+
+    private async Task<JsonElement> ReadPhysicalAsync(EnrollmentJob job, CancellationToken ct)
+    {
+        var value = await target.AdministratorSession.GetAsync<JsonElement>(
+            $"{Root}/{job.EnrollmentId}/physical-result", ct).ConfigureAwait(false);
+        target.ThrowIfChanged(); ct.ThrowIfCancellationRequested();
+        ValidatePhysical(value, job);
+        return value;
+    }
+
+    private static void ValidatePhysical(JsonElement value, EnrollmentJob job, bool storeReply = false)
+    {
+        EnrollmentValidation.Fields(value, "enrollment_id", "operation_revision", "reserved_slot", "claim_revision", "key_epoch",
+            "contract", "phase", "result_envelope", "result_id", "outcome", "failure_code", "intent_at", "reported_at", "may_store", "approval_envelope");
+        EnrollmentValidation.Require(value.GetProperty("enrollment_id").GetString() == job.EnrollmentId
+            && value.GetProperty("operation_revision").GetString() == job.OperationRevision
+            && value.GetProperty("reserved_slot").GetInt32() == job.ReservedSlot
+            && value.GetProperty("claim_revision").GetString() == job.ClaimRevision
+            && value.GetProperty("key_epoch").GetString() == job.KeyEpoch
+            && value.GetProperty("contract").GetString() == "enrollment-mysql-v1");
+        string? phase = value.GetProperty("phase").GetString();
+        EnrollmentValidation.Require(phase is "not_recorded" or "store_intent" or "result_recorded");
+        foreach (string name in new[] { "intent_at", "reported_at" })
+            if (value.GetProperty(name).ValueKind != JsonValueKind.Null)
+                EnrollmentValidation.Require(DateTimeOffset.TryParse(value.GetProperty(name).GetString(),
+                    CultureInfo.InvariantCulture, DateTimeStyles.None, out var stamp) && stamp.Offset == TimeSpan.Zero);
+        if (phase == "not_recorded") EnrollmentValidation.Require(value.GetProperty("intent_at").ValueKind == JsonValueKind.Null);
+        if (phase == "store_intent") EnrollmentValidation.Require(value.GetProperty("intent_at").ValueKind == JsonValueKind.String);
+        bool mayStore = value.GetProperty("may_store").GetBoolean();
+        if (!storeReply || !mayStore)
+            EnrollmentValidation.Require(!mayStore && value.GetProperty("approval_envelope").ValueKind == JsonValueKind.Null);
+        else
+        {
+            EnrollmentValidation.Require(phase == "store_intent");
+            EnrollmentValidation.Base64(value.GetProperty("approval_envelope").GetString()!);
+        }
+        if (phase == "result_recorded")
+        {
+            EnrollmentValidation.Require(!mayStore);
+            EnrollmentValidation.Base64(value.GetProperty("result_envelope").GetString()!);
+            EnrollmentValidation.Uuid(value.GetProperty("result_id").GetString()!);
+            string? outcome = value.GetProperty("outcome").GetString();
+            EnrollmentValidation.Require(outcome is "sensor_stored" or "failed" or "recovery_required");
+            EnrollmentValidation.Require(value.GetProperty("reported_at").ValueKind == JsonValueKind.String);
+            if (outcome == "sensor_stored") EnrollmentValidation.Require(
+                value.GetProperty("intent_at").ValueKind == JsonValueKind.String && value.GetProperty("failure_code").ValueKind == JsonValueKind.Null);
+            else EnrollmentValidation.Require(value.GetProperty("failure_code").ValueKind == JsonValueKind.String);
+        }
+        else foreach (string name in new[] { "result_envelope", "result_id", "outcome", "failure_code", "reported_at" })
+            EnrollmentValidation.Require(value.GetProperty(name).ValueKind == JsonValueKind.Null);
     }
 
     public async Task CancelAsync(EnrollmentAttempt attempt, CancellationToken ct = default)
@@ -258,7 +504,8 @@ public sealed class HttpEnrollmentPiChannel : IEnrollmentPiChannel, IDisposable
                     EnrollmentValidation.Base64(raw);
                     return raw;
                 }
-                if (status == "failed") throw new InvalidOperationException("라파 등록 상태 확인이 필요합니다. 다시 스캔하지 않고 저장 결과를 확인해 주세요.");
+                if (status == "failed") throw new EnrollmentPiFailureException(
+                    state.TryGetProperty("error_code", out var code) && code.ValueKind == JsonValueKind.String ? code.GetString() : null);
                 if (status == "delivered") throw new InvalidOperationException("결과 전달 확인이 필요합니다. 같은 작업의 저장 결과를 다시 확인해 주세요.");
                 EnrollmentValidation.Require(status is "running" or "awaiting_approval");
                 if (status == "awaiting_approval")

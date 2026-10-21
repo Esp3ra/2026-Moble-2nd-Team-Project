@@ -11,7 +11,6 @@ import json
 import math
 from pathlib import Path
 import re
-import sqlite3
 import time
 from uuid import UUID, uuid4
 
@@ -105,6 +104,7 @@ class EnrollmentLedger:
 
     @contextmanager
     def _connect(self):
+        import sqlite3  # Legacy evidence only; the MySQL runtime never opens this ledger.
         db = sqlite3.connect(self.path, timeout=1)
         try:
             db.row_factory = sqlite3.Row
@@ -146,11 +146,13 @@ class EnrollmentLedger:
 
 class FingerprintEnrollment:
     def __init__(self, sensor, codes, sensor_lock, ledger, device_id, profile,
-                 authorize, progress=lambda *_: None, clock=time.monotonic, sleep=time.sleep):
+                 authorize, progress=lambda *_: None, clock=time.monotonic, sleep=time.sleep,
+                 before_store=None):
         _uuid(device_id)
         self.sensor, self.codes, self.lock, self.ledger = sensor, codes, sensor_lock, ledger
         self.device_id, self.profile, self.authorize = device_id, profile, authorize
         self.progress, self.clock, self.sleep = progress, clock, sleep
+        self.before_store = before_store
 
     def _notify(self, stage):
         try:
@@ -231,6 +233,7 @@ class FingerprintEnrollment:
             if type(result) is not int:
                 raise EnrollmentError("search_failed")
             if result == self.codes.OK:
+                self._notify("already_registered")
                 raise EnrollmentError("already_registered")
             if result not in (self.codes.NOTFOUND, self.codes.NOMATCH):
                 raise EnrollmentError("search_failed")
@@ -243,9 +246,12 @@ class FingerprintEnrollment:
             self._ok(self.sensor.create_model(), "fingerprints_do_not_match")
             before = self._inventory(operation.reserved_slot)
             self._current(operation, cancellation, deadline)
-            # Persist uncertainty BEFORE the irreversible store command.
+            # Record the pending phase before store. The MySQL before_store
+            # hook commits server intent before granting the physical write.
             self.ledger.transition(operation, "capturing", "store_pending")
             local_state = "store_pending"
+            if self.before_store is not None:
+                self.before_store(operation)
             self._current(operation, cancellation, deadline)
             self._ok(self.sensor.store_model(operation.reserved_slot), "store_failed")
             self._current(operation, cancellation, deadline)
