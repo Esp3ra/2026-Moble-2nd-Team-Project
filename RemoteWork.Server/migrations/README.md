@@ -11,7 +11,7 @@
 | 006 | [결과물 SQL](006_results.mysql.sql) · [기능·설정 안내](../../docs/RESULTS.md) | 최초에는 번호만 예약했으나 현재 PR46으로3번 개발 SQL/API가 원본 alpha에 병합됨. 결과물/판단·첨부·이력과 명시 개발 관계 저장소를 포함하며 공유 적용/운영 관계 확정·전역version6 승인은 아님 |
 | 007 | [지문 등록 SQL](007_device_enrollment.mysql.sql) · [설정·검증·복구](007_device_enrollment.md) | 2026-10-20 사용자 승인으로1번 서버 API와 함께 개발 구현. 독립 metadata/명시 초기화·기본off·공유 미적용·전역version1 유지 |
 | 008 | [공지 팝업 SQL](008_notice_popups.mysql.sql) · [검토·검증·복구](008_notice_popups.md) | PR45 검토 후 원본 alpha 병합. 공지 삭제 시 해당 확인 행 CASCADE 삭제·삭제 감사 유지 정책 확정. 기본off·명시 준비·공유 적용은 별도, 전역version1 유지 |
-| 009 | `009_task_lifecycle.mysql.sql` (번호 예약, SQL 없음) | 2026-10-20 LOG/2번 C02/C07 확정 정책의 취소 표시·마감 연장 신청/판단/철회 DDL 초안 대조용. 모델/SQL 작성2번·제출/판단 연결3번·공통 FK/번호/receipt 검토1번. 새 열/테이블·공유 적용·전역version9 승인 아님 |
+| 009 | [업무 취소·연장 SQL](009_task_lifecycle.mysql.sql) · [검토/검증/적용 경계](009_task_lifecycle.md) | 최초 번호 예약 후2번 alpha73a05d5의 개발 초안을1번이 대조해 번호화. 신규2테이블의 InnoDB/utf8mb4_unicode_ci 명시,3번 소비 검증/전체 배포확인·공유 적용은 미완료. schema1 유지·전역version9 승인 아님 |
 
 005·006은 별도 개발 SQL이다. 최초 006 번호 예약 당시의 미작성 안내를 PR46 병합 상태로 정정한다. 002의 신규 등록 초기 업무/배정 버전1/1과 공통 schema version1은 서로 다른 값이다. 3번의 제출 참조는 기존 `task_assignments(task_id, revision)`을 사용하며, 실제 006과 ORM의 참조 인덱스·복합 FK를 함께 대조한다. MySQL의 즉시 FK 검사 때문에 현재 `tasks`의 배정 포인터에 순환 FK를 무단 추가하여 최초 등록 순서를 깨뜨리지 않는다.
 
@@ -33,13 +33,13 @@ W1-05 회신에 따라 002와 업무 ORM의 상태 CHECK는 다섯 소문자 코
 
 [검토 SQL](008_notice_popups.mysql.sql) · [설정·검증/복구](008_notice_popups.md). 최초 예약/보존 미합의 기록 이후, 팀장이 **공지와 해당 확인 행 함께 삭제·삭제 감사 유지**를 확정하고 PR45를 병합했습니다. [현재 정책](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#notice-delete-confirmations-policy-20261020)을 따릅니다. 006/007과 분리·전역schema1·팝업 기본off를 유지하며 공유008 적용/활성화는 별도입니다. 과거 ‘확인 보존 미구현’을 현재 코드의 차단 오류로 반복하지 않습니다.
 
-## 009 업무 취소·마감 연장 — 모델/SQL 초안 검토용 번호 예약
+## 009 업무 취소·마감 연장 — 초안 수신·1번 번호화/검증
 
-[팀장 확정 A~E 정책](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-management-policy-approved-20261020)에 따른 **D/E의 기술 접점 준비**입니다. 009는 번호만 예약하며 아직 SQL 파일·새 테이블/열·적용 기록·신규 기능 flag를 추가하지 않습니다. A/B/C 저장과 D/E 기능은2번, 제출·판단의 차단은3번이 구현하고1번은 아래 공통 접점을 대조합니다.
+[팀장 확정 A~E 정책](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-management-policy-approved-20261020)에 따른 D/E의2번 모델/저장·조회/폼·미번호 SQL이 alpha73a05d5에 도착했습니다. 최초 예약 당시의 ‘초안 없음’ 안내를 정정하며1번이 [009 SQL과 검증 경계](009_task_lifecycle.md)를 제공합니다. 신규 D/E 제품/flag/action은2번 구현이고 본 변경이 중복 추가하지 않습니다.3번 실제 제출/판단/첨부 소비 확인 전에는 통합ACK를 넣거나503 차단을 해제하지 않습니다.
 
 - 기존 `task.updated/reassigned/managers_changed`는 현재 지정 관리자 권한과 기존5필드 결과를 사용합니다. 본인을 관리자에서 제외한 성공 뒤 조회403을 성공 취소로 취급하거나 과거 권한으로 우회하지 않습니다.
-- `task.deadline_extension_requested/approved/rejected`는 공통 action 허용 목록에 있습니다. 신청에는 W1의 `_own` 준비 authorizer가 연결돼 있고 승인·반려 authorizer는 미연결이며, 제품 route·실제 연장 모델은 후속 구현입니다. 기존 공통 최소 결과는 업무5필드와 `extension_id/requested_due_date/due_date` 범위입니다. 미연결 authorizer는503으로 거절합니다.
-- `task.cancelled`·연장 철회 등 신규 action/추가 결과 필드는2번이 계약 초안을 제공한 뒤 앱 초기화의 `register_write_action`으로 명시 등록합니다. 기존 built-in action을 이 함수로 덮어쓸 수 없으며 receipt에 사유 본문·개인정보·파일을 추가하지 않습니다. 정확한 필드/target 형식은 초안 대조 전 미확정입니다.
+- `task.deadline_extension_requested/approved/rejected`는 공통 action 허용 목록에 있습니다. 신청의 기존 `_own` 준비 검사와2번이 명시 연결한 승인/반려 callback·실제 route/모델을 구분합니다. 모두 업무5필드와 `extension_id/requested_due_date/due_date`의8필드 최소 결과를 유지합니다. 통합 연결 확인 전 제품 변경은503입니다.
+- `task.cancelled`·`task.deadline_extension_withdrawn`은2번이 앱 초기화의 `register_write_action`으로 현재 접근 callback/8필드를 명시 등록합니다. 기존 built-in action을 이 함수로 덮어쓰지 않으며 receipt에 사유/업무 본문·개인정보·파일을 추가하지 않습니다. target은 task_id, 결정 경로 extension_id도 fingerprint에 넣는 계약을 대조했습니다.
 - 신규 D/E 모델은 기존 `tasks.task_id` signed BIGINT·`task_assignments(task_id, revision)`의 BIGINT/INTEGER·users signed INTEGER와 FK 타입/현재 DB를 맞춰야 합니다. 취소는 여섯 번째 업무 상태/물리 삭제로 구현하지 않고 이력을 보존합니다. 연장 대기1건의 DB/잠금 경계·동시 신청/판단·업무 버전 증가를 명시한 초안이 필요합니다.
 - 기존3번 `ExternalFacts`에는 `reviewer_id/extension_pending`만 있고 취소 여부가 없습니다.2번의 취소/연장 저장과3번의 제출·판단은 동일 task/배정 잠금·현재 관계·유효 기한을 같은 DB transaction에서 재검사하도록 연결해야 합니다. 현재의 명시 개발 `SubmissionGate`를 실연장 신청 모델이나 공유 환경의 기본 false로 취급하지 않습니다.
-- 2번은 ORM/SQL·변경 전후 열/FK·route/flag·action/target/최소 결과·잠금 순서·실제 적용 기록/복구안을 제공하고3번은 취소·대기 연장의 제출/판단 차단 경계를 확인합니다.1번의 후속 검증은 빈/기존 데이터 이관·원자 rollback/재전송·현재 권한 소실·신청/판단/제출 경합·dump 후 새DB 복원입니다. 아직 수행하지 않은009 검증/공유 적용을 완료로 표시하지 않습니다.
+- 1번은 수신한 초안을 전용MySQL에서 대조하고 raw009 FK/제약·정책/권한·재전송·새DB 복원까지64검사를 통과했습니다.2번의 TESTING 대역과3번 실제 경로는 구분하며,3번 제출·판단·단계별 첨부의 취소/연장 경합과 실제 대상 환경/백업복구/공유 적용은 후속입니다. 전체 통합ACK·공유 적용 완료로 표시하지 않습니다.

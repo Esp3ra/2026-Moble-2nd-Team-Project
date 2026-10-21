@@ -47,6 +47,7 @@ public sealed class TaskQueryTestDouble : ITaskQueryService
         IReadOnlyList<TaskSummary> result = source
             .Select(detail => detail.Summary)
             .Where(summary => query.Status is null || summary.Status == query.Status)
+            .Where(summary => query.IncludeCancelled || !summary.IsCancelled)
             .ToArray();
         return Task.FromResult(result);
     }

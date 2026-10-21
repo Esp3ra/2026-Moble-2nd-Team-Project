@@ -27,6 +27,21 @@ public sealed class HttpTaskQueryService : ITaskQueryService, ITaskPreparationSo
 
     public string SourceDescription => $"업무 조회 서버 · {api.ServerUri}";
 
+    /// <summary>
+    /// Borrow task reads for this login only. Call explicitly after login;
+    /// an old reader cannot attach itself to a later account or server.
+    /// This does not start polling or provide any write capabilities.
+    /// </summary>
+    public TaskReadSession CaptureReadSession()
+    {
+        ApiClient.Session captured = session ?? api.CaptureSession();
+        captured.ThrowIfChanged();
+        string source = SourceDescription;
+        var queries = new HttpTaskQueryService(api, captured);
+        captured.ThrowIfChanged();
+        return new TaskReadSession(captured, queries, source);
+    }
+
     // A page captures all its optional task services together. The public adapter
     // remains reusable after login, while this view's adapter cannot move to it.
     internal TaskQuerySession? CaptureViewSession()

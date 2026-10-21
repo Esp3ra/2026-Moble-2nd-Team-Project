@@ -412,6 +412,7 @@ def test_enrollment_actual_dump_new_database_restore(env, owned_databases, tmp_p
 @pytest.mark.parametrize("schema", ["orm", "raw"])
 @pytest.mark.parametrize("capacity,minimum,maximum,slot,valid", [
     (300, 1, 299, 12, True),  # Allowed subset, not a claim that slot0/299 was measured.
+    (300, 12, 12, 12, True),  # A single explicitly approved slot, not all 300 slots.
     (300, 299, 299, 299, True),
     (300, 0, 299, 7, True),
     (1, 0, 0, 0, True),

@@ -12,7 +12,7 @@ from remotework.common import AppError, audit, payload, success
 from remotework.db import get_db
 from remotework.models import AuditEvent, User
 from remotework.write_requests import (WriteReceipt, WriteResult, perform_once,
-                                      register_write_action)
+                                      register_write_action, register_write_result_reader, lookup_result)
 from test_write_requests import writes  # Reuse the owned-DB setup, never a shared DB.
 
 ACTION = "submission.test_completed"
@@ -64,6 +64,41 @@ def counts(app):
         return (get_db().scalar(select(func.count()).select_from(WriteReceipt)),
                 get_db().scalar(select(func.count()).select_from(AuditEvent)
                                 .where(AuditEvent.action == "test.feature_once")))
+
+
+def test_result_reader_is_separate_current_authority_and_cannot_be_bypassed(feature, login):
+    feature.config["RESULT_READER_ALLOWED"] = True
+    def reader(db, target):
+        return feature.config["RESULT_READER_ALLOWED"] and g.user.role == "employee" and target == "self"
+    register_write_result_reader(feature, action=ACTION, authorize=reader)
+    @feature.post("/api/v1/_result_reader_bypass")
+    @login_required
+    def bypass():
+        with authenticated_transaction() as db:
+            data = lookup_result(db, key=request.headers["Idempotency-Key"], action=ACTION,
+                                 target="self", authorize=lambda db, target: True)
+        return success(data)
+    headers, _ = login()
+    with feature.test_client() as client:
+        keyed = key(client, headers)
+        assert client.post("/api/v1/_feature_probe", headers=keyed, json={"department": "one"}).status_code == 201
+        query = {"action": ACTION, "target": "self"}
+        assert client.post("/api/v1/write-requests/result", headers=keyed, json=query).status_code == 200
+        feature.config["RESULT_READER_ALLOWED"] = False
+        assert client.post("/api/v1/write-requests/result", headers=keyed, json=query).status_code == 403
+        assert client.post("/api/v1/_result_reader_bypass", headers=keyed).status_code == 500
+        assert counts(feature) == (1, 1)
+
+
+def test_read_only_contract_cannot_issue_key_or_run_registered_writer(feature, login):
+    register_write_result_reader(feature, action=ACTION, authorize=lambda db, target: True, read_only=True)
+    headers, _ = login()
+    with feature.test_client() as client:
+        result = client.post("/api/v1/write-requests/keys", headers=headers, json={"action": ACTION, "target": "self"})
+        assert result.status_code == 503 and result.json["error"]["code"] == "WRITE_ACTION_READ_ONLY"
+        result = client.post("/api/v1/_feature_probe", headers=headers | {"Idempotency-Key": "x" * 40},
+                             json={"department": "must not run"})
+        assert result.status_code == 503 and counts(feature) == (0, 0)
 
 
 def test_registered_feature_replay_result_and_action_binding(feature, login):

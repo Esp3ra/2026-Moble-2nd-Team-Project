@@ -1,5 +1,26 @@
 # 1번 W1 공통 쓰기 지원 — 2번 연결 안내
 
+## 최신 보완: 기능 종료 후 성공 결과 조회 (2026-10-20)
+
+`register_write_result_reader(app, action=..., authorize=..., read_only=False)`로 기능 소유자가 **조회 전용 현재권한 검사**를 앱 초기화 때 명시 등록할 수 있다. 기존 `register_write_action`과 쓰기 callback은 유지한다. 결과 조회도 같은 인증 transaction 안에서 현재 행위자·접속·업무 관계를 다시 검사한 뒤 서명 키의 사용자/action/target와 보관 기한을 확인한다. 성공 결과의8필드·24시간·단일 감사/receipt와 만료키 재실행 금지는 바뀌지 않는다. 조회는 DDL·새 결과/감사·새 요청 키를 만들지 않는다.
+
+신규 등록은 앱별로 분리하며 동일 action 재등록·첫 요청 이후 등록을 거절한다. 등록하지 않은 기능은 기존 writer authorizer를 그대로 사용한다. `read_only=True`로 등록한 행동은 공통 키 발급/새 실행을 거절한다. 조회 callback을 쓰기의 권한 함수로 대체해서는 안 된다.
+
+2번 취소·연장은 기존 현재 배정/지정관리자·자기 판단 금지를 재사용하는 읽기 callback을 별도로 등록한다. 실행 중 쓰기 flag를 끄거나 ACK를 제거해도 현재 권한이 유효한 기존 성공 결과는 보관 창 안에서 조회할 수 있다. 새 업무 실행은 기존 flag/ACK/schema gate로 계속 차단한다.
+
+**재시작 후 읽기 전용 운영도 필요할 때만** 아래를 명시한다. 기본값은 모두 기존대로 off이며, 실제 사용자 `.env`/5000 서버에는 이번 보완을 자동 적용하지 않는다.
+
+```text
+REMOTEWORK_ENABLE_COMMON_WRITE_DRAFT=1
+REMOTEWORK_ENABLE_TASK_QUERY_DRAFT=1
+REMOTEWORK_ENABLE_TASK_LIFECYCLE_DRAFT=0
+REMOTEWORK_ENABLE_TASK_LIFECYCLE_RESULT_READS_DRAFT=1
+```
+
+이 모드는 취소·연장 업무 쓰기 경로/키를 열지 않으며 기존 공통 키/결과 경로에서 해당5개 행동의 저장 결과만 확인한다. 공통/업무/009·receipt 테이블과 같은 서버 서명 secret이 필요하다. 미준비 schema·권한 회수·변조 키·만료를 빈 성공으로 바꾸지 않는다. `not_recorded`도 새 업무 실행 지시가 아니다. 실제3번 소비·공유 배포를 검증했다거나 전체 integrated ACK를 설치했다는 뜻은 아니다.
+
+아래2026-10-17 설명은 최초 공통 지원 이력이다. 현재 실제 제품 구현/합의 상태는 각 담당의 최신 안내와 [취소·연장](TASK_LIFECYCLE.md)을 함께 확인한다.
+
 3번 제출·검토 연결을 위한 접속 범위와 기능별 receipt 등록 도구는 [RESULTS_INTEGRATION.md](RESULTS_INTEGRATION.md)를 참조한다. 기본 task 계약은 유지하며 실제 제품 제출 행동·검토 권한·파일 저장은 아직 연결하지 않았다.
 
 2026-10-17. 기준 alpha c56f3c8의 기존 업무 GET/DTO/CheckedInput은 유지한다. 이 문서는 **공통 지원**이며 업무 등록·수락·연장·제출·승인 API 구현이 아니다.
