@@ -41,7 +41,8 @@ namespace RemoteWork.WinForms.Features.Results
             cmbOptions.SelectedIndex = 0;
             cmbOptions2.Items.Clear();
             cmbOptions2.Items.AddRange(new object[] { "전체 변경 유형", "생성", "담당자 변경",
-                "상태 변경", "진행률 변경", "결과 제출", "반려", "승인", "기타" });
+                "상태 변경", "진행률 변경", "결과 제출", "반려", "승인", "업무 수정", "관리자 변경",
+                "업무 취소", "연장 신청", "연장 승인", "연장 반려", "연장 철회", "기타" });
             cmbOptions2.SelectedIndex = 0;
             updating = false;
             ClearView("조회할 업무 이력이 없습니다.");
@@ -187,7 +188,11 @@ namespace RemoteWork.WinForms.Features.Results
         {
             "created" => "생성", "assignee_changed" => "담당자 변경", "status_changed" => "상태 변경",
             "progress_changed" => "진행률 변경", "submitted" => "결과 제출", "returned" => "반려",
-            "approved" => "승인", _ => "기타"
+            "approved" => "승인", "updated" => "업무 수정", "reassigned" => "담당자 변경",
+            "managers_changed" => "관리자 변경", "cancelled" => "업무 취소",
+            "deadline_extension_requested" => "연장 신청", "deadline_extension_approved" => "연장 승인",
+            "deadline_extension_rejected" => "연장 반려", "deadline_extension_withdrawn" => "연장 철회",
+            _ => "기타"
         };
 
         private void ClearView(string message)

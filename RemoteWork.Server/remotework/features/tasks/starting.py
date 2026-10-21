@@ -65,6 +65,13 @@ def _invalid_constant(_value):
     raise ValueError("Non-standard JSON constant")
 
 
+def validate_start_body(body):
+    """Validate exact transport-independent versions without changing the body."""
+    if not isinstance(body, dict) or set(body) != _FIELDS:
+        raise AppError(400, "INVALID_INPUT", "업무 버전과 배정 버전만 전달해 주세요.")
+    return body, ExpectedVersions.from_body(body)
+
+
 def _input():
     if request.args:
         raise AppError(400, "INVALID_INPUT", "업무 시작에는 조회 조건을 전달하지 않습니다.")
@@ -75,9 +82,7 @@ def _input():
                           parse_constant=_invalid_constant)
     except (UnicodeError, ValueError, RecursionError):
         raise AppError(400, "INVALID_INPUT", "중복 없는 JSON 입력 항목을 확인해 주세요.") from None
-    if not isinstance(body, dict) or set(body) != _FIELDS:
-        raise AppError(400, "INVALID_INPUT", "업무 버전과 배정 버전만 전달해 주세요.")
-    return body, ExpectedVersions.from_body(body)
+    return validate_start_body(body)
 
 
 def _utc_from_storage(value):
@@ -145,40 +150,62 @@ def _locked_current(db, target):
     return task, assignment
 
 
-def _start(target, action):
+def execute_start(db, *, target, action, body, key):
+    """Start once in the caller's existing current-identity transaction.
+
+    This is shared by the API and server-rendered web forms. The caller owns
+    commit/rollback; no result submission, review or lifecycle write is added.
+    """
+    from ...db import get_db
+    if not getattr(g, "write_transaction_active", False) or db is not get_db():
+        raise RuntimeError("Use the current authenticated_transaction for task starting")
+    if not isinstance(action, TaskStartAction):
+        raise ValueError("Use an explicit task start action")
     authorize = _authorizer(action)  # common-off never imports receipt support
+    if authorize(db, target) is not True:
+        raise AppError(403, "FORBIDDEN", "현재 업무를 시작할 권한이 없습니다.")
+    body, expected = validate_start_body(body)
+    from ...write_requests import WriteResult, perform_once
+
+    def mutate(session):
+        task, assignment = _locked_current(session, target)
+        # A retained success may still be read, but a new start must never
+        # bypass a persisted cancellation by switching the feature flag off.
+        from .lifecycle_support import ensure_not_cancelled
+        ensure_not_cancelled(session, task.task_id)
+        plan = _plan(task, assignment, expected, action, utcnow())
+        before = {"task_status": task.task_status, "row_version": str(task.row_version),
+                  "assignment_revision": task.current_assignment_revision}
+        task.task_status, task.row_version = plan.task_status, plan.row_version
+        task.updated_at = plan.updated_at.replace(tzinfo=None)
+        # Rework must preserve the exact original stored value.
+        if action is TaskStartAction.ACCEPT:
+            assignment.accepted_at = plan.accepted_at.replace(tzinfo=None)
+        session.flush()
+        session.refresh(task)  # Return the actual MySQL DATETIME precision.
+        result = {"task_id": str(task.task_id), "row_version": str(task.row_version),
+                  "assignment_revision": task.current_assignment_revision,
+                  "task_status": task.task_status, "updated_at": iso(task.updated_at)}
+        audit(_ACTIONS[action], "task", task.task_id, {"before": before, "after": {
+            "task_status": task.task_status, "row_version": str(task.row_version),
+            "assignment_revision": task.current_assignment_revision}})
+        return WriteResult(result)
+
+    return perform_once(db, key=key, action=_ACTIONS[action], target=target, body=body,
+                        authorize=authorize, mutate=mutate)
+
+
+def _start(target, action, *, body=None):
+    authorize = _authorizer(action)  # Retain the API's common-off precedence.
     with authenticated_transaction() as db:
         if authorize(db, target) is not True:
             raise AppError(403, "FORBIDDEN", "현재 업무를 시작할 권한이 없습니다.")
-        body, expected = _input()
-        from ...write_requests import WriteResult, perform_once
-
-        def mutate(session):
-            task, assignment = _locked_current(session, target)
-            # A retained success may still be read, but a new start must never
-            # bypass a persisted cancellation by switching the feature flag off.
-            from .lifecycle_support import ensure_not_cancelled
-            ensure_not_cancelled(session, task.task_id)
-            plan = _plan(task, assignment, expected, action, utcnow())
-            before = {"task_status": task.task_status, "row_version": str(task.row_version),
-                      "assignment_revision": task.current_assignment_revision}
-            task.task_status, task.row_version = plan.task_status, plan.row_version
-            task.updated_at = plan.updated_at.replace(tzinfo=None)
-            # Rework must preserve the exact original stored value.
-            if action is TaskStartAction.ACCEPT:
-                assignment.accepted_at = plan.accepted_at.replace(tzinfo=None)
-            session.flush()
-            session.refresh(task)  # Return the actual MySQL DATETIME precision.
-            result = {"task_id": str(task.task_id), "row_version": str(task.row_version),
-                      "assignment_revision": task.current_assignment_revision,
-                      "task_status": task.task_status, "updated_at": iso(task.updated_at)}
-            audit(_ACTIONS[action], "task", task.task_id, {"before": before, "after": {
-                "task_status": task.task_status, "row_version": str(task.row_version),
-                "assignment_revision": task.current_assignment_revision}})
-            return WriteResult(result)
-
-        result = perform_once(db, key=request.headers.get("Idempotency-Key"), action=_ACTIONS[action],
-                              target=target, body=body, authorize=authorize, mutate=mutate)
+        if body is None:
+            body, _ = _input()
+        else:
+            body, _ = validate_start_body(body)
+        result = execute_start(db, target=target, action=action, body=body,
+                               key=request.headers.get("Idempotency-Key"))
     return success(result.data, result.status)
 
 

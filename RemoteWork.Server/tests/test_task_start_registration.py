@@ -43,6 +43,11 @@ try:
     expected = __QUERY__ and __START__
     assert ('/api/v1/tasks/<string:task_id>/accept' in rules) is expected
     assert ('/api/v1/tasks/<string:task_id>/rework-start' in rules) is expected
+    web_enabled = expected and __COMMON__
+    assert ('/tasks/<int:task_id>/start/<action>' in rules) is web_enabled
+    assert ('/tasks/write/execute' in rules) is web_enabled
+    assert ('/tasks/write/result' in rules) is web_enabled
+    assert '/tasks/new' not in rules
     assert ('task.rework_started' in app.extensions.get('write_action_contracts', {})) is (expected and __COMMON__)
     assert ('write_receipts' in Base.metadata.tables) is __COMMON__
     assert ('remotework.write_requests' in sys.modules) is __COMMON__

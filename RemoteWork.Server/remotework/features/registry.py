@@ -23,4 +23,6 @@ def get_blueprints(config):
     if config.get("ENABLE_RESULTS_DRAFT", os.getenv("REMOTEWORK_ENABLE_RESULTS_DRAFT") == "1"):
         from .results import bp as results_bp
         blueprints.append(results_bp)
+        from .results_web import bp as results_web_bp
+        blueprints.append(results_web_bp)
     return blueprints

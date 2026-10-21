@@ -9,6 +9,7 @@
 <nav aria-label="주 메뉴"><a href="{{ url_for('web.home') }}">홈</a>
 <a href="{{ url_for('web.feature', name='notices') }}">공지사항</a><a href="{{ url_for('web.feature', name='tasks') }}">업무</a>
 <a href="{{ url_for('web.feature', name='chat') }}">채팅</a><a href="{{ url_for('web.feature', name='results') }}">결과물</a>
+{% if results_web_enabled|default(false) and g.user.role == 'admin' %}<a href="{{ url_for('results_web.history_page') }}">업무 이력</a>{% endif %}
 {% if g.user.role == 'admin' %}<a href="{{ url_for('web.users') }}">사용자 관리</a>{% endif %}</nav>
 <div class="identity">{{ g.user.display_name }} · {{ '관리자' if g.user.role == 'admin' else '직원' }}<br>{{ g.user.department }}<br>{{ g.user.employee_no }}</div>
 <form action="{{ url_for('web.sign_out') }}" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="secondary" type="submit">로그아웃</button></form></aside>
