@@ -6,7 +6,7 @@
 
 - 3번 소유 `shared_attachments.py` 1개와 기존 `results.py` 연결 부분을 구현한다. 기존4폼, 공통 인증/통신/registry, 2번 제품 코드는 직접 변경하지 않는다.
 - 2번은 업무 등록/수정/취소 TX 내부에서 아래 함수를 호출해야 한다. 3번 함수 자체는 commit/rollback을 하지 않는다. 업무 버전 증가·공통 receipt·업무 이력은 기존2번 처리와 함께 유지한다.
-- 1번은 `migrations/drafts/shared_attachments.mysql.sql`의 추가3테이블/FK/인덱스를 검토해야 한다. 006과 공통 schema1은 변경하지 않는다. SQL 번호·공유 DB 적용·배포 ACK를 문서만으로 승인하지 않는다.
+- 1번이 추가3테이블/FK/인덱스를 검토하고 예약013을 `migrations/013_shared_attachments.mysql.sql`로 일원화했다. 기존 draft SQL의 내용은 동일하며 006과 공통 schema1은 변경하지 않는다. 정식 검토 파일의 번호화는 공유 DB 적용·배포 ACK 승인이 아니다.
 - 위 내용은 구현을 위한 제공 계약이며 다른 담당자가 수신/연결/공유 적용했다는 뜻은 아니다. 새 자원 종류는 task와 submission만 지원한다. 공지/협업 요청 등으로 권한을 임의 확대하지 않는다.
 
 ## 활성화와 저장
