@@ -77,7 +77,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             gridTaskAttachments = new System.Windows.Forms.DataGridView();
             columnGridTaskAttachments1 = new System.Windows.Forms.DataGridViewTextBoxColumn();
             columnGridTaskAttachments2 = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            columnGridTaskAttachments3 = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            columnGridTaskAttachments3 = new System.Windows.Forms.DataGridViewButtonColumn();
             layoutContent.SuspendLayout();
             layoutContent2.SuspendLayout();
             panelContent.SuspendLayout();
@@ -1129,7 +1129,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             //
             // lblText4
             //
-            lblText4.Text = "업무 첨부파일 · 조회 연결 필요";
+            lblText4.Text = "업무 첨부파일 · 업무 선택 후 조회";
             lblText4.Location = new System.Drawing.Point(0, 4);
             lblText4.Size = new System.Drawing.Size(98, 19);
             lblText4.MinimumSize = new System.Drawing.Size(0, 0);
@@ -1185,6 +1185,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             gridTaskAttachments.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
             gridTaskAttachments.RowTemplate.Height = 38;
             gridTaskAttachments.Name = "gridTaskAttachments";
+            gridTaskAttachments.CellContentClick += gridTaskAttachments_CellContentClick;
             columnGridTaskAttachments1.Name = "columnGridTaskAttachments1";
             columnGridTaskAttachments1.HeaderText = "첨부파일";
             columnGridTaskAttachments1.MinimumWidth = 168;
@@ -1202,7 +1203,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             columnGridTaskAttachments2.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable;
             columnGridTaskAttachments2.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.NotSet;
             columnGridTaskAttachments3.Name = "columnGridTaskAttachments3";
-            columnGridTaskAttachments3.HeaderText = "등록자";
+            columnGridTaskAttachments3.HeaderText = "다운로드";
             columnGridTaskAttachments3.MinimumWidth = 82;
             columnGridTaskAttachments3.Width = 100;
             columnGridTaskAttachments3.FillWeight = 100F;
@@ -1340,6 +1341,6 @@ namespace RemoteWork.WinForms.Features.Tasks
         private System.Windows.Forms.DataGridView gridTaskAttachments;
         private System.Windows.Forms.DataGridViewTextBoxColumn columnGridTaskAttachments1;
         private System.Windows.Forms.DataGridViewTextBoxColumn columnGridTaskAttachments2;
-        private System.Windows.Forms.DataGridViewTextBoxColumn columnGridTaskAttachments3;
+        private System.Windows.Forms.DataGridViewButtonColumn columnGridTaskAttachments3;
     }
 }

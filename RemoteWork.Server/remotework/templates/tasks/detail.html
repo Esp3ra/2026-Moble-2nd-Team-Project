@@ -34,6 +34,13 @@
 {% for action, label in [('edit', '업무 수정'), ('reassign', '담당자 변경'), ('managers', '관리자 변경')] if action in management_actions %}<a class="task-action-link" href="{{ url_for('task_web.manage', task_id=task.task_id, action=action, **filters) }}">{{ label }}</a>{% endfor %}
 </div></section>
 {% endif %}
+{% if lifecycle_actions %}
+<section class="card" aria-labelledby="task-lifecycle-actions-heading"><h2 id="task-lifecycle-actions-heading">취소·마감 연장</h2>
+{% if not lifecycle_context.write_enabled %}<p class="muted">현재 서버의 연결 확인이 필요해 실행은 사용할 수 없습니다. 신청 내용과 변경 기준은 확인할 수 있습니다.</p>{% endif %}
+<div class="task-management-links">
+{% for action, label in [('cancel', '업무 취소'), ('request-extension', '마감 연장 신청'), ('approve-extension', '연장 승인'), ('reject-extension', '연장 반려'), ('withdraw-extension', '연장 신청 철회')] if action in lifecycle_actions %}<a class="task-action-link" href="{{ url_for('task_web.lifecycle_action', task_id=task.task_id, action=action, **filters) }}">{{ label }}</a>{% endfor %}
+</div></section>
+{% endif %}
 {% if has_results and task.assignee_id == g.user.id and not task.get('is_cancelled') %}
 <section class="card" aria-labelledby="task-results-heading"><h2 id="task-results-heading">업무 결과물</h2>
 <p class="muted">현재 본인 업무의 결과물을 확인합니다. 제출 가능 여부는 결과물 화면에서 현재 상태와 권한을 다시 검사합니다. 돌아온 뒤 업무 정보 새로고침으로 최신 상태를 확인하세요.</p>

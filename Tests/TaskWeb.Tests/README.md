@@ -1,6 +1,24 @@
 <a id="업무-웹-읽기-전용-mysql-검사"></a>
 # 업무 웹 조회·등록·수락·재작업 MySQL 검사
 
+<a id="task-web-remainder-checks"></a>
+## 현재 취소·연장 웹 / 첨부 취소 / 연속성 검사
+
+`--suite remainder`는 새 `test_task_web_lifecycle_writes.py`, `test_task_continuity.py`, `test_task_shared_attachment_cancel.py`를 소유 MySQL에서 실행합니다. 기존 raw002/004/006/009 뒤 **실제013 SQL**을 명시 fixture로 적용하며 실행 전후 물리DDL·공통 schema1 불변과 정리를 확인합니다. 공유 DB에는 적용하지 않습니다.
+
+웹5행동의 서명 초안·원본 버전/신청 ID·동일 키 복구·현재 권한·CSRF·이전 로그인·ACK 미준비503·쓰기off 결과조회, 같은 TX의 실제3번 파일 해제/과거 제출과 다른 업무 참조 보존·rollback/재시도/제공부 미준비·오래된 RR snapshot 이후 현재 링크를 검사합니다. 연속성은 완전한2번 이력만 증명하고 누락된3번 구간·형식/중복/미지 행동은None을 유지합니다. 기존4번 bridge 소비 검사도4번 코드 변경 없이 실행합니다.
+
+성공 웹은 명시 TESTING 대역 ACK, 첨부 취소는 실제 results/shared 제공부와 **소유 fixture 한정 INTEGRATED_ACK**를 사용합니다. 실제 results 등록만으로 ACK 없는5행동이503인 경우도 별도 검사합니다. 이 세 범위를 운영 ACK 설치로 표시하지 않습니다.
+
+```powershell
+python Tests/TaskWeb.Tests/run_mysql_check.py --allow-disposable-mysql --mysql-bin-dir 'C:/Program Files/MySQL/MySQL Server 8.2/bin' --suite remainder --report-dir 'C:/검증결과/새업무잔여검사'
+```
+
+최종 실행은 **342통과·실패/생략0,663.64초**이며 물리DDL불변·schema1·소유자원정리를 확인했습니다. 새3모듈과 기존 lifecycle/결과읽기·웹조회/등록시작/관리/3번진입·실제제출충돌을 포함합니다. 같은 목록은 `--suite remainder-regression`으로 재현할 수 있습니다. 실행 후 이 선택자를 추가하고 실제 보고서의 target 목록과 일치함을 대조했으며 제품 코드는 바뀌지 않았습니다.
+
+이번 최종 실행 결과와 기존 모듈을 함께 돌린 정확한 목록은 [LOG/2번 이번 검증](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md#member2-remainder-check-20261021) 및 소스 밖 `ES/tmp/remote_work_member2_remainder_20261021/mysql_final/verification.json`을 따릅니다. 초기93개와 최종 실행을 합산하지 않습니다. 아래80개 등의 수치는 이전 회차입니다.
+
+
 업무 웹과 기존 등록·시작·관리 API를 새 소유 MySQL에서 검사합니다. 사용자 `.env`·설정 DB·실행 중 서비스·SQLite를 사용하지 않습니다. 기존 소유권/Windows Job helper와 실제 raw002/004/006/009를 재사용하며 전역 schema version1과 물리DDL을 보존합니다. 아래31/62/85/196/81개 결과는 각각 앞선 회차의 기록이며 현재 실행 결과와 합산하지 않습니다.
 
 <a id="task-web-management-checks"></a>
@@ -20,7 +38,7 @@
 python Tests/TaskWeb.Tests/run_mysql_check.py --allow-disposable-mysql --mysql-bin-dir 'C:/Program Files/MySQL/MySQL Server 8.2/bin' --suite management-web --report-dir 'C:/검증결과/새업무웹관리검사'
 ```
 
-PR52의3번 취소/pending 차단·공용 첨부 제공 코드 병합과 운영 통합을 구분합니다. PR60의 `013_shared_attachments.mysql.sql`은 제공됐지만 이번 실행기는 해당 SQL을 적용하지 않으며2번 첨부 연결/해제 소비 트랜잭션·통합 ACK·공유 DB를 활성화하지 않습니다. 취소·연장 실제 변경503은 유지합니다.
+PR52의3번 취소/pending 차단·공용 첨부 제공 코드 병합과 운영 통합을 구분합니다. 이전 management-web 회차는013과첨부소비를실행하지않았습니다. 현재 remainder 회차는위실제013/취소참조해제를별도로검사합니다. 등록/수정첨부저장·운영통합ACK·공유DB는활성화하지않습니다. 취소·연장 실제 변경503은 유지합니다.
 
 ## 현재 등록·수락·재작업 연결 검사
 

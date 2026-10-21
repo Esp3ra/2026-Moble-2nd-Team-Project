@@ -703,7 +703,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             //
             // txtContent2
             //
-            txtContent2.Text = "업무: 주간 보고서 작성\r\n마감: 2026.10.14 18:00\r\n상태: 마감 예정";
+            txtContent2.Text = "마감 알림 서버 연결 준비 중입니다.";
             txtContent2.Location = new System.Drawing.Point(3, 37);
             txtContent2.Size = new System.Drawing.Size(410, 158);
             txtContent2.MinimumSize = new System.Drawing.Size(0, 56);

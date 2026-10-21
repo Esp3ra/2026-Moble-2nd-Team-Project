@@ -19,8 +19,14 @@ from .start_transition import TaskStartAction
 START_ACTIONS = {"accept": TaskStartAction.ACCEPT, "rework-start": TaskStartAction.REWORK_START}
 LABELS = {"task.created": "업무 등록", "task.accepted": "업무 수락",
           "task.rework_started": "재작업 시작", "task.updated": "업무 수정",
-          "task.reassigned": "담당자 변경", "task.managers_changed": "관리자 변경"}
+          "task.reassigned": "담당자 변경", "task.managers_changed": "관리자 변경",
+          "task.cancelled": "업무 취소", "task.deadline_extension_requested": "마감 연장 신청",
+          "task.deadline_extension_approved": "마감 연장 승인",
+          "task.deadline_extension_rejected": "마감 연장 반려",
+          "task.deadline_extension_withdrawn": "마감 연장 철회"}
 MANAGEMENT_ACTIONS = frozenset({"task.updated", "task.reassigned", "task.managers_changed"})
+LIFECYCLE_ACTIONS = frozenset({"task.cancelled", "task.deadline_extension_requested",
+    "task.deadline_extension_approved", "task.deadline_extension_rejected", "task.deadline_extension_withdrawn"})
 FORM_FIELDS = {"csrf_token", "op", "title", "description", "start_date", "due_date",
                "assignee_id", "manager_user_ids", "q", "page"}
 
@@ -33,6 +39,7 @@ def register(state):
         return state.app.config.get("ENABLE_" + name + "_DRAFT",
             os.getenv("REMOTEWORK_ENABLE_" + name + "_DRAFT") == "1") is True
     create, start, manage = enabled("TASK_CREATE"), enabled("TASK_START"), enabled("TASK_MANAGEMENT")
+    lifecycle, lifecycle_reads = enabled("TASK_LIFECYCLE"), enabled("TASK_LIFECYCLE_RESULT_READS")
     if create:
         state.add_url_rule("/new", "new", new_task, methods=["GET", "POST"])
     if start:
@@ -40,8 +47,13 @@ def register(state):
     if manage:
         from .web_management import manage_task
         state.add_url_rule("/<int:task_id>/manage/<action>", "manage", manage_task, methods=["GET", "POST"])
-    if create or start or manage:
+    if lifecycle:
+        from .web_lifecycle import lifecycle_action
+        state.add_url_rule("/<int:task_id>/lifecycle/<action>", "lifecycle_action", lifecycle_action,
+                           methods=["GET", "POST"])
+    if create or start or manage or lifecycle:
         state.add_url_rule("/write/execute", "write_execute", execute, methods=["POST"])
+    if create or start or manage or lifecycle or lifecycle_reads:
         state.add_url_rule("/write/result", "write_result", result, methods=["POST"])
 
 
@@ -51,7 +63,7 @@ def _form(allowed, *, repeated=(), query=False):
         raise AppError(400, "INVALID_INPUT", "중복되거나 지원하지 않는 화면 입력입니다.")
 
 
-def _authorize(db, action, target):
+def _authorize(db, action, target, *, for_result=False):
     if action == "task.created" and "task_web.new" in current_app.view_functions:
         from .creation import _creation_authorizer
         callback = _creation_authorizer()
@@ -60,6 +72,14 @@ def _authorize(db, action, target):
         callback = _authorizer(TaskStartAction.ACCEPT if action == "task.accepted" else TaskStartAction.REWORK_START)
     elif action in MANAGEMENT_ACTIONS and "task_web.manage" in current_app.view_functions:
         from .management import _authorizer
+        callback = _authorizer(action)
+    elif action in LIFECYCLE_ACTIONS and for_result:
+        reader = current_app.extensions.get("write_result_readers", {}).get(action)
+        if reader is None:
+            raise AppError(503, "WRITE_ACTION_NOT_READY", "현재 취소·연장 결과 조회가 연결되지 않았습니다.")
+        callback = reader.authorize
+    elif action in LIFECYCLE_ACTIONS and "task_web.lifecycle_action" in current_app.view_functions:
+        from .lifecycle import _authorizer
         callback = _authorizer(action)
     else:
         raise AppError(503, "WRITE_ACTION_NOT_READY", "이 업무 동작이 현재 서버에서 활성화되지 않았습니다.")
@@ -102,10 +122,16 @@ def _page(intent, *, error=None, completed=None, not_recorded=False, status=200)
     # No short ticket expiry: W1 may retain a success after the execute key expires.
     self_removed = (intent["action"] == "task.managers_changed"
                     and g.user.id not in intent["body"]["manager_user_ids"])
+    lifecycle = intent["action"] in LIFECYCLE_ACTIONS
+    can_execute = True
+    if lifecycle:
+        from .lifecycle_support import integration_acknowledged
+        can_execute = ("task_web.lifecycle_action" in current_app.view_functions and integration_acknowledged())
     response = make_response(render_template("tasks/write_confirmation.html", intent=intent,
         ticket=_ticket(intent), action_label=LABELS[intent["action"]], error=error,
         completed=completed, not_recorded=not_recorded,
         management=intent["action"] in MANAGEMENT_ACTIONS,
+        lifecycle=lifecycle, can_execute=can_execute,
         access_lost=error is not None and error.status == 403,
         self_removed=self_removed,
         can_open_detail=not self_removed or intent["summary"].get("before", {}).get("assignee_id") == g.user.id,
@@ -212,6 +238,9 @@ def _recover(intent, exc):
     if exc.status == 403 and intent["action"] in MANAGEMENT_ACTIONS:
         return _page(intent | {"phase": "recovery"}, error=AppError(403, exc.code,
             "현재 관리 권한이 없어 처리 결과를 확인할 수 없습니다. 성공이나 실패로 단정하지 말고 현재 업무 관리자에게 확인해 주세요. 기존 확인 요청은 보존하며 자동으로 재전송하지 않습니다."), status=403)
+    if exc.status == 403 and intent["action"] in LIFECYCLE_ACTIONS:
+        return _page(intent | {"phase": "recovery"}, error=AppError(403, exc.code,
+            "현재 업무 접근 권한이 없어 처리 결과를 확인할 수 없습니다. 기존 요청을 보존하고 현재 업무 관리자에게 확인해 주세요. 자동으로 다시 전송하지 않습니다."), status=403)
     if exc.status in (401, 403, 404):
         raise exc
     return _page(intent | {"phase": "recovery"}, error=exc, status=exc.status)
@@ -233,6 +262,10 @@ def execute():
                 from .management import execute_management
                 saved = execute_management(db, target=intent["target"], action=intent["action"],
                                            body=intent["body"], key=intent["key"])
+            elif intent["action"] in LIFECYCLE_ACTIONS:
+                from .lifecycle import execute_lifecycle
+                saved = execute_lifecycle(db, target=intent["target"], action=intent["action"],
+                    body=intent["body"], key=intent["key"], extension_id=intent["summary"]["extension_id"])
             else:
                 from .starting import execute_start
                 action = TaskStartAction.ACCEPT if intent["action"] == "task.accepted" else TaskStartAction.REWORK_START
@@ -256,7 +289,7 @@ def result():
     try:
         with authenticated_transaction() as db:
             intent = _load()
-            callback = _authorize(db, intent["action"], intent["target"])
+            callback = _authorize(db, intent["action"], intent["target"], for_result=True)
             from ...write_requests import lookup_result
             found = lookup_result(db, key=intent["key"], action=intent["action"],
                                   target=intent["target"], authorize=callback)
