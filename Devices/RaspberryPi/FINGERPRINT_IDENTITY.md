@@ -18,9 +18,9 @@
 
 complete 전 결과를 고정한다. 응답 유실 뒤에는 같은 문맥 GET부터 수행하고 issued일 때만 같은 원문을 재전송한다. 이미 verified/rejected면 조회 결과를 반환하며 새 센서 호출·새 UUID·새 결과 재구성을 하지 않는다. 로컬 matched만으로 성공하지 않고 현재 서버의 정확한 challenge/purpose 영수증을 확인한다. 반환 verified는 workflow pending인 **본인 확인 영수증만**이다. 출근·퇴근 저장/정상 토큰 전환이나 finalize를 구현하지 않았다. 정상 토큰이 먼저 발급되는 기존 로그인을 새 인증으로 포장하지 않는다.
 
-**이번에는 실제 Pi HTTP job/probe 경로·HTTP device channel·서버 HTTP adapter·LoginForm/MainForm UI·로그인 발급 복구를 추가하지 않았다.** callback은 제품 RPC 규약 확정이나 호출 가능한 endpoint가 아니다. 이 파일을 Pi에 복사하는 것만으로 로그인 지문 요청이 켜지지 않는다. 새 상태 파일/SQLite·로컬 DB는 없으며 비공개 키 loader·새 프로필 설치도 없다. 기존 등록 프로필·Pi8080 서비스·완료된 지문은 변경하지 않았다.
+후속 로컬 구현에서 [장치 HTTP 규약](IDENTITY_HTTP.md)의 Pi job/probe 경로·`HttpFingerprintIdentityDevice`와 명시 factory를 추가했다. 기본은 비활성이며 기존 서비스에는 route를 설치하지 않았다. 실제 TCP 연결 검사는 [전용 시험](../../Tests/FingerprintIdentity.Http.Tests/README.md)의 loopback/가짜 센서/합성 issuer로 수행한다. **서버 HTTP adapter·LoginForm/MainForm UI·로그인 발급 복구·비공개 키 loader/프로필 설치·실제 Pi 서비스 전환은 여전히 미연결**이다. 파일을 복사하는 것만으로 로그인 지문 요청이 켜지지 않는다. 새 상태 파일/SQLite·로컬 DB는 없으며 기존 등록 프로필·Pi8080 서비스·완료된 지문은 변경하지 않았다.
 
-1번의 실제 서버 HTTP/제한 로그인/MySQL 단일소비·근태 전환 제공 후, 5번이 Pi↔PC transport/화면을 연결하고1번 문맥 수명/실제 DTO와 다시 검증한다. 실제 활성화 전에는 재시작 시 미확정 작업 처리, 키 제외 목록/ACL, 서버 신뢰·장치 endpoint 설정, 취소/문맥 폐기, 응답 유실 복구를 함께 점검해야 한다. 임시 공개 키·가짜 회원/근무 세션으로 이를 대체하지 않는다. 기존 등록 재시도나 지문 초기화가 필요한 단계가 아니다.
+1번의 실제 서버 HTTP/제한 로그인/MySQL 단일소비·근태 전환 제공 후, 5번이 준비한 Pi↔PC transport를 실제 서비스/화면에 조립하고1번 문맥 수명/실제 DTO와 다시 검증한다. 실제 활성화 전에는 재시작 시 미확정 작업 처리, 키 제외 목록/ACL, 서버 신뢰·장치 endpoint 설정, 취소/문맥 폐기, 응답 유실 복구를 함께 점검해야 한다. 임시 공개 키·가짜 회원/근무 세션으로 이를 대체하지 않는다. 기존 등록 재시도나 지문 초기화가 필요한 단계가 아니다.
 
 ## 실행한 검사
 
