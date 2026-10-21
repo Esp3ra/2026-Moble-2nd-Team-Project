@@ -1,3 +1,9 @@
+## 최신 — PR61 수정 3건 해결·병합 완료, 2026-10-21
+
+[PR61 최종 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/61#issuecomment-6311013832)에서 R61-01/02/03을 모두 해결 확인하고 사용자/팀장의 지시에 따라 Draft→Ready 후 **ad46517eb8666ef4fea7d1ef779ab256f2433c10**으로 alpha에 병합했습니다. 최신739c510+head3ae607ee의 공식 마감105·기존 공지35·독립16 및 backoff/폐기 polling 대조·Release0/0을 직접 확인했습니다. 실제 merge tree **e8e4a43cb91ba24bfe2ac7be75142866c069edb3**는 검토본과 전체 diff0입니다.
+
+[직접 검사·2번 최신 원본·후속 경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr61-merged-20261021)를 따릅니다. 독립 UI/source port 제공 범위의 병합이며 실제 HTTP/확인 MySQL·DDL·90일 이력·MainForm/탐색·공유 환경 연결은 후속입니다. 아래 PR61 수정 대기/Draft·미병합은 최초 검토 당시 기록입니다.
+
 ## 최신 — PR61 검토: 수정 3건, Draft 유지, 2026-10-21
 
 [PR61 통합 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/61#issuecomment-6311013832)에 **R61-01 업무 보기 401/403 뒤 기존 알림 유지, R61-02 늦은 업무 보기 응답의 최신 목록 덮어쓰기, R61-03 표시 전 재검사 연속 실패의 2분 고정**을 재현해 수정 요청했습니다. 모두 P2이며 Draft·미병합을 유지합니다. 최신 alpha388d50b+head5cca781의 결합 tree e79df7c0에서 공식 마감78·기존 공지35·Release0오류/0경고를 직접 확인했고 별도 대역으로 세 결함을 재현했습니다.
