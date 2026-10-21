@@ -20,6 +20,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             previewRole = role;
             InitializeComponent();
             if (PreviewActions.IsDesignMode(this)) return;
+            InitializeDeadlineView();
             InitializeNoticeView(role);
             cmbOptions2.SelectedIndexChanged += FilterNotices;
             gridNotices.ColumnHeaderMouseClick += SortNotices;
@@ -37,6 +38,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
         protected override async void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
+            BindDeadlineAlertsFromOwner();
             if (!PreviewActions.IsDesignMode(this)) await ReloadNoticesAsync();
         }
 
