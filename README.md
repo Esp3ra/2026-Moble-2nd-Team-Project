@@ -1,3 +1,13 @@
+## 최신 — PR57·58·60 재검토 후 모두 병합, 2026-10-21
+
+| PR | 현재 판정 |
+|---|---|
+| [60](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/60#issuecomment-6310090050) | SQL100%rename/013경로239검사 통과, **e88da9d109ed7dda55872a65d06fc4d0c76a5157** 병합 |
+| [58](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309407344) | R58-01 장치바인딩 수정 해결, 실제WinForms341·95·46/지문58·독립회귀 통과, **fef447280e4c6cd81298dad4fc63d20cf62bbd17** 병합 |
+| [57](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/57#issuecomment-6308590391) | 기존5건 및R57-04 팝업중복 해결, UI113/독립회귀 통과, Draft→Ready 후 **ba9e312e0b55de7febf10a603f84e5da008fa617** 병합 |
+
+세PR최종조합 Release0오류0경고, 실제alpha tree **0e12ec6d6e328500a4c2b29d1af8449542d004e7**가 검토본과일치합니다. [직접검사·이전결과재사용·작성자보고/미실행경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr57-58-60-merged-20261021)를따릅니다. 아래57/58 보류/Draft와013번호대기는 당시기록입니다. 실제공유서버/DB·설정/DDL/ACK·장비·작업폴더동기화는이번에실행하지않았습니다.
+
 ## 최종 — PR52·59 병합 / PR57·58 수정 대기, 2026-10-21
 
 | PR | 현재 상태 |

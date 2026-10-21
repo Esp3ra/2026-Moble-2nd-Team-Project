@@ -1,3 +1,7 @@
+## 최신 — PR57 전체지적 해결·병합 완료, 2026-10-21
+
+head0f47e5d의R57-04를UI113/이전독립재현으로해결확인했습니다. 수동창중자동추가0·닫힌후1회표시·동일버전중복0/쓰기0, 기존409최신문맥/새key도확인했습니다. 사용자지시에따라Draft→Ready후 **ba9e312**로병합했습니다. [기존최종회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/57#issuecomment-6308590391)·[검사/재사용·실제경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr57-58-60-merged-20261021)를따릅니다. 기존서버/검사/012동일성으로이전MySQL55를재사용했고이번에재실행했다고표시하지않습니다.1번공통설치/MainForm/공지양방향·실제012/공유배포,2번실제연속성reader와운영값은후속이며None/503과원업무/파일권한경계를유지합니다.
+
 ## 최신 — PR57 기존5건 해결, 새 알림중복으로 Draft 유지, 2026-10-21
 
 head8613c947을 실제alpha44c85f3과 결합한 tree47bfdd6f에서 서버55·UI25+48=73·Release0/0을 직접 확인했습니다. 기존 팀장3건/1번2건은 해결 확인했고 공유scope소유/지연표시/당사자이력도 제공됐습니다. 다만 **R57-04/P2: 조회중 수동 응답창을 열면 같은 요청창1→2개**를 실제WinForms로 재현하여 Draft·미병합입니다. [기존 위치의 수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/57#issuecomment-6308590391)·[중앙 근거](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr57-59-review-20261021)를 따릅니다. MainForm/공통 설치·012 실제적용·2번 버전구간 연속성reader·운영값/실제공지동시통합은 계속 후속입니다. 실제 환경/제품폴더는 변경하지 않았습니다.

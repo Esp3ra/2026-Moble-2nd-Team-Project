@@ -1,3 +1,9 @@
+## 최신 — PR58 복구채널 수정 병합과 실물보고 수신, 2026-10-21
+
+1·5번접점[PR58](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309407344)의R58-01을확정발급전거절에서만채널해제→다음명시선택장치로다시준비하도록보완해 **fef4472**로병합했습니다. 실제WinForms/통제HTTP·Pi검사341·95·46/58과독립A→B/해제실패회귀를직접통과했습니다. 불명응답·발급후·송신후보존/일반등록우회금지를유지합니다. [중앙기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr57-58-60-merged-20261021)을따릅니다.
+
+5번의동일회원실물두채취/완료·단순재인식보고와1번의읽기전용실제DB12항목대조는작성자보고로수신했으며이번직접검사에합산하지않습니다. 새수정A→B실물검사·본인인증/출퇴근성공으로확대하지않습니다. challenge/목적·접속·mapping·fresh승인·단일소비API/새wire는1·5번기술대조후속/미구현범위입니다. 실제서버/DB/설정/실계정재발급·센서를이번에변경하지않았습니다.
+
 ## 최신 재검토 — PR55·PR56 병합 완료, PR52 코드 수정 대기, 2026-10-21
 
 [PR55](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/55) headbc1751d의 R55-04 단일 종료 시각 수정과 회원관리 연결 fixture 보완을 최신 alpha864a2a6에서 검증하고 **`b37fe3a38babe1553fc6d78e39e4b8c07ce0d822`**로 선행 병합했습니다. 공식8모듈239통과·독립 초 경계4통과·Release0/0이며 기존R55-01~04는 모두 해결 확인입니다. [최종 검토/범위](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/55#issuecomment-6306967504)를 따릅니다.

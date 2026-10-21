@@ -1,3 +1,7 @@
+## 최신 — 공용첨부 SQL013 번호화 병합 완료, 2026-10-21
+
+PR52제공부수신뒤1번[PR60](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/60#issuecomment-6310090050)이draft SQL을내용변경없이013_shared_attachments.mysql.sql로이동하고실행검사/계약경로를맞췄습니다. blob73f07dbad461cf85355bd4cd29ba3b7b90608bda동일/새경로MySQL·HTTP239통과후 **e88da9d**로병합했습니다.006·공통schema1·012를보존하고자동DDL/실제공유DB/옵션/ACK는변경하지않았습니다. [중앙근거](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr57-58-60-merged-20261021)를따릅니다. 실제2번업무TX/파일UI/결과물웹이동·갱신소비와공유적용은여전히후속입니다. 아래SQL미번호/draft안내는당시기록입니다.
+
 ## 최종 — PR52 전체 지적 해결·최신alpha 결합 후 병합, 2026-10-21
 
 새cc84c1c의R52-03을shared239+독립2로해결확인했습니다.1·2번최신공통메뉴/업무웹코드를보존하고body접점을검증한head21faf34를 **cbda025**로병합했으며 실제tree68b87114가검토본과일치합니다. [기존52최종회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52#issuecomment-6287667210)·[직접검사/재사용/미실행경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr52-merged-final-20261021)를따릅니다. 아래미업로드/보류/메뉴충돌은당시이력입니다.1번추가DDL/조직자료,2번실제업무첨부TX/파일UI·웹이동/갱신소비와실제공유환경은후속이며ACK/쓰기503을임의해제하지않습니다.

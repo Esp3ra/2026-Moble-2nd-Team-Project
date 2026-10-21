@@ -1,3 +1,44 @@
+<a id="pr57-58-60-merged-20261021"></a>
+## PR57·58 수정본과 신규60 재검토·모두 병합, 2026-10-21
+
+사용자의57/58수정확인·재검토/문제없으면병합·60추가요청에따라실제alpha cbda025에서독립검토했습니다. **60→58→57순서로모두병합완료**입니다. 아래보류/Draft/번호대기는당시이력으로보존합니다. 작성자보고·이전검사재사용·이번직접실행을구분합니다.
+
+| PR | 고정head | 실제merge | 검토·실제merge tree |
+|---|---|---|---|
+|60|70edfcfdc4ec1a9e0962f538e3d7291fbe89e0e9|e88da9d109ed7dda55872a65d06fc4d0c76a5157|74a727b1157a62ca7e661b5e26da676cecd7e200|
+|58|dc946dcc7c31fc194cac4d30f5798098a4e40ae3|fef447280e4c6cd81298dad4fc63d20cf62bbd17|e688534476bff98a2ff519c1d16d2b306cb9f7af|
+|57|0f47e5d06e2d8fb2daa735180dc9eb7d686cecb1|ba9e312e0b55de7febf10a603f84e5da008fa617|0e12ec6d6e328500a4c2b29d1af8449542d004e7|
+
+각merge를fetch하여사전tree와대조했습니다.57은사용자의명시지시에따라Draft→Ready전환후expectedhead고정normalmerge했습니다. 최종3PR결합전체솔루션Release오류0/경고0, 검토tree와실제alpha전체파일diff0입니다. 추가코드PR/강제push/타담당제품수정은없습니다.
+
+### PR57 — R57-04 해결, 기존5건 해결 유지
+
+[기존최종회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/57#issuecomment-6308590391)에반영했습니다. cbda025+head0f47e5d의독립tree ad88b7274881df78be060107c842197d3ab57e47에서Directory25/6시나리오+Requests88=**113PASS**,전체솔루션Release0/0을직접실행했습니다. 원본8경합시나리오40검사도읽어대조했습니다.
+
+기존독립재현은received조회대기→수동응답창에서창1→1/자동추가0, 수동창닫힘뒤자동1, 같은버전추가0/자동쓰기0으로PASS했습니다. 표시직전CanPresent재확인과보류후displayed키미소비를확인했습니다. 이전unknown→not_recorded→명시409의입력보존/편집복귀·최신version2/새key도PASS입니다.
+
+협업서버폴더/관련검사/012는기존8613c947검토본과동일하고현재의존코드도이전alpha44c기준과일치하여 **기존소유MySQL55검사근거를재사용**했습니다. 이번에재실행하거나113에합산하지않습니다.1번공통on-off결과reader설치/012물리적용·MainForm scope/공지양방향조립,2번실제버전구간연속성reader,알림10초/닫기·재로그인운영값·공유API/두PC는후속입니다. 근거부족None/503과원업무/파일권한경계를유지합니다.
+
+### PR58 — R58-01 해결, 확정 거절에서만 장치채널 해제
+
+[기존최종회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309407344)에반영했습니다. cbda025+dc946dc의독립tree ceb1a864ea4f95b91117053aaa0903ebd0c0ed1e에서실제Form/owner/launcher/EnrollmentDeviceChannel필수연결 **341PASS**,기존회원복구 **95PASS**,기존14시나리오 **46PASS**,지문UI **58PASS**입니다.341은기존177을포함하며과거/반복/5번별도수치와합산하지않습니다.
+
+독립A확정거절→B복구는A채널dispose→B바인딩/재발급1·Pi1로PASS, 직접B대조도1/1입니다. 별도dispose실패대역은attempt/장치고정/확인필요를보존하고재발급0/Pi0입니다. 불명응답·발급후·Pi송신후/reissue거절보존,선택/복구GET만으로자동추가동작0도확인했습니다.
+
+이검사는실제WinForms+통제HTTP/Pi이며실물A→B/공유MySQL등록완료검사가아닙니다.5번실물완료·재인식과1번READ ONLY DB12항목정상은 **작성자보고로수신**하여이번직접실행/새수정실물성공으로표시하지않습니다. 새본인인증challenge/제한로그인문맥·단일소비API/새wire는기술대조안·미구현후속입니다. 기존등록/scan성공을새본인인증·출퇴근성공으로대체하지않고실제식별자/서명원문을전재하지않습니다.
+
+### PR60 — 내용 동일 SQL013 번호화
+
+[회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/60#issuecomment-6310090050)을한건게시했습니다.4파일전체diff, draft→013rename100%/blob73f07dbad461cf85355bd4cd29ba3b7b90608bda동일,006blobd65a713e60a4d70071e474c26d3a9d884a05288e/schema1·002/004/012보존과실행코드의이전경로잔재없음을확인했습니다. README의이전이름설명은이력입니다.
+
+새013rawSQL을소유MySQL에만적용한verify_shared.py **239PASS**(134+현재참조회귀105포함/중복합산없음),실제TCP HTTP/파일·권한/현재참조/rollback/마지막참조정리와소유자원정상정리를확인했습니다.013은전역schema13/자동DDL·공유적용ACK를뜻하지않습니다.
+
+### 결합 검증·실제 환경 경계
+
+세PR은무충돌결합이며각대상제품/검사blob은독립검토본과최종조합에서동일합니다. 최종0e12ec6d전체솔루션Release0/0은설치8.0.31참조팩/외부offline설정·출력경로를사용했고제품csproj는무수정입니다. 로컬감사용조합commit은push하지않았습니다. GitHub의각실제merge tree/부모와최종alpha전체파일diff0을확인했습니다.
+
+격리clone/소유테스트자원·코드병합/기존댓글·PR/LOG만갱신했습니다. 실제작업폴더동기화/.env·사용자DB/공유서버·012/013적용/옵션/통합ACK·실계정재발급·장비/물리두PC는이번에변경·실행하지않았습니다. 기존채택정책/미확정운영값을새로결정하지않으며코드제공과1·2·5번실제연결·운영검증을구분합니다.
+
 <a id="pr52-merged-final-20261021"></a>
 ## PR52 최종 수정 검토·충돌 통합·병합, 2026-10-21
 

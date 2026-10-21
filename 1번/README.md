@@ -1,3 +1,7 @@
+## 최신 — PR58 복구수정·PR60 SQL013 병합 완료, 2026-10-21
+
+[PR58](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309407344) R58-01을실제Form/launcher341·기존복구95·회원관리46/지문58과독립A→B/해제실패회귀로해결확인해 **fef4472**로병합했습니다. [PR60](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/60#issuecomment-6310090050)은기존SQL내용동일013이동·새경로239검사후 **e88da9d**로병합했습니다. [중앙검토](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr57-58-60-merged-20261021)를따릅니다.5번실물성공/1번읽기전용DB12항목은작성자보고로수신했으며이번직접검사로합산하지않습니다. 새본인인증challenge/제한로그인/단일소비API·wire는후속안으로유지하고기존등록성공을인증/출퇴근성공으로확대하지않습니다. 실제배포/서버/DB/설정·실계정재발급/장비는변경하지않았습니다.
+
 ## 최신 — PR59 병합, PR58 장치 재선택 경합 수정 필요, 2026-10-21
 
 [PR59](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/59#issuecomment-6309450248) 공통 업무 메뉴 연결은 독립 소유MySQL33검사 후 **f0430b7**로 병합했고 실제tree cc5a7499를 대조했습니다. [PR58](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309407344)은 기존회원 확인/복구전용 진입과 정상 UI검사177·95·46/지문58·Release0/0을 확인했으나 **R58-01/P2: A의 확정 NO_FREE 거절 후 UI에서B복구를 선택해도 실제채널은A에 고정**되는 문제로 미병합입니다.1·5번의 Form/launcher 수명을 맞추되 불명·발급후·장치송신후 attempt는 보존해야 합니다. [중앙 검토](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr57-59-review-20261021)를 따릅니다. 실제 계정/지문 등록·서버/DB/설정·제품폴더·운영자 복구는 변경하지 않았습니다.
