@@ -5,6 +5,7 @@
 <div class="task-page">
 <p class="eyebrow">TASKS</p><h1>업무</h1>
 <p class="muted">담당 업무의 상태와 내용을 확인하세요.</p>
+{% if has_lifecycle_inbox %}<p><a href="{{ url_for('task_web.extension_requests', scope=scope) }}">마감일 연장 신청함 →</a></p>{% endif %}
 <section class="card task-filters" aria-labelledby="task-filter-heading">
 <h2 id="task-filter-heading">업무 조회</h2>
 <form class="task-filter-form" method="get" action="{{ url_for('task_web.index') }}">
