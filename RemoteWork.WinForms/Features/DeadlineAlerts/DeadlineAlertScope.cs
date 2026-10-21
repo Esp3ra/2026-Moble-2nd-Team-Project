@@ -20,7 +20,9 @@ public sealed class DeadlineAlertScope : Component
     private DeadlineAlertForm? popup;
     private bool stopped, checking;
     private int failures;
-    private int generation;
+    // Shared request order for polling, navigation rechecks and confirmations.
+    // A response may update the view only while its request is still newest.
+    private long generation;
     public DeadlineAlertSnapshot? Snapshot { get; private set; }
     public string Status { get; private set; } = "마감 알림 수신 준비 중";
     public TimeSpan NextInterval => TimeSpan.FromMilliseconds(timer.Interval);
@@ -74,21 +76,24 @@ public sealed class DeadlineAlertScope : Component
         if (!IsCurrent) { Dispose(); return; }
         if (checking || confirming.Count != 0) return;
         checking = true;
+        long readGeneration = ++generation;
         try
         {
-            int readGeneration = generation;
             var ct = lifetime.Token;
             var snapshot = await source.ReadAsync(ct);
-            if (!IsCurrent || generation != readGeneration) return;
+            if (!CurrentRead(readGeneration)) return;
             Apply(snapshot);
-            if (!CanPresent) return;
+            if (!CurrentRead(readGeneration)) return;
+            if (!CanPresent) { PollSucceeded(); return; }
             var candidate = Unread.FirstOrDefault(x => !displayed.Contains(x.EventToken) &&
                 DeadlineAlertPolicy.CanPopup(x, source.UserId, snapshot.ServerTime));
-            if (candidate is null) return;
+            if (candidate is null) { PollSucceeded(); return; }
             // The initial list is not current authorization to show a popup.
             snapshot = await source.RecheckAsync(candidate.EventToken, ct);
-            if (!IsCurrent || generation != readGeneration) return;
+            if (!CurrentRead(readGeneration)) return;
             Apply(snapshot);
+            if (!CurrentRead(readGeneration)) return;
+            PollSucceeded();
             candidate = snapshot.Items.FirstOrDefault(x => x.EventToken == candidate.EventToken &&
                 DeadlineAlertPolicy.CanPopup(x, source.UserId, snapshot.ServerTime));
             if (candidate is null || displayed.Contains(candidate.EventToken) || !CanPresent) return;
@@ -101,15 +106,7 @@ public sealed class DeadlineAlertScope : Component
         catch (OperationCanceledException) { if (!IsCurrent) Dispose(); }
         catch (Exception ex) when (ex is ApiException or HttpRequestException or InvalidDataException)
         {
-            if (IsCurrent)
-            {
-                failures++;
-                timer.Interval = (int)DeadlineAlertPolicy.RetryInterval(failures).TotalMilliseconds;
-                Snapshot = null; popup?.Close();
-                Status = "마감 알림 조회 실패 · " + ex.Message;
-                Changed?.Invoke();
-                if (ex is ApiException { StatusCode: 401 or 403 }) Dispose();
-            }
+            ReadFailed(ex, readGeneration);
         }
         finally { checking = false; }
     }
@@ -120,23 +117,52 @@ public sealed class DeadlineAlertScope : Component
         foreach (var item in snapshot.Items.Where(x => x.IsConfirmed)) unresolved.Remove(item.EventToken);
         if (popup is not null && !snapshot.Items.Any(x => x.EventToken == popup.Item.EventToken &&
             DeadlineAlertPolicy.CanPopup(x, source.UserId, snapshot.ServerTime))) popup.Close();
+        Status = $"미확인 마감 알림 {Unread.Count}건";
+        Changed?.Invoke();
+    }
+    private bool CurrentRead(long request) => IsCurrent && generation == request;
+    private void PollSucceeded()
+    {
+        // Applying the intermediate list is not success of a required recheck.
         failures = 0;
         timer.Interval = (int)DeadlineAlertPolicy.NormalInterval.TotalMilliseconds;
-        Status = $"미확인 마감 알림 {Unread.Count}건";
+    }
+    private void ReadFailed(Exception ex, long request)
+    {
+        // Revocation of this captured identity is terminal even if its response
+        // arrives after another read. Old non-auth failures cannot clear newer UI.
+        if (ex is ApiException { StatusCode: 401 or 403 }) { Dispose(); return; }
+        if (!CurrentRead(request)) return;
+        failures++;
+        timer.Interval = (int)DeadlineAlertPolicy.RetryInterval(failures).TotalMilliseconds;
+        Snapshot = null; popup?.Close();
+        Status = "마감 알림 조회 실패 · " + ex.Message;
         Changed?.Invoke();
     }
     public bool NeedsResolution(string token) => unresolved.Contains(token);
     public async Task<bool> OpenTaskAsync(string token)
     {
-        if (!CanOpenTask) return false;
-        int readGeneration = generation;
-        var snapshot = await source.RecheckAsync(token, lifetime.Token);
-        if (!IsCurrent || generation != readGeneration) return false;
-        Apply(snapshot);
-        var item = Unread.FirstOrDefault(x => x.EventToken == token);
-        if (item is null || !CanOpenTask) return false;
-        TaskRequested?.Invoke(item.TaskId);
-        return true;
+        if (!CanOpenTask || confirming.Count != 0) return false;
+        long readGeneration = ++generation;
+        try
+        {
+            var snapshot = await source.RecheckAsync(token, lifetime.Token);
+            if (!CurrentRead(readGeneration)) return false;
+            Apply(snapshot);
+            if (!CurrentRead(readGeneration)) return false;
+            var item = Unread.FirstOrDefault(x => x.EventToken == token);
+            if (item is null || !CanOpenTask) return false;
+            TaskRequested?.Invoke(item.TaskId);
+            return true;
+        }
+        catch (OperationCanceledException) { if (!IsCurrent) Dispose(); throw; }
+        catch (Exception ex) when (ex is ApiException or HttpRequestException or InvalidDataException)
+        {
+            bool relevant = CurrentRead(readGeneration) || ex is ApiException { StatusCode: 401 or 403 };
+            ReadFailed(ex, readGeneration);
+            if (!relevant) return false;
+            throw;
+        }
     }
     public Task<DeadlineConfirmation> ConfirmAsync(string token)
     {

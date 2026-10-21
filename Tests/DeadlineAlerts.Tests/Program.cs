@@ -4,7 +4,7 @@ using RemoteWork.WinForms.Features.Tasks.Queries;
 using RemoteWork.WinForms.Infrastructure;
 using RemoteWork.WinForms.Ui;
 
-internal static class Program
+internal static partial class Program
 {
     private static int checks;
     private static readonly DateOnly Due = new(2026,10,22);
@@ -18,7 +18,7 @@ internal static class Program
         ApplicationConfiguration.Initialize();
         Exception? failure=null;
         using var host=new Form { ShowInTaskbar=false,Opacity=0 };
-        host.Shown+=async(_,_)=>{try{PolicyChecks();await UiChecks();}catch(Exception ex){failure=ex;}finally{host.Close();}};
+        host.Shown+=async(_,_)=>{try{PolicyChecks();await UiChecks();await ReviewRegressionChecks();}catch(Exception ex){failure=ex;}finally{host.Close();}};
         Application.Run(host);
         if(failure is not null){Console.Error.WriteLine(failure);Environment.ExitCode=1;}
         else Console.WriteLine($"PASS: {checks} deadline policy/UI checks; explicit source doubles, no HTTP server or DB.");
