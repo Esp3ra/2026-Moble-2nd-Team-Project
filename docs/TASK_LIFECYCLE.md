@@ -1,12 +1,12 @@
 # 업무 취소·마감 연장
 
-2026-10-20 팀장의 [확정 D/E 정책](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-management-policy-approved-20261020)에 따른2번 소유 저장·조회·폼입니다. 취소와 연장 신청/철회·승인/반려를 구현하되, **1번 공통·3번 제출/첨부 차단 연결 확인 전 실제 변경은503으로 차단**합니다. 다른 담당 제품 코드를 수정하지 않습니다. 테스트 대역으로2번 기능을 검증한 것을3번 실제 통합·공유 적용 완료로 표시하지 않습니다.
+2026-10-20 팀장의 [확정 D/E 정책](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-management-policy-approved-20261020)에 따른2번 소유 저장·조회·폼입니다. 2026-10-21 현재 PR51의 공통 등록·성공 결과 읽기와 실제009 검토 SQL은 alpha에 반영됐습니다. **3번 제출/첨부의 실제 취소·대기 연장 소비와 같은 배포의 연결 검증 전 실제 변경은503으로 차단**합니다. 다른 담당 제품 코드를 수정하지 않습니다. 테스트 대역으로2번 기능을 검증한 것을3번 실제 통합·공유 적용 완료로 표시하지 않습니다.
 
 ## 실행 경계
 
-기존 업무 조회/공통 쓰기와 함께 서버의 `REMOTEWORK_ENABLE_TASK_LIFECYCLE_DRAFT=1`이 필요합니다. 기본 off이며 off startup에서는 lifecycle route/모델을 등록하지 않습니다. 기본 테이블·공통 schema version을 변경하거나 공유 DB에 자동 migration을 실행하지 않습니다.
+기존 업무 조회/공통 쓰기와 함께 서버의 `REMOTEWORK_ENABLE_TASK_LIFECYCLE_DRAFT=1`이 필요합니다. 기본 off이며 쓰기와 별도 성공 결과 읽기 옵션이 모두 off인 startup에서는 lifecycle route/모델을 등록하지 않습니다. 아래의 읽기 전용 옵션은 새 쓰기나 키 발급을 허용하지 않습니다. 기본 테이블·공통 schema version을 변경하거나 공유 DB에 자동 migration을 실행하지 않습니다.
 
-1번 PR50에서 `009_task_lifecycle.mysql.sql` **번호 예약**을 확인했습니다. 이번 제공물은 [번호 없는 개발 SQL](../RemoteWork.Server/migrations/drafts/task_lifecycle.mysql.sql)과 모델입니다.009의 SQL 내용·정식 버전·공유 설치 승인으로 간주하지 않습니다. 공통/002/004와 이 초안을 함께 준비한 소유 MySQL에서만 자체 검증합니다. 기존 결과물 자료 보존 확인용 raw006은 실제3번 쓰기 연결과 구분합니다.
+1번 PR51에서 [실제009 검토 SQL·적용 경계](../RemoteWork.Server/migrations/009_task_lifecycle.md)가 반영됐습니다. 현재2번 검증 실행기는 raw009를 사용하고 ORM의 두 테이블도 InnoDB·utf8mb4·utf8mb4_unicode_ci를 명시해 같은 기준을 따릅니다. [번호 없는 초안](../RemoteWork.Server/migrations/drafts/task_lifecycle.md)은 원문 비교용으로 보존하며009와 중복 적용하지 않습니다. 공통/002/004와 raw006/009를 준비한 소유 MySQL 검증을 공유 설치 승인으로 간주하지 않고 공통 schema1을 유지합니다.
 
 스키마와 옵션만으로 저장을 허용하지 않습니다. 다음 배포 확인은1·3번이 해당 소비 경로를 실제 연결·검증한 뒤 설치합니다.
 
@@ -60,16 +60,18 @@
 
 모든 쓰기는 공통 guard/인증 재검사와 부모 업무→현재 배정/관리자→정렬 사용자→취소/신청 행 잠금 안에서 권한·버전·상태·KST 날짜를 검사합니다. 업무/신청/취소·감사·성공 receipt는 같은 트랜잭션입니다. 현재 활성 관리자 중 다른 판단자가 없으면 신청을 거절하며 현재 관계를 서버에서 재검사합니다. 취소는 이후 수락·재작업·일반 수정·재배정·관리자 변경/연장 신규 쓰기를 차단합니다.
 
-응답이 불명확하면 같은 접속의 불변 본문/키를 보존하고 빈 목록·화면 이동 후에도 명시 결과 확인으로 복구합니다. not_recorded 확인 뒤에만 같은 요청/키를 재전송합니다. 자동 재전송/새 키 발급은 없습니다. 현재 권한 상실·410/기능 중단으로 결과가 불명확하면 현재 관리자 확인이 필요합니다. 과거 권한으로 결과 조회를 우회하지 않습니다. 로그아웃·401·계정 변경은 이전 자료를 폐기하고 늦은 응답을 반영하지 않습니다.
+응답이 불명확하면 같은 접속의 불변 본문/키를 보존하고 빈 목록·화면 이동 후에도 명시 결과 확인으로 복구합니다. not_recorded 확인 뒤에만 같은 요청/키를 재전송합니다. 자동 재전송/새 키 발급은 없습니다. PR51은 쓰기와 성공 결과 조회 authorizer를 분리합니다. 쓰기off 재시작에서 `REMOTEWORK_ENABLE_TASK_LIFECYCLE_RESULT_READS_DRAFT=1`을 명시하면 현재 권한·기존 키/보관기간·스키마를 검사해 이미 확정된 성공만 읽습니다. 새 키/쓰기나 통합ACK를 허용하지 않으며 기존 대역값을 일반 실행에 설치하지 않습니다. 현재 권한 상실·키 만료·미기록은 성공으로 추정하지 않고 현재 관리자에게 확인합니다. 로그아웃·401·계정 변경은 이전 자료를 폐기하고 늦은 응답을 반영하지 않습니다.
 
 ## 1·3번 제공 접점과 남은 통합
 
-1번은 [공통 쓰기/DDL·등록 대조](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-lifecycle-member1-connection)를 확인합니다.2번은 새 취소/철회 action과 현재 접근 callback을 공개 registrar로 제공하며 기존 requested callback을 재사용합니다. builtin approved/rejected는 기존 owner callback을 덮지 않고2번 callback을 제공하므로 공통 설치/키·결과 조회 수명을 대조해야 합니다.
+1번의 [공통 쓰기/DDL·등록 대조](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-lifecycle-member1-connection)는 PR51로 코드 제공됐습니다.2번의 `register_lifecycle_actions`와 `register_lifecycle_result_readers`를 startup에서 연결하며 기존 requested callback·현재 권한과8필드 최소 결과를 재사용합니다. 결과 읽기 등록은 신규 쓰기와 분리됐고,기존 owner callback을 덮지 않습니다. 실제 배포의 옵션/정식009·공유 적용/복구 대조와3번 소비 검증은 여전히 별도입니다.
 
 3번은 [취소·연장 대기 소비 경로](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-lifecycle-member3-connection)를 확인합니다.2번 helper는 `ensure_not_cancelled(db,task_id)`와 `pending_extension_facts(db,task_id,assignment_revision,lock=False)`입니다. 실제 pending 어댑터는 미준비를False로 숨기지 않습니다. 기존 `ExternalFacts`의 검토자 원본은 유지하며 취소를 pending=True로 위장하지 않습니다. 제출·판단·legacy multipart 및 JSON 업로드 start/chunk/complete의 쓰기에 취소 guard를 같은TX/잠금으로 연결해야 합니다. 과거 결과물/이력/다운로드는 현재 합의된 읽기 권한으로 유지합니다.
 
-실제3번 제출/첨부와 취소·신청의 경합, 공유 DB/실계정·두PC·수동 GUI/다중DPI는 아직 검증 완료가 아닙니다.4번 알림 수치/기한 revision·공용 이벤트·웹/공용 첨부·별도 검토 요청 정책은 이번 구현에 포함하지 않습니다. 새 회신 MD/브랜치/추가 PR은 요구하지 않습니다.
+실제3번 제출/첨부와 취소·신청의 경합, 공유 DB/실계정·두PC·수동 GUI/다중DPI는 아직 검증 완료가 아닙니다.4번 [알림 A1~A6·협업 B1~B7](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member4-policy-adopted-20261021)은 진행 기준으로 채택됐으며 추가 DTO/기한 사건 식별·공용 이벤트·웹/공용 첨부의 기술 연결은 후속입니다. 별도 검토 요청은 이번 확정에 포함되지 않습니다. 새 회신 MD/브랜치/추가 PR은 요구하지 않습니다.
 
 ## 검증 안내
 
 [소유 MySQL·실제 HTTP 및 서버 검사](../Tests/TaskLifecycle.Integration.Tests/README.md)는 TESTING의 명시 연결 대역을 사용합니다. [클라이언트 제어 검사](../Tests/TaskLifecycle.Tests/README.md)는 공통 ApiClient/실제 폼과 명시 HTTP·workflow 대역을 사용합니다. 실행 수치와 미실행은 [LOG 구현·검증](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md)에 별도로 기록합니다.
+
+새 서버 검사는 실제 results blueprint도 등록해 정상 결과물 GET을 확인한 뒤,유효한 통합ACK가 없을 때 취소·연장5경로가503·저장 무효과인지 검사합니다. 이것은 **미연결 차단 검증**이며 실제3번 guard/pending 소비·쓰기 성공/경합 검증이 아닙니다. 다른 MySQL 기본 엔진/문자셋에서도 ORM 두 테이블이009 옵션과 한글·이모지를 유지하는 검사도 포함합니다.

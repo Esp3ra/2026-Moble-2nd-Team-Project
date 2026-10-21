@@ -2,8 +2,10 @@
 
 Reuses the existing identity-checked MySQL/process/runtime ownership helper.
 No configured DB, .env, SQLite, public seed route or existing service is used.
-The only lifecycle integration acknowledgment is an explicitly labeled TESTING
-double with the member3 results blueprint disabled, never real integration.
+Successful lifecycle scenarios use only an explicitly labeled TESTING double
+with the member3 results blueprint disabled. Separate server regressions enable
+the real results blueprint WITHOUT an integrated acknowledgment to verify that
+unconnected lifecycle writes remain blocked; neither is real integration.
 Safe pytest summaries and cleanup evidence survive outside the deleted runtime.
 """
 from __future__ import annotations
@@ -25,6 +27,10 @@ from urllib.request import ProxyHandler, Request, build_opener
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = Path(__file__).resolve()
+LIFECYCLE_SQL = "009_task_lifecycle.mysql.sql"
+SERVER_TESTS = ("test_task_lifecycle.py", "test_task_lifecycle_migration.py",
+                "test_lifecycle_result_reads.py", "test_task_lifecycle_model_contract.py",
+                "test_task_lifecycle_real_boundary.py")
 sys.path.insert(0, str(ROOT / "Tests" / "TaskQueries.Http.Tests"))
 import run_mysql_http_check as owned
 
@@ -63,7 +69,7 @@ def prepare_schema(env, runtime):
         Base.metadata.create_all(engine, tables=common)
         with engine.begin() as connection:
             for name in ("002_task_queries.mysql.sql", "004_write_receipts.mysql.sql",
-                         "006_results.mysql.sql", "drafts/task_lifecycle.mysql.sql"):
+                         "006_results.mysql.sql", LIFECYCLE_SQL):
                 for statement in raw_ddl(name):
                     connection.exec_driver_sql(statement)
         return management.ddl_digest(engine), schema_shape(engine)
@@ -93,16 +99,24 @@ def safe_pytest_report(stdout, exit_code, timeout=False):
             "safe_summary": summary, "failed_nodes": nodes}
 
 
-def run_server_pytest(env, runtime, report, selection=None):
+def run_server_pytest(env, runtime, report, selection=None, *, mysql_bin_dir):
     """The child is confined to this run's job and gets only this owned URL."""
     child_env = env.copy()
     child_env.update(MYSQL_TEST_URL=env["DATABASE_URL"],
+                     MYSQL_MIGRATION_TEST_URL=env["DATABASE_URL"],
+                     MYSQL_MIGRATION_TEST_BIN_DIR=str(mysql_bin_dir),
+                     REMOTEWORK_RUN_TASK_MIGRATION_DRAFT_TESTS="1",
                      PYTHONPATH=str(ROOT / "RemoteWork.Server"))
+    # The raw009 recovery test protects its private option/dump files with the
+    # current Windows account ACL. The isolated child otherwise omits identity.
+    for name in ("USERNAME", "USERDOMAIN"):
+        child_env[name] = os.environ[name]
     process = job = None
     try:
         job = owned.WindowsJob()
         command = [sys.executable, "-m", "pytest", "-q", "--tb=no",
-                   str(ROOT / "RemoteWork.Server/tests/test_task_lifecycle.py")]
+                   *(str(ROOT / "RemoteWork.Server/tests" / name) for name in SERVER_TESTS)]
+        report["pytest_sources"] = list(SERVER_TESTS)
         if selection is not None:
             command.extend(["-k", selection])
         with owned.defer_spawn_interrupt():
@@ -452,17 +466,21 @@ def run(args, report):
     if os.name != "nt" or args.mysql_bin_dir is None:
         raise owned.shared.RunFailure("Windows and explicit --mysql-bin-dir are required")
     executable = owned.validate_binary_directory(args.mysql_bin_dir)
-    required = [ROOT / "RemoteWork.Server/migrations/drafts/task_lifecycle.mysql.sql"]
+    required = [ROOT / "RemoteWork.Server/migrations" / LIFECYCLE_SQL]
     if args.server_pytest_only:
-        required.append(ROOT / "RemoteWork.Server/tests/test_task_lifecycle.py")
+        if any(not os.environ.get(name) for name in ("USERNAME", "USERDOMAIN")):
+            raise owned.shared.RunFailure("Windows account identity is required for private recovery-file ACLs")
+        required.extend(ROOT / "RemoteWork.Server/tests" / name for name in SERVER_TESTS)
+        required.extend(executable.parent / name for name in ("mysql.exe", "mysqldump.exe"))
     for path in required:
         if not path.is_file():
-            raise owned.shared.RunFailure("member2 lifecycle source and draft SQL must be prepared first")
+            raise owned.shared.RunFailure("member2 lifecycle sources and reviewed raw009 SQL must be prepared first")
     import pymysql  # noqa: F401
     import sqlalchemy  # noqa: F401
     import flask  # noqa: F401
-    print("Explicit lifecycle fixture: owned MySQL, raw002/raw004/raw006 and unnumbered lifecycle draft; "
-          "synthetic accounts and TESTING integration double only; member3 results blueprint disabled.", flush=True)
+    print("Explicit lifecycle fixture: owned MySQL, raw002/raw004/raw006/raw009; "
+          "synthetic accounts; success scenarios use a TESTING double, while real-results boundary "
+          "regressions keep lifecycle writes blocked; no integrated acknowledgment.", flush=True)
     mysql = runtime = None
     try:
         with owned.owned_runtime() as runtime:
@@ -475,7 +493,7 @@ def run(args, report):
                 initial_ddl, initial_shape = prepare_schema(env, runtime)
                 report["initial_ddl_sha256"] = initial_ddl
                 if args.server_pytest_only:
-                    run_server_pytest(env, runtime, report, args.pytest_filter)
+                    run_server_pytest(env, runtime, report, args.pytest_filter, mysql_bin_dir=executable.parent)
                     from sqlalchemy import create_engine
                     engine = create_engine(env["DATABASE_URL"], hide_parameters=True)
                     try:
@@ -537,7 +555,10 @@ def main():
         return 1
     audit.mkdir(parents=True)
     report = {"mode": "server_pytest" if args.server_pytest_only else "actual_loopback_http",
-              "acknowledgment": "TESTING double; real results blueprint disabled",
+              "lifecycle_sql": LIFECYCLE_SQL,
+              "acknowledgment": ("TESTING double for success; real-results boundary retains no valid integration"
+                                  if args.server_pytest_only else "TESTING double; real results blueprint disabled"),
+              "member3_lifecycle_consumption_verified": False,
               "shared_environment_verified": False, "started_utc": datetime.now(timezone.utc).isoformat()}
     if args.pytest_filter is not None:
         report["pytest_filter"] = args.pytest_filter
