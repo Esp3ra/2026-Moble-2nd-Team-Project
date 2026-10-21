@@ -13,6 +13,14 @@ bp = Blueprint("task_queries", __name__, url_prefix="/api/v1/tasks")
 
 
 @bp.record_once
+def register_web_reads(state):
+    # The query blueprint is explicitly enabled by the existing feature registry.
+    # Register a separate web prefix so common cookie authentication still applies.
+    from .web import bp as task_web_bp
+    state.app.register_blueprint(task_web_bp)
+
+
+@bp.record_once
 def register_creation(state):
     # Keep creation out of ordinary query/preparation deployments. This callback
     # runs only when the existing task-query blueprint is explicitly enabled.

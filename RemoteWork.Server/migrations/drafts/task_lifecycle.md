@@ -1,6 +1,6 @@
 # 업무 취소·마감 연장: 2번 소유 미번호 DDL 초안
 
-정책은 2026-10-20 팀장이 확정했습니다. 이 문서는 정책 재승인 요청이 아니라 **공통 DB·배포 기술 연결 대상**입니다. 1번 PR50에서009 번호만 예약한 것을 확인했으며 이 제공물은 SQL 내용 대조용 미번호 초안입니다. `schema_versions`와 기존 테이블을 변경하지 않습니다. 실행 SQL은 [task_lifecycle.mysql.sql](task_lifecycle.mysql.sql)입니다. SQLite 관리·이관은 포함하지 않습니다.
+정책은 2026-10-20 팀장이 확정했습니다. 이 문서는 정책 재승인 요청이 아니라 **원문 비교용 미번호 초안 안내**입니다. 2026-10-21 현재 PR51로 [실제009 검토 SQL·적용/복구 경계](../009_task_lifecycle.md)가 alpha에 반영됐으며,새2번 검증은009를 사용합니다. [기존 SQL 원문](task_lifecycle.mysql.sql)은 보존하고009와 중복 적용하지 않습니다. ORM의 두 테이블도009의 InnoDB·utf8mb4·utf8mb4_unicode_ci 기준을 명시합니다. `schema_versions`와 기존 테이블을 변경하지 않으며 공유 적용·SQLite 관리는 포함하지 않습니다.
 
 ## 소유 저장소
 
@@ -29,10 +29,12 @@ app.extensions['task_lifecycle_integration_ack'] = {
 
 ## 1번 연결 항목
 
-1. 미번호 SQL의 공통 migration 순서·실제 DDL·백업/배포/복구를 대조합니다. 정책이 아닌 기술 적용 확인입니다.
+1. PR51의009 검토 SQL과 공통 등록·성공 결과 읽기 제공을 수신했습니다. 실제 배포의 migration 순서·물리DDL·백업/배포/복구를 대조합니다. 정책 재승인이나 공유 적용 완료가 아닙니다.
 2. 기존 action `task.deadline_extension_requested`, `_approved`, `_rejected`와 신규 action `task.cancelled`, `task.deadline_extension_withdrawn`의 등록을 확인합니다. 신규 action은 기존 공통 등록 API로만 등록하고 타 authorizer를 덮어쓰지 않습니다.
 3. 모든 action의 target은 task ID입니다. approve/reject/withdraw는 HTTP 본문에 없는 경로의 extension ID를 내부 receipt fingerprint에 포함하므로 다른 신청에 키를 재사용하면 409입니다. 성공 최소 결과는 8필드만 보존합니다. 키는 현재 권한을 대체하지 않습니다.
 4. 현재 지정 관리자/현재 담당자가 바뀌면 기존 성공 receipt도 현재 권한을 다시 검사합니다. 잃은 권한으로 키 조회·재실행을 우회하지 않습니다.
+
+PR51의 `register_lifecycle_result_readers`는 쓰기와 결과 읽기 권한을 분리합니다. lifecycle 쓰기off 재시작에서도 `REMOTEWORK_ENABLE_TASK_LIFECYCLE_RESULT_READS_DRAFT=1`을 명시하면 기존 성공만 현재 권한·키/보관기간·스키마 검사 후 조회할 수 있습니다. 새 키/쓰기·3번 통합ACK를 허용하는 옵션이 아닙니다. [현재 실행 계약](../../../docs/TASK_LIFECYCLE.md)을 우선합니다.
 
 ## 3번 연결 항목
 
