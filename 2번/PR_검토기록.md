@@ -1,3 +1,31 @@
+<a id="pr61-merged-20261021"></a>
+## PR61 수정본 재검토·병합 완료, 2026-10-21
+
+사용자/팀장의 “수정 올라왔는지 확인하고 재검토·문제없으면 병합” 지시에 따라 기존 R61-01/02/03을 독립 재검증했습니다. 추가 병합 차단 문제를 발견하지 못해 Draft→Ready 후 expected head를 고정해 일반 merge했습니다. [기존 댓글 한 곳](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/61#issuecomment-6311013832)에 최종 결과와 최신2번 원본 대조를 반영하고 최초 검토는 보존했습니다.
+
+| 기준 | SHA |
+|---|---|
+|실제 최신 alpha|739c5109bfc47be9fc31e4a50a5594241bae23a9|
+|검토 head|3ae607ee0894dffa21b41e5a240ffc29d1494ddc|
+|실제 merge|ad46517eb8666ef4fea7d1ef779ab256f2433c10|
+|검토/실제 merge tree|e8e4a43cb91ba24bfe2ac7be75142866c069edb3|
+
+merge를 fetch해 두 부모·tree·전체 파일 diff0을 확인했습니다. 실제 차이는 공지 기한 패널·DeadlineAlerts·관련 검사13파일이며 공통/MainForm/서버 제품을 이 PR이 설치·변경하지 않습니다.
+
+### 해결과 직접 검사
+
+- **R61-01 해결:** 업무 보기401/403 각각 scope비현재/snapshot제거/팝업0/탐색불가. 오래된 polling·탐색의 인증 오류가 최신 성공 뒤 도착해도 폐기합니다.
+- **R61-02 해결:** 기존 지연 재현은 최신 빈 조회 뒤 옛 응답에도 unread0/callback0/navigated False 유지. 양방향 Read/OpenTask·탐색끼리 완료 순서·늦은503도 통과했습니다.
+- **R61-03 해결:** 원본 독립 대역 그대로 Read503·Read성공/Recheck503 모두2→4→5→5분. 폐기된 polling의 정상/503/취소가 최신 탐색을 덮지 않고 checking을 해제하며 다음 정상 polling은60초로 복귀합니다.
+- 공식 Deadline **105PASS(78+새27)**, 기존 Notices **35PASS**. 실제 WinForms+명시 source/HTTP 대역입니다. 별도 독립16검사·backoff2대조·폐기 polling3시나리오는 공식 수치에 합산하지 않습니다.
+- 결합 솔루션 Release **오류0/경고0**, diff-check 통과. 설치8.0.31 참조팩/외부 검토 설정·별도 출력 경로를 사용했고 제품 csproj는 무수정입니다. GitHub head 등록 status/check-run은각0건이며 직접 검사로 판단했습니다.
+
+### 현재 2번 원본과 실제 연동 경계
+
+최신alpha739c510에는 tasks/continuity.py의 실제 협업 reader와 기존 opt-in 등록이 추가됐습니다. 알려진 완전한2번 버전 구간의 계속 진행중 여부만 True/False/None으로 증명하며 누락·중복·미지/3번 제출 구간·상한초과는 None입니다. 이전388d 기준의 “신규 reader 없음”은 당시 이력입니다. 기한 알림 사건·초기 자료 완전성·진행전/반려완료까지 포함한 알림 최소 reader/DTO·계정 확인 writer를 제공한 것은 아닙니다.
+
+독립 UI·정책/source port 범위에서 안전하게 병합했습니다. 실제 source adapter/new scope 설치가 없으므로 연결 전 준비 상태/비활성 버튼·기존 공지 조회를 유지합니다. 실제 HTTP/인증·확인 MySQL/DDL·DB 경합/복원·90일history·1번MainForm/2번탐색/팝업 양방향 조립·공유 서버/물리두PC는 후속/미실행입니다. 실제 환경/.env/사용자DB·장비·제품 폴더 동기화는 이번에 변경·실행하지 않았습니다. 새 회신용 MD/브랜치/PR 없이 기존 기록만 갱신하며 A1~A6·현재 권한/W1/동일TX 경계를 유지합니다. 아래 수정3건·Draft/미병합은 최초 검토 당시 기록입니다.
+
 <a id="pr61-review-20261021"></a>
 ## PR61 마감 알림 독립 검토 — 수정 3건·Draft 유지, 2026-10-21
 

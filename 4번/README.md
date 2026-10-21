@@ -1,3 +1,9 @@
+## 최신 — PR61 R61-01/02/03 해결·alpha 병합, 2026-10-21
+
+head3ae607ee를 최신alpha739c510에서 독립 재검토했습니다. 업무 보기401/403 폐기, 늦은 응답의 Apply/탐색 차단, Read성공/Recheck503의2→4→5→5분을 해결 확인했습니다. 공식 마감105·공지35·독립16·backoff2대조/폐기 polling3시나리오·Release0/0 통과 후 사용자 지시에 따라 **ad46517**로 병합했고 실제 tree가 검토본과 일치합니다. [기존 최종 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/61#issuecomment-6311013832)·[중앙 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr61-merged-20261021)을 따릅니다.
+
+alpha739c510의2번 실제 협업 연속성 reader는 알려진 완전한 진행중 구간의 True/False/None을 제공합니다. 기한 사건·최초 자료 완전성·알림 최소 reader/DTO·확인 writer까지 제공하는 것은 아니며 1·2번 실제 계약/조립은 후속입니다. 실제 HTTP/MySQL·DDL·90일 history·MainForm/팝업 양방향·물리 두PC는 미실행입니다. A1~A6와 권한/W1/같은TX 경계를 유지합니다. 아래 Draft/수정대기는 당시 이력입니다.
+
 ## 최신 — PR61 마감 알림 검토·수정 3건과 2번 기술 회신, 2026-10-21
 
 alpha388d50b+head5cca781을 독립 결합해 공식 마감78·공지35·Release0/0을 직접 확인했습니다. 별도 실제 WinForms 대역에서 **R61-01/P2 업무 보기 재검사 401/403 뒤 scope/기존 팝업 유지, R61-02/P2 늦은 응답이 제거된 미확인 항목 복원/탐색 실행, R61-03/P2 Read 성공+Recheck503 연속 실패의 2,2,2,2분**을 재현하여 Draft·미병합입니다. [수정 조건·재검사 요청과 2번 기술 회신 한 곳](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/61#issuecomment-6311013832)·[중앙 근거](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr61-review-20261021)를 따릅니다.
