@@ -1,7 +1,7 @@
 namespace RemoteWork.WinForms.Infrastructure;
 
 /// <summary>
-/// Borrowed handoff for a newly created account, not proof of server enrollment.
+/// Borrowed handoff for a created account or an explicitly reverified recovery target.
 /// Only the owning user-management view can create/invalidate this target.
 /// </summary>
 public sealed class CreatedUserEnrollmentTarget
@@ -11,6 +11,7 @@ public sealed class CreatedUserEnrollmentTarget
     private int invalidated;
     public UserInfo User { get; }
     public int UserId => User.Id;
+    public string? RequiredRecoveryId { get; private init; }
     public ApiClient.Session AdministratorSession { get; }
     public CancellationToken Cancellation { get; }
     public bool IsCurrent => Volatile.Read(ref invalidated) == 0
@@ -24,6 +25,15 @@ public sealed class CreatedUserEnrollmentTarget
         this.isViewCurrent = isViewCurrent;
         lifetime = CancellationTokenSource.CreateLinkedTokenSource(administratorSession.Cancellation);
         Cancellation = lifetime.Token;
+    }
+
+    internal static CreatedUserEnrollmentTarget ForExplicitRecovery(UserInfo verifiedUser,
+        ApiClient.Session administratorSession, Func<bool> isViewCurrent, string recoveryId)
+    {
+        if (!verifiedUser.IsActive || verifiedUser.Role is not ("employee" or "admin")
+            || !Guid.TryParseExact(recoveryId, "D", out var parsed) || parsed.ToString("D") != recoveryId)
+            throw new ArgumentException("현재 활성 회원과 정규 복구 번호를 확인해 주세요.");
+        return new(verifiedUser, administratorSession, isViewCurrent) { RequiredRecoveryId = recoveryId };
     }
 
     public void ThrowIfChanged()

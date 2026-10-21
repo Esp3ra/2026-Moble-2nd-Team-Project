@@ -26,3 +26,11 @@ dotnet run --project Tests/UserManagement.Ui.Tests/UserManagement.Ui.Tests.cspro
 API는 통제 `HttpMessageHandler`, Pi는 완료를 지연시킬 수 있는 대역이다. 실제 서버/MySQL·Pi HTTP·서명·UART/센서·TLS·두PC 검증이 아니다. fixture의 상태 보관은 메모리이며 MySQL 영속성 검사로 취급하지 않는다. 실제 C#→Python loopback은 [5번 중계 검사](../FingerprintEnrollment.Tests/README.md)를 따른다. 서로 합산하지 않는다.
 
 검사는 임시 설정 파일만 생성/삭제하고 실제 `%LOCALAPPDATA%` 설정이나 계정/서버/DB를 바꾸지 않는다. 실제 운영 설정은 [연결 안내](../../docs/DEVICE_ENROLLMENT_API.md)를 따른다.
+
+## 기존 회원 복구 전용 경로 — 2026-10-21
+
+같은 명령은 RecoveryReentryChecks도 실행한다. 실제 WinForms/통제 HTTP·launcher/Pi로 **95검사**를 수행한다. 목록의 실제 행 변경 후 표시 ID 일치, 기존 GET users로 활성 회원 재확인, 정규 복구 번호/명시 확인, 동일 회원·현재 관리자 접속, 선택변경/로그아웃/종료·중복/누락/비활성/잘못된 페이지 차단을 확인한다. uncertain attempt는 새 창을 무조건 열지 않는다.
+
+실제 owner→launcher→5번 폼에서도 복구 모드/번호 고정, GET 확인만으로 issue/reissue/Pi0, 별도 시작에서만 두 필드 reissue·동일 기존 회원·정확 원문 선보관→complete를 검사한다. 운영자 거절 후에도 모드/번호를 풀지 않는다. 생성회원 연결177검사·기존14시나리오46검사와 별도 수치이며 합산하지 않는다. 공유 DB·계정·실물 센서를 쓰지 않는다.
+
+선택 프로필을 CurrentCellChanged에서 갱신한다. SelectionChanged 시점의 이전 CurrentRow를 읽어 다른 회원을 표시하던 문제를 실제 행 전환으로 재현/수정했다. RECOVERY_UI_PROOF_DIRECTORY를 명시하면 합성 화면 QA PNG 한 장을 해당 폴더에 저장할 수 있다. 기본 검사는 실제 로컬 설정/비공개 경로를 바꾸지 않는다.

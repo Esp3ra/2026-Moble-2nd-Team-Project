@@ -30,7 +30,7 @@ public sealed class CreatedUserEnrollmentLauncher : ICreatedUserEnrollmentLaunch
         target.ThrowIfChanged();
         using var channel = new EnrollmentDeviceChannel(target, endpoints, channelFactory);
         var borrowed = new EnrollmentTarget(target.UserId, target.AdministratorSession, () => target.IsCurrent, target.Cancellation);
-        using var view = new FingerprintEnrollmentForm(borrowed, channel, channel.ValidateDevice);
+        using var view = new FingerprintEnrollmentForm(borrowed, channel, channel.ValidateDevice, target.RequiredRecoveryId);
         try { view.ShowDialog(owner); }
         finally { await view.PendingOperation; }
         target.ThrowIfChanged();
