@@ -75,6 +75,8 @@ def users():
 @bp.get("/features/<name>")
 @login_required
 def feature(name):
+    if name == "tasks" and "task_web.index" in current_app.view_functions:
+        return redirect(url_for("task_web.index"))
     if name == "notices":
         if "notice_web.index" not in current_app.view_functions:
             raise AppError(503, "NOTICE_DISABLED", "공지사항 기능이 준비되지 않았습니다. 서버의 공지 활성화 설정을 확인해 주세요.")
