@@ -45,6 +45,7 @@ internal static class EnrollmentConnectionChecks
         MappingGate();
         Configuration(); Flow("success"); Flow("missing"); Flow("closed"); Flow("logout");
         InvalidServer(); PreflightAndForeignJob();
+        foreach (string mode in new[] { "switch", "same", "503", "other409", "wrong400", "lost", "reissue409", "afterjob", "afterpi" }) RejectedDeviceSelection(mode);
         Console.WriteLine($"PASS enrollment connection: {checks} checks; mode={(requireMySql ? "required enrollment-mysql-v1" : "baseline/physical-result-aware")}; real user-management/registration WinForms + controlled HTTP/channel, no real device/MySQL.");
     }
 
@@ -206,6 +207,82 @@ internal static class EnrollmentConnectionChecks
         }
         catch (InvalidDataException) { checks++; }
         Check(pi.Calls == 0, "Foreign device job rejected without transport");
+        Check(!channel.ReleaseUnissuedDevice(A), "Wrong-device release cannot clear the selected binding");
+        pi.Ready.SetResult(Opaque);
+        Complete(channel.TransferAsync(server.Job(B), false, (_, _) => Task.FromResult(Opaque), null, CancellationToken.None));
+        Check(pi.Calls == 1 && !channel.ReleaseUnissuedDevice(B), "Transport-started binding cannot be released as a pre-issue rejection");
+        owner.Close();
+    }
+
+    private static void RejectedDeviceSelection(string mode)
+    {
+        using var server = new Server(true) { RejectOrdinary = mode is not ("afterjob" or "afterpi"),
+            IssueStatus = mode == "503" ? 503 : mode == "wrong400" ? 400 : 409,
+            IssueCode = mode == "other409" ? "OTHER_CONFLICT" : "ENROLLMENT_NO_FREE_CLAIM",
+            LostIssue = mode == "lost", FailReissue = mode == "reissue409", FailPhysical = mode == "afterjob", FailReport = mode == "afterpi" };
+        server.RecoveryDevice = mode == "same" ? A : B;
+        using var api = new ApiClient(Api, server);
+        var channels = new List<Pi>(); var addresses = new List<Uri>();
+        var launcher = new CreatedUserEnrollmentLauncher(uri => Parse(Config(), uri.AbsoluteUri), address =>
+        { addresses.Add(address); var pi = new Pi(); pi.Ready.SetResult(Opaque); channels.Add(pi); return pi; });
+        using var owner = Prepare(api, launcher);
+        FingerprintEnrollmentForm? popup = null; Exception? failure = null; int stage = 0;
+        var watch = Stopwatch.StartNew();
+        using var driver = new System.Windows.Forms.Timer { Interval = 10 };
+        driver.Tick += (_, _) =>
+        {
+            try
+            {
+                if (watch.Elapsed.TotalSeconds > 10) throw new TimeoutException("Device rejection/reselection " + mode);
+                popup ??= Application.OpenForms.OfType<FingerprintEnrollmentForm>().SingleOrDefault();
+                if (popup is null || popup.IsDisposed) return;
+                var devices = Field<ComboBox>(popup, "devices"); var start = Field<Button>(popup, "start");
+                if (stage == 0 && devices.Items.Count == 2 && start.Enabled)
+                { devices.SelectedIndex = 0; stage = 1; start.PerformClick(); }
+                else if (stage == 1 && server.Issues == 1 && !Field<bool>(popup, "busy"))
+                {
+                    if (mode is not ("switch" or "same" or "reissue409"))
+                    {
+                        Check(popup.RegistrationStarted && !devices.Enabled, "Uncertain/post-job attempt stays bound: " + mode);
+                        Check(channels.Count == 1 && !channels[0].Disposed && server.Reissues == 0,
+                            "No channel release/rebind or reissue after " + mode);
+                        Check(channels[0].Calls == (mode == "afterpi" ? 1 : 0), "Expected physical boundary: " + mode);
+                        stage = 9; popup.Close(); return;
+                    }
+                    Check(!popup.RegistrationStarted && devices.Enabled && channels[0].Disposed,
+                        "Exact pre-issue rejection releases both attempt and prepared channel");
+                    devices.SelectedIndex = mode == "same" ? 0 : 1;
+                    Field<CheckBox>(popup, "recoveryMode").Checked = true;
+                    Field<TextBox>(popup, "recoveryId").Text = Server.RecoveryId;
+                    Check(addresses.Count == 1 && server.Reissues == 0 && channels.Sum(p => p.Calls) == 0,
+                        "Explicit selection alone does not create another channel/job/scan");
+                    stage = 2; Field<Button>(popup, "checkRecovery").PerformClick();
+                }
+                else if (stage == 2 && !Field<bool>(popup, "busy") && start.Enabled)
+                {
+                    Check(addresses.Count == 1 && server.Reissues == 0, "Recovery GET alone does not bind or reissue");
+                    stage = 3; start.PerformClick();
+                }
+                else if (stage == 3 && !Field<bool>(popup, "busy") && server.Reissues == 1)
+                {
+                    Check(addresses.Count == 2 && addresses[1].Host == (mode == "same" ? "pi-a.test" : "pi-b.test"),
+                        "Explicit recovery binds the exact newly selected configured endpoint");
+                    Check(server.Target == 88 && owner.EnrollmentTarget?.UserId == 88,
+                        "Rebinding preserves same created member and original administrator session");
+                    Check(channels[0].Calls == 0 && channels[1].Calls == (mode == "reissue409" ? 0 : 1),
+                        "Old channel never receives new-device work; no automatic extra scan");
+                    Check(!channels[1].Disposed && popup.RegistrationStarted,
+                        "Issued/reissue attempt remains bound until view releases transport");
+                    Check(popup.RegistrationCompleted == (mode != "reissue409") && server.Completes == (mode == "reissue409" ? 0 : 1),
+                        "Completed only after exact physical result and common-server complete");
+                    stage = 9; popup.Close();
+                }
+            }
+            catch (Exception error) { failure = error; driver.Stop(); popup?.Close(); }
+        };
+        driver.Start(); Field<Button>(owner, "enroll").PerformClick(); driver.Stop();
+        if (failure is not null) throw failure;
+        Check(stage == 9 && channels.All(p => p.Disposed), "Launcher cleans all prepared channels after pending work: " + mode);
         owner.Close();
     }
 
@@ -247,10 +324,13 @@ internal static class EnrollmentConnectionChecks
     }
     private sealed class Server(bool requirePhysical = false) : HttpMessageHandler
     {
+        public const string RecoveryId = "453f13b4-aecb-4aec-9a7b-8ae64e7dd100";
+        public bool RejectOrdinary, LostIssue, FailReissue, FailPhysical, FailReport;
+        public int IssueStatus = 409, Reissues; public string IssueCode = "ENROLLMENT_NO_FREE_CLAIM", RecoveryDevice = B;
         public int Issues, Completes, Eligible, Target; public string Device = "", Client = "";
         public int PhysicalReads, PhysicalWrites;
         public string? RecordedRaw { get; private set; }
-        public EnrollmentJob Job(string device) => new(JobId, "1", 7, "1", "1", Client,
+        public EnrollmentJob Job(string device) => new(JobId, "1", 7, Reissues > 0 ? "2" : "1", "1", Client,
             device, Completes > 0 ? "completed" : "issued", "2026-10-20T01:03:00Z", false, Opaque,
             Completes > 0 ? new EnrollmentReceipt("af7de985-1df9-4e65-a310-dd86fa4c6862", "completed", null) : null);
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellation)
@@ -273,12 +353,28 @@ internal static class EnrollmentConnectionChecks
                     var body = document.RootElement;
                     Client = body.GetProperty("client_request_id").GetString()!;
                     Target = body.GetProperty("target_user_id").GetInt32(); Device = body.GetProperty("device_id").GetString()!;
-                    Issues++; data = Job(Device);
+                    Issues++;
+                    if (LostIssue) throw new HttpRequestException("Synthetic lost issue response");
+                    if (RejectOrdinary) return Error(IssueStatus, IssueCode);
+                    data = Job(Device);
+                }
+                else if (path.Contains("/by-request/")) return Error(503, "SYNTHETIC_LOOKUP_UNAVAILABLE");
+                else if (path.EndsWith("/recoveries/" + RecoveryId)) data = new { recovery = RecoveryValue() };
+                else if (path.EndsWith("/recoveries/" + RecoveryId + "/reissue"))
+                {
+                    using var document = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(cancellation));
+                    var body = document.RootElement;
+                    Check(body.EnumerateObject().Select(p => p.Name).Order().SequenceEqual(new[] { "client_request_id", "target_user_id" }), "Reissue exact body");
+                    Client = body.GetProperty("client_request_id").GetString()!;
+                    Target = body.GetProperty("target_user_id").GetInt32(); Device = RecoveryDevice; Reissues++;
+                    if (FailReissue) return Error(409, "ENROLLMENT_NO_FREE_CLAIM");
+                    data = new { recovery = RecoveryValue(), job = Job(Device) };
                 }
                 else if (path.EndsWith("/physical-result"))
                 {
                     Check(path == $"/api/v1/device-enrollments/{JobId}/physical-result" && Issues == 1,
                         "Physical route belongs to the issued job");
+                    if (FailPhysical || FailReport && request.Method == HttpMethod.Post) return Error(409, "ENROLLMENT_NO_FREE_CLAIM");
                     if (request.Method == HttpMethod.Get) PhysicalReads++;
                     else
                     {
@@ -290,7 +386,7 @@ internal static class EnrollmentConnectionChecks
                     data = new
                     {
                         enrollment_id = JobId, operation_revision = "1", reserved_slot = 7,
-                        claim_revision = "1", key_epoch = "1", contract = "enrollment-mysql-v1",
+                        claim_revision = Reissues > 0 ? "2" : "1", key_epoch = "1", contract = "enrollment-mysql-v1",
                         phase = RecordedRaw is null ? "not_recorded" : "result_recorded", result_envelope = RecordedRaw,
                         result_id = RecordedRaw is null ? null : "af7de985-1df9-4e65-a310-dd86fa4c6862",
                         outcome = RecordedRaw is null ? null : "sensor_stored", failure_code = (string?)null,
@@ -314,6 +410,12 @@ internal static class EnrollmentConnectionChecks
         }
         private static HttpResponseMessage Conflict() => new(HttpStatusCode.Conflict)
         { Content = new StringContent("{\"ok\":false,\"error\":{\"code\":\"FIXTURE_RESULT_CONFLICT\",\"message\":\"Exact physical result must be recorded first\"}}", Encoding.UTF8, "application/json") };
+        private object RecoveryValue() => new { recovery_id = RecoveryId, source_enrollment_id = "7cb7e37e-0661-432d-9bfb-5037483d64a3", device_id = RecoveryDevice,
+            reserved_slot = 7, source_operation_revision = "1", source_claim_revision = "1", state = Reissues > 0 && !FailReissue ? "reissued" : "closed_awaiting_explicit_reissue",
+            new_enrollment_id = Reissues > 0 && !FailReissue ? JobId : null, evidence_kind = "operator_observation_not_signed_result",
+            closed_at = "2026-10-21T00:01:00Z", reissued_at = Reissues > 0 && !FailReissue ? "2026-10-21T00:02:00Z" : null };
+        private static HttpResponseMessage Error(int status, string code) => new((HttpStatusCode)status)
+        { Content = new StringContent(JsonSerializer.Serialize(new { ok = false, error = new { code, message = "Synthetic controlled rejection" }, request_id = "synthetic-rebind" }), Encoding.UTF8, "application/json") };
         private static async Task<string> ResultBody(HttpRequestMessage request, CancellationToken cancellation)
         {
             using var document = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(cancellation));

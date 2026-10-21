@@ -30,7 +30,8 @@ public sealed class CreatedUserEnrollmentLauncher : ICreatedUserEnrollmentLaunch
         target.ThrowIfChanged();
         using var channel = new EnrollmentDeviceChannel(target, endpoints, channelFactory);
         var borrowed = new EnrollmentTarget(target.UserId, target.AdministratorSession, () => target.IsCurrent, target.Cancellation);
-        using var view = new FingerprintEnrollmentForm(borrowed, channel, channel.ValidateDevice, target.RequiredRecoveryId);
+        using var view = new FingerprintEnrollmentForm(borrowed, channel, channel.ValidateDevice,
+            target.RequiredRecoveryId, channel.ReleaseUnissuedDevice);
         try { view.ShowDialog(owner); }
         finally { await view.PendingOperation; }
         target.ThrowIfChanged();
@@ -45,6 +46,19 @@ public sealed class EnrollmentDeviceChannel(CreatedUserEnrollmentTarget target, 
     private string? selected;
     private IEnrollmentPiChannel? channel;
     private bool disposed;
+    private bool transmissionStarted;
+
+    // Called only for the view's exact pre-issue NO_FREE rejection. Merely
+    // choosing another row never releases a prepared/uncertain device binding.
+    public bool ReleaseUnissuedDevice(string deviceId)
+    {
+        if (disposed || !target.IsCurrent || transmissionStarted || selected != deviceId) return false;
+        try { (channel as IDisposable)?.Dispose(); }
+        catch (Exception) { return false; }
+        channel = null;
+        selected = null;
+        return true;
+    }
 
     public void ValidateDevice(string deviceId)
     {
@@ -66,6 +80,7 @@ public sealed class EnrollmentDeviceChannel(CreatedUserEnrollmentTarget target, 
         target.ThrowIfChanged();
         cancellation.ThrowIfCancellationRequested();
         if (channel is null || selected != job.DeviceId) throw new InvalidDataException("등록 전에 선택한 장치 주소를 확인해 주세요.");
+        transmissionStarted = true;
         var result = await channel.TransferAsync(job, readOnly, approve, progress, cancellation).ConfigureAwait(false);
         target.ThrowIfChanged();
         cancellation.ThrowIfCancellationRequested();

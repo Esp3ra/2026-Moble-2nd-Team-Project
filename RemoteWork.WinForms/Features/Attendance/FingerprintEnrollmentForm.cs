@@ -8,6 +8,7 @@ public sealed class FingerprintEnrollmentForm : Form
     private readonly EnrollmentTarget target;
     private readonly FingerprintEnrollmentRelay relay;
     private readonly Action<string>? validateDevice;
+    private readonly Func<string, bool>? releaseUnissuedDevice;
     private bool manualReviewRequired;
     private readonly FeatureUiScope scope;
     private readonly CancellationTokenSource viewLifetime;
@@ -31,7 +32,7 @@ public sealed class FingerprintEnrollmentForm : Form
     public Task PendingOperation { get; private set; } = Task.CompletedTask;
 
     public FingerprintEnrollmentForm(EnrollmentTarget target, IEnrollmentPiChannel pi, Action<string>? validateDevice = null,
-        string? requiredRecoveryId = null)
+        string? requiredRecoveryId = null, Func<string, bool>? releaseUnissuedDevice = null)
     {
         if (requiredRecoveryId is not null && (!Guid.TryParseExact(requiredRecoveryId, "D", out var recoveryUuid)
             || recoveryUuid.ToString("D") != requiredRecoveryId))
@@ -39,6 +40,7 @@ public sealed class FingerprintEnrollmentForm : Form
         recoveryOnly = requiredRecoveryId is not null;
         this.target = target;
         this.validateDevice = validateDevice;
+        this.releaseUnissuedDevice = releaseUnissuedDevice;
         relay = new(target, pi);
         Text = "새 회원 지문 등록";
         ClientSize = new Size(600, 460);
@@ -216,6 +218,12 @@ public sealed class FingerprintEnrollmentForm : Form
             // This exact issue rejection rolls back before creating a job. Keep
             // the SAME created member/login; allow an explicit recovery choice.
             // Lost replies and failures after a device request never enter here.
+            if (releaseUnissuedDevice?.Invoke(device.DeviceId) == false)
+            {
+                manualReviewRequired = true;
+                scope.TryPost(view, () => status.Text = "장치 연결 준비를 해제하지 못했습니다. 현재 작업을 확인해 주세요.");
+                return;
+            }
             attempt = null;
             scope.TryPost(view, () => status.Text =
                 "기존 예약이 남아 일반 등록을 시작하지 않았습니다. '운영자가 승인한 복구 작업으로 등록'을 선택하고 전달받은 복구 번호를 확인해 주세요.");

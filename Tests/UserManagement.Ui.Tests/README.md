@@ -34,3 +34,5 @@ API는 통제 `HttpMessageHandler`, Pi는 완료를 지연시킬 수 있는 대�
 실제 owner→launcher→5번 폼에서도 복구 모드/번호 고정, GET 확인만으로 issue/reissue/Pi0, 별도 시작에서만 두 필드 reissue·동일 기존 회원·정확 원문 선보관→complete를 검사한다. 운영자 거절 후에도 모드/번호를 풀지 않는다. 생성회원 연결177검사·기존14시나리오46검사와 별도 수치이며 합산하지 않는다. 공유 DB·계정·실물 센서를 쓰지 않는다.
 
 선택 프로필을 CurrentCellChanged에서 갱신한다. SelectionChanged 시점의 이전 CurrentRow를 읽어 다른 회원을 표시하던 문제를 실제 행 전환으로 재현/수정했다. RECOVERY_UI_PROOF_DIRECTORY를 명시하면 합성 화면 QA PNG 한 장을 해당 폴더에 저장할 수 있다. 기본 검사는 실제 로컬 설정/비공개 경로를 바꾸지 않는다.
+
+R58-01 회귀는 실제 CreatedUserEnrollmentLauncher/EnrollmentDeviceChannel과 같은 회원관리·지문 폼을 사용한다. A 일반발급의 정확 NO_FREE 거절 후 B 또는 같은 A의 명시 복구를 진행해 이전 채널 dispose·새 주소·동일 회원·재발급1/Pi1·결과 선보관 후 완료를 확인한다. 선택/복구 GET에는 새 채널·발급·Pi 호출이 없고, 503/응답유실/다른409/같은code400/발급후/Pi전달후/reissue거절은 attempt·채널을 보존한다. 송신을 시작한 채널과 다른 장치의 바인딩은 명시 해제에서도 보호한다. 이 검사는 합성 HTTP/Pi이며 실제 센서를 사용하지 않는다.
