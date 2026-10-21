@@ -7,6 +7,7 @@ using RemoteWork.WinForms.Features.Tasks.Creation;
 using RemoteWork.WinForms.Features.Tasks.Starting;
 using RemoteWork.WinForms.Features.Tasks.Management;
 using RemoteWork.WinForms.Features.Tasks.Lifecycle;
+using RemoteWork.WinForms.Features.Tasks.Attachments;
 using RemoteWork.WinForms.Features.Results;
 using RemoteWork.WinForms.Infrastructure;
 
@@ -32,6 +33,7 @@ namespace RemoteWork.WinForms.Features.Tasks
         private bool submissionFormOpen;
         private bool managementFormOpen;
         private bool lifecycleFormOpen;
+        private bool attachmentDownloadBusy;
         private bool lastListQuerySucceeded;
         private string? acknowledgedCreationId;
         private string? createdTaskIdForRefresh;
@@ -87,6 +89,7 @@ namespace RemoteWork.WinForms.Features.Tasks
                     + "\r\n신규 등록·수락·재작업: 개발 서버 요청 연결 · 수정·재배정·관리자 변경: 개발 연결 · 취소·연장: 조회·폼 연결 / 공통·제출 차단 연결 확인 전 저장 잠금";
             if (queryService is HttpTaskQueryService)
                 lblTaskQuerySource.Text += "\r\n결과 제출: 선택 업무의 결과물 폼 연결 · 성공 후 업무 재조회 · 결과 미확인은 결과물 메뉴에서 확인";
+            gridTaskAttachments.AccessibleDescription = "현재 선택 업무에 연결된 첨부파일입니다. 저장 버튼을 누르면 현재 권한과 파일 내용을 확인하고 저장 위치를 선택합니다.";
             ClearDetail("목록에서 업무를 선택하면 상세 내용이 표시됩니다.");
             UpdateViewScope();
             initializing = false;
@@ -395,6 +398,7 @@ namespace RemoteWork.WinForms.Features.Tasks
                     ? "상세 조회 완료 · 목록 정보 변경 감지 · 목록을 다시 조회해 주세요."
                     : "상세 조회 완료";
                 if (listSummaryChanged) btnRetryQuery.Text = "목록 새로고침";
+                await LoadTaskAttachmentsAsync(summary, parentGeneration, generation, token);
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
@@ -492,10 +496,109 @@ namespace RemoteWork.WinForms.Features.Tasks
             currentTaskDetail = null;
             UpdatePreparationActions();
             txtContent.Text = message;
-            // File lookup belongs to member 3 and has no agreed query contract yet.
             gridTaskAttachments.Rows.Clear();
-            lblText4.Text = "업무 첨부파일 · 조회 연결 필요";
+            lblText4.Text = "업무 첨부파일 · 업무 선택 후 조회";
         }
+
+        private async Task LoadTaskAttachmentsAsync(TaskSummary summary, long parentGeneration, long generation, CancellationToken token)
+        {
+            if (viewSession is not { } captured)
+            {
+                lblText4.Text = "업무 첨부파일 · 서버 연결 필요";
+                return;
+            }
+            if (summary.IsCancelled)
+            {
+                lblText4.Text = "취소 업무 · 등록 첨부 조회 불가";
+                return;
+            }
+            lblText4.Text = "업무 첨부파일 · 불러오는 중…";
+            try
+            {
+                var files = await new HttpTaskAttachmentService(captured.Session).GetFilesAsync(summary.TaskId, token);
+                if (!IsCurrentDetail(parentGeneration, generation, summary.TaskId, token) || !captured.Session.IsCurrent) return;
+                foreach (TaskAttachment file in files)
+                {
+                    int row = gridTaskAttachments.Rows.Add(file.Name, FormatAttachmentSize(file.Size), "저장");
+                    gridTaskAttachments.Rows[row].Tag = file;
+                }
+                lblText4.Text = files.Count == 0 ? "업무 첨부파일 · 첨부 없음" : $"업무 첨부파일 · {files.Count}개";
+            }
+            catch (Exception error)
+            {
+                await InvalidateChangedSessionAfterSelectionAsync();
+                if (!IsCurrentDetail(parentGeneration, generation, summary.TaskId, token)) return;
+                gridTaskAttachments.Rows.Clear();
+                lblText4.Text = AttachmentFailureText(error);
+            }
+        }
+
+        private async void gridTaskAttachments_CellContentClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex != columnGridTaskAttachments3.Index || attachmentDownloadBusy
+                || viewSession is not { } captured || !captured.Session.IsCurrent
+                || PreparationDetail() is not { } detail || detail.Summary.IsCancelled
+                || gridTaskAttachments.Rows[e.RowIndex].Tag is not TaskAttachment file) return;
+            string taskId = detail.Summary.TaskId;
+            long parentGeneration = listGeneration, generation = detailGeneration;
+            CancellationToken token = detailCancellation?.Token ?? CancellationToken.None;
+            attachmentDownloadBusy = true;
+            lblText4.Text = "업무 첨부파일 · 내용 확인 중…";
+            try
+            {
+                TaskAttachmentDownload download = await new HttpTaskAttachmentService(captured.Session).DownloadAsync(taskId, file, token);
+                if (!IsCurrentDetail(parentGeneration, generation, taskId, token) || !captured.Session.IsCurrent) return;
+                using var dialog = new SaveFileDialog
+                {
+                    Title = "업무 첨부파일 저장 (새 파일 이름 선택)", FileName = SuggestedAttachmentName(file.Name),
+                    Filter = "모든 파일 (*.*)|*.*", CheckPathExists = true, OverwritePrompt = false, AddExtension = false
+                };
+                if (dialog.ShowDialog(FindForm()) != DialogResult.OK)
+                {
+                    if (IsCurrentDetail(parentGeneration, generation, taskId, token)) lblText4.Text = "업무 첨부파일 · 저장 취소";
+                    return;
+                }
+                if (!IsCurrentDetail(parentGeneration, generation, taskId, token) || !captured.Session.IsCurrent) return;
+                if (File.Exists(dialog.FileName))
+                    throw new IOException("기존 파일은 덮어쓰지 않습니다. 다른 이름으로 저장해 주세요.");
+                await download.SaveNewAsync(dialog.FileName, token);
+                if (IsCurrentDetail(parentGeneration, generation, taskId, token) && captured.Session.IsCurrent)
+                    lblText4.Text = "업무 첨부파일 · 저장 완료";
+            }
+            catch (Exception error)
+            {
+                await InvalidateChangedSessionAfterSelectionAsync();
+                if (IsCurrentDetail(parentGeneration, generation, taskId, token))
+                    lblText4.Text = AttachmentFailureText(error);
+            }
+            finally { attachmentDownloadBusy = false; }
+        }
+
+        private static string FormatAttachmentSize(long bytes) => bytes < 1024 ? $"{bytes} B"
+            : bytes < 1024 * 1024 ? $"{bytes / 1024d:0.#} KiB" : $"{bytes / (1024d * 1024):0.#} MiB";
+
+        private static string SuggestedAttachmentName(string name)
+        {
+            string safe = new(name.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c).ToArray());
+            string stem = Path.GetFileNameWithoutExtension(safe).TrimEnd(' ', '.');
+            bool reserved = new[] { "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+                "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9" }.Contains(stem, StringComparer.OrdinalIgnoreCase);
+            return reserved || string.IsNullOrWhiteSpace(stem) ? "첨부파일.bin" : safe;
+        }
+
+        private static string AttachmentFailureText(Exception error) => error switch
+        {
+            ApiException { StatusCode: 401 } => "업무 첨부파일 · 인증 만료, 다시 로그인해 주세요.",
+            ApiException { StatusCode: 403 } => "업무 첨부파일 · 현재 조회 권한이 없습니다.",
+            ApiException { StatusCode: 404 } => "업무 첨부파일 · 파일 없음 또는 첨부 연결이 준비되지 않았습니다.",
+            ApiException { Code: "TASK_CANCELLED" } => "취소 업무 · 등록 첨부 조회 불가",
+            ApiException { StatusCode: 409 } => "업무 첨부파일 · 변경 감지, 업무를 다시 조회해 주세요.",
+            ApiException { StatusCode: 503 } => "업무 첨부파일 · 서버 첨부 연결 준비 필요",
+            InvalidDataException => "업무 첨부파일 · 응답·파일 검증 실패, 저장하지 않았습니다.",
+            OperationCanceledException => "업무 첨부파일 · 조회·저장 취소",
+            IOException or UnauthorizedAccessException => "업무 첨부파일 · 저장 실패, 다른 파일 이름·폴더를 선택해 주세요.",
+            _ => "업무 첨부파일 · 서버 오류, 업무를 다시 조회해 주세요."
+        };
 
         private void CancelDetailRequest()
         {

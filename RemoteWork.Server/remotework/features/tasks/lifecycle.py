@@ -168,6 +168,13 @@ def _input(action):
                           parse_constant=_invalid_constant)
     except (UnicodeError, ValueError, RecursionError):
         raise AppError(400, "INVALID_INPUT", "중복 없는 JSON 입력을 확인해 주세요.") from None
+    return validate_lifecycle_body(action, body)
+
+
+def validate_lifecycle_body(action, body):
+    """Validate one already-parsed API or HTML body without changing it."""
+    if action not in _FIELDS:
+        raise ValueError("Use an explicit task lifecycle action")
     if not isinstance(body, dict) or set(body) != _FIELDS[action]:
         raise AppError(400, "INVALID_INPUT", "취소·연장 입력 항목을 확인해 주세요.")
     expected = ExpectedVersions.from_body(body)
@@ -217,15 +224,10 @@ def _close(row, state, now, reason):
     row.status, row.decided_at, row.decided_by, row.decision_reason = state, now, g.user.id, reason
 
 
-def _mutate(db, task, assignment, managers, users, action, body, extension_id, now):
+def _check_change(db, task, managers, users, action, body, extension_id, now):
     if action == "task.cancelled":
         if task.task_status not in ("not_started", "in_progress", "returned"):
             raise AppError(409, "TASK_STATE_CONFLICT", "현재 업무 상태에서는 취소할 수 없습니다.")
-        db.add(TaskCancellation(task_id=task.task_id, cancelled_by=g.user.id,
-                                reason=body["reason"], cancelled_at=now))
-        pending = _pending(db, task)
-        if pending is not None:
-            _close(pending, "cancelled", now, body["reason"])
         return None
     if task.task_status not in ("in_progress", "returned"):
         raise AppError(409, "TASK_STATE_CONFLICT", "진행중 또는 반려완료 업무에서만 연장을 처리할 수 있습니다.")
@@ -238,12 +240,7 @@ def _mutate(db, task, assignment, managers, users, action, body, extension_id, n
         due = _date(body["requested_due_date"], "희망 마감일")
         if due <= task.due_date or due < _today(now):
             raise AppError(409, "TASK_EXTENSION_DATE_INVALID", "희망 마감일은 현재 마감일보다 늦고 한국 시간 기준 오늘 이후여야 합니다.")
-        row = TaskDeadlineExtension(task_id=task.task_id, assignment_revision=assignment.revision,
-            original_due_date=task.due_date, requested_due_date=due, requested_by=g.user.id,
-            reason=body["reason"], status="pending", created_at=now)
-        db.add(row)
-        db.flush()
-        return row
+        return None
     row = _request_row(db, task, extension_id)
     if row.status != "pending":
         raise AppError(409, "TASK_EXTENSION_NOT_PENDING", "이미 처리된 연장 신청입니다. 다시 조회해 주세요.")
@@ -252,6 +249,28 @@ def _mutate(db, task, assignment, managers, users, action, body, extension_id, n
     if action == "task.deadline_extension_approved":
         if row.requested_due_date <= task.due_date or row.requested_due_date < _today(now):
             raise AppError(409, "TASK_EXTENSION_DATE_INVALID", "희망 마감일이 지났습니다. 반려 또는 철회 후 다시 신청해 주세요.")
+    return row
+
+
+def _mutate(db, task, assignment, managers, users, action, body, extension_id, now, *, expected):
+    row = _check_change(db, task, managers, users, action, body, extension_id, now)
+    if action == "task.cancelled":
+        from .attachment_links import release_cancelled_task_files
+        release_cancelled_task_files(db, task_id=task.task_id, expected=expected)
+        db.add(TaskCancellation(task_id=task.task_id, cancelled_by=g.user.id,
+                                reason=body["reason"], cancelled_at=now))
+        pending = _pending(db, task)
+        if pending is not None:
+            _close(pending, "cancelled", now, body["reason"])
+        return None
+    if action == "task.deadline_extension_requested":
+        row = TaskDeadlineExtension(task_id=task.task_id, assignment_revision=assignment.revision,
+            original_due_date=task.due_date, requested_due_date=_date(body["requested_due_date"], "희망 마감일"),
+            requested_by=g.user.id, reason=body["reason"], status="pending", created_at=now)
+        db.add(row)
+        db.flush()
+        return row
+    if action == "task.deadline_extension_approved":
         task.due_date = row.requested_due_date
         _close(row, "approved", now, None)
     elif action == "task.deadline_extension_rejected":
@@ -261,52 +280,85 @@ def _mutate(db, task, assignment, managers, users, action, body, extension_id, n
     return row
 
 
-def _execute(target, action, raw_extension_id=None):
+def _authorized_rows(db, target, action, raw_extension_id):
     authorize = _authorizer(action)
+    if action not in _FIELDS:
+        raise ValueError("Use an explicit task lifecycle action")
+    if authorize(db, target) is not True:
+        raise AppError(403, "FORBIDDEN", "현재 요청을 수행할 권한이 없습니다.")
+    # Owner-provided callbacks do not replace the current business relation.
+    mode = "manage" if action in ("task.cancelled", "task.deadline_extension_approved",
+                                  "task.deadline_extension_rejected") else "own"
+    task, assignment, managers, users = _current(db, target, mode=mode)
+    require_lifecycle_write_ready(db)
+    needs_row = action in ("task.deadline_extension_approved", "task.deadline_extension_rejected",
+                           "task.deadline_extension_withdrawn")
+    if needs_row != (raw_extension_id is not None):
+        raise AppError(400, "INVALID_INPUT", "현재 연장 신청 대상을 확인해 주세요.")
+    extension_id = None if raw_extension_id is None else positive_bigint(raw_extension_id, "extension_id")
+    if extension_id is not None:
+        row = _request_row(db, task, extension_id)
+        if (row.requested_by != assignment.assignee_id or
+                (mode == "manage" and row.requested_by == g.user.id) or
+                (mode == "own" and row.requested_by != g.user.id)):
+            raise AppError(403, "FORBIDDEN", "현재 신청의 처리 권한이 없습니다.")
+    return authorize, mode, task, assignment, managers, users, extension_id
+
+
+def prepare_lifecycle(db, *, target, action, body, extension_id=None):
+    """Check a web confirmation without a mutation, key, audit, or receipt."""
+    _, _, task, assignment, managers, users, extension_id = _authorized_rows(
+        db, target, action, extension_id)
+    body, expected = validate_lifecycle_body(action, body)
+    expected.check(row_version=task.row_version, assignment_revision=assignment.revision)
+    ensure_not_cancelled(db, task.task_id)
+    if task.row_version >= BIGINT_MAX:
+        raise AppError(409, "TASK_VERSION_EXHAUSTED", "업무 버전 상한에 도달했습니다.")
+    _check_change(db, task, managers, users, action, body, extension_id, utcnow())
+
+
+def execute_lifecycle(db, *, target, action, body, key, extension_id=None):
+    """Use the caller's authenticated transaction for the existing W1 write."""
+    from ...db import get_db
+    from ...write_requests import WriteResult, perform_once
+    if not getattr(g, "write_transaction_active", False) or db is not get_db():
+        raise RuntimeError("Use the current authenticated_transaction for task lifecycle")
+    authorize, mode, _, _, _, _, extension_id = _authorized_rows(db, target, action, extension_id)
+    body, expected = validate_lifecycle_body(action, body)
+    # Keys target the task; the selected request is part of its fingerprint.
+    fingerprint_body = body if extension_id is None else {**body, "extension_id": str(extension_id)}
+
+    def mutate(session):
+        task, assignment, managers, users = _current(session, target, mode=mode)
+        expected.check(row_version=task.row_version, assignment_revision=assignment.revision)
+        ensure_not_cancelled(session, task.task_id)
+        if task.row_version >= BIGINT_MAX:
+            raise AppError(409, "TASK_VERSION_EXHAUSTED", "업무 버전 상한에 도달했습니다.")
+        before = {"row_version": str(task.row_version), "task_status": task.task_status,
+                  "due_date": task.due_date.isoformat()}
+        now = utcnow()
+        extension = _mutate(session, task, assignment, managers, users, action, body, extension_id, now,
+                            expected=expected)
+        task.row_version += 1
+        task.updated_at = now
+        session.flush()
+        session.refresh(task)
+        if extension is not None:
+            session.refresh(extension)
+        result = _result(task, extension)
+        audit(action, "task", task.task_id, {"before": before, "after": result})
+        return WriteResult(result)
+
+    return perform_once(db, key=key, action=action, target=target,
+                        body=fingerprint_body, authorize=authorize, mutate=mutate)
+
+
+def _execute(target, action, raw_extension_id=None):
     with authenticated_transaction() as db:
-        if authorize(db, target) is not True:
-            raise AppError(403, "FORBIDDEN", "현재 요청을 수행할 권한이 없습니다.")
-        # Always apply our current business relation even when member 1 supplied
-        # a compatible built-in callback. Never override that callback.
-        mode = "manage" if action in ("task.cancelled", "task.deadline_extension_approved",
-                                      "task.deadline_extension_rejected") else "own"
-        task, assignment, managers, users = _current(db, target, mode=mode)
-        require_lifecycle_write_ready(db)
-        extension_id = None if raw_extension_id is None else positive_bigint(raw_extension_id, "extension_id")
-        if extension_id is not None:
-            row = _request_row(db, task, extension_id)
-            if (row.requested_by != assignment.assignee_id or
-                    (mode == "manage" and row.requested_by == g.user.id) or
-                    (mode == "own" and row.requested_by != g.user.id)):
-                raise AppError(403, "FORBIDDEN", "현재 신청의 처리 권한이 없습니다.")
-        body, expected = _input(action)
-        # Shared keys target a task, so bind the request row in the internal
-        # fingerprint too. Reusing a key on another request must conflict.
-        fingerprint_body = body if extension_id is None else {**body, "extension_id": str(extension_id)}
-        from ...write_requests import WriteResult, perform_once
-
-        def mutate(session):
-            task, assignment, managers, users = _current(session, target, mode=mode)
-            expected.check(row_version=task.row_version, assignment_revision=assignment.revision)
-            ensure_not_cancelled(session, task.task_id)
-            if task.row_version >= BIGINT_MAX:
-                raise AppError(409, "TASK_VERSION_EXHAUSTED", "업무 버전 상한에 도달했습니다.")
-            before = {"row_version": str(task.row_version), "task_status": task.task_status,
-                      "due_date": task.due_date.isoformat()}
-            now = utcnow()
-            extension = _mutate(session, task, assignment, managers, users, action, body, extension_id, now)
-            task.row_version += 1
-            task.updated_at = now
-            session.flush()
-            session.refresh(task)
-            if extension is not None:
-                session.refresh(extension)
-            result = _result(task, extension)
-            audit(action, "task", task.task_id, {"before": before, "after": result})
-            return WriteResult(result)
-
-        result = perform_once(db, key=request.headers.get("Idempotency-Key"), action=action,
-            target=target, body=fingerprint_body, authorize=authorize, mutate=mutate)
+        _authorized_rows(db, target, action, raw_extension_id)
+        body, _ = _input(action)
+        result = execute_lifecycle(db, target=target, action=action, body=body,
+            key=request.headers.get("Idempotency-Key"), extension_id=raw_extension_id)
     return success(result.data, result.status)
 
 

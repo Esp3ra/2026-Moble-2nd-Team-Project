@@ -12,7 +12,7 @@
 {% if can_open_detail %}<p><a class="task-action-link" href="{{ url_for('task_web.detail', task_id=completed.task_id, **intent.filters) }}">현재 업무 상태 다시 조회</a></p>{% endif %}</section>
 {% else %}
 {% if error %}<section class="card task-write-error" role="alert"><h2>요청을 확인해 주세요</h2><p>{{ error.message }}</p><p class="muted">오류 코드: {{ error.code }} · 요청 번호: {{ g.request_id }}</p></section>{% endif %}
-{% if not_recorded %}<section class="card" role="status"><h2>저장된 처리 결과가 없습니다</h2><p>다시 전송하려면 아래 버튼을 누르세요. 확인한 내용 그대로 같은 요청을 전송합니다.</p></section>{% endif %}
+{% if not_recorded %}<section class="card" role="status"><h2>저장된 처리 결과가 없습니다</h2>{% if can_execute %}<p>다시 전송하려면 아래 버튼을 누르세요. 확인한 내용 그대로 같은 요청을 전송합니다.</p>{% else %}<p>현재 서버에서는 이 요청을 다시 실행할 수 없습니다. 기존 요청을 보관하고 현재 관리자에게 연결 상태를 확인해 주세요.</p>{% endif %}</section>{% endif %}
 {% if not access_lost %}
 <section class="card" aria-labelledby="task-confirm-heading"><h2 id="task-confirm-heading">실행할 내용</h2>
 <h3 class="task-detail-title">{{ intent.summary.title }}</h3>
@@ -28,13 +28,21 @@
 {% if intent.action == 'task.updated' %}<dl class="task-info"><dt>제목</dt><dd>{{ intent.body.title }}</dd><dt>시작일</dt><dd>{{ intent.body.start_date }}</dd><dt>마감일</dt><dd>{{ intent.body.due_date }}</dd></dl><div class="task-description">{{ intent.body.description }}</div>
 {% elif intent.action == 'task.reassigned' %}<p>{{ intent.summary.assignee_label }}</p><p class="muted">새 담당자는 업무를 직접 수락해야 합니다. 이전 배정 기록은 보존됩니다.</p>
 {% else %}{% for label in intent.summary.manager_labels %}<p>{{ label }}</p>{% endfor %}{% if self_removed %}<p>변경 후 본인은 지정 관리자에서 제외됩니다.</p>{% endif %}<p class="muted">결과물 검토자는 이 변경으로 바뀌지 않습니다.</p>{% endif %}
+{% elif lifecycle %}
+{% if intent.summary.pending_extension %}<dl class="task-info"><dt>연장 신청</dt><dd>#{{ intent.summary.extension_id }}</dd><dt>신청 당시 마감일</dt><dd>{{ intent.summary.pending_extension.original_due_date }}</dd><dt>희망 마감일</dt><dd>{{ intent.summary.pending_extension.requested_due_date }}</dd></dl><h3>신청 사유</h3><div class="task-description">{{ intent.summary.pending_extension.reason }}</div>{% endif %}
+{% if intent.action == 'task.deadline_extension_requested' %}<p>희망 마감일: {{ intent.body.requested_due_date }}</p><p class="muted">승인 전에는 현재 마감일이 유지됩니다.</p>{% endif %}
+{% if 'reason' in intent.body %}<h3>{{ '판단 사유' if intent.action == 'task.deadline_extension_rejected' else '사유' }}</h3><div class="task-description">{{ intent.body.reason or '입력하지 않음' }}</div>{% endif %}
+{% if intent.action == 'task.cancelled' %}<p>업무를 취소합니다. 현재 업무 상태와 과거 제출 기록은 보존되며 대기 중인 연장 신청은 종료됩니다. 취소 후 복원할 수 없습니다.</p>
+{% elif intent.action == 'task.deadline_extension_approved' %}<p>희망 마감일을 새 마감일로 반영합니다. 업무 상태는 유지됩니다.</p>
+{% elif intent.action in ['task.deadline_extension_rejected', 'task.deadline_extension_withdrawn'] %}<p>현재 마감일과 업무 상태는 유지됩니다.</p>{% endif %}
 {% else %}<p class="muted">{{ '진행전' if intent.action == 'task.accepted' else '반려완료' }}에서 진행중으로 변경합니다. 결과물 제출은 별도 기능입니다.</p>{% endif %}
 </section>
 {% endif %}
 <section class="card task-write-actions" aria-label="업무 실행 및 결과 확인">
-{% if intent.phase in ['prepared', 'retry'] %}<form method="post" action="{{ url_for('task_web.write_execute') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="ticket" value="{{ ticket }}"><button type="submit">{{ '같은 요청 다시 전송' if intent.phase == 'retry' else action_label + ' 실행' }}</button></form>{% endif %}
+{% if intent.phase in ['prepared', 'retry'] and can_execute %}<form method="post" action="{{ url_for('task_web.write_execute') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="ticket" value="{{ ticket }}"><button type="submit">{{ '같은 요청 다시 전송' if intent.phase == 'retry' else action_label + ' 실행' }}</button></form>{% endif %}
+{% if lifecycle and not can_execute %}<p class="muted">현재는 취소·연장을 실행할 수 없습니다. 저장된 기존 요청의 결과 확인만 사용할 수 있습니다.</p>{% endif %}
 <form method="post" action="{{ url_for('task_web.write_result') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="ticket" value="{{ ticket }}"><button class="secondary" type="submit">처리 결과 확인</button></form>
-<p class="muted">응답이 끊기거나 저장 여부가 불확실하면 이 확인 화면으로 돌아와 처리 결과를 확인하세요. 결과 조회 실패 시 자동으로 재전송하지 않습니다. 새 등록을 시작하면 별개의 업무를 만들 수 있습니다.</p>
+<p class="muted">응답이 끊기거나 저장 여부가 불확실하면 이 확인 화면으로 돌아와 처리 결과를 확인하세요. 결과 조회 실패 시 자동으로 재전송하지 않습니다.{% if intent.action == 'task.created' %} 새 등록을 시작하면 별개의 업무를 만들 수 있습니다.{% endif %}</p>
 </section>
 {% endif %}
 </div>

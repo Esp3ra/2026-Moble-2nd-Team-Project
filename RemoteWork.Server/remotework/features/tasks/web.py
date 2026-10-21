@@ -83,6 +83,7 @@ def detail(task_id):
     # recheck the current own-or-managed relationship.
     lifecycle_context = None
     management_actions = []
+    lifecycle_actions = []
     if "task_web.manage" in current_app.view_functions:
         from ...auth import authenticated_transaction
         from .web_management import read_detail
@@ -101,10 +102,14 @@ def detail(task_id):
             lifecycle_context, task = read_lifecycle_detail(db, str(task_id))
     else:
         task = get_task(g.user, task_id)
+    if lifecycle_context is not None and "task_web.lifecycle_action" in current_app.view_functions:
+        from .web_lifecycle import available_actions
+        lifecycle_actions = available_actions(lifecycle_context, g.user)
     return render_template("tasks/detail.html", task=task, status_labels=STATUS_LABELS,
                            lifecycle_context=lifecycle_context,
                            has_start="task_web.start_prepare" in current_app.view_functions,
                            management_actions=management_actions,
+                           lifecycle_actions=lifecycle_actions,
                            has_results="results_web.index" in current_app.view_functions,
                            filters=_list_args(scope, status, include_cancelled),
                            back_url=url_for("task_web.index", **_list_args(scope, status, include_cancelled)))
