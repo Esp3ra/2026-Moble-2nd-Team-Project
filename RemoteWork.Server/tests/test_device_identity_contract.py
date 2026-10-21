@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import importlib.util
 import json
+import os
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -262,8 +263,16 @@ def test_enabling_contract_without_actual_service_fails_before_database_or_route
     connect.assert_not_called()
 
 
-def test_default_app_keeps_identity_routes_and_ddl_absent(app):
+def test_default_app_keeps_identity_routes_and_ddl_absent(monkeypatch):
+    from remotework import create_app
     from sqlalchemy import event
+    # A cold app only: no shared conftest app/init-db and no SQLite fallback.
+    monkeypatch.setenv("PYTHON_DOTENV_DISABLED", "1")
+    for name in tuple(os.environ):
+        if name.startswith("REMOTEWORK_"):
+            monkeypatch.delenv(name)
+    app = create_app({"TESTING": True, "SECRET_KEY": "public-contract-test-only-" + "x" * 32,
+                      "DATABASE_URL": "mysql+pymysql://public-test@127.0.0.1:1/remote_work_test_never_connected"})
     engine = app.extensions["db_engine"]
     def fail(*_): raise AssertionError("Unexpected DB access")
     event.listen(engine, "engine_connect", fail)
@@ -271,4 +280,6 @@ def test_default_app_keeps_identity_routes_and_ddl_absent(app):
         assert not app.config["ENABLE_DEVICE_IDENTITY_DRAFT"]
         assert not any("device-identity" in r.rule for r in app.url_map.iter_rules())
         assert wire.readiness()["ready"] is False
-    finally: event.remove(engine, "engine_connect", fail)
+    finally:
+        event.remove(engine, "engine_connect", fail)
+        engine.dispose()
