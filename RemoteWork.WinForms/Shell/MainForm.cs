@@ -168,6 +168,7 @@ namespace RemoteWork.WinForms.Shell
         {
             if (IsDisposed || expired || closingSession) return;
             expired = true;
+            deadlineNotifications?.Dispose();
             collaborationNotifications?.Dispose();
             noticeCoordinator?.Dispose();
             identityTimer.Stop();
@@ -187,6 +188,7 @@ namespace RemoteWork.WinForms.Shell
             e.Cancel = true;
             if (closingSession) return;
             closingSession = true;
+            deadlineNotifications?.Dispose();
             collaborationNotifications?.Dispose();
             noticeCoordinator?.Dispose();
             identityTimer.Stop();
