@@ -1,3 +1,9 @@
+## 최신 PR 검토 — PR54 문서 병합·PR55 수정 필요·PR52 보류, 2026-10-21
+
+[PR54](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54)는 기존6문서198행 추가를 검토해 LOG45d5f52에 병합했습니다. [PR55](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/55) headffc421b는 공식180검사/Release0/0이 통과했으나 **R55-01 P1(기존 intent의 flagOFF 우회),R55-02 P2(RR snapshot의 늦은 채취 승인),R55-03 P2(terminal 결과와 충돌하는 첫 BLOB)**를 소유MySQL에서 별도 재현해 미병합입니다. [작성자 수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/55#issuecomment-6305522973)과[고정 SHA·검사·정리 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr55-review-20261021)을 따릅니다. PR52 head0a7a57d는 수정이 없어 기존P1/P2 보류를 유지합니다.
+
+팀장이 채택한 **A1~A6·B1~B7 진행 기준**은 [통합 정책](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/f6ea8e7adad0a3c15dcf03ca97154a8fff781119/2번/공통규약.md#member4-policy-adopted-20261021)에 푸시하고[전원 통합 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54#issuecomment-6305519634)으로 전달했습니다. 정책 채택과 코드 구현·실제 서버/장치 적용·통합 검증은 별도입니다.
+
 ## 최신 — 기한 알림 A1~A6·협업 B1~B7 진행 기준 채택, 2026-10-21
 
 팀장이 본 채팅에서 앞선 추천안대로 진행하고 문서를 푸시하도록 지시했습니다. **A1~A6·B1~B7을 개발 진행 기준으로 채택**하며 [전체 정책·담당·기술 확인/검증 경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member4-policy-adopted-20261021)를 따릅니다. 기능 구현·새 API/DB/DDL·실제 통합 검증 완료를 뜻하지 않습니다. 기존 문서의 F4 정책 미확정 표시는 당시 이력으로 보존합니다. 지문 운영·근태/연차·별도 수동/자동 검토 요청과 실제 데이터 삭제/감사·백업 보존 정책은 이번 채택 범위에 포함하지 않습니다.

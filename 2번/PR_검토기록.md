@@ -1,3 +1,38 @@
+<a id="pr55-review-20261021"></a>
+## 최신 PR 검토 — PR54 문서 병합·PR55 수정 필요·PR52 보류, 2026-10-21
+
+[PR54](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54)는 기존6문서198행 추가를 검토해 LOG45d5f52에 병합했습니다. [PR55](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/55) headffc421b는 공식180검사/Release0/0이 통과했으나 **R55-01 P1(기존 intent의 flagOFF 우회),R55-02 P2(RR snapshot의 늦은 채취 승인),R55-03 P2(terminal 결과와 충돌하는 첫 BLOB)**를 소유MySQL에서 별도 재현해 미병합입니다. [작성자 수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/55#issuecomment-6305522973)과[고정 SHA·검사·정리 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr55-review-20261021)을 따릅니다. PR52 head0a7a57d는 수정이 없어 기존P1/P2 보류를 유지합니다.
+
+팀장이 채택한 **A1~A6·B1~B7 진행 기준**은 [통합 정책](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/f6ea8e7adad0a3c15dcf03ca97154a8fff781119/2번/공통규약.md#member4-policy-adopted-20261021)에 푸시하고[전원 통합 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54#issuecomment-6305519634)으로 전달했습니다. 정책 채택과 코드 구현·실제 서버/장치 적용·통합 검증은 별도입니다.
+
+### PR55 검토 기준과 차단 결함
+
+head `ffc421b0bcce78c8923b853e13aff4809da865b8`, 실제 alpha base `bb281e317cdd27e2a4796ad39d8712bbddd9828b`, 검토 결합 tree `8e59733d101c1b56bf9fef15bc273afdd6278976`입니다. 무충돌/Ready/CLEAN과 코드 검토 결과를 구분하고 이번에는 병합하지 않습니다. 지문010/새 durability mode의 서버/API/DDL13파일이며 Pi의 SQLite 제거·이관/실물 복구 완료가 아닙니다.
+
+| ID | 확인한 위치 | 실제 재현/필요 수정 |
+|---|---|---|
+| R55-01 P1 | `enrollment/service.py:185–187,225–227` |ON에서 intent 최초true/동일재전송false·legacy 승인409·미기록complete409 뒤 같은소유DB/작업/원접속/키의 새OFF앱은 MAC/binding 정상 sensor_write200·미기록complete200/completed·Mapping1. physical 원문은NULL. flag와 별개로 영속 intent가 있는 작업의 legacy 재허가·미기록완료를 차단하고 기존완료 재응답과 구분 필요 |
+| R55-02 P2 | `enrollment/service.py:194` |로그인 RR snapshot을 만든 capture 요청을 공통guard 직전 대기→다른요청 intent200 commit→재개한capture200. plain db.get 대신 현재/잠금 조회로 intent/결과 존재 후 새채취 거절 필요. 단일 may_store 자체의 current row 검사는 유지됨 |
+| R55-03 P2 | `enrollment/durability.py:147–158` |legacy completed/physical row 없음→다른 정상서명 failed 원문 첫기록200·원래complete재생200/completed로 모순. 현재Job.result_hash를 첫 원문/운영자이관에서도 대조해 충돌 원문 거절·동일원문 수용 필요 |
+
+실제 센서 저장/삭제를 실행한 재현이 아닙니다. 서명 결과는 원본 signer/verifier·합성키/명시 대역을 사용하고 같은MySQL의 실제 HTTP/DB 경로를 호출했습니다. R55-01은 새승인MAC/공통binding까지 검증했습니다. R55-03은 상충한 첫 원문이 고정돼 원래 성공 원문의 후속 이관도409가 되는 복구 모순입니다. [수정 요청의 원본 코드 링크/기대 결과](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/55#issuecomment-6305522973)를 전달했고 별도 회신용 파일/PR은 요구하지 않습니다.
+
+### 직접 실행 결과
+
+공식6모듈은 `test_enrollment_durability.py`, `test_device_enrollment.py`, `test_enrollment_approval_draft.py`, `test_enrollment_protocol_draft.py`, `test_task_creation_migration.py`, `test_task_write_support.py`이며 **180통과/생략0·197.12초**입니다. Python3.12.14/pytest9.1.1/MySQL8.2 소유DB와 `-W error::pytest.PytestUnhandledThreadExceptionWarning`을 사용했습니다. WriteSupport HTTP DLL을 사전 빌드해 실제 C#검사를 생략하지 않았습니다. WriteSupport·솔루션 Release 각 경고/오류0, defaultOFF module/metadata/route/init/archive CLI 미등록/DB미접속, diff검사도 통과했습니다.
+
+별도 R55-01의1개 검사는 관찰 assertion으로 버그 상태를 재현한 것이며 정상 기능 통과가 아닙니다. R55-02/03의 안전성 검사2개는 기대409와 달리200이므로 **실패 재현/6.56초**입니다. 공식180과 합산하지 않습니다. 공식검사에 포함된 소유dump/restore와 작성자의 실제 서버백업·복원/적용 보고도 구분합니다. 모든 소유MySQL/DB·프로세스·임시runtime 정리를 확인했고 실제 프로젝트/.env·사용자DB·서버·계정·Pi/센서·슬롯·매핑에는 쓰지 않았습니다.
+
+증거: `ES/tmp/remote_work_pr55_checks_20261021/audit/official.txt`, `official-summary.json`, `flag-downgrade-reproduction.json`, `test_flag_downgrade.py`, `supplement-summary.json`; `remote_work_pr55_durability47_20261021/audit/test_terminal_receipt_conflict.py`, `terminal-conflict.txt`, `terminal-conflict-summary.json`입니다.
+
+### PR54·정책 채택과 현재 후속
+
+PR54 head `7e68fcfc7c13f880cc7aaf95df02989e6b1b2ec9`, LOG base `db587cfa9fdfd8df15032002a7b091fccd77ebca`, 실제 merge `45d5f5230ecfebc484097e35dfcd2f53c17dff75`, 검토/실제 tree `bba17bf1f0560e111128a8525e7a4cfe1603d30c`가 일치합니다. 문서6개198추가/삭제0·원문/헤딩/앵커·상대링크89개·LOG2번8문서 보존/비밀값 패턴0을 확인했습니다. 문서 검토로 서버/HTTP/DB/GUI 검사를 추가 실행하지 않았습니다.
+
+이후 본채팅의 사용자 지시로A1~A6·B1~B7을 진행 기준으로 채택해 기존LOG8문서에 기록하고 `f6ea8e7adad0a3c15dcf03ca97154a8fff781119`로 푸시했습니다.90일은 화면조회 기준이고 실제 삭제/감사·백업 보존·지문운영·근태/연차·별도검토요청 정책은 미확정입니다. 제출당시F4미확정은 이력이며 현채택과 구분합니다.
+
+[1번 공지404 원인/지속설정·HTTP/새프로세스 재시작 보고](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54#issuecomment-6305220140)와[5번 추가접점없음 답변](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54#issuecomment-6305188245)을 수신했습니다.4번PC/GUI 재검증·팝업008/지문010 적용·실제 취소/pending 소비·두PC/실물/공유 검증은 별도입니다. 주서버 변경 보고를 이번 검토자의 직접검사로 확대하지 않습니다. PR52는 기존P1/P2 수정 대기이며55기능을 실제폴더에 반영하거나010/통합ACK를 적용하지 않았습니다.
+
 <a id="pr51-53-review-20261020"></a>
 ## 최신 — PR51·53 병합, PR52 수정 필요, 2026-10-20
 
