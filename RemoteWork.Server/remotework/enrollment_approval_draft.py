@@ -35,7 +35,7 @@ def validate(value):
         enroll._revision(value[field])
     if (type(value["ticket_digest"]) is not str or re.fullmatch(r"[0-9a-f]{64}", value["ticket_digest"]) is None
             or not 16 <= len(enroll.b64decode(value["probe_nonce"], 64)) <= 64
-            or value["scope"] not in ("sensor_write", "result_read") or value["decision"] != "allow"):
+            or value["scope"] not in ("sensor_write", "sensor_capture", "sensor_store", "result_read") or value["decision"] != "allow"):
         _fail()
     lifetime = (enroll._time(value["valid_until"]) - enroll._time(value["server_time"])).total_seconds()
     if not 0 < lifetime <= MAX_LIFETIME_SECONDS:

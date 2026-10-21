@@ -6,7 +6,6 @@ The caller supplies approved keys/profile and private ledger/cache objects.
 
 import threading
 
-from fingerprint_enrollment_adapter import EnrollmentAdapter
 from fingerprint_enrollment_approval import suspend_aware_clock
 from fingerprint_enrollment_relay import EnrollmentRelayJobs
 
@@ -16,6 +15,7 @@ PROMPTS = {
     "first_capture": ("지문 등록 1/2", "손가락을 올리세요"),
     "second_capture": ("지문 등록 2/2", "같은 손가락을", "다시 올리세요"),
     "sensor_stored_server_pending": ("지문 저장됨", "계정 연결 확인 중"),
+    "already_registered": ("이미 등록된 지문", "등록을 중단합니다", "PC 안내 확인"),
 }
 
 
@@ -67,6 +67,7 @@ class EnrollmentRuntime:
 
     def __init__(self, fingerprint_service, *, keys, profile, ledger, cache,
                  approval_clock=suspend_aware_clock):
+        from fingerprint_enrollment_adapter import EnrollmentAdapter
         self._lock = threading.Lock()
         self._closed = False
         display_lock = _DisplaySensorLock(fingerprint_service)
@@ -83,3 +84,19 @@ class EnrollmentRuntime:
             if not self._closed:
                 self.jobs.close()
                 self._closed = True
+
+
+class MySqlEnrollmentRuntime(EnrollmentRuntime):
+    """Same UART/OLED owner and shutdown; no local enrollment database."""
+
+    def __init__(self, fingerprint_service, *, keys, profile,
+                 approval_clock=suspend_aware_clock):
+        from fingerprint_enrollment_mysql import MySqlEnrollmentAdapter
+        self._lock, self._closed = threading.Lock(), False
+        display_lock = _DisplaySensorLock(fingerprint_service)
+        self.adapter = MySqlEnrollmentAdapter(
+            sensor=fingerprint_service.finger, codes=fingerprint_service.codes,
+            sensor_lock=display_lock, profile=profile, keys=keys,
+            progress=display_lock.progress, clock=fingerprint_service.clock,
+            sleep=fingerprint_service.sleep)
+        self.jobs = EnrollmentRelayJobs(self.adapter, approval_clock=approval_clock)

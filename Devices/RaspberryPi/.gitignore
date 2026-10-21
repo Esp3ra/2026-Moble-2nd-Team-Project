@@ -4,3 +4,6 @@ light_motion_events*.csv
 attendance-device.service
 .enrollment-state/
 fingerprint_inventory*.local.json
+enrollment.local.json
+enrollment.mysql.local.json
+*.private.json

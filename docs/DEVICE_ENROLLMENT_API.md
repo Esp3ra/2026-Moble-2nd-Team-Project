@@ -1,5 +1,7 @@
 # 지문 등록 서버 API·DB 개발 구현
 
+**최신 MySQL 전용 전환:** Pi의복구ledger/cache까지MySQL로옮기는서버API·010·역할/단계별승인·기존증거이관경계는 [MySQL 영속 계약](ENROLLMENT_MYSQL_DURABILITY.md)을따른다. 아래기존007/legacy연결은이력으로보존하며새모드의sensor_write허용/로컬SQLite운영기준으로사용하지않는다. 새모드는별도명시opt-in이고5번클라이언트변경/실제이관완료가아니다.
+
 1번 작성 → 5번·팀장 / 2026-10-20.
 [5번 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/43#issuecomment-6281140854) · [코드 PR44](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/44).
 
@@ -117,6 +119,8 @@ HTTP의 envelope는 **패딩 없는 base64url 문자열**이다. PC는 decode한
 최종 결과 캐시에 회원ID/nonce/접속참조를 반복하지 않고 원래 서명 티켓 digest로 결합한다.
 
 상태: issued/completed/failed/recovery_required/cancelled. 미완료 기한 초과는 조회에서 expired로 표시한다.
+
+2026-10-21: 서명 결과·010 store 증거·매핑이 없는 만료 실패의 별도 [운영자 종료·명시 재발급](ENROLLMENT_RECOVERY.md)을 제공한다. 독립 기본off/011이 필요하며 일반 발급의 자동 claim 회수나 원래 세션 인수가 아니다. 기존 작업/기한/결과 읽기창은 보존하고 새 작업/claim revision과 이력을 연결한다.
 첫 완료는 기한 내 issued에 한한다. 취소/만료 뒤 저장 보고는409 `ENROLLMENT_RECOVERY_REQUIRED`, 자동 매핑하지 않는다.
 서버가 확정한 동일 **원문 결과 바이트** 재전송은 원래 결과를 반환한다. 원래 티켓 만료 뒤에도 최종 저장부터 결과 조회 창 안이면 가능하다.
 다른 결과 바이트409, 조회 창 만료410. 조회로 TTL/감사/매핑을 새로 만들지 않는다. claim은 자동 삭제/재사용하지 않는다.
