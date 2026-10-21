@@ -21,6 +21,8 @@ TEST_TARGETS = (
     "test_task_web.py", "test_task_web_lifecycle.py", "test_task_web_context.py",
     "test_task_cancellation_current.py",
     "test_task_web_writes.py", "test_task_creation.py", "test_task_start_api.py",
+    "test_task_management.py", "test_task_web_management.py", "test_task_web_results_navigation.py",
+    "test_task_web_member3_integration.py",
     "test_task_lifecycle.py::test_request_lists_do_not_grant_old_assignment_or_other_requester_history",
     "test_task_lifecycle.py::test_cancel_closes_pending_and_preserves_task_assignment_and_readable_history",
     "test_task_lifecycle.py::test_missing_or_wrong_ack_denies_writes_and_exposes_readonly_context",
@@ -47,13 +49,13 @@ def run_pytest(env, runtime, report, targets):
                 text=True, encoding="utf-8", creationflags=subprocess.CREATE_NO_WINDOW | owned.CREATE_SUSPENDED)
             job.assign(process)
         try:
-            stdout, _stderr = process.communicate(timeout=900)
+            stdout, _stderr = process.communicate(timeout=1200)
         except subprocess.TimeoutExpired:
             job.close()
             owned.stop_owned_process(process)
             stdout, _stderr = process.communicate(timeout=20)
             report["pytest"] = helpers.safe_pytest_report(stdout, process.returncode, timeout=True)
-            raise owned.shared.RunFailure("owned task web pytest exceeded 900 seconds") from None
+            raise owned.shared.RunFailure("owned task web pytest exceeded 1200 seconds") from None
         report["pytest"] = helpers.safe_pytest_report(stdout, process.returncode)
         if process.returncode != 0:
             raise owned.shared.RunFailure("owned task web pytest failed: "
@@ -75,7 +77,11 @@ def run(args, report):
     if not args.allow_disposable_mysql or os.name != "nt" or args.mysql_bin_dir is None:
         raise owned.shared.RunFailure("Windows, explicit --allow-disposable-mysql and --mysql-bin-dir are required")
     executable = owned.validate_binary_directory(args.mysql_bin_dir)
-    targets = ("test_task_web.py", "test_task_web_writes.py") if args.suite == "web" else TEST_TARGETS
+    management_web = ("test_task_web_management.py", "test_task_web_results_navigation.py",
+                      "test_task_web_member3_integration.py")
+    web_targets = ("test_task_web.py", "test_task_web_writes.py", *management_web)
+    targets = (management_web if args.suite == "management-web" else web_targets if args.suite == "web" else
+               (*web_targets, "test_task_management.py") if args.suite == "management" else TEST_TARGETS)
     report["suite"], report["test_targets"] = args.suite, list(targets)
     if not all((ROOT / "RemoteWork.Server/tests" / name.split("::", 1)[0]).is_file()
                for name in targets):
@@ -124,8 +130,8 @@ def main():
     parser.add_argument("--allow-disposable-mysql", action="store_true")
     parser.add_argument("--mysql-bin-dir", type=Path)
     parser.add_argument("--report-dir", type=Path)
-    parser.add_argument("--suite", choices=("full", "web"), default="full",
-                        help="full: web plus existing API regressions; web: read/write web after an integration change")
+    parser.add_argument("--suite", choices=("full", "web", "management", "management-web"), default="full",
+                        help="full: all task web/API targets; web: HTML reads/writes; management: web plus management API; management-web: new management and member3 consumer checks")
     args = parser.parse_args()
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "_" + secrets.token_hex(4)
     audit = (args.report_dir or ROOT.parent / ("remote_work_member2_task_web_mysql_" + stamp)).resolve()
@@ -134,7 +140,8 @@ def main():
         return 1
     audit.mkdir(parents=True)
     report = {"mode": "task_web_flask_mysql", "lifecycle_sql": helpers.LIFECYCLE_SQL,
-              "web_actions": ["task.created", "task.accepted", "task.rework_started"],
+              "web_actions": ["task.created", "task.accepted", "task.rework_started",
+                              "task.updated", "task.reassigned", "task.managers_changed"],
               "integrated_ack_installed": False,
               "member3_lifecycle_consumption_verified": False, "shared_environment_verified": False,
               "started_utc": datetime.now(timezone.utc).isoformat()}

@@ -18,7 +18,9 @@ from .start_transition import TaskStartAction
 
 START_ACTIONS = {"accept": TaskStartAction.ACCEPT, "rework-start": TaskStartAction.REWORK_START}
 LABELS = {"task.created": "업무 등록", "task.accepted": "업무 수락",
-          "task.rework_started": "재작업 시작"}
+          "task.rework_started": "재작업 시작", "task.updated": "업무 수정",
+          "task.reassigned": "담당자 변경", "task.managers_changed": "관리자 변경"}
+MANAGEMENT_ACTIONS = frozenset({"task.updated", "task.reassigned", "task.managers_changed"})
 FORM_FIELDS = {"csrf_token", "op", "title", "description", "start_date", "due_date",
                "assignee_id", "manager_user_ids", "q", "page"}
 
@@ -30,12 +32,15 @@ def register(state):
     def enabled(name):
         return state.app.config.get("ENABLE_" + name + "_DRAFT",
             os.getenv("REMOTEWORK_ENABLE_" + name + "_DRAFT") == "1") is True
-    create, start = enabled("TASK_CREATE"), enabled("TASK_START")
+    create, start, manage = enabled("TASK_CREATE"), enabled("TASK_START"), enabled("TASK_MANAGEMENT")
     if create:
         state.add_url_rule("/new", "new", new_task, methods=["GET", "POST"])
     if start:
         state.add_url_rule("/<int:task_id>/start/<action>", "start_prepare", prepare_start, methods=["POST"])
-    if create or start:
+    if manage:
+        from .web_management import manage_task
+        state.add_url_rule("/<int:task_id>/manage/<action>", "manage", manage_task, methods=["GET", "POST"])
+    if create or start or manage:
         state.add_url_rule("/write/execute", "write_execute", execute, methods=["POST"])
         state.add_url_rule("/write/result", "write_result", result, methods=["POST"])
 
@@ -53,6 +58,9 @@ def _authorize(db, action, target):
     elif action in ("task.accepted", "task.rework_started") and "task_web.start_prepare" in current_app.view_functions:
         from .starting import _authorizer
         callback = _authorizer(TaskStartAction.ACCEPT if action == "task.accepted" else TaskStartAction.REWORK_START)
+    elif action in MANAGEMENT_ACTIONS and "task_web.manage" in current_app.view_functions:
+        from .management import _authorizer
+        callback = _authorizer(action)
     else:
         raise AppError(503, "WRITE_ACTION_NOT_READY", "이 업무 동작이 현재 서버에서 활성화되지 않았습니다.")
     if callback(db, target) is not True:
@@ -92,9 +100,15 @@ def _load():
 
 def _page(intent, *, error=None, completed=None, not_recorded=False, status=200):
     # No short ticket expiry: W1 may retain a success after the execute key expires.
+    self_removed = (intent["action"] == "task.managers_changed"
+                    and g.user.id not in intent["body"]["manager_user_ids"])
     response = make_response(render_template("tasks/write_confirmation.html", intent=intent,
         ticket=_ticket(intent), action_label=LABELS[intent["action"]], error=error,
         completed=completed, not_recorded=not_recorded,
+        management=intent["action"] in MANAGEMENT_ACTIONS,
+        access_lost=error is not None and error.status == 403,
+        self_removed=self_removed,
+        can_open_detail=not self_removed or intent["summary"].get("before", {}).get("assignee_id") == g.user.id,
         back_url=url_for("task_web.index", **intent["filters"])), status)
     response.headers["Cache-Control"] = "no-store"
     response.headers["Referrer-Policy"] = "same-origin"
@@ -195,6 +209,9 @@ def new_task():
 
 
 def _recover(intent, exc):
+    if exc.status == 403 and intent["action"] in MANAGEMENT_ACTIONS:
+        return _page(intent | {"phase": "recovery"}, error=AppError(403, exc.code,
+            "현재 관리 권한이 없어 처리 결과를 확인할 수 없습니다. 성공이나 실패로 단정하지 말고 현재 업무 관리자에게 확인해 주세요. 기존 확인 요청은 보존하며 자동으로 재전송하지 않습니다."), status=403)
     if exc.status in (401, 403, 404):
         raise exc
     return _page(intent | {"phase": "recovery"}, error=exc, status=exc.status)
@@ -212,6 +229,10 @@ def execute():
             if intent["action"] == "task.created":
                 from .creation import execute_creation
                 saved = execute_creation(db, body=intent["body"], key=intent["key"])
+            elif intent["action"] in MANAGEMENT_ACTIONS:
+                from .management import execute_management
+                saved = execute_management(db, target=intent["target"], action=intent["action"],
+                                           body=intent["body"], key=intent["key"])
             else:
                 from .starting import execute_start
                 action = TaskStartAction.ACCEPT if intent["action"] == "task.accepted" else TaskStartAction.REWORK_START

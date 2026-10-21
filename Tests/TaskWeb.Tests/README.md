@@ -1,15 +1,36 @@
 <a id="업무-웹-읽기-전용-mysql-검사"></a>
 # 업무 웹 조회·등록·수락·재작업 MySQL 검사
 
-업무 웹과 기존 등록·시작 API를 새 소유 MySQL에서 검사합니다. 사용자 `.env`·설정 DB·실행 중 서비스·SQLite를 사용하지 않습니다. 기존 소유권/Windows Job helper와 실제 raw002/004/006/009를 재사용하며 전역 schema version1과 물리DDL을 보존합니다. 아래31/62/85개 결과는 각각 앞선 읽기 회차의 기록이며 현재 실행 결과와 합산하지 않습니다.
+업무 웹과 기존 등록·시작·관리 API를 새 소유 MySQL에서 검사합니다. 사용자 `.env`·설정 DB·실행 중 서비스·SQLite를 사용하지 않습니다. 기존 소유권/Windows Job helper와 실제 raw002/004/006/009를 재사용하며 전역 schema version1과 물리DDL을 보존합니다. 아래31/62/85/196/81개 결과는 각각 앞선 회차의 기록이며 현재 실행 결과와 합산하지 않습니다.
+
+<a id="task-web-management-checks"></a>
+## 현재 수정·재배정·관리자 변경과 PR52 진입 검사
+
+`test_task_web_management.py`의62개 항목을 추가했습니다. 관리 기능만 켠 경로 등록,GET/검색/확인의 무효과,API와 동일 W1 실행/원본 배정 보존,다섯 상태·현재 지정 관리자·취소,처음 초안 버전의 검색 후 유지,CSRF/변조/중복/대상·이전 로그인 차단,현재 후보 재검사,동일 값 거절,관리자 인계 성공/유실 후403,관계 회수·과거 수락/제출 자료 보존·감사 실패 rollback과 같은 키 복구를 검사합니다. 기존 `test_task_management.py`를 함께 실행해 공통 실행 함수 추출 후 API 계약을 대조합니다.
+
+`test_task_web_results_navigation.py`의16개 항목은 PR52 병합 alpha `cbda025`의 기존 `/results?task_id=<id>&view=own` 진입을 검사합니다. 현재 본인·관리자 본인·취소·기능off,관리 업무만의 권한 미확대,필터를 보존한 현재 상세 새로고침,결과물의 현재 관계 재검사와 이전 선택 힌트의 권한 우회 방지를 다룹니다. 이 모듈은 실제 결과물 제출·공용 첨부 소비·배포 ACK·두 PC 검사가 아닙니다.
+
+`test_task_web_member3_integration.py`2개는 실제 기존3번 blueprint와 로컬 개발 검토자 관계를 사용합니다. 업무 웹 수정 감사가3번 관리자 이력에 나타나는 것과,실제3번 제출 성공 후 이전 버전의 관리자 변경이409로 막혀 추가 감사/receipt/관계 변경이 없는 것을 검사합니다. 첨부 없는 소유 합성 DB·로컬 검토자 범위이며 최종 조직·공용 파일·lifecycle 쓰기·배포 ACK 검사가 아닙니다.
+
+최종 `--suite management-web` 실행은 상류 `ba9e312`와 결합한 소스에서 **80통과·실패/생략0,164.56초**입니다. 물리DDL 불변·schema_versions `[1]`과 소유 MySQL/DB/프로세스/runtime 정리를 확인했습니다. 근거는 소스 밖 `ES/tmp/remote_work_member2_task_web_management_20261021_final/verification.json`입니다. 첫280 실행의 새 테스트8실패는 공통 CSRF400 기대와 최초 GET/준비 필터 조건의 테스트 불일치를 수정한 것으로 제품 규약을 완화하지 않았습니다. 그 실행에서 기존 관리API121·기존 웹33/쓰기48의202개는 모두 통과했습니다. 첫 실행의 새 테스트 통과분이나 진단 재실행을 최종80개에 중복 합산하지 않습니다.
+
+최신 완료 결과는 [LOG/2번 구현·검증](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md)의 해당 회차 및 소스 밖 `verification.json`을 기준으로 확인합니다. `--suite management-web`은 이 세 신규 모듈,`--suite web`은 기존 웹 읽기/등록·시작도 포함,`--suite management`는 여기에 기존 관리 API,기본 `--suite full`은 전체 지정 회귀를 수행합니다. 서로 다른 실행을 통과 수로 합산하지 않습니다.
+
+```powershell
+python Tests/TaskWeb.Tests/run_mysql_check.py --allow-disposable-mysql --mysql-bin-dir 'C:/Program Files/MySQL/MySQL Server 8.2/bin' --suite management-web --report-dir 'C:/검증결과/새업무웹관리검사'
+```
+
+PR52의3번 취소/pending 차단·공용 첨부 제공 코드 병합과 운영 통합을 구분합니다. PR60의 `013_shared_attachments.mysql.sql`은 제공됐지만 이번 실행기는 해당 SQL을 적용하지 않으며2번 첨부 연결/해제 소비 트랜잭션·통합 ACK·공유 DB를 활성화하지 않습니다. 취소·연장 실제 변경503은 유지합니다.
 
 ## 현재 등록·수락·재작업 연결 검사
+
+아래는 수정·재배정·관리자 변경 연결 전 회차의 완료 기록입니다.
 
 **최종 실행:** PR59 병합 전 전체 소유 MySQL **196통과·실패/생략0,504.69초**, PR59와 결합한 소스의 웹 **81통과·실패/생략0,168.15초**를 각각 확인했습니다. 두 실행을 합산한 고유 검사 수로 표시하지 않습니다. 후자는 기존/상류 메뉴 읽기33+신규 쓰기48이며 변경되지 않은 API의 앞선 전체 회귀를 다시 실행한 수치가 아닙니다. 순수 전이/날짜/cold 등록은 별도로 **172통과,17.43초**입니다. 두 MySQL 실행 모두 물리DDL 불변·schema1·소유 DB/프로세스/runtime 정리를 확인했습니다.
 
 근거는 소스 밖 `ES/tmp/remote_work_member2_task_web_writes_20261021_mysql_final/verification.json`과 `..._mysql_merged/verification.json`입니다. 결합 후 웹만 재현하려면 같은 실행기에 `--suite web`을 추가합니다. API 포함 전체는 기본 `--suite full`입니다. commit 후 응답 생성 실패/감사 실패/결과 조회 실패는 명시 주입 검사이며 실제 네트워크 장애나 실제3번 통합의 완료 근거로 확대하지 않습니다.
 
-현재 실행기는 `test_task_web_writes.py`의 cookie/CSRF·정확한 로그인 바인딩·서명 확인/실행·후보 선택·동일 키 재응답/결과 확인·권한/버전/취소/날짜 검사를 포함합니다. API 추출 회귀는 기존 `test_task_creation.py`와 `test_task_start_api.py`를 함께 실행하고,아래 기존 읽기·신청함·상세·취소 guard와 lifecycle6개 검사도 유지합니다. **최종 실행 결과는 [LOG/2번 구현·검증](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md)과 해당 회차의 `verification.json` 후속 기록을 기준으로 확인합니다.** 수집·무DB 생략·서로 다른 반복 실행을 실제 통과 수로 더하지 않습니다.
+실행기는 `test_task_web_writes.py`의 cookie/CSRF·정확한 로그인 바인딩·서명 확인/실행·후보 선택·동일 키 재응답/결과 확인·권한/버전/취소/날짜 검사도 유지합니다. API 추출 회귀는 기존 `test_task_creation.py`와 `test_task_start_api.py`를 함께 실행하고,아래 기존 읽기·신청함·상세·취소 guard와 lifecycle6개 검사도 유지합니다. **최종 실행 결과는 [LOG/2번 구현·검증](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md)과 해당 회차의 `verification.json` 후속 기록을 기준으로 확인합니다.** 수집·무DB 생략·서로 다른 반복 실행을 실제 통과 수로 더하지 않습니다.
 
 별도 소유 MySQL·합성 계정의 브라우저에서는 신규 등록 입력→`not_recorded` 결과 확인→명시 실행→직원 로그인→업무 수락→현재 진행중 재조회와,반려 업무의 재작업 시작→진행중을 확인했습니다. 미리보기 자원 정리는 별도 보고서로 확인하며 Flask 검사 수에 포함하지 않습니다. 실제 공유 계정·두PC·작은 폭/모바일·3번의 실제 제출/첨부 차단·경합·integrated ACK는 이 확인의 완료 범위가 아닙니다.
 
