@@ -1,4 +1,4 @@
-"""Read-only task web regressions in a newly owned disposable MySQL.
+"""Task web read/write regressions in a newly owned disposable MySQL.
 
 Uses existing member2 identity/Windows Job/cleanup helpers, reviewed raw DDL,
 synthetic web users and Flask requests. No user server, .env or SQLite is used.
@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[2]
 TEST_TARGETS = (
     "test_task_web.py", "test_task_web_lifecycle.py", "test_task_web_context.py",
     "test_task_cancellation_current.py",
+    "test_task_web_writes.py", "test_task_creation.py", "test_task_start_api.py",
     "test_task_lifecycle.py::test_request_lists_do_not_grant_old_assignment_or_other_requester_history",
     "test_task_lifecycle.py::test_cancel_closes_pending_and_preserves_task_assignment_and_readable_history",
     "test_task_lifecycle.py::test_missing_or_wrong_ack_denies_writes_and_exposes_readonly_context",
@@ -46,13 +47,13 @@ def run_pytest(env, runtime, report):
                 text=True, encoding="utf-8", creationflags=subprocess.CREATE_NO_WINDOW | owned.CREATE_SUSPENDED)
             job.assign(process)
         try:
-            stdout, _stderr = process.communicate(timeout=600)
+            stdout, _stderr = process.communicate(timeout=900)
         except subprocess.TimeoutExpired:
             job.close()
             owned.stop_owned_process(process)
             stdout, _stderr = process.communicate(timeout=20)
             report["pytest"] = helpers.safe_pytest_report(stdout, process.returncode, timeout=True)
-            raise owned.shared.RunFailure("owned task web pytest exceeded 600 seconds") from None
+            raise owned.shared.RunFailure("owned task web pytest exceeded 900 seconds") from None
         report["pytest"] = helpers.safe_pytest_report(stdout, process.returncode)
         if process.returncode != 0:
             raise owned.shared.RunFailure("owned task web pytest failed: "
@@ -129,7 +130,8 @@ def main():
         return 1
     audit.mkdir(parents=True)
     report = {"mode": "task_web_flask_mysql", "lifecycle_sql": helpers.LIFECYCLE_SQL,
-              "readonly_web": True, "integrated_ack_installed": False,
+              "web_actions": ["task.created", "task.accepted", "task.rework_started"],
+              "integrated_ack_installed": False,
               "member3_lifecycle_consumption_verified": False, "shared_environment_verified": False,
               "started_utc": datetime.now(timezone.utc).isoformat()}
     exit_code = 0

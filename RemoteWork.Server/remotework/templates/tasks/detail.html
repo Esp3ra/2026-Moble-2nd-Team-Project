@@ -27,5 +27,13 @@
 </section>
 {% endif %}
 <section class="card" aria-labelledby="task-description-heading"><h2 id="task-description-heading">업무 내용</h2><div class="task-description">{{ task.description }}</div></section>
+{% if has_start and task.assignee_id == g.user.id and not task.get('is_cancelled') and task.task_status in ['not_started', 'returned'] %}
+<section class="card" aria-labelledby="task-start-heading">
+{% set action = 'accept' if task.task_status == 'not_started' else 'rework-start' %}
+<h2 id="task-start-heading">{{ '업무 수락' if action == 'accept' else '재작업 시작' }}</h2>
+<p class="muted">한국 시간 기준 시작일부터 마감일 당일까지 가능합니다. 현재 배정과 날짜를 다시 확인한 후 실행 내용을 표시합니다.</p>
+<form method="post" action="{{ url_for('task_web.start_prepare', task_id=task.task_id, action=action, **filters) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">{{ '업무 수락 내용 확인' if action == 'accept' else '재작업 시작 내용 확인' }}</button></form>
+</section>
+{% endif %}
 </div>
 {% endblock %}

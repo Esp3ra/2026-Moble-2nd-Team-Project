@@ -41,11 +41,9 @@ def _unicode_text(value, label):
         raise AppError(400, "INVALID_INPUT", f"{label}의 문자 형식을 확인해 주세요.") from None
 
 
-def _input():
-    if request.args:
-        raise AppError(400, "INVALID_INPUT", "업무 등록에는 조회 조건을 전달하지 않습니다.")
-    body = payload()
-    if set(body) != INPUT_FIELDS:
+def validate_creation_body(body):
+    """Validate a transport-independent body without normalizing its fingerprint."""
+    if not isinstance(body, dict) or set(body) != INPUT_FIELDS:
         raise AppError(400, "INVALID_INPUT", "업무 등록 입력 항목을 확인해 주세요.")
     _unicode_text(body["title"], "업무 제목")
     if not body["title"].strip() or len(body["title"]) > 200:
@@ -68,6 +66,12 @@ def _input():
     return body, start_date, due_date, assignee_id, manager_ids
 
 
+def _input():
+    if request.args:
+        raise AppError(400, "INVALID_INPUT", "업무 등록에는 조회 조건을 전달하지 않습니다.")
+    return validate_creation_body(payload())
+
+
 def _creation_authorizer():
     if not current_app.config.get("ENABLE_COMMON_WRITE_DRAFT"):
         raise AppError(503, "WRITE_SUPPORT_DISABLED", "공통 쓰기 지원이 활성화되지 않았습니다.")
@@ -77,55 +81,69 @@ def _creation_authorizer():
     return authorize
 
 
+def execute_creation(db, *, body, key):
+    """Create once inside the caller's existing authenticated transaction.
+
+    Both transports use this mutation. The caller retains commit/rollback and
+    must not open a nested transaction or substitute another request DB session.
+    """
+    from ...db import get_db
+    if not getattr(g, "write_transaction_active", False) or db is not get_db():
+        raise RuntimeError("Use the current authenticated_transaction for task creation")
+    authorize = _creation_authorizer()
+    if g.user.role != "admin":
+        raise AppError(403, "FORBIDDEN", "접근 권한이 없습니다.")
+    # Keep receipt registration behind the common opt-in, for either transport.
+    from ...write_requests import WriteResult, perform_once
+    body, start_date, due_date, assignee_id, requested_managers = validate_creation_body(body)
+
+    def create(session):
+        # Candidate checks belong to the first mutation, not to a replay of
+        # an already committed request whose candidates may since change.
+        manager_ids = sorted(set(requested_managers) | {g.user.id})
+        users = lock_users(session, [assignee_id, *manager_ids])
+        assignee = users.get(assignee_id)
+        if assignee is None or not assignee.is_active or assignee.role not in ("employee", "admin"):
+            raise AppError(409, "ASSIGNEE_UNAVAILABLE", "선택한 업무 담당자를 현재 배정할 수 없습니다.")
+        for user_id in manager_ids:
+            manager = users.get(user_id)
+            if manager is None or not manager.is_active or manager.role != "admin":
+                raise AppError(409, "TASK_MANAGER_UNAVAILABLE", "선택한 업무 관리자를 현재 지정할 수 없습니다.")
+
+        now = utcnow()
+        task = TaskRecord(
+            title=body["title"], description=body["description"],
+            task_status="not_started", start_date=start_date, due_date=due_date,
+            current_assignment_revision=1, row_version=1,
+            created_by=g.user.id, created_at=now, updated_at=now)
+        session.add(task)
+        session.flush()
+        session.add(TaskAssignment(
+            task_id=task.task_id, revision=1, assignee_id=assignee_id,
+            assigned_by=g.user.id, assigned_at=now, accepted_at=None))
+        for user_id in manager_ids:
+            session.add(TaskManager(task_id=task.task_id, user_id=user_id))
+        session.flush()
+        # Use the stored MySQL DATETIME precision for the first response as
+        # well as later GETs and the common retained result.
+        session.refresh(task)
+        audit("task.created", "task", task.task_id, {
+            "row_version": str(task.row_version),
+            "assignment_revision": task.current_assignment_revision,
+            "assignee_id": assignee_id, "manager_user_ids": manager_ids})
+        return WriteResult({
+            "task_id": str(task.task_id), "row_version": str(task.row_version),
+            "assignment_revision": task.current_assignment_revision,
+            "task_status": task.task_status, "updated_at": iso(task.updated_at)}, 201)
+
+    return perform_once(db, key=key, action="task.created", target="new", body=body,
+                        authorize=authorize, mutate=create)
+
+
 @login_required
 def create_task():
     with authenticated_transaction(roles=("admin",)) as db:
-        authorize = _creation_authorizer()
-        # The shared write flag owns receipt model registration. Do not import
-        # that module merely because the task creation blueprint was enabled.
-        from ...write_requests import WriteResult, perform_once
-        body, start_date, due_date, assignee_id, requested_managers = _input()
-
-        def create(session):
-            # Candidate checks belong to the first mutation, not to a replay of
-            # an already committed request whose candidates may since change.
-            manager_ids = sorted(set(requested_managers) | {g.user.id})
-            users = lock_users(session, [assignee_id, *manager_ids])
-            assignee = users.get(assignee_id)
-            if assignee is None or not assignee.is_active or assignee.role not in ("employee", "admin"):
-                raise AppError(409, "ASSIGNEE_UNAVAILABLE", "선택한 업무 담당자를 현재 배정할 수 없습니다.")
-            for user_id in manager_ids:
-                manager = users.get(user_id)
-                if manager is None or not manager.is_active or manager.role != "admin":
-                    raise AppError(409, "TASK_MANAGER_UNAVAILABLE", "선택한 업무 관리자를 현재 지정할 수 없습니다.")
-
-            now = utcnow()
-            task = TaskRecord(
-                title=body["title"], description=body["description"],
-                task_status="not_started", start_date=start_date, due_date=due_date,
-                current_assignment_revision=1, row_version=1,
-                created_by=g.user.id, created_at=now, updated_at=now)
-            session.add(task)
-            session.flush()
-            session.add(TaskAssignment(
-                task_id=task.task_id, revision=1, assignee_id=assignee_id,
-                assigned_by=g.user.id, assigned_at=now, accepted_at=None))
-            for user_id in manager_ids:
-                session.add(TaskManager(task_id=task.task_id, user_id=user_id))
-            session.flush()
-            # Use the stored MySQL DATETIME precision for the first response as
-            # well as later GETs and the common retained result.
-            session.refresh(task)
-            audit("task.created", "task", task.task_id, {
-                "row_version": str(task.row_version),
-                "assignment_revision": task.current_assignment_revision,
-                "assignee_id": assignee_id, "manager_user_ids": manager_ids})
-            return WriteResult({
-                "task_id": str(task.task_id), "row_version": str(task.row_version),
-                "assignment_revision": task.current_assignment_revision,
-                "task_status": task.task_status, "updated_at": iso(task.updated_at)}, 201)
-
-        result = perform_once(
-            db, key=request.headers.get("Idempotency-Key"), action="task.created",
-            target="new", body=body, authorize=authorize, mutate=create)
+        _creation_authorizer()
+        body, *_ = _input()
+        result = execute_creation(db, body=body, key=request.headers.get("Idempotency-Key"))
     return success(result.data, result.status)
