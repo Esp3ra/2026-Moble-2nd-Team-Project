@@ -75,6 +75,8 @@ def users():
 @bp.get("/features/<name>")
 @login_required
 def feature(name):
+    if name == "tasks" and "task_web.index" in current_app.view_functions:
+        return redirect(url_for("task_web.index"))
     if name == "results" and "results_web.index" in current_app.view_functions:
         return redirect(url_for("results_web.index"))
     if name == "notices":
