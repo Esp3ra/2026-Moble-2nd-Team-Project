@@ -18,7 +18,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 TEST_TARGETS = (
-    "test_task_web.py", "test_task_web_lifecycle.py",
+    "test_task_web.py", "test_task_web_lifecycle.py", "test_task_web_context.py",
+    "test_task_cancellation_current.py",
     "test_task_lifecycle.py::test_request_lists_do_not_grant_old_assignment_or_other_requester_history",
     "test_task_lifecycle.py::test_cancel_closes_pending_and_preserves_task_assignment_and_readable_history",
     "test_task_lifecycle.py::test_missing_or_wrong_ack_denies_writes_and_exposes_readonly_context",

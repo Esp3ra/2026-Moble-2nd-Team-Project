@@ -71,10 +71,21 @@ def detail(task_id):
     scope, status, include_cancelled = _filters()
     if task_id > 9_223_372_036_854_775_807:
         raise AppError(400, "INVALID_INPUT", "업무 ID 범위를 확인해 주세요.")
-    # Filters only retain the return destination. They grant no detail permission;
-    # get_task independently rechecks the current own-or-managed relationship.
-    task = get_task(g.user, task_id)
+    # Filters retain only the return destination. Both read paths independently
+    # recheck the current own-or-managed relationship.
+    lifecycle_context = None
+    if "task_web.extension_requests" in current_app.view_functions:
+        from ...auth import authenticated_transaction
+        from .lifecycle import read_lifecycle_detail
+
+        # Current identity, task/assignment locks and the displayed summary use
+        # one guarded transaction. Read failures never become a partial page.
+        with authenticated_transaction() as db:
+            lifecycle_context, task = read_lifecycle_detail(db, str(task_id))
+    else:
+        task = get_task(g.user, task_id)
     return render_template("tasks/detail.html", task=task, status_labels=STATUS_LABELS,
+                           lifecycle_context=lifecycle_context,
                            back_url=url_for("task_web.index", **_list_args(scope, status, include_cancelled)))
 
 

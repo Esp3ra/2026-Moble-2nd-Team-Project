@@ -9,6 +9,23 @@
 <h2 id="task-info-heading">업무 정보</h2>
 <dl class="task-info"><dt>업무 번호</dt><dd>{{ task.task_id }}</dd><dt>담당자</dt><dd>{{ task.assignee_name }}</dd><dt>상태</dt><dd><span class="task-state task-state-{{ task.task_status }}">{{ status_labels[task.task_status] }}</span>{% if task.get('is_cancelled') %}<span class="task-cancelled">취소됨</span>{% endif %}</dd><dt>시작일</dt><dd><time datetime="{{ task.start_date }}">{{ task.start_date }}</time></dd><dt>마감일</dt><dd><time datetime="{{ task.due_date }}">{{ task.due_date }}</time></dd></dl>
 </section>
+{% if lifecycle_context and lifecycle_context.cancellation %}
+<section class="card task-lifecycle-card task-cancellation-card" aria-labelledby="task-cancellation-heading">
+<h2 id="task-cancellation-heading">업무 취소 정보</h2>
+<p class="muted">업무 상태는 취소 전 상태를 표시합니다.</p>
+<dl class="task-lifecycle-info"><dt>취소 일시</dt><dd><time datetime="{{ lifecycle_context.cancellation.cancelled_at }}">{{ lifecycle_context.cancellation.cancelled_at|replace('T', ' ')|replace('Z', ' UTC') }}</time></dd></dl>
+<h3>취소 사유</h3><div class="task-lifecycle-reason">{{ lifecycle_context.cancellation.reason }}</div>
+</section>
+{% endif %}
+{% if lifecycle_context and lifecycle_context.pending_extension %}
+{% set pending = lifecycle_context.pending_extension %}
+<section class="card task-lifecycle-card task-pending-extension-card" aria-labelledby="task-pending-extension-heading">
+<h2 id="task-pending-extension-heading">마감일 연장 대기</h2>
+<p class="muted">연장 신청이 아직 승인되지 않았습니다. 승인 전에는 업무 정보의 현재 마감일이 적용됩니다.</p>
+<dl class="task-lifecycle-info"><dt>신청 당시 마감일</dt><dd><time datetime="{{ pending.original_due_date }}">{{ pending.original_due_date }}</time></dd><dt>희망 마감일</dt><dd><time datetime="{{ pending.requested_due_date }}">{{ pending.requested_due_date }}</time></dd><dt>신청 일시</dt><dd><time datetime="{{ pending.created_at }}">{{ pending.created_at|replace('T', ' ')|replace('Z', ' UTC') }}</time></dd></dl>
+<h3>신청 사유</h3><div class="task-lifecycle-reason">{{ pending.reason }}</div>
+</section>
+{% endif %}
 <section class="card" aria-labelledby="task-description-heading"><h2 id="task-description-heading">업무 내용</h2><div class="task-description">{{ task.description }}</div></section>
 </div>
 {% endblock %}

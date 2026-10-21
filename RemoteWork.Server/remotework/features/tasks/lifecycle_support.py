@@ -117,7 +117,7 @@ def ensure_not_cancelled(db, task_id):
     """Call after current authorization, inside the shared guarded transaction."""
     if not storage_present(db):
         return
-    if db.execute(text("SELECT task_id FROM task_cancellations WHERE task_id = :task_id"),
+    if db.execute(text("SELECT task_id FROM task_cancellations WHERE task_id = :task_id FOR UPDATE"),
                   {"task_id": task_id}).first() is not None:
         raise AppError(409, "TASK_CANCELLED", "취소된 업무에서는 더 이상 작업할 수 없습니다.")
 
