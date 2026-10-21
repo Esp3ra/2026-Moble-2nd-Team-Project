@@ -7,7 +7,7 @@
   <p id="message" class="muted" role="status" aria-live="polite">이력을 불러오고 있습니다.</p>
   <section class="card"><form id="history-filters" class="toolbar">
     <label class="search">업무<select id="history-task"><option value="">전체 업무</option></select></label>
-    <label>변경 유형<select id="history-kind"><option value="">전체 변경 유형</option><option value="created">생성</option><option value="assignee_changed">담당자 변경</option><option value="status_changed">상태 변경</option><option value="submitted">결과 제출</option><option value="approved">승인</option><option value="returned">반려</option><option value="other">기타</option></select></label>
+    <label>변경 유형<select id="history-kind"><option value="">전체 변경 유형</option><option value="created">생성</option><option value="assignee_changed">담당자 변경</option><option value="status_changed">상태 변경</option><option value="submitted">결과 제출</option><option value="approved">승인</option><option value="returned">반려</option><option value="updated">업무 수정</option><option value="reassigned">업무 재배정</option><option value="managers_changed">관리자 변경</option><option value="cancelled">업무 취소</option><option value="deadline_extension_requested">연장 신청</option><option value="deadline_extension_approved">연장 승인</option><option value="deadline_extension_rejected">연장 반려</option><option value="deadline_extension_withdrawn">연장 철회</option><option value="other">기타</option></select></label>
     <button type="submit">조회</button>
   </form></section>
   <section class="card"><h2>업무 변경 이력</h2><p id="history-count" class="muted"></p>

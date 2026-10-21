@@ -38,3 +38,25 @@ node --check RemoteWork.Server/remotework/static/results.js
 `--preview`는 격리된 TEST 자료로만 loopback 브라우저 점검 서버를 열고 종료 후 정리합니다. 앞선 웹 구현 회차에서 직접 브라우저 제출/다운로드 해시 비교·반려/빈 승인 의견·재작업/2차·과거 회차·이력 필터/상세·응답 유실 결과 확인을 실행했습니다. 그 브라우저 조작은 최신alpha 결합 후 전부 재실행한 결과로 표시하지 않습니다. 이번 후속 결합에서는 위 자동 MySQL/실제HTTP 검사를 재실행했습니다.
 
 최신2번 취소/연장 모델의 실제3번 소비·경합/배포확인, 직급 자동 선정, 최종/공유DB·물리두PC·실제장비·운영배포는 미실행/후속입니다.2번 자체 대역 검증을3번 통합 검증으로 쓰지 않으며 실제소비 확인gate를 설치/해제하지 않습니다.
+
+## 2026-10-21 후속 검사
+
+`verify_client.ps1`은 dotnet 실행 위치에서 설치된 .NET8 참조팩과 실행 PowerShell의 같은 major WindowsDesktop runtime을 자동 탐색합니다. 특정 패치 버전8.0.29/10.0.9를 강제하지 않습니다. 필요한 계열이 없으면 설치 필요를 명시하며 제품 csproj를 바꾸지 않습니다.
+
+```powershell
+node Tests/Results.Http.Tests/verify_ui.js
+python Tests/Results.Http.Tests/verify_lifecycle.py
+python Tests/Results.Http.Tests/verify_web.py
+python Tests/Results.Http.Tests/verify_cold.py
+```
+
+직접 결과: JS handler 대역52, 실제 MySQL/loopback 취소·연장·첨부258, 서버185, C#HTTP41/115소스 컴파일0오류0경고, 최종 웹183통과. 세부 범위와 이전177/183·반복185 중복 합산 금지는 docs/RESULTS.md의2026-10-21절을 따릅니다. JS대역52를 실제브라우저/DB 검사로 표시하지 않습니다. 실패fixture 보완 뒤 최종 결과이며 초기SQL주석/응답envelope/ACK선행조건을 잘못 읽은 테스트 실행은 통과 수치에 포함하지 않습니다. 제품/공유 환경의 lifecycle ACK는 설치하지 않았습니다.
+
+
+## 2026-10-21 공용 첨부 제공부
+
+`python -B Tests/Results.Http.Tests/verify_shared.py`: 실제 소유 MySQL과 실제 loopback HTTP134검사 통과. 테스트용 업무 소비 route는 2번 제품 코드가 아닌 명시 fixture이며, 실제 업무 등록/교체/취소 화면 연결 완료로 표시하지 않습니다. 실제 SQL 초안3테이블을 전용 DB에만 적용했고 사용자 DB/계정/파일은 변경하지 않았습니다.
+
+범위: 현재 역할·다른 업무 공유 권한, A 삭제 후 B/과거 회차 보존, 신규 업무+첨부 같은TX와 rollback, 중복 제출receipt, 첫/두번째 회차·최신순, 등록 취소·마지막참조·만료정리·삭제실패재시도, 파일크기/개수/이름/해시, 취소 중 업로드/완료 차단·과거 제출 보존. 공유 DB 스키마/2번 소비 연결/두PC/실제 장비는 미검증입니다.
+
+이번 전송함수 재사용 변경 뒤 기존 서버191·웹183·C#41/115소스0오류0경고·취소연장258검사도 통과했습니다. 마지막 권한 조건 보완 뒤 서버191·웹183을 재실행했고 C# 소스는 바꾸지 않았습니다.134 이전의91/112/126·반복191 등을 합산하지 않습니다. 초기 소비fixture 경로/내부 정수ID 보완 과정의 실패 실행은 통과 수에 포함하지 않습니다.

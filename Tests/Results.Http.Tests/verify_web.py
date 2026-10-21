@@ -83,6 +83,13 @@ def run_web(app, password, storage):
         return action(login,'decide',item['submission_id'],body,request_key)
 
     check(clients['worker'].get('/features/results').location.endswith('/results'),'existing result menu route')
+    page=clients['worker'].get('/results?task_id=100&view=own')
+    check(page.status_code==200 and 'data-task-id="100"' in page.get_data(as_text=True),'task navigation hint rendered')
+    page=clients['manager'].get('/results?task_id=101&view=own')
+    check(page.status_code==200 and '<option value="own" selected>' in page.get_data(as_text=True),'admin own navigation scope rendered')
+    check(clients['worker'].get('/results?view=review').status_code==403,'navigation scope cannot grant employee review access')
+    for query in ('task_id=0','task_id=100&task_id=101','return_url=https://invalid.example'):
+        check(clients['worker'].get('/results?'+query).status_code==400,'invalid navigation query rejected '+query)
     check(clients['manager'].get('/results/history').status_code==200,'admin history template')
     check(clients['worker'].get('/results/history').status_code==403,'staff history denied')
     check(clients['worker'].get('/api/v1/results/history-tasks').status_code==401,'web cookie not API Bearer')

@@ -5,10 +5,13 @@
   const $ = id => document.getElementById(id);
   const labels = {not_started:"진행전", in_progress:"진행중", submitted:"제출완료", approved:"승인완료", returned:"반려완료"};
   const reviewLabels = {submitted:"검토 대기", approved:"승인", returned:"반려"};
-  const kinds = {created:"생성", assignee_changed:"담당자 변경", status_changed:"상태 변경", submitted:"결과 제출", approved:"승인", returned:"반려", other:"기타"};
+  const kinds = {created:"생성", assignee_changed:"담당자 변경", status_changed:"상태 변경", submitted:"결과 제출", approved:"승인", returned:"반려",
+    updated:"업무 수정", reassigned:"담당자 변경", managers_changed:"관리자 변경", cancelled:"업무 취소",
+    deadline_extension_requested:"연장 신청", deadline_extension_approved:"연장 승인", deadline_extension_rejected:"연장 반려", deadline_extension_withdrawn:"연장 철회", other:"기타"};
   const scope = root.dataset.session, csrf = root.dataset.csrf;
   const controllers = new Set();
   let invalid = false, busy = false, pending = null;
+  let pendingFailure = null, canReprepare = false, selectionRevision = 0;
   let tasks = [], task = null, submissions = [], selected = null, generation = 0;
   let files = [], submissionContext = null, decisionContext = null, outcome = "approved";
   const show = (id, text, error = false) => {
@@ -27,7 +30,8 @@
     b.addEventListener("click", handler); return b;
   };
   function stop(message, login = false) {
-    invalid = true; pending = null; files = [];
+    invalid = true; pending = null; pendingFailure = null; canReprepare = false; files = [];
+    submissionContext = decisionContext = null;
     for (const controller of controllers) controller.abort();
     for (const dialog of root.querySelectorAll("dialog[open]")) dialog.close();
     for (const id of ["tasks","detail","attachments","rounds","history-rows","history-detail"]) $(id)?.replaceChildren();
@@ -72,9 +76,10 @@
   const fail = error => { if (!invalid) show("message", error.message || "처리 결과를 확인하지 못했습니다.", true); };
   function lock(value) {
     busy = value;
-    for (const id of ["submit-save","decision-save","lookup","retry","upload-files","description","reason","view"]) {
-      if ($(id)) $(id).disabled = value || Boolean(pending && !["lookup","retry"].includes(id));
+    for (const id of ["submit-save","decision-save","lookup","retry","reprepare","upload-files","description","reason","view"]) {
+      if ($(id)) $(id).disabled = value || Boolean(pending && !["lookup","retry","reprepare"].includes(id));
     }
+    for (const id of ["tasks","rounds"]) for (const b of $(id)?.querySelectorAll("button") || []) b.disabled = value || Boolean(pending);
     updateActions();
   }
   function updateActions() {
@@ -113,6 +118,7 @@
     }
   }
   function renderDetail(item) {
+    ++selectionRevision;
     selected = item;
     const title = `${task.task_id} · ${task.title}\n담당자: ${task.assignee_name}\n업무 상태: ${labels[task.task_status]} · 마감일: ${task.due_date}`;
     $("detail").textContent = title + (item ? `\n\n${item.round_no}차 제출 · ${reviewLabels[item.status]}\n제출자: ${item.submitted_by_name}\n제출 시각: ${date(item.submitted_at)}\n\n${item.description}\n\n검토 시각: ${date(item.reviewed_at)}\n${item.status === "returned" ? "반려 사유" : "검토 의견"}: ${item.reason || "—"}` : "\n\n아직 제출된 결과물이 없습니다.");
@@ -122,7 +128,7 @@
     for (const round of submissions) {
       const row = document.createElement("tr"); row.classList.toggle("selected", item === round);
       cell(row, `${round.round_no}차 제출`); cell(row, date(round.submitted_at)); cell(row, reviewLabels[round.status]);
-      cell(row, "").append(button("선택", () => renderDetail(round))); $("rounds").append(row);
+      cell(row, "").append(button("선택", () => { if (!busy && !pending) renderDetail(round); })); $("rounds").append(row);
     }
     if (!submissions.length) { const row = document.createElement("tr"); const td = cell(row,"제출 이력이 없습니다."); td.colSpan = 4; $("rounds").append(row); }
     updateActions();
@@ -164,6 +170,7 @@
       tasks = data.items; renderTasks(); show("message", tasks.length ? "업무를 선택해 주세요." : "현재 조회할 업무가 없습니다.");
       const chosen = tasks.find(t => t.task_id === wanted);
       if (chosen && (!$("status").value || chosen.task_status === $("status").value)) await choose(chosen);
+      else if (wanted && !chosen) show("message","선택한 업무가 현재 조회 범위에 없습니다. 권한과 조회 범위를 확인해 주세요.");
     } catch (error) { if (serial === generation) { tasks = []; renderTasks(); fail(error); } }
   }
   function renderPendingFiles() {
@@ -176,29 +183,37 @@
   async function openSubmission() {
     try {
       if (!task || pending || busy) return;
-      const id = task.task_id, serial = generation; lock(true);
+      const capturedTask = {...task}, previous = submissions[0], id = capturedTask.task_id, serial = generation;
+      lock(true);
       const context = await api(`tasks/${id}/context`); if (serial !== generation || invalid) return;
+      if (context.task_id !== id) throw new Error("제출할 업무가 변경되었습니다. 다시 조회해 주세요.");
       submissionContext = context; files = []; renderPendingFiles();
-      $("description").value = submissions[0]?.status === "returned" ? submissions[0].description : "";
+      $("description").value = previous?.status === "returned" ? previous.description : "";
       $("upload-files").value = ""; show("upload-message", "");
-      $("submission-task").textContent = `${id} · ${task.title}\n담당자: ${task.assignee_name} · 마감일: ${context.due_date}`;
+      $("submission-task").textContent = `${id} · ${capturedTask.title}\n담당자: ${capturedTask.assignee_name} · 마감일: ${context.due_date}`;
       $("submission-dialog").showModal();
-    } catch (error) { fail(error); } finally { lock(false); }
+    } catch (error) { fail(error); } finally { if (!invalid) lock(false); }
   }
   async function openDecision(value) {
     try {
       if (!selected || pending || busy) return;
-      const id = selected.submission_id, serial = generation; lock(true);
-      const context = await api(`submissions/${id}/context`); if (serial !== generation || invalid) return;
-      decisionContext = context; outcome = value; const title = value === "returned" ? "반려" : "승인";
+      const capturedTask = Object.freeze({...task});
+      const captured = Object.freeze({...selected, attachments:Object.freeze(selected.attachments.map(file => Object.freeze({...file})))});
+      const id = captured.submission_id, serial = generation, revision = selectionRevision;
+      lock(true);
+      const context = await api(`submissions/${id}/context`);
+      if (serial !== generation || revision !== selectionRevision || invalid) return;
+      if (context.task_id !== capturedTask.task_id || context.submission_id !== id || context.round_no !== captured.round_no)
+        throw new Error("검토 대상이 변경되었습니다. 다시 조회해 주세요.");
+      decisionContext = Object.freeze({...context}); outcome = value; const title = value === "returned" ? "반려" : "승인";
       $("decision-title").textContent = title; $("decision-save").textContent = title;
       $("reason-label").textContent = value === "returned" ? "반려 사유 (필수)" : "승인 의견 (선택)";
       $("reason").required = value === "returned"; $("reason").value = "";
       show("decision-message", "");
-      $("decision-task").textContent = `${task.task_id} · ${task.title}\n담당자: ${task.assignee_name} / ${selected.round_no}차 · 검토 대기\n검토자: ${root.dataset.name}`;
-      $("decision-result").textContent = `${selected.description}\n제출 시각: ${date(selected.submitted_at)}`;
-      renderFiles("decision-files", selected.attachments); $("decision-dialog").showModal();
-    } catch (error) { fail(error); } finally { lock(false); }
+      $("decision-task").textContent = `${capturedTask.task_id} · ${capturedTask.title}\n담당자: ${capturedTask.assignee_name} / ${captured.round_no}차 · 검토 대기\n검토자: ${root.dataset.name}`;
+      $("decision-result").textContent = `${captured.description}\n제출 시각: ${date(captured.submitted_at)}`;
+      renderFiles("decision-files", captured.attachments); $("decision-dialog").showModal();
+    } catch (error) { fail(error); } finally { if (!invalid) lock(false); }
   }
   async function upload(file, taskId) {
     const content = await file.arrayBuffer(), sha256 = await digest(content);
@@ -216,20 +231,25 @@
   async function prepareWrite(operation, target, body, taskId, actionName) {
     const issued = await action("key", target, {action:actionName});
     pending = Object.freeze({operation,target,body:JSON.parse(JSON.stringify(body)),taskId,action:actionName,key:issued.request_key});
-    $("pending-panel").hidden = false; $("retry").hidden = true;
+    pendingFailure = null; canReprepare = false;
+    $("pending-panel").hidden = false; $("retry").hidden = $("reprepare").hidden = true;
     await sendPending();
   }
   async function successWrite() {
-    const id = pending.taskId; pending = null; $("pending-panel").hidden = true;
+    const id = pending.taskId; pending = null; pendingFailure = null; canReprepare = false; $("pending-panel").hidden = true;
     $("submission-dialog").close(); $("decision-dialog").close(); files = []; lock(false);
     await refresh(id); if (!$("message").classList.contains("error")) show("message", "서버 저장을 확인하고 목록을 갱신했습니다.");
   }
   async function sendPending() {
     if (!pending) return;
+    pendingFailure = null; canReprepare = false; $("reprepare").hidden = true;
     lock(true); show("pending-message", "서버 저장을 확인하고 있습니다.");
     try { await action(pending.operation,pending.target,pending.body,pending.key); await successWrite(); }
     catch (error) {
       if (invalid) return;
+      // Only a definite application rejection plus a later not_recorded receipt
+      // permits a new preparation. A timeout/5xx must keep its original request.
+      if ([400,409,410,413,422].includes(error.status) && error.code) pendingFailure = error.code;
       show("pending-message", `${error.message} 원본 요청을 보존했습니다. 처리 결과를 먼저 확인해 주세요.`, true);
       const guidance = `${error.message} 이 창을 닫고 상단의 ‘처리 결과 확인’을 눌러 주세요.`;
       if ($("submission-dialog").open) show("upload-message",guidance,true);
@@ -243,9 +263,35 @@
     try {
       const data = await action("lookup",pending.target,{action:pending.action},pending.key);
       if (data.state === "completed") await successWrite();
-      else if (data.state === "not_recorded") { show("pending-message","저장 기록이 없습니다. 같은 요청을 직접 다시 전송할 수 있습니다."); $("retry").hidden = false; }
+      else if (data.state === "not_recorded") {
+        canReprepare = Boolean(pendingFailure);
+        show("pending-message",canReprepare ? "저장되지 않은 실패 요청입니다. 최신 정보를 조회한 뒤 다시 작성할 수 있습니다." : "저장 기록이 없습니다. 같은 요청을 직접 다시 전송할 수 있습니다.");
+        $("reprepare").hidden = !canReprepare; $("retry").hidden = canReprepare;
+      }
       else throw new Error("처리 결과 형식을 확인할 수 없습니다.");
     } catch (error) { fail(error); } finally { if (!invalid) lock(false); }
+  }
+  async function reprepare() {
+    if (!pending || busy || !canReprepare || !pendingFailure) return;
+    const previous = pending, chosenFiles = [...files];
+    pending = null; pendingFailure = null; canReprepare = false;
+    $("pending-panel").hidden = true; $("reprepare").hidden = true;
+    $("submission-dialog").close(); $("decision-dialog").close(); lock(false);
+    await refresh(previous.taskId);
+    if (invalid || task?.task_id !== previous.taskId) return;
+    if (previous.operation === "submit" && task.task_status === "in_progress") {
+      await openSubmission();
+      if (!invalid && $("submission-dialog").open) {
+        $("description").value = previous.body.description; files = chosenFiles; renderPendingFiles();
+        show("upload-message","최신 업무 정보를 확인했습니다. 내용을 확인하고 결과 제출을 다시 눌러 주세요.");
+      }
+    } else if (previous.operation === "decide" && selected?.submission_id === previous.target && selected.status === "submitted") {
+      await openDecision(previous.body.outcome);
+      if (!invalid && $("decision-dialog").open) {
+        $("reason").value = previous.body.reason;
+        show("decision-message","최신 검토 정보를 확인했습니다. 같은 제출물인지 확인한 뒤 처리해 주세요.");
+      }
+    } else show("message","최신 정보를 조회했습니다. 처리할 업무와 제출물을 다시 확인해 주세요.");
   }
   function startResults() {
     $("filters").addEventListener("submit", e => { e.preventDefault(); if (!pending && !busy) refresh(); });
@@ -262,6 +308,7 @@
     $("approve-open").addEventListener("click", () => openDecision("approved"));
     $("return-open").addEventListener("click", () => openDecision("returned"));
     $("lookup").addEventListener("click",lookup); $("retry").addEventListener("click", () => { if (!busy) sendPending(); });
+    $("reprepare").addEventListener("click",reprepare);
     $("upload-files").addEventListener("change", () => {
       const chosen = [...files,...$("upload-files").files]; $("upload-files").value = "";
       if (chosen.length > 10 || chosen.some(file => file.size > 25*1024*1024)) { show("upload-message","첨부는 파일당 25MiB 이하, 최대 10개입니다.",true); return; }
@@ -291,7 +338,7 @@
       for (const other of ["files","rounds"]) { $(other+"-tab").setAttribute("aria-selected",String(other === name)); $(other+"-panel").hidden = other !== name; }
     });
     window.addEventListener("beforeunload", e => { if (pending || busy) { e.preventDefault(); e.returnValue = ""; } });
-    refresh();
+    refresh(root.dataset.taskId || null);
   }
   let events = [], historyTasks = [], cursors = new Map(), historyGeneration = 0;
   function renderHistory() {

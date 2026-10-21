@@ -67,7 +67,17 @@ def http_error(error):
 @bp.get("")
 @login_required
 def index():
-    return render_template("results/index.html", page_scope=session_scope())
+    if (set(request.args) - {"task_id", "view"} or
+            any(len(values) != 1 for _, values in request.args.lists())):
+        raise AppError(400, "INVALID_INPUT", "업무 선택 정보를 확인해 주세요.")
+    target = request.args.get("task_id")
+    target = str(service.positive_bigint(target, "task_id")) if target is not None else ""
+    view = request.args.get("view", "review" if g.user.role == "admin" else "own")
+    if view not in ("own", "review") or (view == "review" and g.user.role != "admin"):
+        raise AppError(403, "FORBIDDEN", "현재 조회할 수 있는 결과물 범위를 선택해 주세요.")
+    # A navigation hint only. The data routes still enforce current ownership
+    # or reviewer rights; an arbitrary task ID never grants access.
+    return render_template("results/index.html", page_scope=session_scope(), initial_task_id=target, initial_view=view)
 
 
 @bp.get("/history")
