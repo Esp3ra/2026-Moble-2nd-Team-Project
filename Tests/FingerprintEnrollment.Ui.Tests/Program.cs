@@ -31,6 +31,8 @@ internal static class Program
         Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
         CheckFlow(false); CheckFlow(true); CheckLogoutClosesView(); CheckDuplicateFinger();
         CheckRecoveryFlow("normal"); CheckRecoveryFlow("close_before_reply"); CheckRecoveryFlow("wrong_device");
+        foreach (string mode in new[] { "issue_exact", "issue_other", "issue_wrong_status", "issue_503", "issue_lost", "physical", "pi", "reissue" })
+            CheckExactNoFreeBoundary(mode);
         Console.WriteLine($"Fingerprint enrollment UI: {checks} checks PASS (real WinForms + synthetic HTTP; no devices).");
     }
     private static void CheckFlow(bool closeEarly)
@@ -153,6 +155,47 @@ internal static class Program
         for (int i = 0; i < 15; i++) { Application.DoEvents(); Thread.Sleep(5); }
         Check(server.Completes == 0 && !form.RegistrationCompleted, "logout closes registration view and rejects late result");
     }
+    private static void CheckExactNoFreeBoundary(string mode)
+    {
+        var server = new Server { FaultStage = mode == "physical" ? "physical" : mode == "reissue" ? "reissue" : mode.StartsWith("issue") ? "issue" : null,
+            FaultStatus = mode == "issue_wrong_status" ? 400 : mode == "issue_503" ? 503 : 409,
+            FaultCode = mode == "issue_other" ? "ANOTHER_CONFLICT" : "ENROLLMENT_NO_FREE_CLAIM", LostIssue = mode == "issue_lost" };
+        using var api = new ApiClient("http://127.0.0.1:5000", server);
+        api.LoginAsync("admin", "synthetic").GetAwaiter().GetResult();
+        var pi = new Pi();
+        using var form = new FingerprintEnrollmentForm(new EnrollmentTarget(88, api.CaptureSession(), () => true, CancellationToken.None), pi)
+            { ShowInTaskbar = false, Opacity = 0 };
+        form.Show();
+        var start = Controls(form).OfType<Button>().Single(b => b.Text == "지문 등록");
+        var recovery = Controls(form).OfType<CheckBox>().Single();
+        var check = Controls(form).OfType<Button>().Single(b => b.Text == "복구 작업 확인");
+        Pump(() => start.Enabled);
+        void PrepareRecovery()
+        {
+            recovery.Checked = true; Controls(form).OfType<TextBox>().Single().Text = RecoveryId;
+            check.PerformClick(); Pump(() => start.Enabled && check.Enabled);
+        }
+        if (mode == "reissue") PrepareRecovery();
+        start.PerformClick();
+        if (mode == "pi") { Pump(() => pi.Calls == 1); pi.Ready.SetException(new ApiException("Synthetic Pi-side API failure", 409, "ENROLLMENT_NO_FREE_CLAIM")); }
+        Pump(() => start.Enabled);
+        bool released = mode == "issue_exact";
+        Check(form.RegistrationStarted != released && !form.RegistrationCompleted, "Only exact ordinary pre-job NO_FREE rejection clears attempt: " + mode);
+        Check(pi.Calls == (mode == "pi" ? 1 : 0) && server.Completes == 0, "No automatic scan/complete after rejection: " + mode);
+        Check(recovery.Enabled == released, "Uncertain/post-job/recovery attempts keep mode pinned: " + mode);
+        if (released)
+        {
+            Check(Controls(form).OfType<Label>().Any(l => l.Text.Contains("기존 예약")), "Definitive rejection explains recovery selection");
+            server.FaultStage = null;
+            PrepareRecovery();
+            Check(server.Reissues == 0 && pi.Calls == 0, "Switch and recovery GET never auto-start");
+            start.PerformClick(); Pump(() => pi.Calls == 1);
+            pi.Ready.SetResult(Opaque); Pump(() => form.RegistrationCompleted);
+            Check(server.Targets.Single() == 88 && server.Reissues == 1 && server.Completes == 1, "Same fixed member completes after explicit recovery selection");
+        }
+        form.Close();
+    }
+
     private sealed class Server : HttpMessageHandler
     {
         private string clientId = "";
@@ -160,6 +203,10 @@ internal static class Program
         public int Completes;
         public int Issues, Reissues, RecoveryReads;
         public bool WrongRecoveryDevice;
+        public string? FaultStage;
+        public int FaultStatus;
+        public string FaultCode = "ENROLLMENT_NO_FREE_CLAIM";
+        public bool LostIssue;
         public TaskCompletionSource? RecoveryGate;
         public List<int> Targets = [];
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -171,6 +218,11 @@ internal static class Program
             else if (path.Contains("eligible-devices")) data = new EnrollmentDevices([new EnrollmentDevice(Device, "가상 장치", "1")]);
             else
             {
+                if (FaultStage == "issue" && path.EndsWith("/device-enrollments"))
+                { if (LostIssue) throw new HttpRequestException("Synthetic lost issue reply"); return Error(FaultStatus, FaultCode); }
+                if (path.Contains("/by-request/") && FaultStage == "issue") return Error(503, "TEMPORARY_FAILURE");
+                if (FaultStage == "physical" && path.EndsWith("/physical-result")) return Error(FaultStatus, FaultCode);
+                if (FaultStage == "reissue" && path.EndsWith("/reissue")) return Error(FaultStatus, FaultCode);
                 using var body = JsonDocument.Parse(request.Content is null ? "{}" : await request.Content.ReadAsStringAsync(cancellationToken));
                 if (path.Contains("/recoveries/"))
                 {
@@ -218,6 +270,8 @@ internal static class Program
             new_enrollment_id = Reissues > 0 ? JobId : null, evidence_kind = "operator_observation_not_signed_result",
             closed_at = "2026-10-21T00:38:51Z", reissued_at = Reissues > 0 ? "2026-10-21T00:39:00Z" : null
         };
+        private static HttpResponseMessage Error(int status, string code) => new((HttpStatusCode)status)
+        { Content = new StringContent(JsonSerializer.Serialize(new { ok = false, error = new { code, message = "Synthetic API rejection" }, request_id = "synthetic-error" }), Encoding.UTF8, "application/json") };
         private EnrollmentJob Job() => new(JobId, "1", 7, Reissues > 0 ? "2" : "1", "1", clientId, Device, Completes > 0 ? "completed" : "issued",
             "2026-10-20T01:03:00Z", false, Opaque, Completes > 0 ? new EnrollmentReceipt("af7de985-1df9-4e65-a310-dd86fa4c6862", "completed", null) : null);
     }

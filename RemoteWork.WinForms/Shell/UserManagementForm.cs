@@ -11,6 +11,8 @@ public sealed class UserManagementForm : Form
     private bool enrolling, enrollmentAttempted;
     private CancellationTokenRegistration sessionCancellation;
     private CreatedUserEnrollmentTarget? enrollmentTarget;
+    private UserInfo? selectedUser;
+    private readonly Func<UserInfo, string, bool> confirmRecovery;
     private long selectionGeneration;
     private int ended;
     private readonly DataGridView grid = new() { Dock = DockStyle.Fill, ReadOnly = true, AutoGenerateColumns = false,
@@ -32,6 +34,9 @@ public sealed class UserManagementForm : Form
     private readonly Button create = new() { Text = "새 계정 입력", AutoSize = true };
     private readonly Button reload = new() { Text = "새로고침", AutoSize = true };
     private readonly Button enroll = new() { Text = "생성한 회원 지문 등록", AutoSize = true, Enabled = false };
+    private readonly TextBox recoveryId = new() { Width = 265, MaxLength = 36, PlaceholderText = "운영자가 전달한 복구 번호" };
+    private readonly Button recover = new() { Text = "선택한 회원 복구 등록", AutoSize = true, Enabled = false };
+    private readonly Label recoveryTarget = new() { AutoSize = true, MaximumSize = new Size(270, 0), Text = "복구 등록할 기존 회원을 목록에서 선택하세요." };
 
     /// <summary>The explicit enrollment button borrows this target. Account save never starts a scan.</summary>
     public CreatedUserEnrollmentTarget? EnrollmentTarget => enrollmentTarget?.IsCurrent == true ? enrollmentTarget : null;
@@ -41,17 +46,21 @@ public sealed class UserManagementForm : Form
 
     public UserManagementForm(ApiClient api) : this(api, new CreatedUserEnrollmentLauncher()) { }
 
-    public UserManagementForm(ApiClient api, ICreatedUserEnrollmentLauncher enrollmentLauncher)
+    public UserManagementForm(ApiClient api, ICreatedUserEnrollmentLauncher enrollmentLauncher,
+        Func<UserInfo, string, bool>? confirmRecovery = null)
     {
         ArgumentNullException.ThrowIfNull(api);
         ArgumentNullException.ThrowIfNull(enrollmentLauncher);
         this.enrollmentLauncher = enrollmentLauncher;
+        this.confirmRecovery = confirmRecovery ?? ((user, id) => MessageBox.Show(this,
+            $"회원 ID: {user.Id}\n아이디: {user.LoginId}\n이름: {user.DisplayName}\n사번: {user.EmployeeNo}\n\n이 회원의 복구 등록창을 열까요?\n일반 등록은 열리지 않으며 복구 조회와 별도의 시작이 필요합니다.",
+            "복구 대상 회원 확인", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes);
         server = api.ServerUri;
         try { session = api.CaptureSession(); }
         catch (InvalidOperationException) { /* A disconnected view never starts requests. */ }
         if (session is not null)
             requests = new FeatureUiScope(session, action => BeginInvoke(action), () => IsUsable);
-        Text = "사용자 관리"; ClientSize = new Size(1060, 640); MinimumSize = new Size(960, 650);
+        Text = "사용자 관리"; ClientSize = new Size(1060, 760); MinimumSize = new Size(960, 650);
         StartPosition = FormStartPosition.CenterParent; Font = new Font("맑은 고딕", 9F);
         var layout = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(18), ColumnCount = 2, RowCount = 3 };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 310));
@@ -71,13 +80,14 @@ public sealed class UserManagementForm : Form
             input.Dock = DockStyle.Fill; editor.Controls.Add(input, 0, row);
         }
         var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = true, Margin = new Padding(0) };
-        actions.Controls.AddRange(new Control[] { active, create, save, reset, enroll });
-        var actionRow = editor.RowCount++; editor.RowStyles.Add(new RowStyle(SizeType.Absolute, 145)); editor.Controls.Add(actions, 0, actionRow);
+        actions.Controls.AddRange(new Control[] { active, create, save, reset, enroll, recoveryTarget, recoveryId, recover });
+        var actionRow = editor.RowCount++; editor.RowStyles.Add(new RowStyle(SizeType.Absolute, 235)); editor.Controls.Add(actions, 0, actionRow);
         layout.Controls.Add(editor, 1, 0); layout.SetRowSpan(editor, 2);
         var paging = new FlowLayoutPanel { Dock = DockStyle.Fill };
         paging.Controls.AddRange(new Control[] { previous, pageLabel, next, reload }); layout.Controls.Add(paging, 0, 1);
         layout.Controls.Add(status, 0, 2); layout.SetColumnSpan(status, 2); Controls.Add(layout);
-        grid.SelectionChanged += (_, _) => { if (!loading && grid.CurrentRow?.DataBoundItem is UserInfo user) Fill(user); };
+        // SelectionChanged may run while CurrentRow still points at the previous row.
+        grid.CurrentCellChanged += (_, _) => { if (!loading && grid.CurrentRow?.DataBoundItem is UserInfo user) Fill(user); };
         grid.CellFormatting += (_, e) =>
         {
             var property = grid.Columns[e.ColumnIndex].DataPropertyName;
@@ -92,6 +102,7 @@ public sealed class UserManagementForm : Form
         save.Click += async (_, _) => await Save();
         reset.Click += async (_, _) => await ResetPassword();
         enroll.Click += async (_, _) => await EnrollCreatedUser();
+        recover.Click += async (_, _) => await RecoverSelectedUser();
         ClearEditor();
         FormClosing += (_, _) => EndLifetime();
         Disposed += (_, _) => EndLifetime();
@@ -146,12 +157,17 @@ public sealed class UserManagementForm : Form
         reset.Enabled = enabled && selectedId != 0 && selectedId != session?.User.Id;
         previous.Enabled = enabled && page > 1;
         next.Enabled = enabled && page * 50 < total;
-        enroll.Enabled = enabled && !enrollmentAttempted && EnrollmentTarget is not null && session?.User.Role == "admin";
+        enroll.Enabled = enabled && !enrollmentAttempted && EnrollmentTarget is { RequiredRecoveryId: null } && session?.User.Role == "admin";
+        recover.Enabled = enabled && !enrollmentAttempted && selectedUser is { IsActive: true }
+            && selectedId == selectedUser.Id && session?.User.Role == "admin";
+        recoveryId.ReadOnly = !enabled || enrollmentAttempted;
     }
 
     private void ClearEditor()
     {
         InvalidateTarget();
+        selectedUser = null;
+        recoveryTarget.Text = "복구 등록할 기존 회원을 목록에서 선택하세요.";
         selectedId = 0; login.Enabled = true; login.Clear(); name.Clear(); number.Clear(); department.Clear(); password.Clear();
         role.SelectedIndex = 0; active.Checked = true; active.Enabled = false; save.Text = "계정 생성"; reset.Enabled = false;
         SetControls();
@@ -160,6 +176,8 @@ public sealed class UserManagementForm : Form
     private void Fill(UserInfo user, bool invalidate = true)
     {
         if (invalidate) InvalidateTarget();
+        selectedUser = user;
+        recoveryTarget.Text = $"복구 대상 ID {user.Id} · {user.DisplayName} · {user.EmployeeNo}";
         selectedId = user.Id; login.Text = user.LoginId; login.Enabled = false; name.Text = user.DisplayName;
         number.Text = user.EmployeeNo; department.Text = user.Department; role.SelectedIndex = user.Role == "admin" ? 1 : 0;
         active.Checked = user.IsActive; active.Enabled = true; password.Clear(); save.Text = "사용자 정보 저장";
@@ -264,6 +282,66 @@ public sealed class UserManagementForm : Form
             {
                 enrollmentAttempted = true;
                 status.Text = "등록 결과 확인이 필요합니다. 계정은 유지되며 새 등록은 자동으로 시작하지 않습니다.";
+            }
+        }
+        finally { enrolling = false; SetControls(); }
+    }
+
+    private async Task RecoverSelectedUser()
+    {
+        var selected = selectedUser;
+        if (!IsUsable || loading || writing || enrolling || enrollmentAttempted
+            || selected is not { IsActive: true } || selectedId != selected.Id || session?.User.Role != "admin") return;
+        string id = recoveryId.Text.Trim();
+        if (!Guid.TryParseExact(id, "D", out var parsed) || parsed.ToString("D") != id)
+        { status.Text = "운영자가 전달한 정규 복구 번호를 입력해 주세요."; return; }
+        int targetId = selected.Id, requestedPage = page;
+        long generation = Interlocked.Read(ref selectionGeneration);
+        FeatureUiScope.Operation? operation = null;
+        CreatedUserEnrollmentTarget? target = null;
+        bool launched = false;
+        enrolling = true; SetControls();
+        try
+        {
+            operation = requests!.BeginOperation();
+            // Reuse the existing administrator directory; no new API or write.
+            var result = await session.GetAsync<PageResult<UserInfo>>($"users?page={requestedPage}&limit=50", operation.Cancellation);
+            if (!IsUsable || !operation.IsCurrent || selectedId != targetId
+                || generation != Interlocked.Read(ref selectionGeneration)) return;
+            var matches = result.Items?.Where(user => user.Id == targetId).ToArray();
+            if (result.Page != requestedPage || result.Limit != 50 || matches?.Length != 1
+                || !matches[0].IsActive || matches[0].Role is not ("employee" or "admin")
+                || matches[0].LoginId != selected.LoginId)
+                throw new ApiException("현재 선택한 활성 회원을 다시 확인하지 못했습니다. 목록을 새로 조회해 주세요.");
+            UserInfo verified = matches[0];
+            if (!confirmRecovery(verified, id)) { status.Text = "복구 등록창을 열지 않았습니다. 계정은 유지됩니다."; return; }
+            if (!IsUsable || !operation.IsCurrent || selectedId != targetId
+                || generation != Interlocked.Read(ref selectionGeneration)) return;
+            InvalidateTarget();
+            long recoveryGeneration = Interlocked.Read(ref selectionGeneration);
+            target = CreatedUserEnrollmentTarget.ForExplicitRecovery(verified, session,
+                () => Volatile.Read(ref ended) == 0 && selectedId == targetId
+                    && Interlocked.Read(ref selectionGeneration) == recoveryGeneration, id);
+            enrollmentTarget = target;
+            EnrollmentTargetChanged?.Invoke(this, EventArgs.Empty);
+            launched = true;
+            var answer = await enrollmentLauncher.ShowAsync(this, target, server);
+            if (!IsUsable || !ReferenceEquals(enrollmentTarget, target) || !target.IsCurrent) return;
+            enrollmentAttempted = answer.AttemptStarted;
+            status.Text = answer.Completed ? "지문 복구 등록 완료. 기존 회원과 서버 연결을 확인했습니다."
+                : answer.AttemptStarted ? "계정은 유지됩니다. 복구 등록 결과 확인이 필요하므로 새 시도를 시작하지 않습니다."
+                : "계정은 유지됩니다. 복구 번호 조회와 명시 시작 전에는 등록을 실행하지 않습니다.";
+        }
+        catch (OperationCanceledException) { }
+        catch (InvalidDataException)
+        { if (IsUsable) status.Text = "복구 등록 주소 설정을 확인해 주세요. 현재 서버와 선택한 장치의 주소가 필요합니다."; }
+        catch (Exception error) when (error is ApiException or InvalidOperationException or HttpRequestException)
+        {
+            if (IsUsable && (target is null ? generation == Interlocked.Read(ref selectionGeneration) : target.IsCurrent))
+            {
+                enrollmentAttempted = launched;
+                status.Text = launched ? "복구 등록 결과 확인이 필요합니다. 기존 회원은 유지되며 새 등록은 자동 실행하지 않습니다."
+                    : "복구 대상 회원 확인 실패: " + error.Message;
             }
         }
         finally { enrolling = false; SetControls(); }

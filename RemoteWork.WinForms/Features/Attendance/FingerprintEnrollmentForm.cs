@@ -8,6 +8,7 @@ public sealed class FingerprintEnrollmentForm : Form
     private readonly EnrollmentTarget target;
     private readonly FingerprintEnrollmentRelay relay;
     private readonly Action<string>? validateDevice;
+    private readonly Func<string, bool>? releaseUnissuedDevice;
     private bool manualReviewRequired;
     private readonly FeatureUiScope scope;
     private readonly CancellationTokenSource viewLifetime;
@@ -25,14 +26,21 @@ public sealed class FingerprintEnrollmentForm : Form
     private CancellationTokenSource? operation;
     private bool busy;
     private bool released;
+    private readonly bool recoveryOnly;
     public bool RegistrationCompleted { get; private set; }
     public bool RegistrationStarted => attempt is not null;
     public Task PendingOperation { get; private set; } = Task.CompletedTask;
 
-    public FingerprintEnrollmentForm(EnrollmentTarget target, IEnrollmentPiChannel pi, Action<string>? validateDevice = null)
+    public FingerprintEnrollmentForm(EnrollmentTarget target, IEnrollmentPiChannel pi, Action<string>? validateDevice = null,
+        string? requiredRecoveryId = null, Func<string, bool>? releaseUnissuedDevice = null)
     {
+        if (requiredRecoveryId is not null && (!Guid.TryParseExact(requiredRecoveryId, "D", out var recoveryUuid)
+            || recoveryUuid.ToString("D") != requiredRecoveryId))
+            throw new ArgumentException("정규 복구 번호가 필요합니다.", nameof(requiredRecoveryId));
+        recoveryOnly = requiredRecoveryId is not null;
         this.target = target;
         this.validateDevice = validateDevice;
+        this.releaseUnissuedDevice = releaseUnissuedDevice;
         relay = new(target, pi);
         Text = "새 회원 지문 등록";
         ClientSize = new Size(600, 460);
@@ -65,9 +73,10 @@ public sealed class FingerprintEnrollmentForm : Form
         recoveryMode.CheckedChanged += (_, _) =>
         {
             if (busy || attempt is not null) return;
+            if (recoveryOnly && !recoveryMode.Checked) { recoveryMode.Checked = true; return; }
             preparedRecovery = null;
             recoveryPanel.Visible = recoveryMode.Checked;
-            recoveryId.ReadOnly = false;
+            recoveryId.ReadOnly = recoveryOnly;
             start.Enabled = !recoveryMode.Checked && devices.SelectedItem is EnrollmentDevice;
             start.Text = "지문 등록";
             status.Text = recoveryMode.Checked ? "운영자의 종료 승인 후 복구 작업 ID를 확인해 주세요. 확인만으로 지문 등록을 시작하지 않습니다."
@@ -78,10 +87,18 @@ public sealed class FingerprintEnrollmentForm : Form
             if (!recoveryMode.Checked || busy || attempt is not null) return;
             preparedRecovery = null;
             start.Enabled = false;
-            recoveryId.ReadOnly = false;
+            recoveryId.ReadOnly = recoveryOnly;
         };
         stop.Click += async (_, _) => await CancelAsync();
         FormClosed += (_, _) => ReleaseLifetime();
+        if (recoveryOnly)
+        {
+            recoveryId.Text = requiredRecoveryId;
+            recoveryMode.Checked = true;
+            recoveryMode.Enabled = false;
+            recoveryId.ReadOnly = true;
+            Text = "기존 회원 지문 복구 등록";
+        }
     }
 
     private void ReleaseLifetime()
@@ -152,8 +169,9 @@ public sealed class FingerprintEnrollmentForm : Form
             busy = false;
             scope.TryPost(view, () =>
             {
-                devices.Enabled = recoveryMode.Enabled = checkRecovery.Enabled = true;
-                recoveryId.ReadOnly = preparedRecovery is not null;
+                devices.Enabled = checkRecovery.Enabled = true;
+                recoveryMode.Enabled = !recoveryOnly;
+                recoveryId.ReadOnly = recoveryOnly || preparedRecovery is not null;
                 start.Enabled = preparedRecovery is not null;
             });
         }
@@ -161,7 +179,8 @@ public sealed class FingerprintEnrollmentForm : Form
 
     private async Task StartAsync()
     {
-        if (busy || devices.SelectedItem is not EnrollmentDevice device || recoveryMode.Checked && preparedRecovery is null) return;
+        if (busy || devices.SelectedItem is not EnrollmentDevice device || recoveryMode.Checked && preparedRecovery is null
+            || recoveryOnly && (!recoveryMode.Checked || preparedRecovery is null)) return;
         FeatureUiScope.Operation view;
         try { view = scope.BeginOperation(); }
         catch (OperationCanceledException) { return; }
@@ -193,7 +212,28 @@ public sealed class FingerprintEnrollmentForm : Form
             manualReviewRequired = true;
             scope.TryPost(view, () => status.Text = error.Message);
         }
-        catch (Exception error) when (error is ApiException or InvalidOperationException or InvalidDataException or HttpRequestException)
+        catch (ApiException error) when (error.StatusCode == 409 && error.Code == "ENROLLMENT_NO_FREE_CLAIM"
+            && attempt is { Job: null, DeviceStarted: false, PendingResult: null, RecoverySelection: null })
+        {
+            // This exact issue rejection rolls back before creating a job. Keep
+            // the SAME created member/login; allow an explicit recovery choice.
+            // Lost replies and failures after a device request never enter here.
+            if (releaseUnissuedDevice?.Invoke(device.DeviceId) == false)
+            {
+                manualReviewRequired = true;
+                scope.TryPost(view, () => status.Text = "장치 연결 준비를 해제하지 못했습니다. 현재 작업을 확인해 주세요.");
+                return;
+            }
+            attempt = null;
+            scope.TryPost(view, () => status.Text =
+                "기존 예약이 남아 일반 등록을 시작하지 않았습니다. '운영자가 승인한 복구 작업으로 등록'을 선택하고 전달받은 복구 번호를 확인해 주세요.");
+        }
+        catch (ApiException error)
+        {
+            scope.TryPost(view, () => status.Text = "서버에서 등록 요청을 처리하지 못했습니다.\n"
+                + error.Message + (error.Code is null ? "" : "\n오류 코드: " + error.Code));
+        }
+        catch (Exception error) when (error is InvalidOperationException or InvalidDataException or HttpRequestException)
         { scope.TryPost(view, () => status.Text = attempt is null
             ? "등록을 시작하지 못했습니다. 선택한 장치의 주소 설정을 확인해 주세요."
             : "연결 확인 필요. 같은 작업의 저장 결과를 다시 확인해 주세요."); }
@@ -206,8 +246,9 @@ public sealed class FingerprintEnrollmentForm : Form
                 if (!RegistrationCompleted)
                 {
                     devices.Enabled = attempt is null;
-                    recoveryMode.Enabled = checkRecovery.Enabled = attempt is null;
-                    recoveryId.ReadOnly = attempt is not null || preparedRecovery is not null;
+                    checkRecovery.Enabled = attempt is null;
+                    recoveryMode.Enabled = !recoveryOnly && attempt is null;
+                    recoveryId.ReadOnly = recoveryOnly || attempt is not null || preparedRecovery is not null;
                     start.Text = manualReviewRequired ? "현재 작업 확인 필요" : attempt is not null ? "같은 작업 다시 확인"
                         : recoveryMode.Checked && preparedRecovery is not null ? "복구 승인으로 지문 등록" : "지문 등록";
                     start.Enabled = !manualReviewRequired;
