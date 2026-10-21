@@ -1,3 +1,9 @@
+## 최신 검토 — PR57 협업 Draft 수정 필요, 2026-10-21
+
+[PR57](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/57) headfe209ae를 alpha8ed25c6과 결합해 공식서버24·Directory25/6시나리오·Requests23·Release0/0을 확인했습니다. 별도검사에서 **R57-01/P2 취소 snapshot 혼합, R57-02/P2 상대 비활성화 시 종료 차단, R57-03/P2 미기록 확인 뒤409의 입력잠금**을 재현하여 미병합/Draft 유지입니다. [고정 코드·조건·수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/57#issuecomment-6308590391), [중앙 검토 근거](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr57-review-20261021)를 따릅니다.
+
+기존 B1~B7 채택은 유지합니다. 1번의 새 API/W1·미번호DDL/등록·MainForm 로그인수명,2·4번의 CURRENT취소/실제 중간이력 연속성, B4지연표시·B7상태이력 조회가 남아 있습니다. 협업10초/닫기/재로그인값은 로컬 제안이며 기한알림60초와 혼동하지 않습니다. [2번 기술 대조 범위](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#pr57-member2-bridge-review-20261021)를 기록했습니다. 이번 검토는 제품/실제폴더·공유서버/DB·.env/DDL·장비를 변경하지 않았습니다.
+
 ## 최신 — 팀장 삭제 정책 확정·PR45 병합 완료, 2026-10-20
 
 팀장이 본 채팅에서 **관리자가 공지를 삭제하면 해당 공지의 직원별 확인 기록도 함께 삭제**하도록 확정하고 문제없으면 병합하도록 지시했습니다. **삭제 감사 로그는 별도로 남깁니다.** [PR45](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/45) head `c5dad3b`를 최신 alpha `2718601`와 결합해 추가 차단 문제 없음으로 확인했고, Draft를 해제하여 alpha `a554242`에 병합했습니다. 기존 보존 요구·로컬 선택/팀장 미확정·Draft/미병합은 아래의 과거 이력입니다. 공유DB 적용·팝업 옵션 활성화와 나머지 로그인 경계/주기 정책은 별도입니다.
