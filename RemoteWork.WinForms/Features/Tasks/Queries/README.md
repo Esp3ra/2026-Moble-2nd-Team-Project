@@ -8,6 +8,7 @@
 
 ## 현재 연결
 
+- 외부 알림의 내 업무 열기에는 `TasksControl.CaptureOwnTaskNavigator()`로 로그인/화면에 고정된 콜백을 제공합니다. 내 업무·전체 상태·취소 제외 목록의 정확한 행과 현재 상세를 다시 조회하며 대상이 없으면 다른 행을 대신 열지 않습니다. [UI 수명/호출 조건](../../../../docs/TASK_QUERIES.md#captured-own-task-navigation)을 따르고, MainForm 이벤트 조립은 1번 후속입니다. 알림 현재 사건/배정 검사를 대신하지 않습니다.
 - `ITaskQueryService`·TaskSummary·TaskDetail·DateOnly·불투명 TaskId를 유지한다.
 - 목록은 `GET tasks?scope=own|managed`와 선택한 5개 상태 조건으로 전체 목록을 받는다. 첫 연결은 페이지·검색을 지원하지 않으며 첫 페이지만 전체처럼 표시하지 않는다.
 - 행 선택은 `GET tasks/{taskId}`를 호출한다. 기존 전체/5상태·로딩·빈 목록·오류·늦은 응답 차단·종료 중 취소를 사용한다. 같은 조건의 전체 재조회는 선택 ID를 유지하고 조건 변경·업무 삭제·빈 목록은 그에 맞춰 초기화한다.

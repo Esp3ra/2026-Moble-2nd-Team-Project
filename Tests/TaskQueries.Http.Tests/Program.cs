@@ -39,6 +39,8 @@ internal static class Program
             {
                 if (args.SequenceEqual(new[] { "--live" }))
                     Run("isolated live HTTP and TasksControl", LiveServer);
+                else if (args.SequenceEqual(new[] { "--navigation" }))
+                    NavigationScenarios();
                 else if (args.Length == 0)
                 {
                     Run("relative endpoints, Bearer, status mappings and complete list", Endpoints);
@@ -54,9 +56,9 @@ internal static class Program
                     Run("logout immediately before row selection safely clears the grid", LogoutBeforeRowSelection);
                     Run("disposed task screen ignores completed response continuations", DisposedResponseContinuation);
                 }
-                else throw new InvalidOperationException("Use no arguments or --live.");
+                else throw new InvalidOperationException("Use no arguments, --navigation or --live.");
                 Console.WriteLine($"PASS: {scenarios} scenarios / {assertions} assertions. "
-                    + (args.Length == 0 ? "Explicit HTTP test handler; no server or DB tested."
+                    + (!args.Contains("--live") ? "Explicit HTTP test handler; no server or DB tested."
                         : "Explicit isolated live server; production and two-PC operation not tested."));
                 result = 0;
             }
@@ -353,9 +355,12 @@ internal static class Program
                 "explicit refresh captures the current account creation workflow");
             Check(Field<ComboBox>(page, "cmbTaskScope").Visible,
                 "explicit refresh follows the current administrator role rather than the original employee preview");
-            Check(handler.Last?.Path == "/api/v1/tasks/3" && handler.Last.Bearer == "fixture-token-2"
+            var lastDetail = handler.Requests.Last(x => x.Path.StartsWith("/api/v1/tasks/", StringComparison.Ordinal));
+            Check(lastDetail.Path == "/api/v1/tasks/3" && lastDetail.Bearer == "fixture-token-2"
+                && handler.Last?.Bearer == "fixture-token-2"
+                && handler.Last.Path is "/api/v1/tasks/3" or "/api/v1/results/shared/tasks/3"
                 && handler.Remaining == 0,
-                "fresh selection uses only the new session transport");
+                "fresh detail and optional attachment selection use only the new session transport");
         });
     }
 
@@ -471,6 +476,286 @@ internal static class Program
             }
             finally { SynchronizationContext.SetSynchronizationContext(previousContext); }
         });
+    }
+
+    private static void NavigationScenarios()
+    {
+        Run("navigation selects exact BIGINT and explicitly opens own/all/active", NavigationTargetAndScope);
+        Run("navigation rejects malformed IDs and missing targets without detail fallback", NavigationInvalidAndMissing);
+        Run("navigation reports current list and detail failures without writes", NavigationFailures);
+        Run("newer navigation supersedes a delayed list success or failure", NavigationLatestList);
+        Run("row selection and filtering supersede delayed navigation detail", NavigationSelectionAndFilter);
+        Run("captured navigation does not adopt a later login or server", NavigationSessionChanges);
+        Run("late old navigation 401 cannot expire the replacement login", NavigationLateUnauthorized);
+        Run("navigation ignores completed transport after logout or disposal", NavigationCompletedTransport);
+        Run("navigation rejects worker calls and disposed controls without HTTP", NavigationThreadAndDisposal);
+    }
+
+    private static void NavigationTargetAndScope()
+    {
+        WithNavigationPage((api, handler, page, host) =>
+        {
+            var navigate = page.CaptureOwnTaskNavigator();
+            handler.Success(new { items = new[] { Item(2, "returned") } });
+            handler.Success(new { task = Item(2, "returned") });
+            Field<ComboBox>(page, "cmbTaskStatusFilter").SelectedIndex = 5;
+            Until(() => NavigationSelected(page, "2"));
+            handler.Success(new { items = new[] { Item(2, "returned") } });
+            handler.Success(new { task = Item(2, "returned") });
+            Field<ComboBox>(page, "cmbTaskScope").SelectedIndex = 1;
+            Until(() => handler.Remaining == 0);
+            handler.Success(new { items = new[] { Item(2, "returned") } });
+            handler.Success(new { task = Item(2, "returned") });
+            Field<CheckBox>(page, "chkIncludeCancelled").Checked = true;
+            Until(() => handler.Remaining == 0);
+            foreach (string id in new[] { "9007199254740993", "9223372036854775807" })
+            {
+                int before = handler.Requests.Count;
+                handler.Success(new { items = new[] { Item(1), NavigationItem(id) } });
+                handler.Success(new { task = NavigationItem(id) });
+                Check(Wait(navigate(id)) && NavigationSelected(page, id), "navigation preserves and selects exact large task ID");
+                var requests = handler.Requests.Skip(before).ToArray();
+                Check(requests.First().Path == "/api/v1/tasks?scope=own"
+                    && requests.Count(x => x.Path == "/api/v1/tasks/" + id) == 1
+                    && !requests.Any(x => x.Path == "/api/v1/tasks/1"), "navigation loads own list then exact target, never first-row detail");
+                Check(Field<ComboBox>(page, "cmbTaskScope").SelectedIndex == 0
+                    && Field<ComboBox>(page, "cmbTaskStatusFilter").SelectedIndex == 0
+                    && !Field<CheckBox>(page, "chkIncludeCancelled").Checked, "navigation explicitly resets own/all/noncancelled view");
+                Check(requests.All(x => x.Method == HttpMethod.Get && x.Bearer == "fixture-token"), "navigation only borrows captured authenticated GETs");
+            }
+        }, role: "admin");
+    }
+
+    private static void NavigationInvalidAndMissing()
+    {
+        WithNavigationPage((api, handler, page, host) =>
+        {
+            var navigate = page.CaptureOwnTaskNavigator();
+            int before = handler.Count;
+            foreach (string id in new[] { "", " ", "0", "01", "-1", "+1", "1/2", "1?scope=managed", "9223372036854775808", "１２", "1 " })
+                Check(!Wait(navigate(id)), "malformed navigation task ID is rejected");
+            Check(handler.Count == before && NavigationSelected(page, "1"), "invalid input makes no HTTP request or selection change");
+            handler.Success(new { items = new[] { Item(1) } });
+            before = handler.Count;
+            Check(!Wait(navigate("99")), "missing exact target returns false");
+            Check(handler.Count == before + 1 && handler.Last?.Path == "/api/v1/tasks?scope=own", "missing target sends no guessed detail request");
+            Check(Field<DataGridView>(page, "gridTasks").SelectedRows.Count == 0
+                && !Field<TextBox>(page, "txtContent").Text.Contains("Fixture description"), "missing target does not fall back to unrelated first task");
+            Check(!Field<Button>(page, "btnAcceptTask").Enabled
+                && !Field<Button>(page, "btnPrepareWrite").Enabled, "missing target clears target-dependent actions");
+        });
+    }
+
+    private static void NavigationFailures()
+    {
+        foreach (bool detail in new[] { false, true })
+        foreach (var failure in new[] { (403, "FORBIDDEN", "권한"), (404, "TASK_NOT_FOUND", "찾을"), (503, "DATABASE_UNAVAILABLE", "서버") })
+        {
+            WithNavigationPage((api, handler, page, host) =>
+            {
+                var navigate = page.CaptureOwnTaskNavigator();
+                int before = handler.Count;
+                if (detail) handler.Success(new { items = new[] { Item(2) } });
+                handler.Error(failure.Item1, failure.Item2);
+                Check(!Wait(navigate("2")), "current navigation HTTP failure returns false");
+                Check(Field<Label>(page, "lblTaskQueryStatus").Text.Contains(failure.Item3)
+                    || Field<TextBox>(page, "txtContent").Text.Contains(failure.Item3), "navigation failure preserves useful error classification");
+                Check(!Field<TextBox>(page, "txtContent").Text.Contains("Fixture description")
+                    && !Field<Button>(page, "btnAcceptTask").Enabled, "failed navigation does not retain successful target actions");
+                Check(handler.Count == before + (detail ? 2 : 1) && api.CurrentUser is not null, "ordinary navigation failure neither retries nor expires login");
+            });
+        }
+    }
+
+    private static void NavigationLatestList()
+    {
+        foreach (bool oldFails in new[] { false, true })
+        WithNavigationPage((api, handler, page, host) =>
+        {
+            var navigate = page.CaptureOwnTaskNavigator();
+            var held = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            handler.Enqueue((_, _) => held.Task);
+            Task<bool> old = navigate("2");
+            handler.Success(new { items = new[] { Item(3) } });
+            handler.Success(new { task = Item(3) });
+            Check(Wait(navigate("3")) && NavigationSelected(page, "3"), "newer target completes before older list");
+            int before = handler.Count;
+            held.SetResult(oldFails ? NavigationError(503) : new ObservedResponse(new { items = new[] { Item(2) } }));
+            Check(!Wait(old) && NavigationSelected(page, "3"), "late previous list success/error cannot overwrite latest selection");
+            Check(handler.Count == before, "superseded list performs no follow-up detail request");
+        });
+    }
+
+    private static void NavigationSelectionAndFilter()
+    {
+        foreach (bool filter in new[] { false, true })
+        WithNavigationPage((api, handler, page, host) =>
+        {
+            var navigate = page.CaptureOwnTaskNavigator();
+            var held = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            handler.Success(new { items = new[] { Item(2), Item(3) } });
+            handler.Enqueue((_, _) => held.Task);
+            Task<bool> old = navigate("2");
+            Until(() => handler.Last?.Path == "/api/v1/tasks/2");
+            if (filter)
+            {
+                handler.Success(new { items = new[] { Item(3, "returned") } });
+                handler.Success(new { task = Item(3, "returned") });
+                Field<ComboBox>(page, "cmbTaskStatusFilter").SelectedIndex = 5;
+            }
+            else
+            {
+                handler.Success(new { task = Item(3) });
+                SelectRow(Field<DataGridView>(page, "gridTasks"), 1);
+            }
+            Until(() => NavigationSelected(page, "3"));
+            int before = handler.Count;
+            held.SetResult(new ObservedResponse(new { task = Item(2) }));
+            Check(!Wait(old) && NavigationSelected(page, "3"), "user selection/filter wins over navigation detail");
+            Check(handler.Count == before, "discarded navigation detail does not load attachments");
+            if (filter) Check(Field<ComboBox>(page, "cmbTaskStatusFilter").SelectedIndex == 5, "late navigation does not reset newer filter");
+        });
+    }
+
+    private static void NavigationSessionChanges()
+    {
+        foreach (int change in new[] { 0, 1, 2 })
+        WithNavigationPage((api, handler, page, host) =>
+        {
+            var navigate = page.CaptureOwnTaskNavigator();
+            api.ClearIdentity();
+            if (change == 2) api.SetServer("http://localhost:5001/");
+            LoginWithoutPumping(api, handler, change == 1 ? 1 : 2);
+            int before = handler.Count;
+            Check(!Wait(navigate("2")), "old navigator rejects another account, same-user relogin and server change");
+            Check(handler.Count == before, "old navigator does not automatically recapture replacement login");
+            DrainUi(host);
+            Check(Field<DataGridView>(page, "gridTasks").Rows.Count == 0, "old visible task data is removed after identity change");
+            handler.Success(new { items = new[] { Item(3, assigneeId: api.CurrentUser!.Id) } });
+            handler.Success(new { task = Item(3, assigneeId: api.CurrentUser!.Id) });
+            Wait(page.RefreshAsync());
+            before = handler.Count;
+            Check(!Wait(navigate("2")) && handler.Count == before && NavigationSelected(page, "3"), "explicit new-session refresh does not revive old navigator");
+        });
+    }
+
+    private static void NavigationLateUnauthorized()
+    {
+        WithNavigationPage((api, handler, page, host) =>
+        {
+            var navigate = page.CaptureOwnTaskNavigator();
+            var held = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            handler.Enqueue((_, _) => held.Task);
+            Task<bool> old = navigate("2");
+            api.ClearIdentity();
+            Login(api, handler, 2);
+            handler.Success(new { items = new[] { Item(3, assigneeId: 2) } });
+            handler.Success(new { task = Item(3, assigneeId: 2) });
+            Wait(page.RefreshAsync());
+            int before = handler.Count;
+            held.SetResult(NavigationError(401));
+            Check(!Wait(old) && NavigationSelected(page, "3") && api.CurrentUser?.Id == 2, "late A401 cannot clear B login or B current detail");
+            Check(handler.Count == before, "late authentication failure does not issue another request");
+        });
+    }
+
+    private static void NavigationCompletedTransport()
+    {
+        foreach (bool detail in new[] { false, true })
+        foreach (bool dispose in new[] { false, true })
+        WithNavigationPage((api, handler, page, host) =>
+        {
+            var navigate = page.CaptureOwnTaskNavigator();
+            var held = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var response = new ObservedResponse(detail ? new { task = Item(2) } : (object)new { items = new[] { Item(2) } });
+            if (detail) handler.Success(new { items = new[] { Item(2) } });
+            handler.Enqueue((_, _) => held.Task);
+            var previous = SynchronizationContext.Current;
+            using var callbacks = new QueuedSynchronizationContext(preserveContext: true);
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(callbacks);
+                Task<bool> pending = navigate("2");
+                held.SetResult(response);
+                while (!response.Disposed && !pending.IsCompleted) callbacks.RunNext();
+                Check(response.Disposed && !pending.IsCompleted, "navigation transport completed while UI continuation remains queued");
+                if (dispose) page.Dispose(); else api.ClearIdentity();
+                if (!dispose) DrainUi(host);
+                int before = handler.Count;
+                while (!pending.IsCompleted) callbacks.RunNext();
+                Check(!pending.GetAwaiter().GetResult() && handler.Count == before, "completed old response cannot publish or request detail/attachments");
+                if (!dispose)
+                {
+                    while (callbacks.Pending > 0) callbacks.RunNext();
+                    SynchronizationContext.SetSynchronizationContext(previous);
+                    DrainUi(host);
+                    Check(Field<DataGridView>(page, "gridTasks").Rows.Count == 0,
+                        "old-session navigation cannot repopulate cleared rows (detail=" + detail + ", status="
+                        + Field<Label>(page, "lblTaskQueryStatus").Text + ")");
+                }
+            }
+            finally { SynchronizationContext.SetSynchronizationContext(previous); }
+        });
+    }
+
+    private static void NavigationThreadAndDisposal()
+    {
+        WithNavigationPage((api, handler, page, host) =>
+        {
+            var navigate = page.CaptureOwnTaskNavigator();
+            int before = handler.Count;
+            Check(!Wait(Task.Run(() => navigate("2"))) && handler.Count == before, "worker-thread navigator call is rejected without HTTP");
+            var held = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            handler.Enqueue((_, _) => held.Task);
+            Task<bool> pending = navigate("2");
+            page.Dispose();
+            before = handler.Count;
+            held.SetResult(new ObservedResponse(new { items = new[] { Item(2) } }));
+            Check(!Wait(pending) && !Wait(navigate("2")) && handler.Count == before, "disposed page rejects pending and subsequent navigation without more HTTP");
+        });
+    }
+
+    private static Dictionary<string, object?> NavigationItem(string id)
+    {
+        var item = Item(1); item["task_id"] = id; item["title"] = "Fixture task " + id; return item;
+    }
+
+    private static HttpResponseMessage NavigationError(int status) => new((HttpStatusCode)status)
+    {
+        Content = new StringContent(JsonSerializer.Serialize(new
+        { ok = false, error = new { code = status == 401 ? "AUTH_REQUIRED" : "DATABASE_UNAVAILABLE", message = "Fixture failure" }, request_id = "fixture-request" }), Encoding.UTF8, "application/json")
+    };
+
+    private static bool NavigationSelected(TasksControl page, string id)
+    {
+        var grid = Field<DataGridView>(page, "gridTasks");
+        return grid.SelectedRows.Count == 1 && grid.SelectedRows[0].Tag is TaskSummary item && item.TaskId == id
+            && Field<TextBox>(page, "txtContent").Text.Contains("Fixture task " + id)
+            && Field<TextBox>(page, "txtContent").Text.Contains("Fixture description");
+    }
+
+    private static void WithNavigationPage(Action<ApiClient, TestHandler, TasksControl, Form> check, string role = "employee")
+    {
+        using var handler = new TestHandler { NavigationAttachments = true };
+        using var api = new ApiClient("http://localhost:5000/", handler);
+        Login(api, handler, role: role);
+        using var page = new TasksControl(role == "admin" ? PreviewRole.Administrator : PreviewRole.Employee, new HttpTaskQueryService(api));
+        using var host = new Form { ClientSize = new Size(1320, 780), ShowInTaskbar = false,
+            StartPosition = FormStartPosition.Manual, Location = new Point(-20000, -20000) };
+        page.Dock = DockStyle.Fill; host.Controls.Add(page);
+        handler.Success(new { items = new[] { Item(1), Item(2) } });
+        handler.Success(new { task = Item(1) });
+        host.Show();
+        try { Until(() => NavigationSelected(page, "1") && handler.Remaining == 0); }
+        catch (TimeoutException)
+        {
+            throw new InvalidOperationException("Navigation fixture did not load: "
+                + Field<Label>(page, "lblTaskQueryStatus").Text + "; last=" + handler.Last?.Path
+                + "; remaining=" + handler.Remaining);
+        }
+        check(api, handler, page, host);
+        Check(handler.Remaining == 0, "navigation consumes precisely the planned task responses");
+        Check(handler.Requests.All(x => x.Method == HttpMethod.Get || x.Path == "/api/v1/auth/login"), "navigation never sends task writes or confirmation requests");
     }
 
     private static void WithTaskPage(Action<ApiClient, TestHandler, TasksControl, Form> check)
@@ -814,6 +1099,8 @@ internal static class Program
     {
         private readonly Queue<(SendOrPostCallback Callback, object? State)> callbacks = new();
         private readonly AutoResetEvent posted = new(false);
+        private readonly bool preserveContext;
+        public QueuedSynchronizationContext(bool preserveContext = false) => this.preserveContext = preserveContext;
         public int Pending { get { lock (callbacks) return callbacks.Count; } }
         public override void Post(SendOrPostCallback callback, object? state)
         {
@@ -833,10 +1120,17 @@ internal static class Program
             var previous = SynchronizationContext.Current;
             try
             {
-                SynchronizationContext.SetSynchronizationContext(null);
+                // A fresh proxy prevents await continuations from inlining into
+                // the same captured context, while Task.Yield still stays on
+                // this explicitly drained UI queue instead of the thread pool.
+                SynchronizationContext.SetSynchronizationContext(preserveContext ? new CallbackContext(this) : null);
                 next.Callback(next.State);
             }
             finally { SynchronizationContext.SetSynchronizationContext(previous); }
+        }
+        private sealed class CallbackContext(QueuedSynchronizationContext owner) : SynchronizationContext
+        {
+            public override void Post(SendOrPostCallback callback, object? state) => owner.Post(callback, state);
         }
         public void Dispose() => posted.Dispose();
     }
@@ -856,6 +1150,8 @@ internal static class Program
     private sealed class TestHandler : HttpMessageHandler
     {
         private readonly Queue<Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>> responses = new();
+        public bool NavigationAttachments { get; init; }
+        public List<RequestInfo> Requests { get; } = new();
         public RequestInfo? Last { get; private set; }
         public int Count { get; private set; }
         public int Remaining => responses.Count;
@@ -869,7 +1165,11 @@ internal static class Program
         {
             Last = new RequestInfo(request.Method, request.RequestUri!.PathAndQuery,
                 request.Headers.Authorization?.Scheme == "Bearer" ? request.Headers.Authorization.Parameter : null);
+            Requests.Add(Last);
             Count++;
+            if (NavigationAttachments && request.Method == HttpMethod.Get
+                && request.RequestUri.AbsolutePath.StartsWith("/api/v1/results/shared/tasks/", StringComparison.Ordinal))
+                return Task.FromResult<HttpResponseMessage>(new ObservedResponse(new { items = Array.Empty<object>() }));
             if (responses.Count == 0) throw new InvalidOperationException("Unexpected HTTP request in test handler.");
             return responses.Dequeue()(request, cancellationToken);
         }
