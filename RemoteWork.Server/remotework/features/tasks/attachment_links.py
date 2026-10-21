@@ -1,4 +1,4 @@
-"""Member 2 cancellation consumer of member 3's registered file provider.
+"""Member 2 creation/cancellation consumers of the registered file provider.
 
 No provider/model is imported when it is disabled. Persisted task references
 must not be stranded by disabling that provider: a current locking read denies
@@ -20,6 +20,27 @@ _COLUMNS = {
 }
 _KEYS = {"result_shared_files": ["id"], "result_shared_chunks": ["attachment_id", "offset"],
          "result_shared_links": ["attachment_id", "resource_type", "resource_id"]}
+
+
+def attach_created_task_files(db, *, task_id, attachment_ids):
+    """Attach completed files after initial task/assignment/managers flush, same TX.
+
+    Called only by the first creation mutation. Omission/[] require no provider;
+    replaying a committed receipt must not recheck or mutate its file links.
+    """
+    if not getattr(g, "write_transaction_active", False) or db is not get_db():
+        raise RuntimeError("Use the current authenticated_transaction for task attachment creation")
+    from .attachment_selection import validate_attachment_selection
+    validate_attachment_selection({"attachment_ids": attachment_ids})
+    if not attachment_ids:
+        return
+    provider = current_app.extensions.get("results_shared_attachments")
+    replace = getattr(provider, "replace_task_files", None)
+    if not callable(replace):
+        raise AppError(503, "TASK_ATTACHMENT_PROVIDER_REQUIRED",
+                       "업무 등록 첨부를 연결할 공용 첨부 기능이 필요합니다. 담당자에게 연결 상태를 확인해 주세요.")
+    replace(db, positive_bigint(str(task_id), "task_id"), attachment_ids,
+            expected=ExpectedVersions(row_version=1, assignment_revision=1))
 
 
 def release_cancelled_task_files(db, *, task_id, expected):

@@ -60,9 +60,21 @@ GET은 현재 업무→배정→관리자→사용자를 잠가 변경 전 정�
 
 PR52가 alpha `cbda025`에 병합됐습니다. 2번 상세의 **결과물 보기·제출**은 현재 본인 배정이고 취소되지 않았으며 기존 results 웹이 등록된 경우 `/results?task_id=<id>&view=own`으로 이동합니다. 담당자 본인인 관리자도 own을 사용하고,지정 관리자 관계만으로 타인 제출/검토 진입을 만들지 않습니다. 링크의 task_id는 기존3번 화면의 선택 힌트이며 조회·제출 권한을 보장하지 않습니다. 결과물 서버가 현재 관계와 상태를 재검사합니다. 2번은3번 코드·제출 상태 저장을 추가하지 않았습니다. 돌아온 뒤 **업무 정보 새로고침**은 원래 목록 필터를 보존한 상세 GET을 수행합니다.
 
-PR52에는 취소 guard와 `pending_extension_facts(..., lock=True)` 소비 및 공용 첨부 제공 코드가 포함됐습니다. 현재 2번은 [취소 트랜잭션의 업무 첨부 참조 해제](TASK_LIFECYCLE.md#task-cancellation-attachments)와 [WinForms 첨부 목록·다운로드](TASK_QUERIES.md#task-attachment-read-consumer)까지 소비합니다. 업무 생성·수정의 첨부 목록 쓰기는 사용자 답변에 따라 **3번과 협의 후 결정**하며, 새 `attachment_ids` 필드를 임의로 추가하지 않습니다. 실제 공유 DB·두 PC·통합 ACK와1번의 `013_shared_attachments.mysql.sql` 공용 적용은 별도입니다.
+PR52에는 취소 guard와 `pending_extension_facts(..., lock=True)` 소비 및 공용 첨부 제공 코드가 포함됐습니다. 현재 2번은 [취소 트랜잭션의 업무 첨부 참조 해제](TASK_LIFECYCLE.md#task-cancellation-attachments), [WinForms 첨부 목록·다운로드](TASK_QUERIES.md#task-attachment-read-consumer), [신규 등록 API/C# DTO의 선택 첨부 목록](TASK_CREATION.md#task-creation-attachment-selection)을 소비합니다. 실제 공유 DB·두 PC·통합 ACK와1번의 `013_shared_attachments.mysql.sql` 공용 적용은 별도입니다.
 
-3번의 새 회신은 기존 결과물 cookie GET의 읽기 권한을 확인했고 관리 업무 전용 진입, 성공 후 업무 상세 복귀, 공용 첨부 cookie/CSRF 연결을 후속으로 제안했습니다. 해당 URL·입력·복귀 정보 계약은 아직 제공되지 않았습니다. 현재 own 링크와 수동 상세 GET을 유지하며 `view=review`를 관리 업무 열람으로 바꾸거나 `return_url`·브라우저 Bearer 전달을 추가하지 않습니다. WinForms 읽기 소비는 업무 웹 첨부 화면 완성을 뜻하지 않습니다.
+<a id="task-web-member3-accepted-proposals"></a>
+### 3번 제안 수용과 남은 제공부 — 2026-10-21
+
+팀장은 [3번 제안 4개를 수용](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member3-proposals-accepted-20261021)했습니다. 정책 수용과 현재 사용할 수 있는 구현은 다음처럼 구분합니다.
+
+| 수용한 계약 | 현재 2번 연결·남은 기술 조건 |
+|---|---|
+| 관리 업무의 `/results?task_id=<id>&view=read` 읽기 전용 진입 | 3번 경로 구현은 아직 제공되지 않아 기존 own 링크만 유지. 지정 관리자 관계를 검토자 권한으로 해석하지 않음 |
+| `back_context` 하나로 서버가 서명한 원래 업무·현재 로그인·검증한 세 필터를 전달하고 성공 확인 뒤 명시적으로 복귀 | 서명/검증 공개 함수·수명(T3-4)이 필요. 임의 URL 복귀·자동 이동 없음. 현재는 업무 상세에서 수동 새로고침 |
+| 선택 `attachment_ids`: 등록 생략/빈 배열은 없음, 수정 생략은 유지·빈 배열은 전부 해제·값은 최종 목록 | 등록 API/C# DTO는 연결. 수정의 명시 첨부 목록은 `503 TASK_ATTACHMENT_REPLACEMENT_NOT_READY`로 차단. 같은 TX의 변경 전 목록/차이(T3-1), 감사 필드(T3-2), off/오류(T3-3) 제공 후 연결 |
+| 3번 cookie 첨부 목록·업로드 시작/청크/완료·다운로드/청크·discard 경로 | 경로 구현 및 2번 화면이 사용할 공개 세션 표식·CSRF 접점(T3-5)이 아직 미제공. 업무 웹 첨부 입력·업로드/다운로드 UI도 미연결 |
+
+업무 웹의 현재 등록·수정 폼은 `attachment_ids`를 만들지 않습니다. API의 등록 지원이 웹 첨부 UI 완료를 뜻하지 않으며, 3번의 cookie 어댑터·세션 검사를 2번이 복제하거나 브라우저에 Bearer를 전달하지 않습니다. `view=review`도 관리 업무 열람으로 바꾸지 않습니다. PR64의 공통 DELETE 지원은 미병합이며 이 작업에서 반입하지 않습니다. 기존 첨부 없는 등록/수정 동작과 명시적 W1 결과 복구를 유지합니다.
 
 <a id="task-web-current-lifecycle-detail"></a>
 ## 현재: 업무 상세의 취소·연장 대기 정보

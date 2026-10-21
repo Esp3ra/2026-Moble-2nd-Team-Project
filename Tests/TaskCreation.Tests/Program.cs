@@ -29,7 +29,8 @@ internal static class Program
                 else
                 {
                     capture = args.FirstOrDefault();
-                    Wire(); InvalidBodies(); Recovery(); DefiniteFailures(); MalformedResults(); SessionsAndConcurrency(); Screens(); NavigationRecovery(); RefreshViews();
+                    Wire(); InvalidBodies(); AttachmentContract(); AttachmentBodyLimit(); AttachmentRecovery(); AttachmentFailures();
+                    Recovery(); DefiniteFailures(); MalformedResults(); SessionsAndConcurrency(); Screens(); NavigationRecovery(); RefreshViews();
                 }
                 Console.WriteLine(args.SequenceEqual(new[] { "--http" })
                     ? $"PASS TaskCreation HTTP: {checks} checks."
@@ -111,6 +112,168 @@ internal static class Program
             catch (TaskCreationException ex) { Check(ex.Failure == TaskCreationFailure.InvalidInput && h.Count == count, "Missing creator and oversized body are rejected before POST"); }
         }
     }
+    private static readonly string[] AttachmentFixtureIds =
+        ["ffffffff-ffff-ffff-ffff-ffffffffffff", "11111111-1111-1111-1111-111111111111"];
+    private static TaskCreationRequest AttachmentRequest(IReadOnlyList<string>? ids, string description = "") =>
+        new("Attachment fixture", description, Start, Due, 7, new[] { 2, 3 }, attachmentIds: ids);
+
+    private static void AttachmentContract()
+    {
+        using var h = new Handler(); using var api = Api(h);
+        var service = new HttpTaskCreationService(api.CaptureSession());
+        h.Success(Key()); var key = Wait(service.GetRequestKeyAsync());
+        h.Success(Result(), 201); Wait(service.CreateAsync(AttachmentRequest(null), key));
+        using (var json = JsonDocument.Parse(h.Body))
+            Check(!json.RootElement.TryGetProperty("attachment_ids", out _) && json.RootElement.EnumerateObject().Count() == 6,
+                "Null attachment selection preserves the original six-field wire body");
+        h.Success(Result(), 201); Wait(service.CreateAsync(AttachmentRequest(Array.Empty<string>()), key));
+        using (var json = JsonDocument.Parse(h.Body))
+            Check(json.RootElement.GetProperty("attachment_ids").GetArrayLength() == 0
+                && json.RootElement.EnumerateObject().Count() == 7, "Explicit empty attachment selection is sent as an empty array");
+
+        var input = new List<string>(AttachmentFixtureIds);
+        var request = AttachmentRequest(input);
+        input.Reverse(); input.Add("22222222-2222-2222-2222-222222222222");
+        Check(request.AttachmentIds is not null && request.AttachmentIds.SequenceEqual(AttachmentFixtureIds),
+            "Checked attachment IDs are copied without reordering or following mutable caller input");
+        try
+        {
+            ((IList<string>)request.AttachmentIds!)[0] = input[0];
+            throw new InvalidOperationException("Checked attachment IDs were mutable");
+        }
+        catch (NotSupportedException) { checks++; }
+        h.Success(Result(), 201); Wait(service.CreateAsync(request, key));
+        using (var json = JsonDocument.Parse(h.Body))
+            Check(json.RootElement.GetProperty("attachment_ids").EnumerateArray().Select(x => x.GetString()).SequenceEqual(AttachmentFixtureIds),
+                "Attachment wire preserves the selected canonical UUID strings and original array order");
+
+        foreach (var invalid in new IReadOnlyList<string>[]
+        {
+            new[] { "" }, new[] { "not-a-uuid" }, new[] { "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF" },
+            new[] { "ffffffffffffffffffffffffffffffff" }, new[] { "{ffffffff-ffff-ffff-ffff-ffffffffffff}" },
+            new[] { " ffffffff-ffff-ffff-ffff-ffffffffffff" }, new string[] { null! },
+            new[] { AttachmentFixtureIds[0], AttachmentFixtureIds[0] },
+            Enumerable.Range(1, 11).Select(i => $"00000000-0000-0000-0000-{i:D12}").ToArray()
+        })
+        {
+            int count = h.Count;
+            try { _ = AttachmentRequest(invalid); throw new InvalidOperationException("Invalid attachment selection accepted"); }
+            catch (ArgumentException) { Check(h.Count == count, "Invalid/duplicate/null or excessive attachment IDs fail before HTTP"); }
+        }
+        var ten = Enumerable.Range(1, 10).Select(i => $"00000000-0000-0000-0000-{i:D12}").ToArray();
+        h.Success(Result(), 201); Wait(service.CreateAsync(AttachmentRequest(ten), key));
+        using (var json = JsonDocument.Parse(h.Body))
+            Check(json.RootElement.GetProperty("attachment_ids").GetArrayLength() == 10, "Ten final attachment IDs remain allowed");
+    }
+
+    private static void AttachmentBodyLimit()
+    {
+        using var h = new Handler(); using var api = Api(h);
+        var service = new HttpTaskCreationService(api.CaptureSession());
+        h.Success(Key()); var key = Wait(service.GetRequestKeyAsync());
+        h.Success(Result(), 201); Wait(service.CreateAsync(AttachmentRequest(null), key));
+        string boundaryDescription = new('a', 32 * 1024 - Encoding.UTF8.GetByteCount(h.Body));
+        h.Success(Result(), 201); Wait(service.CreateAsync(AttachmentRequest(null, boundaryDescription), key));
+        Check(Encoding.UTF8.GetByteCount(h.Body) == 32 * 1024, "Existing common 32KiB creation body boundary is unchanged");
+        int count = h.Count;
+        try
+        {
+            Wait(service.CreateAsync(AttachmentRequest(AttachmentFixtureIds, boundaryDescription), key));
+            throw new InvalidOperationException("Attachment payload bypassed the common body limit");
+        }
+        catch (TaskCreationException error)
+        {
+            Check(error.Failure == TaskCreationFailure.InvalidInput && h.Count == count,
+                "Attachment array bytes count toward the same 32KiB limit before POST");
+        }
+    }
+
+    private static void AttachmentRecovery()
+    {
+        foreach (bool recorded in new[] { true, false })
+        {
+            using var h = new Handler(); using var api = Api(h);
+            using var flow = new TaskCreationWorkflow(new HttpTaskCreationService(api.CaptureSession()));
+            var input = new List<string>(AttachmentFixtureIds);
+            var request = AttachmentRequest(input);
+            h.Success(Key()); h.Drop(); Wait(flow.SubmitAsync(request));
+            string originalBody = h.Body, originalKey = h.Key!;
+            input.Clear(); input.Add("22222222-2222-2222-2222-222222222222");
+            Check(flow.State == TaskCreationState.NeedsResultCheck && ReferenceEquals(flow.PendingRequest, request)
+                && flow.PendingRequest.AttachmentIds!.SequenceEqual(AttachmentFixtureIds),
+                "Uncertain creation keeps the frozen final IDs after caller list changes");
+            int count = h.Count;
+            Wait(flow.SubmitAsync(AttachmentRequest(input))); Wait(flow.RetryAsync());
+            Check(h.Count == count && h.Posts == 1, "Uncertain attachments do not permit a new body/key or unverified retry");
+            if (recorded)
+            {
+                h.Success(new { state = "completed", http_status = 201, result = Result(), expires_at = "2030-01-01T00:00:00Z" });
+                Wait(flow.CheckResultAsync());
+                Check(flow.State == TaskCreationState.Succeeded && h.Posts == 1 && h.Key == originalKey
+                    && flow.PendingRequest!.AttachmentIds!.SequenceEqual(AttachmentFixtureIds),
+                    "Recorded success is recovered without reupload, replacement IDs or another create POST");
+                count = h.Count;
+                Wait(flow.CheckResultAsync()); Wait(flow.RetryAsync()); Wait(flow.SubmitAsync(AttachmentRequest(input)));
+                Check(h.Count == count && flow.State == TaskCreationState.Succeeded
+                    && flow.PendingRequest!.AttachmentIds!.SequenceEqual(AttachmentFixtureIds),
+                    "Verified receipt success cannot trigger another lookup, retry or replacement request before explicit reset");
+            }
+            else
+            {
+                h.Success(new { state = "not_recorded" }); Wait(flow.CheckResultAsync());
+                Check(flow.State == TaskCreationState.RetryAllowed && h.Posts == 1,
+                    "Not-recorded attachment lookup requires an explicit retry");
+                h.Success(Result(), 201); Wait(flow.RetryAsync());
+                Check(flow.State == TaskCreationState.Succeeded && h.Posts == 2
+                    && h.Key == originalKey && h.Body == originalBody,
+                    "Explicit retry preserves the original UUID order, whole body and request key byte for byte");
+            }
+        }
+    }
+
+    private static void AttachmentFailures()
+    {
+        foreach (var (status, code, expectedState, expectedFailure) in new[]
+        {
+            (404, "ATTACHMENT_NOT_FOUND", TaskCreationState.Editing, TaskCreationFailure.AttachmentUnavailable),
+            (409, "ATTACHMENT_UNAVAILABLE", TaskCreationState.Editing, TaskCreationFailure.AttachmentUnavailable),
+            (409, "SHARED_ATTACHMENT_DATA_INCONSISTENT", TaskCreationState.ManualReview, TaskCreationFailure.Conflict),
+            (503, "SHARED_ATTACHMENT_SCHEMA_REQUIRED", TaskCreationState.NeedsResultCheck, TaskCreationFailure.Unavailable),
+            (503, "RESULTS_STORAGE_REQUIRED", TaskCreationState.NeedsResultCheck, TaskCreationFailure.Unavailable),
+            (503, "TASK_ATTACHMENT_PROVIDER_REQUIRED", TaskCreationState.NeedsResultCheck, TaskCreationFailure.Unavailable),
+            (403, "FORBIDDEN", TaskCreationState.Disconnected, TaskCreationFailure.Forbidden),
+            (401, "AUTH_REQUIRED", TaskCreationState.Disconnected, TaskCreationFailure.AuthenticationExpired)
+        })
+        {
+            using var h = new Handler(); using var api = Api(h);
+            using var flow = new TaskCreationWorkflow(new HttpTaskCreationService(api.CaptureSession()));
+            var request = AttachmentRequest(AttachmentFixtureIds);
+            h.Success(Key()); h.Error(status, code); Wait(flow.SubmitAsync(request));
+            Check(flow.State == expectedState && flow.Failure == expectedFailure,
+                "Actual attachment/common error code keeps its distinct recovery policy: " + code);
+            if (expectedState == TaskCreationState.Disconnected)
+                Check(flow.PendingRequest is null, "Common authentication/permission rejection retains existing captured-session cleanup");
+            else
+                Check(ReferenceEquals(flow.PendingRequest, request)
+                    && flow.PendingRequest.AttachmentIds!.SequenceEqual(AttachmentFixtureIds),
+                    "Rejected or uncertain file selection remains frozen and is never automatically replaced");
+            int count = h.Count;
+            Wait(flow.RetryAsync());
+            Check(h.Count == count && h.Posts == 1,
+                "Attachment failure does not issue an automatic retry, discard or replacement request");
+            if (expectedFailure == TaskCreationFailure.AttachmentUnavailable)
+                Check(flow.Message.Contains("첨부") && !flow.Message.Contains("연결이 활성화되지"),
+                    "Missing/unready attachment is not mislabeled as an unconfigured task route");
+            if (expectedState == TaskCreationState.NeedsResultCheck)
+            {
+                h.Success(new { state = "completed", http_status = 201, result = Result(), expires_at = "2030-01-01T00:00:00Z" });
+                Wait(flow.CheckResultAsync());
+                Check(flow.State == TaskCreationState.Succeeded && h.Posts == 1,
+                    "Uncertain attachment server failure can recover a retained success without reexecuting creation");
+            }
+        }
+    }
+
     private static void Recovery()
     {
         using var h = new Handler(); using var api = Api(h); using var flow = new TaskCreationWorkflow(new HttpTaskCreationService(api.CaptureSession()));

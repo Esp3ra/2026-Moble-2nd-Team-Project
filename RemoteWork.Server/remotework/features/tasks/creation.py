@@ -6,15 +6,17 @@ This module neither applies DDL nor enables a shared deployment. It does not
 accept tasks, restart work, submit results or select submission reviewers.
 """
 from datetime import date
+import json
 import re
 
 from flask import current_app, g, request
 
 from ...auth import authenticated_transaction, login_required
-from ...common import AppError, audit, payload, success
+from ...common import AppError, audit, success
 from ...models import iso, utcnow
 from ...write_contract import lock_users, positive_integer
 from .models import TaskAssignment, TaskManager, TaskRecord
+from .attachment_selection import validate_attachment_selection
 
 
 INPUT_FIELDS = {"title", "description", "start_date", "due_date", "assignee_id", "manager_user_ids"}
@@ -43,8 +45,9 @@ def _unicode_text(value, label):
 
 def validate_creation_body(body):
     """Validate a transport-independent body without normalizing its fingerprint."""
-    if not isinstance(body, dict) or set(body) != INPUT_FIELDS:
+    if not isinstance(body, dict) or set(body) not in (INPUT_FIELDS, INPUT_FIELDS | {"attachment_ids"}):
         raise AppError(400, "INVALID_INPUT", "업무 등록 입력 항목을 확인해 주세요.")
+    validate_attachment_selection(body)
     _unicode_text(body["title"], "업무 제목")
     if not body["title"].strip() or len(body["title"]) > 200:
         raise AppError(400, "INVALID_INPUT", "업무 제목은 공백만 제외하고 유니코드 문자 200개 이내로 입력해 주세요.")
@@ -69,7 +72,23 @@ def validate_creation_body(body):
 def _input():
     if request.args:
         raise AppError(400, "INVALID_INPUT", "업무 등록에는 조회 조건을 전달하지 않습니다.")
-    return validate_creation_body(payload())
+    if not request.is_json:
+        raise AppError(415, "JSON_REQUIRED", "JSON 형식으로 요청해 주세요.")
+    def unique_object(pairs):
+        result = {}
+        for name, value in pairs:
+            if name in result:
+                raise ValueError("Duplicate JSON member")
+            result[name] = value
+        return result
+    def reject_constant(_value):
+        raise ValueError("Non-standard JSON constant")
+    try:
+        body = json.loads(request.get_data().decode("utf-8"), object_pairs_hook=unique_object,
+                          parse_constant=reject_constant)
+    except (UnicodeError, ValueError, RecursionError):
+        raise AppError(400, "INVALID_INPUT", "중복 없는 JSON 입력 항목을 확인해 주세요.") from None
+    return validate_creation_body(body)
 
 
 def _creation_authorizer():
@@ -124,6 +143,9 @@ def execute_creation(db, *, body, key):
         for user_id in manager_ids:
             session.add(TaskManager(task_id=task.task_id, user_id=user_id))
         session.flush()
+        if body.get("attachment_ids"):
+            from .attachment_links import attach_created_task_files
+            attach_created_task_files(session, task_id=task.task_id, attachment_ids=body["attachment_ids"])
         # Use the stored MySQL DATETIME precision for the first response as
         # well as later GETs and the common retained result.
         session.refresh(task)
