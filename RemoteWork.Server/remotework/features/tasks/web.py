@@ -20,6 +20,13 @@ EXTENSION_LABELS = {
 
 
 @bp.record_once
+def register_writes(state):
+    if state.app.config.get("ENABLE_COMMON_WRITE_DRAFT"):
+        from .web_writes import register
+        register(state)
+
+
+@bp.record_once
 def register_lifecycle_inbox(state):
     # Keep lifecycle imports and routes behind their existing explicit opt-in.
     enabled = state.app.config.get("ENABLE_TASK_LIFECYCLE_DRAFT",
@@ -62,6 +69,7 @@ def index():
     return render_template("tasks/index.html", items=items, scope=scope, status=status,
                            include_cancelled=include_cancelled, filters=filters,
                            status_links=status_links, status_labels=STATUS_LABELS,
+                           has_creation="task_web.new" in current_app.view_functions,
                            has_lifecycle_inbox="task_web.extension_requests" in current_app.view_functions)
 
 
@@ -86,6 +94,8 @@ def detail(task_id):
         task = get_task(g.user, task_id)
     return render_template("tasks/detail.html", task=task, status_labels=STATUS_LABELS,
                            lifecycle_context=lifecycle_context,
+                           has_start="task_web.start_prepare" in current_app.view_functions,
+                           filters=_list_args(scope, status, include_cancelled),
                            back_url=url_for("task_web.index", **_list_args(scope, status, include_cancelled)))
 
 

@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}새 업무 등록{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='tasks.css') }}">{% endblock %}
+{% block content %}
+<div class="task-page">
+<a class="task-back" href="{{ url_for('task_web.index', **filters) }}">← 업무 목록으로</a>
+<p class="eyebrow">NEW TASK</p><h1>새 업무 등록</h1>
+{% if error %}<section class="card task-write-error" role="alert"><h2>입력을 확인해 주세요</h2><p>{{ error.message }}</p><p class="muted">오류 코드: {{ error.code }}</p></section>{% endif %}
+<form class="task-create-form" method="post" action="{{ url_for('task_web.new', **filters) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<section class="card"><h2>업무 정보</h2>
+<label for="task-title">업무 제목</label><input id="task-title" name="title" value="{{ draft.title }}" maxlength="400">
+<label for="task-description">업무 내용</label><textarea id="task-description" name="description" rows="6">{{ draft.description }}</textarea>
+<div class="task-date-inputs"><div><label for="task-start">시작일</label><input id="task-start" type="date" name="start_date" value="{{ draft.start_date }}"></div><div><label for="task-due">마감일</label><input id="task-due" type="date" name="due_date" value="{{ draft.due_date }}"></div></div>
+</section>
+<section class="card"><h2>담당자·관리자 선택</h2>
+<p class="muted">등록자 {{ g.user.display_name }}은 필수 관리자로 자동 포함됩니다. 후보를 검색해도 입력한 업무 내용과 선택은 유지됩니다.</p>
+<div class="task-candidate-search"><div><label for="task-candidate-search">이름·부서 검색</label><input id="task-candidate-search" name="q" value="{{ draft.q }}" maxlength="80"></div><div><label for="task-candidate-page">후보 페이지</label><input id="task-candidate-page" type="number" name="page" value="{{ page }}" min="1" max="1000000"></div><button type="submit" name="op" value="search">후보 검색</button></div>
+<label for="task-assignee">업무 담당자 1명</label><select id="task-assignee" name="assignee_id"><option value="">담당자를 선택하세요</option>
+{% set visible_assignees = assignees['items']|map(attribute='id')|list %}
+{% for candidate in selected_assignees if candidate.id not in visible_assignees %}<option value="{{ candidate.id }}" selected>{{ candidate.selection_label }} (현재 선택)</option>{% endfor %}
+{% for candidate in assignees['items'] %}<option value="{{ candidate.id }}" {% if draft.assignee_id == candidate.id|string %}selected{% endif %}>{{ candidate.selection_label }}</option>{% endfor %}</select>
+<p class="muted">담당자 후보 {{ assignees.total }}명 · {{ page }}페이지 · 페이지당 20명</p>
+<fieldset class="task-manager-options"><legend>추가 업무 관리자</legend>
+{% set visible_managers = manager_choices['items']|map(attribute='id')|list %}
+{% for candidate in selected_managers if candidate.id not in visible_managers %}<label class="task-checkbox"><input type="checkbox" name="manager_user_ids" value="{{ candidate.id }}" checked>{{ candidate.selection_label }} (현재 선택)</label>{% endfor %}
+{% for candidate in manager_choices['items'] if candidate.id != g.user.id %}<label class="task-checkbox"><input type="checkbox" name="manager_user_ids" value="{{ candidate.id }}" {% if candidate.id in managers %}checked{% endif %}>{{ candidate.selection_label }}</label>{% endfor %}
+{% if not manager_choices['items'] %}<p class="muted">검색 조건에 맞는 관리자 후보가 없습니다.</p>{% endif %}
+</fieldset><p class="muted">관리자 후보 {{ manager_choices.total }}명 · {{ page }}페이지 · 페이지당 20명</p>
+</section>
+<section class="card"><p>입력을 확인한 뒤 별도 확인 화면에서 등록을 실행합니다.</p><button type="submit" name="op" value="prepare">등록 내용 확인</button></section>
+</form>
+</div>
+{% endblock %}
