@@ -28,12 +28,18 @@ def create_app(test_config=None):
         ENABLE_DEVICE_ENROLLMENT_DRAFT=os.getenv("REMOTEWORK_ENABLE_DEVICE_ENROLLMENT_DRAFT") == "1",
         ENABLE_ENROLLMENT_DURABILITY_DRAFT=os.getenv("REMOTEWORK_ENABLE_ENROLLMENT_DURABILITY_DRAFT") == "1",
         ENABLE_ENROLLMENT_RECOVERY_DRAFT=os.getenv("REMOTEWORK_ENABLE_ENROLLMENT_RECOVERY_DRAFT") == "1",
+        ENABLE_DEVICE_IDENTITY_DRAFT=os.getenv("REMOTEWORK_ENABLE_DEVICE_IDENTITY_DRAFT") == "1",
         WRITE_REQUEST_TTL_SECONDS=int(os.getenv("WRITE_REQUEST_TTL_SECONDS", "86400")),
         COMPANY_NAME=os.getenv("COMPANY_NAME", "회사명"), SESSION_HOURS=int(os.getenv("SESSION_HOURS", "8")),
         COOKIE_SECURE=os.getenv("COOKIE_SECURE", "false").lower() == "true", MAX_CONTENT_LENGTH=32 * 1024,
         SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax", SESSION_REFRESH_EACH_REQUEST=False)
     if test_config:
         app.config.update(test_config)
+    # A published wire contract is not an installed authentication service.
+    # Reject accidental activation before any connection/model/route registration.
+    if app.config["ENABLE_DEVICE_IDENTITY_DRAFT"]:
+        raise RuntimeError("IDENTITY_IMPLEMENTATION_REQUIRED: RW-ID-v2 is contract-only; "
+                           "limited login, MySQL consumption and attendance integration are not installed")
     if app.config["ENABLE_ENROLLMENT_DURABILITY_DRAFT"] and not app.config["ENABLE_DEVICE_ENROLLMENT_DRAFT"]:
         raise RuntimeError("Enrollment MySQL durability requires explicit enrollment activation")
     if app.config["ENABLE_ENROLLMENT_RECOVERY_DRAFT"] and not app.config["ENABLE_ENROLLMENT_DURABILITY_DRAFT"]:
