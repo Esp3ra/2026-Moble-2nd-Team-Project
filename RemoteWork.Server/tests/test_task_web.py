@@ -157,9 +157,37 @@ def test_web_own_list_all_five_status_filters_and_real_detail(web_rows):
     assert detail.status_code == 200 and "업무 본문 1" in detail.text
     assert "직원" in detail.text and "2026-10-17" in detail.text and "2026-10-20" in detail.text
     assert "저장" not in detail.text and "취소됨" not in detail.text
-    # Shared navigation remains its owner's integration point.
-    placeholder = client.get("/features/tasks")
-    assert placeholder.status_code == 200 and "기능 연결 준비 중" in placeholder.text
+    # Shared navigation reaches the registered read-only task screen.
+    navigation = client.get("/features/tasks")
+    assert navigation.status_code == 302 and navigation.headers["Location"] == "/tasks"
+    assert _ids(client.get(navigation.headers["Location"])) == ["6", "1", "4", "5", "7"]
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_shared_task_navigation_keeps_authentication_and_activation_boundary(web_rows, enabled):
+    from remotework import create_app
+    source = web_rows[0]
+    app = create_app(dict(source.config) | {"ENABLE_TASK_QUERY_DRAFT": enabled})
+    try:
+        anonymous = app.test_client()
+        response = anonymous.get("/features/tasks")
+        assert response.status_code == 302 and response.headers["Location"].startswith("/login")
+        for user in ("staff1", "admin1"):
+            client = _client((app, web_rows[1]), user)
+            before = _snapshot(app)
+            response = client.get("/features/tasks")
+            home = client.get("/")
+            assert home.status_code == 200 and 'href="/features/tasks"' in home.text
+            if enabled:
+                assert response.status_code == 302 and response.headers["Location"] == "/tasks"
+                assert _ids(client.get(response.headers["Location"])) == (["6", "1", "4", "5", "7"] if user == "staff1" else ["3"])
+            else:
+                assert response.status_code == 200 and "기능 연결 준비 중" in response.text
+                assert "task_web.index" not in app.view_functions
+                assert client.get("/tasks").status_code == 404
+            assert _snapshot(app) == before
+    finally:
+        app.extensions["db_engine"].dispose()
 
 
 def test_web_managed_scope_and_direct_detail_use_current_server_authorization(web_rows):
