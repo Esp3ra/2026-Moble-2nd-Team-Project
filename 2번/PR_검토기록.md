@@ -1,3 +1,46 @@
+<a id="pr55-56-recheck-20261021"></a>
+## 최신 재검토 — PR55 추가 수정·PR56 연결 검사 보완·PR52 대기, 2026-10-21
+
+[PR55](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/55) head0871b2c의 기존 R55-01~03은 해결 확인했습니다. 공식237검사와 별도9표적·Release0/0이 통과했지만, **R55-04 P2: 운영자 종료 중 초가 바뀌면 종료 성공 후 조회·재실행·재발급이 계속409가 되는 결함**을 독립 재현해 미병합입니다. [고정 코드/재현/수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/55#issuecomment-6306292731)을 따릅니다.
+
+새 [PR56](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/56) head0bf93bc는 PR55와 결합해 Python168통과/Linux2생략·중계540·전용WinForms31·실제55 서버/소유MySQL 연결2·Release0/0을 확인했습니다. 다만 기준 alpha에서 통과하는 기존 회원관리 연결 검사가 새 physical-result 대역 누락으로 timeout하며, **PR55 수정·선행 병합과 원본 통합 검사 갱신/재실행 전까지 보류**합니다. [담당1·5 연결 보완 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/56#issuecomment-6306293058)과 [중앙 근거](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr55-56-recheck-20261021)를 따릅니다.
+
+PR52 head0a7a57d는 코드 변경 없이1번의 공통3파일 수용 확인 댓글만 추가됐습니다. 기존 R52-01/P1 표시·실제 판단 대상 불일치와 R52-02/P2 버전충돌 후 재준비 경로 수정을 기다립니다. 이번에는 어떤 제품 PR도 병합하지 않았으며 실제 작업 폴더·공유 서버/DB·010/011·옵션·Pi/센서를 변경하지 않았습니다.
+
+### PR55 — 이전 세 지적 해결, 새 종료 시각 결합 결함
+
+기준 alpha `bb281e317cdd27e2a4796ad39d8712bbddd9828b`, head `0871b2ce80725587e8c1960d0874f5dc191cf46e`, 검토 결합 tree `5e3869ff86b468383f74695a5594118532f39c1c`입니다. 현재 Ready/CLEAN/MERGEABLE과 실제 검토 판정을 구분합니다.
+
+R55-01은 기존010 증거/011 재발급 이력을 현재 잠금 조회해 hot/cold flagOFF의 legacy 쓰기·미기록완료를 막습니다. R55-02는 capture가 로그인 RR snapshot 대신 현재 잠금 receipt를 읽습니다. R55-03은 첫 원문 및 운영자 보관에도 terminal Job.result_hash를 대조합니다. 기존 독립 재현2건과 공개 회귀6건·011 intent 전 OFF1건의 별도9표적은38.02초에 통과했습니다. 공식237에 포함되는7건은 합산하지 않습니다.
+
+새 **R55-04/P2**는 `enrollment/recovery.py:223,228`의 서로 다른 `svc.now()` 호출과171행의 정확 동등 검사입니다. 원본 CLI/HTTP와 새 소유MySQL에서 clock만01:04:00→01:04:01 초 경계를 재현하면 최초 close는exit0·복구/감사 각1로 commit하지만 closed_at와 source.updated_at가1초 어긋납니다. 같은 확인서 재실행exit1, 상태GET와 새 로그인 reissue는 계속409 ENROLLMENT_RECOVERY_BINDING_CHANGED입니다. job은recovery_required·claim은quarantined로 남습니다. 동일 초 대조군은 재실행/조회/재발급 모두 정상입니다. 한 번 캡처한 stamp를 두 필드에 함께 쓰고, 초 경계를 지나는 회귀로 정상 재사용을 확인해야 합니다. 바인딩 검사를 없애거나 원래 티켓/만료를 변경하는 수정은 요청하지 않습니다.
+
+별도 초 경계2검사는16.20초이며 하나는 결함 관찰 assertion, 다른 하나는 정상 대조군입니다. 이 숫자를 기능 정상 통과 수에 더하지 않습니다. 증거는 `remote_work_pr55_recovery_review_20261021/audit/recovery-finding.json`, `clock-boundary.json`, `clock-control.json`, `clock-owned.txt`입니다.
+
+### 직접 실행한 공식 검사와 안전한 범위
+
+Python3.12.14/pytest9.1.1·MySQL8.2 InnoDB/RR의 폐기 가능한 전용 DB에서 durability/device/approval/protocol/task_creation_migration/task_write_support/recovery/durability_review **8모듈237통과·실패/생략/경고0**입니다. `-W error::pytest.PytestUnhandledThreadExceptionWarning`을 유지하고 WriteSupport HTTP DLL을 선행 빌드했습니다. WriteSupport 및 전체 솔루션 Release는 각각 경고0/오류0, diff검사와 새 cold 프로세스의 기본off·모듈/metadata/route/CLI 미등록·DB미접속을 확인했습니다. 모든 소유MySQL 프로세스·임시runtime을 정리했습니다. 작성자 Python3.14/147.69초 보고와 이번 검토자의 실행을 구분합니다.
+
+증거는 `remote_work_pr55_recheck_independent_20261021/audit/official.txt`, `official-summary.json`, `cold-off.json`, `build.txt`, `write-support-build.txt`; 별도 표적은 `remote_work_pr55_recheck47_20261021/audit/recheck-review.md`, `terminal-conflict.txt`, `terminal-conflict-summary.json`입니다.
+
+### PR56 — 새 MySQL Pi/PC 소비와 미완료 연결 검사
+
+head `0bf93bca7891c3ae73e00a5ceb3f3b9465f85dd6`, 실제 base `bb281e317cdd27e2a4796ad39d8712bbddd9828b`, PR55 0871b2c와의 결합 tree `cc82f2a559cf13bfa1897f196462ed949e17787a`입니다. 24파일2430추가43삭제이며 Python 어댑터/명시 시작·비공개 설정 검사·읽기 전용 복구 점검기, C#relay/form과 소유 회귀입니다. 실제 서버DDL/회원관리/launcher 변경은 포함하지 않습니다.
+
+생성응답 회원·현재 접속·취소epoch·복구 선택·device/key epoch를 고정하고, GET 확인만으로 발급/채취하지 않으며 별도 시작에서 같은 요청UUID/old-new 링크/claim+1을 확인합니다. 응답 유실 뒤 일반issue나 새scan으로 우회하지 않고 현재receipt/고정 원문을 조회합니다. store는 최초 MySQL intent commit의 일회 승인 뒤에만 실행하며 원문 선보관과 servercomplete 이후에 완료를 표시합니다. 새 Python 경로의 SQLite 사용이나 별도 제품 차단 결함은 찾지 못했습니다.
+
+직접 Python 전체 unittest는 **170실행/168통과/Linux flock2생략/실패0·5.273초**입니다. C#합성HTTP/실제Python loopback 중계540, 실제WinForms+합성HTTP31, 전체솔루션Release0/0도 통과했습니다. 추가 실제55 Flask/소유MySQL+56어댑터2검사는9.08초에 통과했습니다. 합성 키·가짜 센서에서 기존11개 보존/슬롯12 store1회/정확BLOB/매핑1·재시작 읽기sensorIO0과 intent commit 응답 직후 취소store0/매핑0/intent증거 보존을 확인했습니다. 실물11개를 검토자가 조작한 검사가 아닙니다. 소유DB/프로세스·runtime 정리를 확인했습니다.
+
+원본 `dotnet run --project Tests/UserManagement.Ui.Tests/UserManagement.Ui.Tests.csproj -c Release`는 결합본에서 **FAIL after46: TimeoutException: Modal registration driver**, `EnrollmentConnectionChecks.cs:156`으로 실패했습니다. 기존 mock handler의241행까지 GET/POST physical-result가 없어서 새relay의 선행조회에서 중단됩니다. 별도 기준 alpha clone에서는 같은 원본 검사가 연결112 + 회원관리14시나리오46검사로 통과했습니다. 실제 서버 장애나 제품 등록 성공을 입증한 결과가 아니며, 원본 fixture를 새 계약에 맞추고 동일 원문 선보관/완료 순서를 검사한 뒤 원본 suite를 재실행해야 합니다. 작성자의 임시 복사본120통과를 원본 통과로 기록하지 않습니다. PR55 수정·선행 병합도 필요합니다.
+
+증거는 `remote_work_pr56_review_20261021/audit/root-checks.json`, `remote_work_pr56_csharp_review_20261021/audit/static-review.json`, `remote_work_pr56_adapter47_20261021/audit/`의 Python/실제결합 로그와 회귀입니다. 이번 검토는 제품 소스를 수정하지 않았습니다. Linuxflock·실제 공유환경·센서·두PC·전원차단은 미검증이며 코드검사, PR병합, 실제환경 적용, 운영자close/reissue, 실물 지문저장/회원매핑을 구분합니다.
+
+### PR52와 정책 기준 유지
+
+PR52 head `0a7a57df97767e81680484222587974747bf6dab`는 동일합니다. [1번의 공통3파일 수용·조직 자료 현재 상태 확인](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52#issuecomment-6305999537)을 수신했지만 R52-01/02 코드 수정과 실제 취소/pending 소비·경합·검사경로 이식성의 대체가 아닙니다. 동일head의 과거185/41/177을 이번에 다시 실행했다고 표시하지 않습니다. [기존 팀장 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52#issuecomment-6287667210)을 유지합니다.
+
+팀장이 이미 채택한 A1~A6·B1~B7 기준과90일 화면조회/물리삭제 미확정 구분도 유지합니다. 전체ACK/실제쓰기503 해제, 지문010/011 적용·옵션/실제서버 재시작·Pi/PC 배포·실물 복구는 실행하지 않았습니다. 이번에는 원본alpha 제품/실제작업폴더에 반영하지 않고 기존 PR/LOG 문서에 재검토 결과만 추가합니다.
+
 <a id="pr55-review-20261021"></a>
 ## 최신 PR 검토 — PR54 문서 병합·PR55 수정 필요·PR52 보류, 2026-10-21
 
