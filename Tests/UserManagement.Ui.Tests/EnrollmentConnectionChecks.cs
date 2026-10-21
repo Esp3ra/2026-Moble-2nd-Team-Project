@@ -13,6 +13,8 @@ internal static class EnrollmentConnectionChecks
     private const string B = "223e4567-e89b-42d3-a456-426614174000";
     private const string Api = "http://enrollment.test:5000/";
     private const string Opaque = "cHVibGljLXN5bnRoZXRpYw";
+    private const string JobId = "31593412-67fd-40d2-878b-868d15f99a11";
+    private static bool requireMySql;
     private static readonly UserInfo Admin = new(1, "admin-test", "QA admin", "QA", "QA", "admin", true);
     private static readonly UserInfo Created = new(88, "created-test", "QA member", "QA88", "QA", "employee", true);
     private static int checks;
@@ -37,11 +39,13 @@ internal static class EnrollmentConnectionChecks
     private static EnrollmentEndpoints Parse(string text, string server = Api)
         => EnrollmentEndpoints.Parse(Encoding.UTF8.GetBytes(text), new Uri(server));
 
-    public static void Run()
+    public static void Run(bool requireMySqlEnrollment)
     {
+        requireMySql = requireMySqlEnrollment;
+        MappingGate();
         Configuration(); Flow("success"); Flow("missing"); Flow("closed"); Flow("logout");
         InvalidServer(); PreflightAndForeignJob();
-        Console.WriteLine($"PASS enrollment connection: {checks} checks; real user-management/registration WinForms + controlled HTTP/channel, no real device/MySQL.");
+        Console.WriteLine($"PASS enrollment connection: {checks} checks; mode={(requireMySql ? "required enrollment-mysql-v1" : "baseline/physical-result-aware")}; real user-management/registration WinForms + controlled HTTP/channel, no real device/MySQL.");
     }
 
     private static void Configuration()
@@ -96,7 +100,7 @@ internal static class EnrollmentConnectionChecks
 
     private static void Flow(string mode)
     {
-        using var server = new Server(); using var api = new ApiClient(Api, server);
+        using var server = new Server(requireMySql); using var api = new ApiClient(Api, server);
         var pi = new Pi(); var addresses = new List<Uri>();
         string config = mode == "missing" ? Config().Replace("\"" + B + "\":{\"pi_base_url\":\"https://pi-b.test:5443/\"}", "")
             .Replace(",}", "}") : Config();
@@ -134,6 +138,9 @@ internal static class EnrollmentConnectionChecks
                     Check(server.Target == Created.Id && server.Device == (mode == "missing" ? A : B), "Issued target and explicit selected device preserved");
                     Check(addresses.Single().Host == (mode == "missing" ? "pi-a.test" : "pi-b.test"), "Selected device gets its exact configured channel");
                     Check(!popup.RegistrationCompleted && !start.Enabled && !devices.Enabled, "No sensor-only completion; duplicate start/device switch disabled");
+                    if (requireMySql)
+                        Check(server.PhysicalReads == 1 && server.PhysicalWrites == 0,
+                            "Required MySQL flow reads physical status BEFORE Pi; no legacy fallback");
                     if (mode == "logout") Task.Run(api.ClearIdentity);
                     else if (mode == "closed") popup.Close();
                     else pi.Ready.SetResult(Opaque);
@@ -158,12 +165,16 @@ internal static class EnrollmentConnectionChecks
         if (mode is "success" or "missing")
         {
             Check(server.Completes == 1 && popup!.RegistrationCompleted, "Server confirmation is required for completed UI");
+            if (requireMySql || server.PhysicalReads > 0)
+                Check(server.PhysicalWrites == 1 && server.RecordedRaw == Opaque,
+                    "Exact Pi result is recorded once BEFORE complete");
             Check(Field<Label>(owner, "status").Text.StartsWith("지문 등록 완료"), "Owning form publishes current confirmed result");
             Check(!Field<Button>(owner, "enroll").Enabled, "Completed operation cannot start a new enrollment");
         }
         else
         {
             Check(server.Completes == 0 && !popup!.RegistrationCompleted, "Late result after close/logout cannot complete server mapping");
+            Check(server.PhysicalWrites == 0, "Late result after close/logout cannot record physical result");
             Check(!Field<Button>(owner, "enroll").Enabled, "Uncertain operation/session cannot silently create another attempt");
         }
         owner.Close();
@@ -200,6 +211,31 @@ internal static class EnrollmentConnectionChecks
 
     private static IEnumerable<Control> Controls(Control root)
     { foreach (Control child in root.Controls) { yield return child; foreach (var descendant in Controls(child)) yield return descendant; } }
+
+    // These are fixture guards, not tests of a real server or MySQL persistence.
+    private static void MappingGate()
+    {
+        using var server = new Server(true) { Issues = 1, Device = A, Client = Guid.NewGuid().ToString() };
+        using var client = new HttpClient(server) { BaseAddress = new Uri(Api) };
+        client.DefaultRequestHeaders.Authorization = new("Bearer", "synthetic-token");
+        HttpStatusCode Send(string suffix, string raw)
+        {
+            using var content = new StringContent(JsonSerializer.Serialize(new { operation_revision = "1", result_envelope = raw }), Encoding.UTF8, "application/json");
+            var task = client.PostAsync($"api/v1/device-enrollments/{JobId}/{suffix}", content);
+            Complete(task); using var response = task.GetAwaiter().GetResult(); return response.StatusCode;
+        }
+        Check(Send("complete", Opaque) == HttpStatusCode.Conflict && server.Completes == 0,
+            "Strict fixture refuses completion without recorded bytes");
+        Check(Send("physical-result", Opaque) == HttpStatusCode.OK, "Fixture accepts first physical result");
+        Check(Send("physical-result", Opaque) == HttpStatusCode.OK && server.PhysicalWrites == 1,
+            "Fixture preserves identical replay without another stored effect");
+        Check(Send("physical-result", "b3RoZXI") == HttpStatusCode.Conflict && server.RecordedRaw == Opaque,
+            "Fixture refuses overwrite by different bytes");
+        Check(Send("complete", "b3RoZXI") == HttpStatusCode.Conflict && server.Completes == 0,
+            "Fixture refuses completion with different bytes");
+        Check(Send("complete", Opaque) == HttpStatusCode.OK && server.Completes == 1,
+            "Fixture permits completion only after exact result storage");
+    }
     private sealed class Pi : IEnrollmentPiChannel, IDisposable
     {
         public int Calls; public bool Disposed;
@@ -209,10 +245,12 @@ internal static class EnrollmentConnectionChecks
         { Interlocked.Increment(ref Calls); return await Ready.Task.ConfigureAwait(false); }
         public void Dispose() => Disposed = true;
     }
-    private sealed class Server : HttpMessageHandler
+    private sealed class Server(bool requirePhysical = false) : HttpMessageHandler
     {
         public int Issues, Completes, Eligible, Target; public string Device = "", Client = "";
-        public EnrollmentJob Job(string device) => new("31593412-67fd-40d2-878b-868d15f99a11", "1", 7, "1", "1", Client,
+        public int PhysicalReads, PhysicalWrites;
+        public string? RecordedRaw { get; private set; }
+        public EnrollmentJob Job(string device) => new(JobId, "1", 7, "1", "1", Client,
             device, Completes > 0 ? "completed" : "issued", "2026-10-20T01:03:00Z", false, Opaque,
             Completes > 0 ? new EnrollmentReceipt("af7de985-1df9-4e65-a310-dd86fa4c6862", "completed", null) : null);
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellation)
@@ -237,10 +275,53 @@ internal static class EnrollmentConnectionChecks
                     Target = body.GetProperty("target_user_id").GetInt32(); Device = body.GetProperty("device_id").GetString()!;
                     Issues++; data = Job(Device);
                 }
-                else if (path.EndsWith("/complete")) { Completes++; data = Job(Device); }
+                else if (path.EndsWith("/physical-result"))
+                {
+                    Check(path == $"/api/v1/device-enrollments/{JobId}/physical-result" && Issues == 1,
+                        "Physical route belongs to the issued job");
+                    if (request.Method == HttpMethod.Get) PhysicalReads++;
+                    else
+                    {
+                        Check(request.Method == HttpMethod.Post, "Physical result uses GET/POST only");
+                        string raw = await ResultBody(request, cancellation);
+                        if (RecordedRaw is not null && RecordedRaw != raw) return Conflict();
+                        if (RecordedRaw is null) { RecordedRaw = raw; PhysicalWrites++; }
+                    }
+                    data = new
+                    {
+                        enrollment_id = JobId, operation_revision = "1", reserved_slot = 7,
+                        claim_revision = "1", key_epoch = "1", contract = "enrollment-mysql-v1",
+                        phase = RecordedRaw is null ? "not_recorded" : "result_recorded", result_envelope = RecordedRaw,
+                        result_id = RecordedRaw is null ? null : "af7de985-1df9-4e65-a310-dd86fa4c6862",
+                        outcome = RecordedRaw is null ? null : "sensor_stored", failure_code = (string?)null,
+                        intent_at = RecordedRaw is null ? null : "2026-10-20T01:01:00Z",
+                        reported_at = RecordedRaw is null ? null : "2026-10-20T01:01:01Z",
+                        may_store = false, approval_envelope = (string?)null
+                    };
+                }
+                else if (path.EndsWith("/complete"))
+                {
+                    Check(path == $"/api/v1/device-enrollments/{JobId}/complete" && Issues == 1
+                        && request.Method == HttpMethod.Post, "Complete uses the issued job and POST");
+                    string raw = await ResultBody(request, cancellation);
+                    if ((requirePhysical || PhysicalReads > 0 || RecordedRaw is not null) && RecordedRaw != raw)
+                        return Conflict();
+                    Completes++; data = Job(Device);
+                }
                 else throw new InvalidOperationException("Unexpected common-server route: " + path);
             }
             return new(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(new { ok = true, data }, ApiClient.Json), Encoding.UTF8, "application/json") };
+        }
+        private static HttpResponseMessage Conflict() => new(HttpStatusCode.Conflict)
+        { Content = new StringContent("{\"ok\":false,\"error\":{\"code\":\"FIXTURE_RESULT_CONFLICT\",\"message\":\"Exact physical result must be recorded first\"}}", Encoding.UTF8, "application/json") };
+        private static async Task<string> ResultBody(HttpRequestMessage request, CancellationToken cancellation)
+        {
+            using var document = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(cancellation));
+            var body = document.RootElement;
+            Check(body.EnumerateObject().Select(p => p.Name).Order().SequenceEqual(new[] { "operation_revision", "result_envelope" }),
+                "Result request has exactly revision and original bytes");
+            Check(body.GetProperty("operation_revision").GetString() == "1", "Result uses current operation revision");
+            return body.GetProperty("result_envelope").GetString()!;
         }
     }
 }

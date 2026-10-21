@@ -132,6 +132,53 @@ def test_new_current_session_reissue_fixed_body_replay_then_mysql_complete(recov
         assert db.scalar(select(func.count()).select_from(AuditEvent).where(AuditEvent.action == "enrollment.reissued")) == 1
 
 
+@pytest.mark.parametrize("step", [timedelta(seconds=1), timedelta(microseconds=200001)],
+                         ids=["second-boundary", "subsecond-clock"])
+def test_close_uses_one_timestamp_for_binding_across_clock_ticks(recovery, tmp_path, step):
+    old = expired(recovery)
+    with recovery[0].app_context():
+        source = get_db().get(Job, old["enrollment_id"])
+        original = (source.ticket_digest, source.issuer_session_hash, source.expires_at,
+                    source.completed_at, source.operation_revision, source.claim_revision)
+    ticks = []
+    start = recovery[4][0] + timedelta(microseconds=700000)
+
+    def advancing_clock():
+        value = start + step * len(ticks)
+        ticks.append(value)
+        return value
+
+    recovery[0].config["ENROLLMENT_CLOCK"] = advancing_clock
+    response = close(recovery, old, tmp_path)
+    assert response.exit_code == 0, response.output
+    approval = json.loads(response.output)
+    assert len(ticks) >= 2 and ticks[1] > ticks[0]
+    with recovery[0].app_context():
+        db = get_db(); source = db.get(Job, old["enrollment_id"])
+        record = db.get(Recovery, approval["recovery_id"])
+        assert record.closed_at == source.updated_at
+        assert original == (source.ticket_digest, source.issuer_session_hash, source.expires_at,
+                            source.completed_at, source.operation_revision, source.claim_revision)
+        assert db.get(Claim, (DID, old["reserved_slot"])).state == "quarantined"
+    again = close(recovery, old, tmp_path)
+    assert again.exit_code == 0 and json.loads(again.output) == approval
+    status = recovery[1].get(ROOT + "/recoveries/" + approval["recovery_id"], headers=recovery[2])
+    assert status.status_code == 200, status.json
+    headers = recovery[5]()  # New current login, no takeover of the source session.
+    body = {"client_request_id": str(uuid4()), "target_user_id": recovery[3]["staff2"]}
+    fresh = reissue(recovery, approval["recovery_id"], headers=headers, body=body)
+    assert fresh.status_code == 200, fresh.json
+    assert fresh.json["data"]["job"]["claim_revision"] == "2"
+    assert reissue(recovery, approval["recovery_id"], headers=headers, body=body).json["data"] == fresh.json["data"]
+    with recovery[0].app_context():
+        db = get_db()
+        assert db.scalar(select(func.count()).select_from(Recovery)) == 1
+        assert db.scalar(select(func.count()).select_from(Job)) == 2
+        assert db.scalar(select(func.count()).select_from(Mapping)) == 0
+        for action in ("enrollment.operator_closed", "enrollment.reissued"):
+            assert db.scalar(select(func.count()).select_from(AuditEvent).where(AuditEvent.action == action)) == 1
+
+
 def test_old_paths_and_ordinary_issue_never_release_or_reuse_claim(recovery, tmp_path):
     old, approval = approved(recovery, tmp_path)
     assert complete(recovery, old, result(old)).status_code == 409

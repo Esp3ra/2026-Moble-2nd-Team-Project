@@ -215,17 +215,18 @@ def close(db, login_id, attestation, report, *, apply=False):
         svc.fail(409, "ENROLLMENT_RECOVERY_TOO_EARLY")
     if not hmac.compare_digest(wire.ticket_digest(svc.ticket(job, device)), job.ticket_digest):
         svc.fail(409, "ENROLLMENT_RECOVERY_BINDING_CHANGED")
+    stamp = svc.now()
     value = Recovery(recovery_id=str(uuid4()), source_enrollment_id=job.enrollment_id,
         device_id=device.device_id, slot=job.reserved_slot, source_operation_revision=job.operation_revision,
         source_claim_revision=job.claim_revision, key_epoch=job.key_epoch, ticket_digest=job.ticket_digest,
         profile_hash=profile(device), source_state=job.state, operator_id=operator.id,
         report_sha256=body["report_sha256"], source_report_sha256=body["source_report_sha256"], attestation_sha256=digest,
-        fenced_at=times[0], observed_at=times[1], checked_at=times[2], closed_at=svc.now())
+        fenced_at=times[0], observed_at=times[1], checked_at=times[2], closed_at=stamp)
     if not apply:
         return dict(ready=True, action="preview_only", source_enrollment_id=job.enrollment_id,
                     reserved_slot=job.reserved_slot, evidence_kind="operator_observation_not_signed_result")
     db.add(value)
-    job.state, claim.state, job.updated_at = "recovery_required", "quarantined", svc.now()
+    job.state, claim.state, job.updated_at = "recovery_required", "quarantined", stamp
     # Do not rewrite completed_at/expires_at: the original result window is not extended.
     audit("enrollment.operator_closed", "enrollment", job.enrollment_id,
           {"recovery_id": value.recovery_id, "evidence_kind": "operator_observation", "report_sha256": value.report_sha256,
