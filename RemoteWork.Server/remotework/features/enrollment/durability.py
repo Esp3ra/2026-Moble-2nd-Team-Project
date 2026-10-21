@@ -79,6 +79,8 @@ def row(db, job):
             or value.key_epoch != job.key_epoch or value.ticket_digest != job.ticket_digest):
         svc.fail(409, "ENROLLMENT_BINDING_MISMATCH")
     if value and value.result_hash:
+        if job.result_hash and not hmac.compare_digest(job.result_hash, value.result_hash):
+            svc.fail(409, "ENROLLMENT_RESULT_CONFLICT")
         if not hmac.compare_digest(hashlib.sha256(value.result_envelope).hexdigest(), value.result_hash):
             svc.fail(409, "ENROLLMENT_RESULT_CONFLICT")
         device = db.get(Device, job.device_id)
@@ -146,11 +148,14 @@ def record_result(db, job, device, body, *, legacy_evidence=False, actor_id=None
         key_epoch=str(device.key_epoch), request_key=keys["request_key"], result_key=keys["result_key"])
     value = row(db, job)
     digest = hashlib.sha256(raw).hexdigest()
+    if job.result_hash and not hmac.compare_digest(job.result_hash, digest):
+        svc.fail(409, "ENROLLMENT_RESULT_CONFLICT")
     if value and value.result_hash:
         if not hmac.compare_digest(value.result_hash, digest):
             svc.fail(409, "ENROLLMENT_RESULT_CONFLICT")
         return view(job, value)
-    if result["outcome"] == "sensor_stored" and (value is None or value.intent_at is None) and not legacy_evidence:
+    if (result["outcome"] == "sensor_stored" and (value is None or value.intent_at is None)
+            and not legacy_evidence and not job.result_hash):
         svc.fail(409, "ENROLLMENT_STORAGE_INTENT_REQUIRED")
     if value is None:
         value = new_row(job)

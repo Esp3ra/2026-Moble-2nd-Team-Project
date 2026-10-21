@@ -12,6 +12,8 @@
 
 Pi에는 공통 MySQL 계정·직접SQL 권한을 배포하지 않는다. 기존 PC의 관리자 Bearer 중계와 서버↔Pi 방향키를 유지한다. 키 설정 파일은 생체정보·DB 저장소와 구분해 비공개로 보존한다.
 
+**R55-01/02 보완:** durability 옵션을 꺼도 이미 MySQL intent/결과가 있는 작업과011에서 명시 재발급된 작업은 legacy `sensor_write`나 미기록 complete로 우회할 수 없다. 새 OFF 프로세스도 기존 테이블을 현재 잠금 조회해 이 제한을 유지한다. OFF 시작 시 새 모델/route/CLI를 등록하거나 DB에 접속하는 것은 아니며, 기존 등록 HTTP 요청에서 필요한 증거 검증만 지연 실행한다. 채취 승인도 MySQL RR snapshot의 과거 값 대신 현재 잠금 조회로 intent/결과 존재를 검사한다.
+
 ## 승인 scope와 순서
 
 기존 승인 바이트/domain·공통5필드·ticket_digest·probe_nonce·server_time/valid_until을 재사용한다. [ApprovalProbe/FreshApproval](../RemoteWork.Server/remotework/enrollment_approval_draft.py)은 일회용 RAM probe·최대2초 RTT·최대5초 승인과 보수적 UTC 상한을 그대로 적용한다. PC가 probe/서명을 만들거나 승인 응답을 바꾸면 안 된다.
@@ -55,6 +57,8 @@ Pi에는 공통 MySQL 계정·직접SQL 권한을 배포하지 않는다. 기존
 
 서버는 방향별 MAC·장치/키·공통필드/원래 ticket_digest를 검증하고 원문 BLOB·SHA256·result_id·outcome/failure를 MySQL에 commit한다. 같은 원문은 같은 결과, 다른 원문409다. result_id는 테이블 전체에서 유일하다. 성공 sensor_stored는 먼저 commit된 intent가 있어야 한다. store 전 실패는 intent 없이도 서명된 결과를 기록할 수 있다. **이 API 자체는 회원 매핑·job/claim 상태를 바꾸지 않는다.**
 
+**R55-03 보완:** 이미 legacy complete로 확정된 job.result_hash가 있으면 최초 원문 보관과 운영자 이관도 그 hash와 비교해 충돌을409로 거절한다. 확정된 **동일 원문**은 intent가 없던 과거 성공도 증거로 보관할 수 있으며 새 매핑/재저장 승인이 아니다. 아직 확정되지 않은 성공의 intent 선행 조건은 유지한다.
+
 Pi가 store 후 응답을 잃었으나 같은 실행의 RAM 원문이 남으면 같은 bytes를 재전송한다. Pi가 원문 전달 전에 재시작해 RAM을 잃으면, intent만 있는 서버 상태를 읽어 확인 필요로 중단한다. 원문을 임의 재생성하거나 센서를 다시 저장해서 메우지 않는다. 서버가 원문을 받은 뒤 Pi/PC가 재시작했다면 아래 읽기로 동일 bytes를 받는다.
 
 ### GET `/physical-result`
@@ -79,6 +83,8 @@ python -m flask --app remotework archive-enrollment-result --enrollment-id <작�
 이 CLI는 현재 활성admin+해당 장치grant를 요구하고 기존 작업·예약 바인딩을 대조한다. bearer나기존접속hash를변조하지 않는다. 기존 SQLite의 검증된 성공 원문도 증거만 보관하며, MySQL intent가 없던 성공을 자동 매핑하지 않는다. 매핑/예약해제/원래세션인수는 수행하지 않는다. MAC 원문이 없으면 화면/ledger 한 행으로 결과를 위조하지 않고 이관 미완료로 남긴다.
 
 ## 만료 예약의 복구 경계
+
+**2026-10-21 추가:** 서명/010 intent·결과/매핑이 없는 만료 작업에는 [운영자 종료·명시 재발급 계약](ENROLLMENT_RECOVERY.md)과 독립011을 제공한다. 아래의 최초 복구 경계 중 ‘별도 검토된 변경안’이 이 제한 범위에서 구체화된 것이며, 실제 서버 적용·예약 복구·5번 Pi 전환 완료는 아니다. signed 결과나 store 증거가 있으면 여전히 아래의 증거 보관/별도 검토를 따르고 자동 재발급하지 않는다.
 
 1. 실제 서버 job/claim/mapping·원발급 접속·현재키/프로필/기한을 읽고 기존 증거/백업을 보존한다.
 2. 기존 Pi/PC 작업이 더 이상 store를 실행하지 못하도록 종료·fence하고, 그 뒤 새로 인증된 inventory로 해당 한 칸의 빈 상태를 확인한다. 실패코드/오래된 빈칸목록만으로 빈 슬롯을 추정하지 않는다.

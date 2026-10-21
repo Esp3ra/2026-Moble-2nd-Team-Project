@@ -56,6 +56,9 @@ def install(app):
     if app.config.get("ENABLE_ENROLLMENT_DURABILITY_DRAFT"):
         from .durability import install as install_durability
         install_durability(app)
+    if app.config.get("ENABLE_ENROLLMENT_RECOVERY_DRAFT"):
+        from .recovery import install as install_recovery
+        install_recovery(app)
 
     @app.cli.command("init-enrollment-draft")
     def init_enrollment():
