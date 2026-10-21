@@ -2,8 +2,8 @@
 
 2026-10-21 / 5번 / 기준 alpha `bb281e317cdd27e2a4796ad39d8712bbddd9828b`.
 서버 대조 기준은 [1번 PR55](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/55)의
-`ffc421b0bcce78c8923b853e13aff4809da865b8`,
-[고정 계약](https://github.com/jinkyu1452-cmd/Sang1/blob/ffc421b0bcce78c8923b853e13aff4809da865b8/docs/ENROLLMENT_MYSQL_DURABILITY.md)이다.
+`0871b2ce80725587e8c1960d0874f5dc191cf46e`,
+[고정 계약](https://github.com/jinkyu1452-cmd/Sang1/blob/0871b2ce80725587e8c1960d0874f5dc191cf46e/docs/ENROLLMENT_MYSQL_DURABILITY.md)이다.
 확인 시 PR55는 미병합이며 실제 서버의 새 옵션/010은 미적용이라는 1번 보고를 수신했다.
 
 ## 구현한 범위
@@ -41,7 +41,7 @@ Linux 소유자 전용 설정 파일/부모 폴더 검사를 유지한다. state
 1. 1번의 비공개 실패 작업 대조 ZIP과 실제 Pi 기록의 작업/장치/회원 바인딩을 비공개로 대조한다.
 2. 기존 PC/Pi writer를 종료/차단하고 비공개 백업·시각/소스/서비스 근거를 보존한다. 그 이후 새 읽기 inventory로 슬롯12/전체 목록을 확인한다. 이번 코드는 이 실물 확인을 수행한 것이 아니다.
 3. 기존 ledger/cache를 읽기 전용으로 검증하고, 존재하는 signed 원문만 현재 키/바인딩/보관기간을 검증해 1번 운영자 CLI로 증거 보관한다. 원문이 없는 실패 행은 서명 결과로 재생성하지 않는다. 실물 읽기 전용 점검 결과 signed 원문은 없었다. 기존 파일을 비공개 백업하고 작업 metadata를 대조했지만 회원 서명 바인딩 검증이나 서버 이관 완료를 뜻하지 않는다.
-4. 1번이 원래 작업/예약 이력을 보존하는 명시 복구·재발급 변경안을 제공하고 5번 실물 근거와 대조한다. 현재 PR55에는 예약 해제/센서 삭제 API가 없다.
+4. 1번이 원래 작업/예약 이력을 보존하는 명시 복구·재발급 변경안을 제공하고 5번 실물 근거와 대조한다. PR55 head0871b2c가 운영자 종료·명시 재발급/011을 제공했으며 검토·실제 적용은 별도다. 센서 삭제 API는 없다.
 5. 서버/Pi/PC의 승인 SHA·010·새 옵션·설정·기존 증거 보존 위치·같은 단일 서비스 전환/복구안을 확인한 뒤 활성화한다. 원발급 접속이 끝난 작업을 새 로그인으로 자동 인수하지 않는다. 재시작 후 사용자의 기존 시도 문맥을 윈폼 화면이 자동 복원하는 기능도 이번에 추가하지 않았다.
 6. 사용자 목표인 시험 템플릿 초기화→빈 목록→회원 생성 응답 ID 고정→새 두 채취→MySQL 매핑 commit을 실물에서 검증한다. 용량300만 보고 허용 슬롯을 확대하지 않는다. 현재 단일 슬롯 승인과 초기화 후 허용 범위는 별도 대조한다.
 
@@ -87,9 +87,9 @@ git diff --check
 - 작업 metadata 일치, ledger failed/already_registered, signed result 없음, target cryptographic binding 미검증. 없는 원문/서명을 새로 만들지 않았다.
 - 서버 변경·센서 삭제·서비스 재시작은 수행하지 않았다. 기존 키·원본 기록·소스·백업은 보존한다.
 
-비공개 report 원본은 사용자 SCP 후 직접 읽어 위 시각과 상태를 대조했다. 공개 코드에 실제 작업/회원/장치 식별값·점유 목록·private 경로·키/보고서 원문을 넣지 않는다. 1번 전달용 자료는 필요한 metadata와 원본 report hash만 별도 비공개 묶음으로 준비한다. 묶음 준비, 개인 전달, 상대 대조 완료는 구분한다.
+비공개 report 원본은 사용자 SCP 후 직접 읽어 위 시각과 상태를 대조했다. 공개 코드에 실제 작업/회원/장치 식별값·점유 목록·private 경로·키/보고서 원문을 넣지 않는다. 필요한 metadata와 원본 report hash만 별도 비공개 묶음으로 준비했고, 1번의 후속 회신에서 개인 수신·묶음 내부 hash와 현재 서버 바인딩 대조 보고를 확인했다. 1번이 Pi 원본 report 자체/회원 서명 바인딩까지 직접 검증한 것으로 확대하지 않는다.
 
-[1번 최신 수신 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/43#issuecomment-6288126821)은 이 점검 보고를 수신했으며 동일 검사를 다시 요구하지 않는다. 운영자 관찰 증거와 기존 job/claim/revision 이력을 보존하는 명시 복구·재발급 접점은 1번 구현/검증 전이다. 아직 예약 복구·010 활성화·새 Pi 런타임 배포·SQLite 증거 정리/이관·시험 지문 초기화·신규 회원 매핑은 완료되지 않았다. 기존 hold를 임의로 풀거나 서비스를 시작하지 않는다.
+[1번 최신 수신 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/43#issuecomment-6288126821)은 이 점검 보고를 수신했으며 동일 검사를 다시 요구하지 않는다. 후속 head0871b2c에서 운영자 관찰 증거와 기존 job/claim/revision 이력을 보존하는 명시 복구·재발급 접점이 제공됐다. 1번은 받은 비공개 요약 hash/서버 바인딩 대조와 작성자 MySQL 검사를 보고했지만 실제 종료/재발급·010/011 적용은 아직 수행하지 않았다고 명시했다. 아직 예약 복구·010 활성화·새 Pi 런타임 배포·SQLite 증거 정리/이관·시험 지문 초기화·신규 회원 매핑은 완료되지 않았다. 기존 hold를 임의로 풀거나 서비스를 시작하지 않는다.
 
 ## 게시 범위와 재현
 
@@ -98,3 +98,30 @@ git diff --check
 기술 차이·대역 구성·위 실제 실행 근거를 1번에게 전달하고, 양쪽 게시 코드 결합 검증과 명시 운영 적용을 별도로 진행한다. 날짜 LOG는 팀장 전용이므로 직접 올리지 않고 기존 PR43 통합 회신을 기존 LOG/1번·5번에 취합 요청한다. PR 브랜치의 기존 5번 수정 요청은 해결된 과거 검토이며 이번 신규 차단 요청은 없다.
 
 게시 전에는 Git index의24개 변경과 기존 HEAD만 별도 임시 폴더로 내보내 위 Python170·C#283·윈폼15와 Release 경고0/오류0을 직접 확인했다. 이전 미게시 SQLite 시작 파일이 없는 상태의 재현이다. 현재 바탕화면 실행본이나 Pi 파일을 이 검사로 갱신하지 않았다.
+
+## 명시 복구 소비/UI 후속 — 2026-10-21
+
+[1번 복구 계약](https://github.com/jinkyu1452-cmd/Sang1/blob/0871b2ce80725587e8c1960d0874f5dc191cf46e/docs/ENROLLMENT_RECOVERY.md)을 직접 읽고 기존 5번 등록창/중계에 다음을 추가했다. 서버 운영자 CLI·011·공통 회원 화면/launcher·실물 센서는 변경하지 않았다.
+
+1. 현재 생성 응답 회원ID/관리자Session을 가진 기존 등록창에서 운영자 복구 모드를 명시적으로 선택한다. 운영자가 종료 적용 후 전달한 recovery_id를 넣고 **복구 작업 확인**을 누른다. GET recoveries/{id}의 정확한 wrapper/11필드·UUID·revision·UTC·operator_observation 상태와 선택한 장치를 검사한다. 이 조회는 새 작업/채취/저장을 시작하지 않는다.
+2. 현재 회원ID와 새 등록 목적을 화면에 표시한다. 사용자가 별도로 **복구 승인으로 지문 등록**을 눌렀을 때만 reissue에 client_request_id/target_user_id 두 필드를 보낸다. 장치/slot/빈 상태·기존 접속정보를 body로 보내거나 원래 일반issue로 우회하지 않는다.
+3. recovery/source job/device/slot/source revision/종료시각 불변, 새 job 링크·다른 UUID·operation1·claim+1·현재 선택 key epoch·고정 request UUID를 검사한 후 기존 MySQL capture→intent→store→result→complete로 연결한다. 회원/관리자 접속 교체·취소·화면 종료 뒤 결과를 다른 문맥에 반영하지 않는다.
+4. 발급 응답 유실은 GET recovery→연결된 새 job을 조회하고 원래 request UUID와 대조한다. 미발급이면 사용자 재확인까지 중단하며 같은 attempt의 같은 요청만 재사용한다. 임의 UUID/일반issue/oldsession 자동 인수는 없다. 앱 종료·새 로그인 뒤 이전 attempt를 자동 복원하지 않는다. 이미 재발급된 recovery_id를 새 창에서 처음 읽으면 인수를 거절한다.
+
+이 후속은 사용자 전송 전 보고를 마친 뒤 회신/코드 PR 게시 승인을 받았다. 최종 게시 SHA·PR 상태는 코드 PR과 기존 PR43 통합 회신에 기록하며 이전1b70715 게시 상태와 구분한다. 게시 승인은 실제 서버/Pi 활성화·초기화 실행 완료가 아니다. 1번은 기존 MySQL adapter→실제HTTP/소유MySQL 추가 연결2통과를 보고했지만 이번 새 C# recovery/UI의 직접 MySQL·실물 검증으로 합산하지 않는다. PR55 R55-01/02/03은 작성자 수정 보고·팀장 재검토 대기이며 5번이 해결/병합 확인으로 표시하지 않는다.
+
+### 기존 회원 생성 검사에서 발견한 별도 호환성 항목
+
+저장소 원본 UserManagement.Ui.Tests의 회원관리14시나리오46검사는 진행됐지만 등록 연결은 Modal registration driver 시간초과로 실패했다. 이전 게시1b70715의 form/relay로 비교해도 같은 실패를 확인했다. 기존 테스트 서버가 physical-result 경로를 제공하지 않는 것이 원인이며 새 복구 UI로 생긴 회귀라고 쓰지 않는다.
+
+1번 소유 원본 테스트 파일은 변경하지 않았다. 독립 임시 복사본의 모의서버에 GET/POST physical-result와 exact 결과 선보관 검사를 추가한 제안 patch만 준비했고, 최신5번 코드와 실제 회원관리/등록창/launcher에서 연결120검사·회원관리14시나리오46검사가 통과했다. 원본 검사 통과로 보고하지 않으며 1번에게 자기 테스트 fixture 반영/재검증을 요청하는 회신에 제안 patch와 함께 전달한다. 실제 서버·계정·MySQL·센서·서비스 설정은 바꾸지 않았다.
+
+### 후속 최종 직접 검사
+
+게시 대상 추출본 위에 이번 소유 C# 변경만 반영한 독립 임시 폴더, Windows/.NET SDK10.0.302·NET8:
+
+- `dotnet run --project Tests/FingerprintEnrollment.Tests/FingerprintEnrollment.Tests.csproj -c Release -- --pi-python <기존 테스트 venv python.exe>`: **540검사 PASS**, 경고 없음. 기존283을 포함한 최종 실행이며 합산하지 않는다.
+- `dotnet run --project Tests/FingerprintEnrollment.Ui.Tests/FingerprintEnrollment.Ui.Tests.csproj -c Release`: **31검사 PASS**, 실제 WinForms/합성 HTTP. 준비 화면을 별도 임시 capture로 눈으로 확인했고 안내/버튼 잘림 없이 표시됐다. UI capture는 공개 fixture 화면이며 제품/운영자 실제 ID가 아니다.
+- `dotnet build RemoteWork.WinForms/RemoteWork.WinForms.csproj -c Release --nologo`: **경고0/오류0**.
+- 기존 UserManagement 원본 검사 실패와 fixture 제안 적용 복사본의 연결120·회원관리14시나리오46 PASS는 위에 구분했다. 실제 서비스 코드/API를 완화해 기존 fixture에 맞추지 않았다.
+- Python 제품 소스는 이번 복구 소비 후속에서 변경하지 않았다. 기존170개 검사 결과를 오늘 새 실행으로 재사용/합산하지 않는다. 실제 새 서버·MySQL·운영자 종료/reissue·Pi/PC 배포·센서 초기화/등록은 미실행이다.

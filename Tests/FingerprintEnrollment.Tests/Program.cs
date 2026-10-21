@@ -10,6 +10,8 @@ internal static class Program
 {
     private const string Device = "123e4567-e89b-42d3-a456-426614174000";
     private const string JobId = "31593412-67fd-40d2-878b-868d15f99a11";
+    private const string SourceJobId = "b8b34b01-5f2f-4f2a-bd33-34c557c2e932";
+    private const string RecoveryId = "bf514df7-f4eb-47b3-b542-a68b4de26a58";
     private static readonly string Opaque = B64("synthetic unchanged signed bytes");
     private static int checks;
     private static void Check(bool value, string label)
@@ -26,6 +28,12 @@ internal static class Program
         public string? PhysicalRaw;
         public int PhysicalReads, PhysicalWrites, StoreIntents;
         public Func<Dictionary<string, object?>, Dictionary<string, object?>> ChangeReceipt = value => value;
+        public Func<Dictionary<string, object?>, Dictionary<string, object?>> ChangeRecovery = value => value;
+        public Func<EnrollmentJob, EnrollmentJob> ChangeReissuedJob = value => value;
+        public int RecoveryReads, Reissues, RejectRecovery, RejectReissue;
+        public bool Reissued, LoseReissue, FailReissueBeforeCommit;
+        public string ClaimRevision = "1";
+        public Func<Task>? BeforeRecoveryReturn;
         public string State = "issued";
         public string ClientId = "";
         public readonly List<string> Results = [];
@@ -46,6 +54,28 @@ internal static class Program
             {
                 Check(request.Headers.Authorization?.Parameter == "public-synthetic-bearer", "server gets pinned bearer");
                 if (path.Contains("eligible-devices")) data = new { devices = new[] { new EnrollmentDevice(Device, "가상 장치", "1") } };
+                else if (path.Contains("/recoveries/"))
+                {
+                    bool post = request.Method == HttpMethod.Post;
+                    Check(path == "/api/v1/device-enrollments/recoveries/" + RecoveryId + (post ? "/reissue" : ""), "fixed recovery route only");
+                    int reject = post ? RejectReissue : RejectRecovery;
+                    if (reject != 0) return new HttpResponseMessage((HttpStatusCode)reject)
+                    { Content = new StringContent("{\"ok\":false,\"error\":{\"code\":\"SYNTHETIC_REVIEW_REQUIRED\",\"message\":\"review required\"}}", Encoding.UTF8, "application/json") };
+                    if (post)
+                    {
+                        Reissues++;
+                        Check(body.EnumerateObject().Select(p => p.Name).Order().SequenceEqual(new[] { "client_request_id", "target_user_id" }), "reissue sends exactly two fields, no slot/old session/empty assertion");
+                        if (FailReissueBeforeCommit) { FailReissueBeforeCommit = false; throw new HttpRequestException("before reissue commit"); }
+                        string id = body.GetProperty("client_request_id").GetString()!;
+                        Check(!Reissued || ClientId == id, "reissue retains the same request UUID");
+                        Targets.Add(body.GetProperty("target_user_id").GetInt32());
+                        ClientId = id; Reissued = true; ClaimRevision = "2";
+                        if (LoseReissue) { LoseReissue = false; throw new HttpRequestException("after reissue commit"); }
+                        data = new { recovery = Recovery(), job = ChangeReissuedJob(Job()) };
+                    }
+                    else { RecoveryReads++; data = new { recovery = Recovery() }; }
+                    if (BeforeRecoveryReturn is not null) await BeforeRecoveryReturn();
+                }
                 else if (path.EndsWith("/physical-result"))
                 {
                     if (request.Method == HttpMethod.Post)
@@ -103,7 +133,7 @@ internal static class Program
             Dictionary<string, object?> value = new()
             {
             ["enrollment_id"] = JobId, ["operation_revision"] = "1", ["reserved_slot"] = 7,
-            ["claim_revision"] = "1", ["key_epoch"] = "1", ["contract"] = "enrollment-mysql-v1",
+            ["claim_revision"] = ClaimRevision, ["key_epoch"] = "1", ["contract"] = "enrollment-mysql-v1",
             ["phase"] = PhysicalRaw is not null ? "result_recorded" : HasIntent ? "store_intent" : "not_recorded",
             ["result_envelope"] = PhysicalRaw, ["result_id"] = PhysicalRaw is null ? null : "af7de985-1df9-4e65-a310-dd86fa4c6862",
             ["outcome"] = PhysicalRaw is null ? null : "sensor_stored", ["failure_code"] = null,
@@ -120,7 +150,15 @@ internal static class Program
             }
             return ChangeReceipt(value);
         }
-        public EnrollmentJob Job() => new(JobId, "1", 7, "1", "1", ClientId, Device, State,
+        public Dictionary<string, object?> Recovery() => ChangeRecovery(new()
+        {
+            ["recovery_id"] = RecoveryId, ["source_enrollment_id"] = SourceJobId, ["device_id"] = Device,
+            ["reserved_slot"] = 7, ["source_operation_revision"] = "1", ["source_claim_revision"] = "1",
+            ["state"] = Reissued ? "reissued" : "closed_awaiting_explicit_reissue",
+            ["new_enrollment_id"] = Reissued ? JobId : null, ["evidence_kind"] = "operator_observation_not_signed_result",
+            ["closed_at"] = "2026-10-21T00:38:51Z", ["reissued_at"] = Reissued ? "2026-10-21T00:39:00Z" : null
+        });
+        public EnrollmentJob Job() => new(JobId, "1", 7, ClaimRevision, "1", ClientId, Device, State,
             "2026-10-20T01:03:00Z", State != "issued" && State != "completed", State == "issued" ? RequestEnvelope : null,
             State == "completed" ? new EnrollmentReceipt("af7de985-1df9-4e65-a310-dd86fa4c6862", "completed", null) : null);
 
@@ -149,7 +187,7 @@ internal static class Program
         {
             if (readOnly) Reads++; else Writes++;
             using var challenge = JsonDocument.Parse(JsonSerializer.Serialize(new
-            { operation_revision = "1", reserved_slot = 7, claim_revision = "1", key_epoch = "1",
+            { operation_revision = job.OperationRevision, reserved_slot = job.ReservedSlot, claim_revision = job.ClaimRevision, key_epoch = job.KeyEpoch,
                 ticket_digest = new string('a', 64), probe_nonce = B64(new string('x', 32)),
                 scope = WrongScope ? "sensor_write" : readOnly ? "result_read" : "sensor_capture" }));
             string response = await approve(challenge.RootElement, cancellation);
@@ -181,8 +219,131 @@ internal static class Program
         await PiHttpBoundary();
         await PiFailureReports();
         await MySqlRecovery();
+        await ExplicitReissue();
+        await ReissueBindingsAndLifetime();
         if (args.Length == 2 && args[0] == "--pi-python") await PythonLoopback(args[1]);
         Console.WriteLine($"Fingerprint enrollment relay: {checks} checks PASS (public synthetic fixtures; no production keys/hardware/DB).");
+    }
+
+    private static async Task ExplicitReissue()
+    {
+        foreach (string mode in new[] { "normal", "lost_after_commit", "lost_before_commit", "conflict", "unavailable" })
+        {
+            var server = new Server { LoseReissue = mode == "lost_after_commit", FailReissueBeforeCommit = mode == "lost_before_commit" };
+            using var api = new ApiClient("http://127.0.0.1:5000", server);
+            await api.LoginAsync("admin", "synthetic");
+            var pi = new Pi();
+            var target = new EnrollmentTarget(88, api.CaptureSession(), () => true, CancellationToken.None);
+            var relay = new FingerprintEnrollmentRelay(target, pi);
+            var selection = await relay.GetRecoveryAsync(RecoveryId);
+            Check(server.Reissues == 0 && server.Issues == 0 && pi.Writes == 0, mode + ": reading recovery grants no issue/store");
+            var attempt = relay.CreateRecoveryAttempt(selection, new(Device, "test", "1"));
+            string requestId = attempt.ClientRequestId;
+            if (mode is "conflict" or "unavailable")
+            {
+                server.RejectReissue = mode == "conflict" ? 409 : 503;
+                if (mode == "conflict") await Throws<ApiException>(() => relay.RunAsync(attempt));
+                else await Throws<InvalidOperationException>(() => relay.RunAsync(attempt));
+                Check(server.Issues == 0 && pi.Writes == 0 && attempt.Job is null, mode + ": no ordinary issue or sensor fallback");
+                continue;
+            }
+            if (mode == "lost_before_commit") await Throws<InvalidOperationException>(() => relay.RunAsync(attempt));
+            Check((await relay.RunAsync(attempt)).State == "completed", mode + ": new recovery job completes through MySQL pipeline");
+            await relay.RunAsync(attempt);
+            Check(server.Issues == 0 && server.Completes == 1 && pi.Writes == 1 && pi.Reads == 0, mode + ": one sensor write and mapping, no ordinary issue");
+            Check(attempt.ClientRequestId == requestId && server.Targets.All(id => id == 88), mode + ": same request UUID and created member ID");
+            Check(attempt.Job!.EnrollmentId != SourceJobId && attempt.Job.ClaimRevision == "2", mode + ": old/new ID and incremented claim pinned");
+        }
+    }
+
+    private static async Task ReissueBindingsAndLifetime()
+    {
+        {
+            var server = new Server { Reissued = true, ClientId = Guid.NewGuid().ToString() };
+            using var api = new ApiClient("http://127.0.0.1:5000", server);
+            await api.LoginAsync("admin", "synthetic");
+            var pi = new Pi(); var relay = new FingerprintEnrollmentRelay(new EnrollmentTarget(88, api.CaptureSession(), () => true, CancellationToken.None), pi);
+            await Throws<InvalidOperationException>(() => relay.GetRecoveryAsync(RecoveryId));
+            Check(server.Reissues == 0 && pi.Writes == 0, "new view cannot adopt an already-issued recovery without its original attempt");
+            int reads = server.RecoveryReads;
+            await Throws<InvalidDataException>(() => relay.GetRecoveryAsync("../other-job"));
+            Check(server.RecoveryReads == reads, "invalid recovery identifier is rejected before HTTP");
+        }
+        foreach (int status in new[] { 403, 404, 503 })
+        {
+            var server = new Server { RejectRecovery = status }; using var api = new ApiClient("http://127.0.0.1:5000", server);
+            await api.LoginAsync("admin", "synthetic");
+            var pi = new Pi(); var relay = new FingerprintEnrollmentRelay(new EnrollmentTarget(88, api.CaptureSession(), () => true, CancellationToken.None), pi);
+            await Throws<ApiException>(() => relay.GetRecoveryAsync(RecoveryId));
+            Check(server.Issues == 0 && server.Reissues == 0 && pi.Writes == 0, status + ": lookup errors never fall back to ordinary issue");
+        }
+        foreach (string field in new[] { "recovery_id", "device_id", "source_enrollment_id", "source_claim_revision", "evidence_kind", "reserved_slot", "closed_at", "extra", "already_reissued" })
+        {
+            var server = new Server(); using var api = new ApiClient("http://127.0.0.1:5000", server);
+            await api.LoginAsync("admin", "synthetic");
+            var target = new EnrollmentTarget(88, api.CaptureSession(), () => true, CancellationToken.None);
+            var pi = new Pi(); var relay = new FingerprintEnrollmentRelay(target, pi);
+            if (field is "evidence_kind" or "reserved_slot" or "closed_at" or "extra" or "already_reissued" or "recovery_id")
+            {
+                server.ChangeRecovery = value => { value[field == "already_reissued" ? "state" : field] = field switch
+                { "reserved_slot" => true, "closed_at" => "2026-10-21T09:38:51+09:00", "recovery_id" => Guid.NewGuid().ToString(),
+                    "already_reissued" => "reissued", _ => "unexpected" }; return value; };
+                await Throws<InvalidDataException>(() => relay.GetRecoveryAsync(RecoveryId));
+            }
+            else
+            {
+                var selected = await relay.GetRecoveryAsync(RecoveryId);
+                var attempt = relay.CreateRecoveryAttempt(selected, new(Device, "test", "1"));
+                server.ChangeRecovery = value => { value[field] = field == "source_claim_revision" ? "2" : Guid.NewGuid().ToString(); return value; };
+                await Throws<InvalidDataException>(() => relay.RunAsync(attempt));
+            }
+            Check(pi.Writes == 0 && server.Issues == 0 && server.Completes == 0, field + ": mismatched recovery never reaches sensor");
+        }
+        foreach (string field in new[] { "claim", "slot", "operation", "request", "epoch", "old_job", "no_ticket" })
+        {
+            var server = new Server(); using var api = new ApiClient("http://127.0.0.1:5000", server);
+            await api.LoginAsync("admin", "synthetic");
+            var pi = new Pi(); var target = new EnrollmentTarget(88, api.CaptureSession(), () => true, CancellationToken.None);
+            var relay = new FingerprintEnrollmentRelay(target, pi);
+            var attempt = relay.CreateRecoveryAttempt(await relay.GetRecoveryAsync(RecoveryId), new(Device, "test", "1"));
+            server.ChangeReissuedJob = job => field switch
+            {
+                "claim" => job with { ClaimRevision = "1" }, "slot" => job with { ReservedSlot = 8 },
+                "operation" => job with { OperationRevision = "2" }, "request" => job with { ClientRequestId = Guid.NewGuid().ToString() },
+                "epoch" => job with { KeyEpoch = "2" }, "old_job" => job with { EnrollmentId = SourceJobId },
+                _ => job with { RequestEnvelope = null }
+            };
+            await Throws<InvalidDataException>(() => relay.RunAsync(attempt));
+            Check(pi.Writes == 0 && server.Issues == 0, field + ": invalid reissue job blocked before Pi");
+        }
+        foreach (string mode in new[] { "target", "logout", "relogin", "foreign_target", "device", "forbidden" })
+        {
+            var server = new Server(); using var api = new ApiClient("http://127.0.0.1:5000", server);
+            await api.LoginAsync("admin", "synthetic");
+            bool current = true;
+            var target = new EnrollmentTarget(88, api.CaptureSession(), () => current, CancellationToken.None);
+            var pi = new Pi(); var relay = new FingerprintEnrollmentRelay(target, pi);
+            var selection = await relay.GetRecoveryAsync(RecoveryId);
+            if (mode == "foreign_target")
+            {
+                var other = new FingerprintEnrollmentRelay(new EnrollmentTarget(99, api.CaptureSession(), () => true, CancellationToken.None), pi);
+                await Throws<ArgumentException>(() => Task.FromResult(other.CreateRecoveryAttempt(selection, new(Device, "test", "1"))));
+            }
+            else if (mode == "device")
+                await Throws<InvalidDataException>(() => Task.FromResult(relay.CreateRecoveryAttempt(selection, new(Guid.NewGuid().ToString(), "other", "1"))));
+            else
+            {
+                var attempt = relay.CreateRecoveryAttempt(selection, new(Device, "test", "1"));
+                if (mode == "forbidden") { server.RejectReissue = 403; await Throws<ApiException>(() => relay.RunAsync(attempt)); }
+                else
+                {
+                    server.BeforeRecoveryReturn = async () => { if (mode == "target") current = false;
+                        else if (mode == "logout") api.ClearIdentity(); else await api.LoginAsync("admin", "synthetic"); };
+                    await Throws<OperationCanceledException>(() => relay.RunAsync(attempt));
+                }
+            }
+            Check(server.Issues == 0 && pi.Writes == 0 && server.Completes == 0, mode + ": stale/foreign recovery cannot enroll");
+        }
     }
 
     private static async Task MySqlRecovery()

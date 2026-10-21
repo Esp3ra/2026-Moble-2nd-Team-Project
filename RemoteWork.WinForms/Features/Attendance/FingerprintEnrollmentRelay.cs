@@ -15,6 +15,19 @@ public sealed record EnrollmentJob(string EnrollmentId, string OperationRevision
     string ExpiresAt, bool RecoveryRequired, string? RequestEnvelope, EnrollmentReceipt? Result);
 internal sealed record EnrollmentApproval(string ApprovalEnvelope);
 
+public sealed record EnrollmentRecovery(string RecoveryId, string SourceEnrollmentId, string DeviceId,
+    int ReservedSlot, string SourceOperationRevision, string SourceClaimRevision, string State,
+    string? NewEnrollmentId, string EvidenceKind, string ClosedAt, string? ReissuedAt);
+
+/// <summary>A read-only operator closure, pinned to this created member and current login.</summary>
+public sealed class EnrollmentRecoverySelection
+{
+    internal readonly EnrollmentTarget Target;
+    public EnrollmentRecovery Recovery { get; }
+    internal EnrollmentRecoverySelection(EnrollmentTarget target, EnrollmentRecovery recovery)
+    { Target = target; Recovery = recovery; }
+}
+
 /// <summary>Display-only Pi report. Never grants retry, releases a claim or proves storage state.</summary>
 public sealed class EnrollmentPiFailureException : InvalidOperationException
 {
@@ -57,8 +70,12 @@ public sealed class EnrollmentAttempt
     internal int Running;
     internal bool DeviceStarted;
     internal string? PendingResult;
+    internal EnrollmentRecoverySelection? RecoverySelection { get; }
+    internal string? ExpectedKeyEpoch { get; }
     public EnrollmentJob? Job { get; internal set; }
-    internal EnrollmentAttempt(EnrollmentTarget target, string deviceId) { Target = target; DeviceId = deviceId; }
+    internal EnrollmentAttempt(EnrollmentTarget target, string deviceId,
+        EnrollmentRecoverySelection? recovery = null, string? keyEpoch = null)
+    { Target = target; DeviceId = deviceId; RecoverySelection = recovery; ExpectedKeyEpoch = keyEpoch; }
 }
 
 public interface IEnrollmentPiChannel
@@ -100,6 +117,7 @@ internal static class EnrollmentValidation
         Uuid(job.EnrollmentId); Uuid(job.ClientRequestId); Uuid(job.DeviceId);
         Revision(job.OperationRevision); Revision(job.ClaimRevision); Revision(job.KeyEpoch);
         Require(job.ClientRequestId == attempt.ClientRequestId && job.DeviceId == attempt.DeviceId && job.ReservedSlot >= 0);
+        if (attempt.ExpectedKeyEpoch is { } epoch) Require(job.KeyEpoch == epoch);
         Require(job.State is "issued" or "completed" or "failed" or "recovery_required" or "cancelled" or "expired");
         if (attempt.Job is { } prior)
             Require(prior.EnrollmentId == job.EnrollmentId && prior.OperationRevision == job.OperationRevision
@@ -117,6 +135,114 @@ public sealed class FingerprintEnrollmentRelay(EnrollmentTarget target, IEnrollm
 
     public EnrollmentAttempt CreateAttempt(string deviceId)
     { target.ThrowIfChanged(); EnrollmentValidation.Uuid(deviceId); return new(target, deviceId); }
+
+    public EnrollmentAttempt CreateRecoveryAttempt(EnrollmentRecoverySelection selection, EnrollmentDevice device)
+    {
+        target.ThrowIfChanged();
+        if (!ReferenceEquals(selection.Target, target)) throw new ArgumentException("복구 등록 대상이 다릅니다.");
+        EnrollmentValidation.Require(selection.Recovery.State == "closed_awaiting_explicit_reissue"
+            && selection.Recovery.DeviceId == device.DeviceId);
+        EnrollmentValidation.Revision(device.KeyEpoch);
+        return new(target, device.DeviceId, selection, device.KeyEpoch);
+    }
+
+    public async Task<EnrollmentRecoverySelection> GetRecoveryAsync(string recoveryId, CancellationToken ct = default)
+    {
+        target.ThrowIfChanged(); EnrollmentValidation.Uuid(recoveryId);
+        using var linked = Link(ct);
+        var recovery = await ReadRecoveryAsync(recoveryId, linked.Token).ConfigureAwait(false);
+        if (recovery.State != "closed_awaiting_explicit_reissue")
+            throw new InvalidOperationException("이미 새 등록이 발급된 복구 작업입니다. 기존 등록 결과를 확인해 주세요.");
+        return new(target, recovery);
+    }
+
+    private async Task<EnrollmentRecovery> ReadRecoveryAsync(string id, CancellationToken ct)
+    {
+        var value = await target.AdministratorSession.GetAsync<JsonElement>($"{Root}/recoveries/{id}", ct).ConfigureAwait(false);
+        target.ThrowIfChanged(); ct.ThrowIfCancellationRequested();
+        EnrollmentValidation.Fields(value, "recovery");
+        return ParseRecovery(value.GetProperty("recovery"), id);
+    }
+
+    private static DateTimeOffset RecoveryTime(string? text)
+    {
+        EnrollmentValidation.Require(text is not null && Regex.IsMatch(text,
+            @"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,6})?(?:Z|\+00:00)$"));
+        EnrollmentValidation.Require(DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture,
+            DateTimeStyles.None, out var value) && value.Offset == TimeSpan.Zero);
+        return value;
+    }
+
+    private static EnrollmentRecovery ParseRecovery(JsonElement value, string id)
+    {
+        try { return ReadRecoveryValue(value, id); }
+        catch (JsonException) { throw new InvalidDataException("복구 작업 응답 형식을 확인해 주세요."); }
+    }
+
+    private static EnrollmentRecovery ReadRecoveryValue(JsonElement value, string id)
+    {
+        EnrollmentValidation.Fields(value, "recovery_id", "source_enrollment_id", "device_id", "reserved_slot",
+            "source_operation_revision", "source_claim_revision", "state", "new_enrollment_id", "evidence_kind", "closed_at", "reissued_at");
+        var result = value.Deserialize<EnrollmentRecovery>(ApiClient.Json)!;
+        EnrollmentValidation.Require(result is not null && result.RecoveryId == id && result.ReservedSlot >= 0
+            && result.EvidenceKind == "operator_observation_not_signed_result");
+        EnrollmentValidation.Uuid(result!.RecoveryId); EnrollmentValidation.Uuid(result.SourceEnrollmentId);
+        EnrollmentValidation.Uuid(result.DeviceId); EnrollmentValidation.Revision(result.SourceOperationRevision);
+        EnrollmentValidation.Revision(result.SourceClaimRevision);
+        EnrollmentValidation.Require(long.Parse(result.SourceClaimRevision, CultureInfo.InvariantCulture) < long.MaxValue);
+        var closed = RecoveryTime(result.ClosedAt);
+        if (result.State == "closed_awaiting_explicit_reissue")
+            EnrollmentValidation.Require(result.NewEnrollmentId is null && result.ReissuedAt is null);
+        else
+        {
+            EnrollmentValidation.Require(result.State == "reissued" && result.NewEnrollmentId is not null);
+            EnrollmentValidation.Uuid(result.NewEnrollmentId!);
+            EnrollmentValidation.Require(result.NewEnrollmentId != result.SourceEnrollmentId && RecoveryTime(result.ReissuedAt) >= closed);
+        }
+        return result;
+    }
+
+    private static void RecoveryBinding(EnrollmentRecovery expected, EnrollmentRecovery actual)
+        => EnrollmentValidation.Require(expected.RecoveryId == actual.RecoveryId
+            && expected.SourceEnrollmentId == actual.SourceEnrollmentId && expected.DeviceId == actual.DeviceId
+            && expected.ReservedSlot == actual.ReservedSlot && expected.SourceOperationRevision == actual.SourceOperationRevision
+            && expected.SourceClaimRevision == actual.SourceClaimRevision && expected.ClosedAt == actual.ClosedAt);
+
+    private async Task<EnrollmentJob> ReissueAsync(EnrollmentAttempt attempt, CancellationToken ct)
+    {
+        var expected = attempt.RecoverySelection!.Recovery;
+        EnrollmentRecovery recovery;
+        EnrollmentJob job;
+        try
+        {
+            var response = await target.AdministratorSession.PostAsync<JsonElement>($"{Root}/recoveries/{expected.RecoveryId}/reissue",
+                new { client_request_id = attempt.ClientRequestId, target_user_id = target.UserId }, ct).ConfigureAwait(false);
+            target.ThrowIfChanged(); ct.ThrowIfCancellationRequested();
+            EnrollmentValidation.Fields(response, "recovery", "job");
+            recovery = ParseRecovery(response.GetProperty("recovery"), expected.RecoveryId);
+            try { job = response.GetProperty("job").Deserialize<EnrollmentJob>(ApiClient.Json)!; }
+            catch (JsonException) { throw new InvalidDataException("새 등록 응답 형식을 확인해 주세요."); }
+        }
+        catch (ApiException error) when (error.StatusCode == 0 || error.StatusCode >= 500)
+        {
+            // A lost reply never falls back to ordinary issue or another request UUID.
+            recovery = await ReadRecoveryAsync(expected.RecoveryId, ct).ConfigureAwait(false);
+            RecoveryBinding(expected, recovery);
+            if (recovery.State != "reissued")
+                throw new InvalidOperationException("새 등록 발급 결과를 확인하지 못했습니다. 같은 작업으로 다시 확인해 주세요.");
+            job = await target.AdministratorSession.GetAsync<EnrollmentJob>(
+                $"{Root}/{recovery.NewEnrollmentId}", ct).ConfigureAwait(false);
+        }
+        target.ThrowIfChanged(); ct.ThrowIfCancellationRequested();
+        RecoveryBinding(expected, recovery);
+        EnrollmentValidation.Require(recovery.State == "reissued" && job is not null
+            && job.EnrollmentId == recovery.NewEnrollmentId && job.EnrollmentId != expected.SourceEnrollmentId
+            && job.ReservedSlot == expected.ReservedSlot && job.OperationRevision == "1"
+            && job.ClaimRevision == (long.Parse(expected.SourceClaimRevision, CultureInfo.InvariantCulture) + 1).ToString(CultureInfo.InvariantCulture));
+        EnrollmentValidation.Job(job!, attempt);
+        EnrollmentValidation.Require(job!.State != "issued" || job.RequestEnvelope is not null);
+        return job;
+    }
 
     public async Task<IReadOnlyList<EnrollmentDevice>> GetDevicesAsync(CancellationToken ct = default)
     {
@@ -148,7 +274,9 @@ public sealed class FingerprintEnrollmentRelay(EnrollmentTarget target, IEnrollm
         {
             target.ThrowIfChanged();
             EnrollmentJob job;
-            if (attempt.Job is { } known)
+            if (attempt.RecoverySelection is not null)
+                job = await ReissueAsync(attempt, linked.Token).ConfigureAwait(false);
+            else if (attempt.Job is { } known)
                 job = await target.AdministratorSession.GetAsync<EnrollmentJob>($"{Root}/{known.EnrollmentId}", linked.Token).ConfigureAwait(false);
             else
             {
