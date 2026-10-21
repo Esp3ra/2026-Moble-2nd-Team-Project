@@ -1,3 +1,14 @@
+<a id="member2-task-web-writes-current-20261021"></a>
+## 현재 — 업무 웹 등록·수락·재작업 시작과 추가 회신 재확인
+
+기존 1번 공통/W1·등록/시작 기술 수용과 3번 명시 재작업 회신에 맞춰, 2번 소유 웹의 등록·수락·재작업 시작 확인/실행/결과 조회를 연결했습니다. API와 같은 실행 함수를 재사용하고 정확한 로그인 접속·대상/본문/키를 서명 확인폼에 고정합니다. 2번 코드 커밋은 `5f9be7d`이며, 이후 1번 [PR59](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/59)의 공통 업무 메뉴 연결을 정상 병합한 결합 커밋은 `92ab386`입니다. 공통 파일은 2번이 대신 수정하지 않았습니다. [규약·수신 재확인](공통규약.md#member2-task-web-writes-20261021), [변경/직접 검사/미실행](업무_구현검증.md#member2-task-web-writes-check-20261021)을 따릅니다.
+
+원격 LOG의 새 커밋만으로 회신 여부를 판단하지 않고 기존 PR 댓글의 갱신도 다시 확인했습니다. [1번의 공용 첨부 DB 검토·013 예약](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52#issuecomment-6305999537), [3번 cc84c1c의 R52-03 수정 보고](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52#issuecomment-6309410815), [1번 협업 검토](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/57#issuecomment-6308644957), [4번 8613c94 수정/범위 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/57#issuecomment-6309130119)을 수신했습니다. 이 담당자 보고를 이번 2번 직접 실행 결과나 미병합 PR52/57의 승인·실제 공유 적용으로 표시하지 않습니다. 2번의 실제 업무 전체 버전 이력 reader와 공용 파일/웹 이동·갱신 소비, 1번 공통/공유 환경 연결은 후속입니다.
+
+취소·연장 실제 쓰기503/통합ACK 미설치는 유지합니다. 미확정 내용은 협의사항으로 남기며 5번 장치나 새 협업 조건을 업무 시작의 선행조건으로 추가하지 않습니다. 기존 8문서/앵커와 아래 당시 이력을 보존하고 회신만을 위한 새 MD·브랜치·추가 PR은 요구하지 않습니다.
+
+이번 웹 연결은 alpha [96734bc](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/96734bcb29eead01369584c0968fa07361f7f7bc)에 푸시했습니다. PR59 메뉴 병합을 보존했고 결합 후 웹81검사·별도 전체196/순수172검사·Release0/0을 확인했습니다. 로컬 `ES/2차 팀 프로젝트`는 충돌 사전 확인과 백업 후20파일을 반영해 추적496파일 불일치0·DOCX7개 해시 보존·실제 로컬 Release경고0/오류0입니다. 설정/실행 중 공유 서버 재시작이나 DB 적용을 파일 동기화와 혼동하지 않습니다.
+
 <a id="member2-task-web-context-current-20261021"></a>
 ## 현재 — 업무 웹 상세 취소/연장 대기 정보
 
