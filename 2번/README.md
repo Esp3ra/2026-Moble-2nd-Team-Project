@@ -1,6 +1,8 @@
 ## 최신 — 3번 네 제안 수용·기술 연결 회신
 
-[팀장 수용 결정과 T3-1~5 기술 요청](공통규약.md#member3-proposals-accepted-20261021)을 먼저 읽습니다. 등록 첨부는 기존 공개 helper로 연결하고, 일반수정 첨부의 전후 비교·감사와 read/복귀/웹 adapter는 담당 공개 접점 제공 후 이어갑니다. 기존8문서와 한 곳 회신 원칙을 유지합니다.
+[팀장 수용 결정과 T3-1~5 기술 요청](공통규약.md#member3-proposals-accepted-20261021)을 먼저 읽습니다. 등록 첨부는 기존 공개 helper로 연결하고, 일반수정 첨부의 전후 비교·감사와 read/복귀/웹 adapter는 담당 공개 접점 제공 후 이어갑니다. 기존8문서와 한 곳 회신 원칙을 유지합니다. **2번 등록 API/C# DTO의 선택 첨부 연결을 구현**하고 소유 MySQL/Flask274개·C#제어133개·checkout Release0/0을 확인했습니다. [검사·변경 파일·미실행](업무_구현검증.md#member2-attachment-accepted-check-20261021)을 확인합니다.
+
+alpha [8444983](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/8444983fa20bd318a1ae201144cb71121fe83ae6)에2번16파일과 README를 푸시했습니다. 로컬 `ES/2차 팀 프로젝트`는 충돌 사전 검사와 변경 전 백업 후16파일을 반영해 추적564파일 일치·DOCX7파일 해시 보존을 확인했습니다. 검증 checkout과 실제 로컬 Release는 각각 경고0·오류0입니다. 문서89개/링크·앵커1247개 오류0·LOG/2번8문서 유지입니다. 서버 실행/운영 DB 적용·ACK 설치는 수행하지 않았습니다.
 
 <a id="member3-proposals-current-20261021"></a>
 ## 추가 수신 — 3번 합의안과 DELETE 수용 회신
