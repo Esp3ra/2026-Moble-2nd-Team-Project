@@ -4,6 +4,8 @@
 
 후속 신청함은 `test_task_web_lifecycle.py`와 기존 lifecycle3개 대상(매개변수 포함6검사)을 함께 실행합니다. 기존6검사의 성공 변경은 TESTING·실제 results 비활성·명시 lifecycle 대역이며 실제3번 통합 성공이 아닙니다. 웹은 계속 GET/HEAD/OPTIONS만 제공합니다.
 
+상세 정보 후속은 `test_task_web_context.py`20개와 `test_task_cancellation_current.py`3개를 추가합니다. 새 인증 snapshot 이후 독립 트랜잭션이 재배정/취소/권한 회수를 commit하는 실제 MySQL 경합을 검사하고,취소 guard는 현재 버전8을 전달해 버전 충돌이 이전 snapshot의 마커 누락을 가리지 못하게 합니다. 두 신규 모듈은 명시 소유 MySQL opt-in 없이 DB 검사를 수행하지 않습니다. 일반 SELECT가 옛 취소 부재를 보는 조건과 보완 guard의409·무효과를 구분하며3번 소비/운영 ACK를 활성화하지 않습니다.
+
 서버 의존성이 설치된 Python으로 다음을 실행합니다. 보고서 폴더는 소스 밖의 **새 경로**로 지정합니다.
 
 ```powershell
@@ -28,3 +30,9 @@ python Tests/TaskWeb.Tests/run_mysql_check.py --allow-disposable-mysql --mysql-b
 근거는 `ES/tmp/remote_work_member2_task_web_inbox_20261021_server_final/verification.json`입니다. 중간 실행은 작업 입력 전환으로 중단돼 완료로 세지 않습니다. 실제3번 취소/연장 소비·공유 계정/두PC와 integrated ACK는 여전히 미검증입니다.
 
 게시 전 다른 채팅의 PR55/56 병합 alpha `395d70d`를 보존해2번 변경을 합쳤습니다. 그 결합 소스 `129cc1c`에서 동일62개를 다시 실행해 **62통과·실패/생략0,138.70초**,독립 물리DDL 불변/schema1·소유 자원 정리를 확인했습니다. 근거는 `ES/tmp/remote_work_member2_task_web_inbox_20261021_merged/verification.json`입니다. 이 반복62개를 고유 검사 수에 더하지 않습니다. 이후 게시 문서만 갱신하며 다른 담당 제품 검증/실물 등록 완료로 확대하지 않습니다.
+
+## 상세 취소·연장 대기와 현재 값 후속
+
+2026-10-21 최신 실행은 **85 passed in 186.70s**,실패/생략0입니다. 기존62+새 상세20+새 취소 guard3이며 앞선 실행 횟수를 통과 수에 더하지 않습니다. 실제 MySQL의 인증 snapshot 이후 독립 재배정/취소/관리자 회수,현재 버전8과 취소 guard409·추가 변경/receipt/감사 없음,기본off·정보/오류/API 필드 보존을 확인했습니다. 독립 물리DDL 불변/schema_versions `[1]`·소유 자원 정리도 확인했습니다.
+
+근거는 소스 밖 `ES/tmp/remote_work_member2_task_web_context_20261021_mysql_final/verification.json`입니다. 환경 전환으로 중단된 앞선 시도는 완료로 세지 않습니다. 새20개 무DB의1통과/19생략·새3개 단독 수집도 실제85개에 더하지 않습니다. 기존 lifecycle 대역과 새 guard의2번 소유 검사를 실제3번 제출/첨부 소비·공유 환경 통합 완료로 확대하지 않습니다.
