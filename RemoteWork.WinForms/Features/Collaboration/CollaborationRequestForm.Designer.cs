@@ -269,7 +269,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             //
             // cmbOptions
             //
-            cmbOptions.Text = "화면 구성 검토";
+            cmbOptions.Text = "";
             cmbOptions.Location = new System.Drawing.Point(116, 4);
             cmbOptions.Size = new System.Drawing.Size(603, 26);
             cmbOptions.MinimumSize = new System.Drawing.Size(0, 0);
@@ -288,7 +288,6 @@ namespace RemoteWork.WinForms.Features.Collaboration
             cmbOptions.IntegralHeight = true;
             cmbOptions.MaxDropDownItems = 8;
             cmbOptions.Name = "cmbOptions";
-            cmbOptions.Items.AddRange(new object[] { "화면 구성 검토", "주간 보고서 작성" });
             //
             // lblText3
             //
@@ -315,7 +314,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             //
             // cmbOptions2
             //
-            cmbOptions2.Text = "김민수 · 개발팀";
+            cmbOptions2.Text = "";
             cmbOptions2.Location = new System.Drawing.Point(116, 48);
             cmbOptions2.Size = new System.Drawing.Size(603, 26);
             cmbOptions2.MinimumSize = new System.Drawing.Size(0, 0);
@@ -334,7 +333,6 @@ namespace RemoteWork.WinForms.Features.Collaboration
             cmbOptions2.IntegralHeight = true;
             cmbOptions2.MaxDropDownItems = 8;
             cmbOptions2.Name = "cmbOptions2";
-            cmbOptions2.Items.AddRange(new object[] { "김민수 · 개발팀", "박지우 · 디자인팀", "기획팀" });
             //
             // lblText4
             //

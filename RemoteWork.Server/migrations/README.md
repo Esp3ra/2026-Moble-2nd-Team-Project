@@ -1,5 +1,7 @@
 # DB 변경 기록
 
+2026-10-21: 공용 첨부 추가3테이블의 검토 파일은 [013_shared_attachments.mysql.sql](013_shared_attachments.mysql.sql)로 일원화했다. 기존 `drafts/shared_attachments.mysql.sql`의 바이트는 그대로이며 검사/안내 경로만 맞췄다. 006 결과물 기반·002/004 선행과 공통 schema1을 유지한다. 012는 별도 PR57 협업용 예약이며 번호를 재사용하지 않는다. 소유 MySQL의 rawSQL/PK/FK·물리 조건·새DB 복원 검토와 실제 사용자 DB 적용은 별개다. 기존 DB의 테이블/열 대조·백업/복원과 기능 연결 검증 뒤 명시 적용하며 앱 시작/init-db에서 자동 적용·기존 테이블 ALTER/삭제·전역version13 기록을 하지 않는다. [공용 첨부 계약과 처리 경계](../../docs/SHARED_ATTACHMENTS.md)를 따른다.
+
 현재 공통 스키마 버전은 **1**입니다. 최초 테이블 생성은 `flask --app remotework init-db` 또는 `run.py --init`으로 수행합니다. 공통 모델 정의는 `remotework/models.py`입니다. `init-db/create_all`은 기존 열의 migration이나 공유 DB 적용을 대신하지 않습니다.
 
 | 번호 | 파일 | 상태 |

@@ -8,16 +8,29 @@
 {% if completed %}
 <section class="card" role="status"><h2>처리 결과가 확인되었습니다</h2>
 <p>{{ action_label }} 요청이 저장되었습니다. 현재 업무 내용과 상태는 다시 조회해 확인하세요.</p>
-<p><a class="task-action-link" href="{{ url_for('task_web.detail', task_id=completed.task_id, **intent.filters) }}">현재 업무 상태 다시 조회</a></p></section>
+{% if self_removed %}<p>본인을 업무 관리자에서 제외했습니다. 저장은 완료됐으며 이후 조회 권한은 현재 배정과 관리자 관계를 따릅니다.</p>{% endif %}
+{% if can_open_detail %}<p><a class="task-action-link" href="{{ url_for('task_web.detail', task_id=completed.task_id, **intent.filters) }}">현재 업무 상태 다시 조회</a></p>{% endif %}</section>
 {% else %}
 {% if error %}<section class="card task-write-error" role="alert"><h2>요청을 확인해 주세요</h2><p>{{ error.message }}</p><p class="muted">오류 코드: {{ error.code }} · 요청 번호: {{ g.request_id }}</p></section>{% endif %}
 {% if not_recorded %}<section class="card" role="status"><h2>저장된 처리 결과가 없습니다</h2><p>다시 전송하려면 아래 버튼을 누르세요. 확인한 내용 그대로 같은 요청을 전송합니다.</p></section>{% endif %}
+{% if not access_lost %}
 <section class="card" aria-labelledby="task-confirm-heading"><h2 id="task-confirm-heading">실행할 내용</h2>
 <h3 class="task-detail-title">{{ intent.summary.title }}</h3>
 <dl class="task-info"><dt>동작</dt><dd>{{ action_label }}</dd>{% if intent.action != 'task.created' %}<dt>업무 번호</dt><dd>{{ intent.target }}</dd>{% endif %}<dt>시작일</dt><dd>{{ intent.summary.start_date }}</dd><dt>마감일</dt><dd>{{ intent.summary.due_date }}</dd>
 {% if intent.action == 'task.created' %}<dt>담당자</dt><dd>{{ intent.summary.assignee_label }}</dd><dt>필수 관리자</dt><dd>{{ intent.summary.creator_label }} (등록자)</dd><dt>추가 관리자</dt><dd>{% for label in intent.summary.manager_labels %}<div>{{ label }}</div>{% else %}없음{% endfor %}</dd>{% endif %}</dl>
-{% if intent.action == 'task.created' %}<h3>업무 내용</h3><div class="task-description">{{ intent.summary.description }}</div>{% else %}<p class="muted">{{ '진행전' if intent.action == 'task.accepted' else '반려완료' }}에서 진행중으로 변경합니다. 결과물 제출은 별도 기능입니다.</p>{% endif %}
+{% if intent.action == 'task.created' %}<h3>업무 내용</h3><div class="task-description">{{ intent.summary.description }}</div>
+{% elif management %}
+<h3>변경 전</h3>
+{% if intent.action == 'task.updated' %}<dl class="task-info"><dt>제목</dt><dd>{{ intent.summary.before.title }}</dd><dt>시작일</dt><dd>{{ intent.summary.before.start_date }}</dd><dt>마감일</dt><dd>{{ intent.summary.before.due_date }}</dd></dl><div class="task-description">{{ intent.summary.before.description }}</div>
+{% elif intent.action == 'task.reassigned' %}<p>{{ intent.summary.before.assignee_name }}</p>
+{% else %}{% for label in intent.summary.before.manager_labels %}<p>{{ label }}</p>{% endfor %}{% endif %}
+<h3>변경 후</h3>
+{% if intent.action == 'task.updated' %}<dl class="task-info"><dt>제목</dt><dd>{{ intent.body.title }}</dd><dt>시작일</dt><dd>{{ intent.body.start_date }}</dd><dt>마감일</dt><dd>{{ intent.body.due_date }}</dd></dl><div class="task-description">{{ intent.body.description }}</div>
+{% elif intent.action == 'task.reassigned' %}<p>{{ intent.summary.assignee_label }}</p><p class="muted">새 담당자는 업무를 직접 수락해야 합니다. 이전 배정 기록은 보존됩니다.</p>
+{% else %}{% for label in intent.summary.manager_labels %}<p>{{ label }}</p>{% endfor %}{% if self_removed %}<p>변경 후 본인은 지정 관리자에서 제외됩니다.</p>{% endif %}<p class="muted">결과물 검토자는 이 변경으로 바뀌지 않습니다.</p>{% endif %}
+{% else %}<p class="muted">{{ '진행전' if intent.action == 'task.accepted' else '반려완료' }}에서 진행중으로 변경합니다. 결과물 제출은 별도 기능입니다.</p>{% endif %}
 </section>
+{% endif %}
 <section class="card task-write-actions" aria-label="업무 실행 및 결과 확인">
 {% if intent.phase in ['prepared', 'retry'] %}<form method="post" action="{{ url_for('task_web.write_execute') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="ticket" value="{{ ticket }}"><button type="submit">{{ '같은 요청 다시 전송' if intent.phase == 'retry' else action_label + ' 실행' }}</button></form>{% endif %}
 <form method="post" action="{{ url_for('task_web.write_result') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="ticket" value="{{ ticket }}"><button class="secondary" type="submit">처리 결과 확인</button></form>

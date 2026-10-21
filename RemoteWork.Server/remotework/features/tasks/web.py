@@ -82,7 +82,16 @@ def detail(task_id):
     # Filters retain only the return destination. Both read paths independently
     # recheck the current own-or-managed relationship.
     lifecycle_context = None
-    if "task_web.extension_requests" in current_app.view_functions:
+    management_actions = []
+    if "task_web.manage" in current_app.view_functions:
+        from ...auth import authenticated_transaction
+        from .web_management import read_detail
+        with authenticated_transaction() as db:
+            task, management_actions = read_detail(db, str(task_id))
+            if "task_web.extension_requests" in current_app.view_functions:
+                from .lifecycle import read_lifecycle_detail
+                lifecycle_context, task = read_lifecycle_detail(db, str(task_id))
+    elif "task_web.extension_requests" in current_app.view_functions:
         from ...auth import authenticated_transaction
         from .lifecycle import read_lifecycle_detail
 
@@ -95,6 +104,8 @@ def detail(task_id):
     return render_template("tasks/detail.html", task=task, status_labels=STATUS_LABELS,
                            lifecycle_context=lifecycle_context,
                            has_start="task_web.start_prepare" in current_app.view_functions,
+                           management_actions=management_actions,
+                           has_results="results_web.index" in current_app.view_functions,
                            filters=_list_args(scope, status, include_cancelled),
                            back_url=url_for("task_web.index", **_list_args(scope, status, include_cancelled)))
 
