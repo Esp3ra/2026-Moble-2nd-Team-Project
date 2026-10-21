@@ -27,6 +27,10 @@ class _Expired(Exception):
     pass
 
 
+class CaptureAuthorizationError(RuntimeError):
+    """Abort capture without turning an approval failure into a signed match."""
+
+
 def compare_fingerprint(service, expected_slot, *, cancelled=None, timeout_seconds=15):
     """Compare one fresh placement, without changing templates or account state.
 
@@ -35,6 +39,19 @@ def compare_fingerprint(service, expected_slot, *, cancelled=None, timeout_secon
     Cancellation/deadline is checked after every potentially blocking command,
     so a late sensor success cannot escape as a match. No automatic rescan.
     """
+    _validate_inputs(expected_slot, cancelled, timeout_seconds)
+    if service.stopping.is_set() or cancelled is not None and cancelled():
+        return SensorComparison("cancelled")
+    if not service.lock.acquire(blocking=False):
+        return SensorComparison("busy")
+    try:
+        return _compare_owned(service, expected_slot, cancelled=cancelled,
+                              timeout_seconds=timeout_seconds)
+    finally:
+        service.lock.release()
+
+
+def _validate_inputs(expected_slot, cancelled, timeout_seconds):
     if type(expected_slot) is not int or not 0 <= expected_slot <= 65535:
         raise ValueError("expected_slot must be an explicit integer sensor slot")
     if (type(timeout_seconds) not in (int, float)
@@ -42,7 +59,17 @@ def compare_fingerprint(service, expected_slot, *, cancelled=None, timeout_secon
         raise ValueError("timeout_seconds must be finite and positive")
     if cancelled is not None and not callable(cancelled):
         raise ValueError("cancelled must be a callable or None")
-    acquired = False
+
+
+def _compare_owned(service, expected_slot, *, cancelled, timeout_seconds,
+                   ensure_authorized=None, clock=None):
+    """Internal: caller MUST own service.lock, including approval and result signing.
+
+    The v2 adapter uses a suspend-aware clock and checks online authorization
+    around each I/O. This helper neither acquires nor releases the UART lock.
+    """
+    _validate_inputs(expected_slot, cancelled, timeout_seconds)
+    clock = service.clock if clock is None else clock
 
     def stopped():
         return service.stopping.is_set() or cancelled is not None and cancelled()
@@ -57,16 +84,15 @@ def compare_fingerprint(service, expected_slot, *, cancelled=None, timeout_secon
     try:
         if stopped():
             return SensorComparison("cancelled")
-        acquired = service.lock.acquire(blocking=False)
-        if not acquired:
-            return SensorComparison("busy")
-        deadline = service.clock() + timeout_seconds
+        deadline = clock() + timeout_seconds
 
         def check():
             if stopped():
                 raise _Stopped()
-            if service.clock() >= deadline:
+            if clock() >= deadline:
                 raise _Expired()
+            if ensure_authorized is not None:
+                ensure_authorized()
 
         def command(operation, *args):
             check()
@@ -83,7 +109,7 @@ def compare_fingerprint(service, expected_slot, *, cancelled=None, timeout_secon
                     return
                 if value not in (service.codes.OK, service.codes.NOFINGER):
                     raise RuntimeError("sensor_image_error")
-                service.sleep(min(0.2, max(0, deadline - service.clock())))
+                service.sleep(min(0.2, max(0, deadline - clock())))
 
         check()
         display("begin_scan")
@@ -112,17 +138,13 @@ def compare_fingerprint(service, expected_slot, *, cancelled=None, timeout_secon
     except _Stopped:
         return SensorComparison("cancelled")
     except _Expired:
-        if acquired:
-            display("show_scan", "입력 시간 초과", "PC 안내 확인")
+        display("show_scan", "입력 시간 초과", "PC 안내 확인")
         return SensorComparison("timeout")
+    except CaptureAuthorizationError:
+        raise
     except Exception:
-        if acquired:
-            display("show_scan", "센서 확인 필요", "PC 안내 확인")
+        display("show_scan", "센서 확인 필요", "PC 안내 확인")
         # Neither device exceptions nor private identifiers leave the sensor core.
         return SensorComparison("sensor_error")
     finally:
-        if acquired:
-            try:
-                display("end_scan")
-            finally:
-                service.lock.release()
+        display("end_scan")
