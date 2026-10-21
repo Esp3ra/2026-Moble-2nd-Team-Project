@@ -1,3 +1,14 @@
+## 최신 검토 — PR59 병합 / PR57·58 수정 요청 / PR52 대기, 2026-10-21
+
+| PR | 현재 판정 |
+|---|---|
+| [59](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/59#issuecomment-6309450248) 업무 메뉴→실제 웹 | 소유MySQL33통과, **merge f0430b7b2ec33eeac69b0ac78b83ddad6af90695**, 실제tree cc5a7499가 검토본과 일치 |
+| [57](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/57#issuecomment-6308590391) 협업 요청 수정본8613c947 | 기존 팀장3건·1번2건 해결 확인. 새 **R57-04/P2 조회 대기 중 수동 응답창이 열리면 같은 요청창1→2개**로 Draft·미병합 |
+| [58](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309407344) 기존 회원 복구 진입2910cbb | 새 **R58-01/P2 A의 확정 NO_FREE 거절 후 B복구 선택 시 실제채널은A에 고정되어 진행 차단**, 미병합 |
+| [52](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52#issuecomment-6287667210) 결과물 웹32fc711 | 새 코드 미업로드, R52-03/P2 첨부 참조 경합 수정대기 유지. 최신alpha와 web.py 메뉴 충돌도3번에 안내 |
+
+[중앙 직접 검토·검사/범위](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr57-59-review-20261021)를 따릅니다. 59의1번 공통 메뉴 코드 접점은 완료이며 실제5000 재시작/배포·작업폴더 동기화·공유DB/옵션/DDL/ACK/쓰기503·실물 검증은 실행하지 않았습니다. 아래 과거 미해결·병합대기 표시는 당시 이력으로 보존합니다.
+
 ## 최신 재검토 — PR52 기존 두 오류 해결, 공용 첨부 경합 수정 필요, 2026-10-21
 
 [PR52](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52) 새 head `32fc711`을 최신 alpha `44c85f3`과 결합한 tree `c80e19d0acac1ed3856e23bffc813c56d6d732b8`에서 전체 재검토했습니다. 기존 **R52-01/P1·R52-02/P2는 해결 확인**했고, **R52-03/P2: A 연결 해제와 새 B 연결이 겹치면 B 참조가 남아도 파일을 deleting으로 바꿔 다운로드404가 지속되는 문제**를 별도 실제 MySQL 검사로 재현하여 **미병합·수정 요청**입니다. [현재 회신·재현·수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52#issuecomment-6287667210), [중앙 직접 검토 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr52-full-recheck-20261021)을 따릅니다. 아래 이전 PR52 수정 미업로드/두 UI 오류 미해결 표시는 당시 이력입니다.

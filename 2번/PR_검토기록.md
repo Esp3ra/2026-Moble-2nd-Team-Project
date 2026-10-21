@@ -1,3 +1,43 @@
+<a id="pr57-59-review-20261021"></a>
+## PR57·58·59 검토와 PR52 대기 상태, 2026-10-21
+
+사용자의 PR검토 요청과 문제없으면 병합 지시에 따라 현재 열린52/57/58 및 검토중 추가된59를 확인했습니다. 검토 시작의 실제alpha는 `44c85f322d22a3f48422353aedb45a09e8970e3c`이며 API에 남은57/52의 옛 base8ed25c6을 그대로 최신으로 쓰지 않았습니다. 새 정책·실제 환경 적용을 추정 승인하지 않습니다.
+
+### PR59 — 병합 완료
+
+- head `3877d0f78b0955acff35787c496f98de7e6e88d0`, 검토 tree `cc5a74993304cca1a9776ba9eca558a8a56045a1`.
+- 3파일 전체diff 대조: 공통 web.py의 고정 /tasks redirect2줄, README, 기존 task_web검사. 로그인 후 등록된 endpoint만 이동하고 기본off 준비화면/직원·관리자 현재권한을 유지합니다.
+- 소유MySQL8.2/RR에서 `python -m pytest -q --tb=short tests/test_task_web.py` **33 passed/skip0**, pytest92.65초. 홈링크/익명·on/off/역할/GET전후DB불변 포함. 소유MySQL·runtime정리true, diffcheck통과. 다른 전체서버/C# 검사를 실행했다고 보고하지 않습니다.
+- expected head를 고정해 정상 merge **`f0430b7b2ec33eeac69b0ac78b83ddad6af90695`**. 실제 merge tree가 위 사전tree와 일치하고 alpha원격/PR merged=true를 확인했습니다.
+- [통합 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/59#issuecomment-6309450248). 코드 접점 완료이며 실행중5000 배포/재시작·실제 제품폴더 동기화·공유DB/옵션/ACK/쓰기503·두PC는 미실행입니다.
+
+### PR57 — 기존5건 해결, 새 R57-04/P2 수정 요청
+
+- head `8613c9477a567ad445bf753a4f05baa0867f4d9c`, alpha44c85f3 결합 tree `47bfdd6fe05b207eadbbddedc5a707252704e8b5`.
+- 팀장 R57-01 취소 CURRENT/02 비활성 상대 종료5종/03 확정409 재준비와1번 coldOFF 성공reader/FK·물리구조 지적을 해결 확인했습니다. 취소 반대편은 명시 소유DB 보호TX 대역이며 실제2번HTTP/배포ACK와 구분합니다.
+- 소유MySQL **55 passed/skip0**,163.57초(협업24+추가21+W1 10);012물리8오류 거부/실제생성·dump→새 소유DB복원·이력당사자90일 포함. 소유MySQL/임시runtime정리true.
+- 실제WinForms Directory25/6시나리오+Requests48=73 통과. 이전 독립R57-03은 unknown→not_recorded→명시POST409 뒤 pendingFalse/입력편집·refresh가능, 다음전송prepare2/현재version2/새key 확인. 전체솔루션 Release0경고0오류/diffcheck통과.
+- **R57-04/P2:** `CollaborationNotificationCoordinator.cs:34~53`은 다른응답창/중요공지 검사를 await 전에만 합니다. 수신 ListAsync 대기 중 같은pending의 수동응답창을 열고 조회를 마치면 표시직전 재검사없이 자동창을 추가하여 **가시응답창1→2**가 됩니다. 한 공유scope에서 실제WinForms로 재현했고 중복타이머/MainForm배포/향후공지 역방향통합을 전제로 하지 않습니다. 이 안전성검사 실패는 정상73에 합산하지 않습니다.
+- 표시직전 owner의 가시성/최소화·다른응답창/공지 조건을 재확인하고 양보시 후보를displayed에 기록하지 않는 회귀를 요청했습니다. [기존 댓글 보완](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/57#issuecomment-6308590391).
+- 공유scope소유/지연표시/협업 이력 제공은 확인했지만 공통설치/012·history계약·MainForm조립/2번실제연속성reader·운영값/실제동시통합은 후속입니다. **Draft·미병합 유지**입니다.
+
+### PR58 — R58-01/P2 장치 재선택과 실제 채널 수명 불일치
+
+- head `2910cbb658979a793f036b4947cf8630d65fbda0`, alpha44c85f3 결합 tree `b8af8b49e44b5b42d16b91f154faa63e13628452`.
+- 기존회원의 정확ID/LoginId/활성/역할/페이지·선택세대 재확인, 명시확인/recovery-only번호·모드 고정, 지연응답/로그아웃/종료 차단을 대조했습니다.
+- 필수 enrollment-mysql-v1 모드의 실제 회원관리/등록 WinForms+명시 HTTP/channel **177**, 기존회원복구 **95**, 회원관리14시나리오 **46**, 지문WinForms **58** 통과. 모두 통제 HTTP/Pi대역이며 실제MySQL/센서 완료가 아닙니다. 전체솔루션Release0경고0오류/diffcheck통과.
+- **R58-01/P2:** `FingerprintEnrollmentForm.cs:211~224,238~245`는 A의 정확409/NO_FREE·발급전 거절에서 attempt를 해제하고 장치재선택을 허용합니다. 실제 `CreatedUserEnrollmentLauncher.cs:49~58`의 EnrollmentDeviceChannel은 이미선택한A채널을 유지해B를 거절합니다.
+- 원본Form+실제channel+합성HTTP/Pi 재현: A일반issue확정거절→B명시선택/B복구GET→시작에서 **재발급0/Pi0**, 정상주소임에도 주소설정오류. 처음부터B복구 대조는 **재발급1/Pi1/pi-b라우팅**까지 진행하며 전체물리완료 대조는 아닙니다. 정상58에 이 재현/대조를 합산하지 않습니다.
+- A→B 변경에만 해당하고 같은A복구는 영향없음/창재열기로우회가능/오등록·저장우회없음으로 범위를 제한합니다.1·5번의 UI/channel수명을 맞추되 불명·발급후·장치송신후 attempt보존을 유지하도록 [PR58에 한묶음 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309407344)했습니다. **미병합·수정후재검토**입니다.
+
+### PR52 — 새 수정 없음, 최신 공통 메뉴와 충돌 안내
+
+head32fc711은 동일하며 R52-03/P2 첨부참조 경합 수정대기입니다. 기존R52-01/02 해결확인과 이전 전체검사결과는 지난 회차이고 이번에 재실행하지 않았습니다. 새alpha f0430b7과의 읽기전용 merge-tree에서 web.py feature메뉴 충돌을 확인해 [기존52댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52#issuecomment-6287667210)에 task_web.index와results_web.index를 함께 보존하도록 안내했습니다. 충돌해결이나3번 제품수정은 대신 실행하지 않았습니다.
+
+### 실제 범위와 보존
+
+이 검토는 isolated clone/소유MySQL·합성WinForms검사와 PR59 원본병합, 기존댓글/PR·LOG기록 취합입니다. 실제 작업폴더·.env/옵션·사용자DB/공유서버·DDL/ACK/쓰기503·실계정 재발급·Pi/센서·실행중 구창은 변경하지 않았습니다.1·3·4·5번이 다른곳에서 실행했다고 보고한 작업을 이 검토의 직접 검증으로 쓰지 않습니다. .NET은설치8.0.31/외부offline설정·출력경로로 검증했고 제품csproj는 무수정입니다. 기존기록의 모든줄을 보존하며 새 회신MD/문서PR은 만들지 않습니다.
+
 <a id="pr52-full-recheck-20261021"></a>
 ## PR52 전체 재검토 — R52-01/02 해결, 새 R52-03/P2로 미병합, 2026-10-21
 

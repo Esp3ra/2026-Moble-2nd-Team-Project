@@ -1,3 +1,7 @@
+## 최신 — PR59 병합, PR58 장치 재선택 경합 수정 필요, 2026-10-21
+
+[PR59](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/59#issuecomment-6309450248) 공통 업무 메뉴 연결은 독립 소유MySQL33검사 후 **f0430b7**로 병합했고 실제tree cc5a7499를 대조했습니다. [PR58](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309407344)은 기존회원 확인/복구전용 진입과 정상 UI검사177·95·46/지문58·Release0/0을 확인했으나 **R58-01/P2: A의 확정 NO_FREE 거절 후 UI에서B복구를 선택해도 실제채널은A에 고정**되는 문제로 미병합입니다.1·5번의 Form/launcher 수명을 맞추되 불명·발급후·장치송신후 attempt는 보존해야 합니다. [중앙 검토](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr57-59-review-20261021)를 따릅니다. 실제 계정/지문 등록·서버/DB/설정·제품폴더·운영자 복구는 변경하지 않았습니다.
+
 ## 최신 재검토 — PR55·PR56 병합 완료, PR52 코드 수정 대기, 2026-10-21
 
 [PR55](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/55) headbc1751d의 R55-04 단일 종료 시각 수정과 회원관리 연결 fixture 보완을 최신 alpha864a2a6에서 검증하고 **`b37fe3a38babe1553fc6d78e39e4b8c07ce0d822`**로 선행 병합했습니다. 공식8모듈239통과·독립 초 경계4통과·Release0/0이며 기존R55-01~04는 모두 해결 확인입니다. [최종 검토/범위](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/55#issuecomment-6306967504)를 따릅니다.

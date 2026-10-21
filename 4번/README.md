@@ -1,3 +1,7 @@
+## 최신 — PR57 기존5건 해결, 새 알림중복으로 Draft 유지, 2026-10-21
+
+head8613c947을 실제alpha44c85f3과 결합한 tree47bfdd6f에서 서버55·UI25+48=73·Release0/0을 직접 확인했습니다. 기존 팀장3건/1번2건은 해결 확인했고 공유scope소유/지연표시/당사자이력도 제공됐습니다. 다만 **R57-04/P2: 조회중 수동 응답창을 열면 같은 요청창1→2개**를 실제WinForms로 재현하여 Draft·미병합입니다. [기존 위치의 수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/57#issuecomment-6308590391)·[중앙 근거](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr57-59-review-20261021)를 따릅니다. MainForm/공통 설치·012 실제적용·2번 버전구간 연속성reader·운영값/실제공지동시통합은 계속 후속입니다. 실제 환경/제품폴더는 변경하지 않았습니다.
+
 ## 최신 검토 — PR57 협업 Draft 수정 필요, 2026-10-21
 
 [PR57](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/57) headfe209ae를 alpha8ed25c6과 결합해 공식서버24·Directory25/6시나리오·Requests23·Release0/0을 확인했습니다. 별도검사에서 **R57-01/P2 취소 snapshot 혼합, R57-02/P2 상대 비활성화 시 종료 차단, R57-03/P2 미기록 확인 뒤409의 입력잠금**을 재현하여 미병합/Draft 유지입니다. [고정 코드·조건·수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/57#issuecomment-6308590391), [중앙 검토 근거](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr57-review-20261021)를 따릅니다.
