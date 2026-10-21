@@ -1,3 +1,42 @@
+<a id="pr57-review-20261021"></a>
+## 최신 검토 — PR57 협업 Draft 수정 필요, 2026-10-21
+
+[PR57](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/57) headfe209ae를 alpha8ed25c6과 결합해 공식서버24·Directory25/6시나리오·Requests23·Release0/0을 확인했습니다. 별도검사에서 **R57-01/P2 취소 snapshot 혼합, R57-02/P2 상대 비활성화 시 종료 차단, R57-03/P2 미기록 확인 뒤409의 입력잠금**을 재현하여 미병합/Draft 유지입니다. [고정 코드·조건·수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/57#issuecomment-6308590391), [중앙 검토 근거](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr57-review-20261021)를 따릅니다.
+
+기존 B1~B7 채택은 유지합니다. 1번의 새 API/W1·미번호DDL/등록·MainForm 로그인수명,2·4번의 CURRENT취소/실제 중간이력 연속성, B4지연표시·B7상태이력 조회가 남아 있습니다. 협업10초/닫기/재로그인값은 로컬 제안이며 기한알림60초와 혼동하지 않습니다. [2번 기술 대조 범위](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#pr57-member2-bridge-review-20261021)를 기록했습니다. 이번 검토는 제품/실제폴더·공유서버/DB·.env/DDL·장비를 변경하지 않았습니다.
+
+### 검토 기준과 세 수정 사항
+
+head `fe209ae237ad08d91a54f8d4970410860ecb2687`, 실제alpha base `8ed25c6e69c33c023267a2532c267fee71992a8f`, 결합tree `8dbac44707d1cd4590aae6578c305c23116609df`입니다. 23파일1918추가12삭제이며 협업 서버의 독립 metadata/명시설치·미번호SQL,4번화면/서비스/coordinator·소유회귀입니다. 공통auth/db/registry/run.py/MainForm과 기존2번 helper·3/5번제품은 수정하지 않았습니다. 무충돌/CLEAN과Draft의 준비조건/실제판정은 구분하며 ready전환·병합·공유적용은 하지 않았습니다.
+
+| ID | 고정 코드 | 확인한 문제·수정 방향 |
+|---|---|---|
+|R57-01 P2|`collaboration/task_bridge.py:24–30`, 기존`tasks/lifecycle_support.py:116–122`|task/assignment는CURRENT잠금인데취소는plainRR snapshot. guard전 snapshot→별도취소commit 뒤context200/version2·목록pending; 새요청은403/ended. current취소원본읽기와2·4번bridge결합을보완해야 함|
+|R57-02 P2|`collaboration/routes.py:261–264`|양측활성을모든전이에강제. 현재actor활성/상대만비활성인pending철회·거절/accepted철회·탈퇴·완료5경로409, ended_at없음. 신규요청·수락요건과현재당사자의종료권한을분리해야 함|
+|R57-03 P2|`CollaborationRequestForm.cs:221–231`, `160–165`|unknown→lookup not_recorded→명시재전송409 CONTEXT_CHANGED 뒤pendingSend 유지로본문/업무/대상/refresh잠김. 다음조회/재전송도prepares1·옛version1 반복. 확정실패·미기록확인 뒤입력보존/현재문맥재준비경로필요|
+
+R57-01의추가원본HTTP재현은 취소전W1 key, 클라이언트의명시expected_row_version2, 옛RR snapshot 조건에서 취소행+task버전2를commit하면 **생성201/pending이저장**됩니다. 보통UI의옛version1은버전검사로차단되므로구분합니다. 반대편취소는실제HTTP/통합ACK를해제한것이아니라새소유DB의공통guard/task잠금·취소행·버전+1동일TX를사용한명시대역입니다. 원업무상태/담당자/파일권한은변경하지않습니다. 읽기2경로와이조건부쓰기1경로를나눠기록합니다.
+
+R57-02는상대접속을폐기/계정비활성화한뒤현재활성actor로5행동을호출했습니다. 모두RECIPIENT_UNAVAILABLE409/원status·row_version·ended_at유지입니다. accepted는희망일이후지연만되어자동만료하지않으므로탈퇴/철회를영구막을수있습니다. 상대활성검사를행동별로대조하되현재행위자권한·row_version·신규수락활성검사는유지합니다.
+
+R57-03은실제WinForms에명시서비스대역을연결한안전성검사실패입니다. writes2시점pending=true/본문ReadOnly/refreshDisabled, 다시조회·재전송후writes3/expectedVersion1/prepares1입니다. 불명확한통신중원래key/body보존을제거하라는요청이아니며, 확정실패/미기록뒤현재문맥을준비할경로를추가해야합니다.
+
+### 공식 검사와 별도 재현의 구분
+
+Python3.12.14/pytest9.1.1·소유MySQL8.2/RR의공식 `tests/test_collaboration_requests.py` **24통과/생략0/경고0·61.09초**, thread warning을오류로처리했습니다. Directory실제WinForms/명시HTTP대역 **6시나리오25검사**, Requests실제WinForms/ApiClient·서비스대역 **23검사**, 제품솔루션Release 경고0/오류0·diff검사를확인했습니다. 명시install/bootstrap과FeatureBase독립metadata·rawSQL·제약누락503·동시반대응답·감사실패rollback은이공식범위입니다.
+
+별도취소읽기2·버전입력조건의취소후생성1·비활성상대5는결함관찰재현입니다. root생성관찰은1검사2.63초이며기능정상통과로합산하지않습니다. UI409복구안전성은실패입니다. 취소읽기최초Flask hook준비오류는검사기수정후2재현으로분리했고제품결함수치에넣지않았습니다. 소유MySQL/프로세스·임시runtime정리를확인했습니다. 실제공유서버/DB·물리두PC검증은아닙니다.
+
+증거: `remote_work_pr57_independent_20261021/audit/official.txt`, `official-summary.json`, `directory-ui.txt`, `requests-ui.txt`, `build.txt`; `remote_work_pr57_server_review_20261021/audit/cancel-race-preparation.json`, `cancel-race-listing.json`, `inactive-peer-*.json`, 정리summary; root `remote_work_pr57_review_20261021/audit/test_cancelled_create_race.py`, `cancelled-create-race.json`, `cancelled-create-owned.txt`, `cancelled-create-owned-summary.json`; `remote_work_pr57_ui47_20261021_a/audit/retry409.txt`, `CollaborationEdge/Program.cs`입니다.
+
+### 담당별 실제 연결·완료 조건
+
+2번검토에서는signedBIGINT/INTEGER타입·실효due_date/현재배정원본과같은보호TX의task/assignment현재잠금방향을대조했습니다. 취소CURRENT보완과버전구간전체의실제이력연속성reader는미제공/미연결입니다. 관리자변경만있는경우와제출→반려→재작업복귀를구분하고구간누락·불명은None/503으로유지해야합니다. 기존TaskReadSession에새버전/쓰기필드가이미있다고쓰지않으며시험용True/False주입을운영승인으로확대하지않습니다.
+
+1번은새행동/DTO/경로·W1등록·미번호DDL/백업복구·실제적용과MainForm로그인당coordinator를대조해야합니다. 기존CHAT참여자GET재사용코드는확인했으며그것이새협업저장API/DDL승인을뜻하지않습니다.4번은세결함수정과실제제공접점결합을담당합니다. B4 is_late/IsLate는DTO에는있으나목록/응답창에서미표시, B7 CollaborationEvent는저장만하고공개API/화면은최신Row만제공하므로당사자상태이력조회가남습니다. 원업무/파일/own·managed권한을확장하는방법으로해결하지않습니다.
+
+협업알림10초·닫은버전보류·재로그인pending표시는로컬제안입니다. 팀장이채택한기한알림A3의60초/실패backoff와별개이며B1~B7과90일조회/물리삭제미확정기준을새로뒤집지않습니다. 새전체ACK/쓰기503해제·공유DDL/서버재시작·계정자료·Pi/센서변경을하지않았습니다. 작성자본문의바탕화면23경로반영보고는원본병합/공유승인과구분합니다. 기존PR57에수정과회귀를모으도록1·4번에게댓글회신했고별도회신용MD/PR은만들지않았습니다.
+
 <a id="pr55-56-merged-20261021"></a>
 ## 최신 재검토 — PR55·PR56 병합 완료, PR52 코드 수정 대기, 2026-10-21
 

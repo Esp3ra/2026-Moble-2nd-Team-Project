@@ -1,3 +1,9 @@
+## 최신 검토 — PR57 협업 Draft 수정 필요, 2026-10-21
+
+[PR57](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/57) headfe209ae를 alpha8ed25c6과 결합해 공식서버24·Directory25/6시나리오·Requests23·Release0/0을 확인했습니다. 별도검사에서 **R57-01/P2 취소 snapshot 혼합, R57-02/P2 상대 비활성화 시 종료 차단, R57-03/P2 미기록 확인 뒤409의 입력잠금**을 재현하여 미병합/Draft 유지입니다. [고정 코드·조건·수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/57#issuecomment-6308590391), [중앙 검토 근거](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr57-review-20261021)를 따릅니다.
+
+기존 B1~B7 채택은 유지합니다. 1번의 새 API/W1·미번호DDL/등록·MainForm 로그인수명,2·4번의 CURRENT취소/실제 중간이력 연속성, B4지연표시·B7상태이력 조회가 남아 있습니다. 협업10초/닫기/재로그인값은 로컬 제안이며 기한알림60초와 혼동하지 않습니다. [2번 기술 대조 범위](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#pr57-member2-bridge-review-20261021)를 기록했습니다. 이번 검토는 제품/실제폴더·공유서버/DB·.env/DDL·장비를 변경하지 않았습니다.
+
 ## 최신 — 기한 알림 A1~A6·협업 B1~B7 진행 기준 채택, 2026-10-21
 
 팀장이 본 채팅에서 앞선 추천안대로 진행하고 문서를 푸시하도록 지시했습니다. **A1~A6·B1~B7을 개발 진행 기준으로 채택**하며 [전체 정책·담당·기술 확인/검증 경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member4-policy-adopted-20261021)를 따릅니다. 기능 구현·새 API/DB/DDL·실제 통합 검증 완료를 뜻하지 않습니다. 기존 문서의 F4 정책 미확정 표시는 당시 이력으로 보존합니다. 지문 운영·근태/연차·별도 수동/자동 검토 요청과 실제 데이터 삭제/감사·백업 보존 정책은 이번 채택 범위에 포함하지 않습니다.
