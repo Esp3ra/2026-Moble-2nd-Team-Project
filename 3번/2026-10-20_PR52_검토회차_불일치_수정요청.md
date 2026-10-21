@@ -1,3 +1,7 @@
+## 추가 접점 — PR52는 R52-03 대기, 새 alpha 메뉴 충돌 안내, 2026-10-21
+
+PR52 head32fc711은 새 수정이 없어 기존R52-01/02 해결·R52-03/P2 첨부 참조 경합 수정대기를 유지합니다. PR59 업무메뉴를 병합한 최신alpha **f0430b7**과 현재52의 일반merge는 `RemoteWork.Server/remotework/web.py`에서 충돌합니다. 수정본에는1번의 task_web.index 분기와3번의 results_web.index 분기를 함께 보존해 주세요. [기존52회신에 보완한 안내](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52#issuecomment-6287667210)와[중앙 현황](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr57-59-review-20261021)를 따릅니다.52 서버/웹/첨부 검사를 이번에 반복했다고 보고하지 않으며 기본off·인증/현재권한·실제DDL/통합ACK 경계는 유지합니다.
+
 ## 최신 재검토 — PR52 기존 두 오류 해결, 공용 첨부 경합 수정 필요, 2026-10-21
 
 [PR52](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52) 새 head `32fc711`을 최신 alpha `44c85f3`과 결합한 tree `c80e19d0acac1ed3856e23bffc813c56d6d732b8`에서 전체 재검토했습니다. 기존 **R52-01/P1·R52-02/P2는 해결 확인**했고, **R52-03/P2: A 연결 해제와 새 B 연결이 겹치면 B 참조가 남아도 파일을 deleting으로 바꿔 다운로드404가 지속되는 문제**를 별도 실제 MySQL 검사로 재현하여 **미병합·수정 요청**입니다. [현재 회신·재현·수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52#issuecomment-6287667210), [중앙 직접 검토 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr52-full-recheck-20261021)을 따릅니다. 아래 이전 PR52 수정 미업로드/두 UI 오류 미해결 표시는 당시 이력입니다.
