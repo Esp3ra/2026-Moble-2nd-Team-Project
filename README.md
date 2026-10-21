@@ -1,5 +1,7 @@
 # 원격 근무용 업무 처리 확인 시스템
 
+업무 상세를 읽은 뒤에는 첨부 목록의 응답을 기다리지 않고 기존 업무 행동과 새로고침을 사용할 수 있습니다. 인증 만료·로그아웃·행 변경 때는 이전 상세와 행동을 무효화합니다. 업무 웹의 긴 제목·관리자명도 좁은 화면 안에서 줄바꿈합니다. [화면 보완과 검증 범위](docs/TASK_MANUAL_CHECK.md#task-independent-ui-check-20261021)를 확인하세요.
+
 <a id="member2-remainder-implementation"></a>
 2번은 취소·마감 연장 웹의 확인/명시 실행/동일 요청 결과 복구, WinForms 업무 첨부 목록·검증 후 다운로드, 취소 시 기존 공용 첨부의 업무 참조 해제를 연결했습니다. 기존 협업 bridge에는 **완전한 2번 이력이 있는 구간만 판정하는 reader**를 제공합니다. 누락·3번 제출 구간은 `None`을 유지합니다. 다른 담당 제품·공유 서버 설정·DB·운영 ACK는 변경하지 않았습니다.
 
@@ -13,7 +15,7 @@
 
 2번 화면 조작의 준비·확인·명시 실행, 작은 창/오류 안내와 검증 범위는 [화면 실사용 점검 안내](docs/TASK_MANUAL_CHECK.md)를 확인합니다. 자동화·테스트 대역과 공유 실계정의 수동 검증 결과를 구분합니다.
 
-4번 회신에 따른 2번 제공 접점으로 [로그인 접속에 고정된 읽기 어댑터](docs/TASK_QUERIES.md#captured-read-session)를 추가했습니다. `CaptureReadSession()`은 기존 목록·상세 GET과 오류 분류만 재사용하며 로그인 변경 뒤 새 계정으로 자동 이동하지 않습니다. [전용 92검사](Tests/TaskReadSession.Tests/README.md)와 기존 조회304검사를 통과했습니다. 명시적 업무 대역의 취소 제외/포함 필터도 수정했습니다. 2026-10-21 [알림 A1~A6·협업 B1~B7 진행 기준](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member4-policy-adopted-20261021)은 채택됐으며 새 DTO/endpoint·현재 관계/기한 사건·서버 시각의 기술 대조와4번 서비스/MainForm·실제 통합은 후속입니다.
+4번 회신에 따른 2번 제공 접점으로 [로그인 접속에 고정된 읽기 어댑터](docs/TASK_QUERIES.md#captured-read-session)를 추가했습니다. `CaptureReadSession()`은 기존 목록·상세 GET과 오류 분류만 재사용하며 로그인 변경 뒤 새 계정으로 자동 이동하지 않습니다. [전용 92검사](Tests/TaskReadSession.Tests/README.md)와 기존 조회304검사를 통과했습니다. 명시적 업무 대역의 취소 제외/포함 필터도 수정했습니다. 2026-10-21 [알림 A1~A6·협업 B1~B7 진행 기준](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member4-policy-adopted-20261021)은 채택됐고 PR61의 독립 알림 UI·정책·source port가 병합됐습니다. 실제 알림용 DTO/endpoint·현재 관계/기한 사건·서버 시각·확인 저장 계약과 MainForm/업무 탐색 조립·공유 통합은 후속입니다.
 
 5번 Pi 실행 조립은 `EnrollmentRuntime`과 `main(enrollment_factory=...)`의 명시 주입으로 기존 지문 센서·잠금·OLED를 등록과 공유합니다. 기본 실행은 등록 비활성이며 키/정책 자동 생성·서비스 설치는 하지 않습니다. [실행 구성·사용자 Pi123개 대역 검사·실물 적용 전 조건](Devices/RaspberryPi/FINGERPRINT_ENROLLMENT.md)을 확인합니다. 관리자 화면/장치 주소 연결과 실제 신규 지문 저장·회원 매핑/운영 배포는 후속입니다.
 

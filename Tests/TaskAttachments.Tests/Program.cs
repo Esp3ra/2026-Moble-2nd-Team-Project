@@ -30,6 +30,7 @@ internal static class Program
             {
                 await HappyAndSave(); await MetadataRejection(); await ChunkRejection();
                 await CurrentLink(); await SessionBoundaries(); await ScreenRace();
+                await DetailReadyBeforeAttachments();
                 Console.WriteLine($"PASS {checks} task attachment checks. Controlled HTTP and actual WinForms; no product server, DB, upload or shared deployment.");
                 exit = 0;
             }
@@ -229,6 +230,7 @@ internal static class Program
     {
         using var h = new Handler(); using var api = await Login(h);
         var delayed = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondDetail = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
         bool firstPending = false;
         TaskAttachment secondFile = FileInfo() with { AttachmentId = "3b180fd8-8f30-4c02-9809-738206c5a554", Name = "두 번째.bin" };
         h.Respond = path =>
@@ -236,7 +238,8 @@ internal static class Program
             if (path.Contains("tasks?")) return Ready(Ok(new { items = new[] { TaskWire("1"), TaskWire("2") } }));
             if (path.EndsWith("shared/tasks/1")) { firstPending = true; return delayed.Task; }
             if (path.EndsWith("shared/tasks/2")) return Ready(Files(secondFile));
-            if (path.EndsWith("tasks/1") || path.EndsWith("tasks/2")) return Ready(Ok(new { task = TaskWire(path[^1..]) }));
+            if (path.EndsWith("tasks/2")) return secondDetail.Task;
+            if (path.EndsWith("tasks/1")) return Ready(Ok(new { task = TaskWire("1") }));
             return Ready(Error(503, "FIXTURE_NOT_PROVIDED"));
         };
         using var form = new Form { ShowInTaskbar = false, Location = new(-19000, -19000), StartPosition = FormStartPosition.Manual, Size = new(1100, 850) };
@@ -248,14 +251,72 @@ internal static class Program
         catch { throw new InvalidOperationException("Screen list: " + Field<Label>(control, "lblTaskQueryStatus").Text + " | " + string.Join(",", h.Paths)); }
         tasks.CurrentCell = tasks.Rows[0].Cells[0]; tasks.Rows[0].Selected = true;
         await Until(() => firstPending);
+        Check(Field<Button>(control, "btnAcceptTask").Enabled, "First detail is actionable during its attachment request");
         tasks.CurrentCell = tasks.Rows[1].Cells[0]; tasks.Rows[1].Selected = true;
-        await Until(() => attachments.Rows.Count == 1 && (attachments.Rows[0].Tag as TaskAttachment)?.Name == secondFile.Name);
+        Check(!Field<Button>(control, "btnAcceptTask").Enabled, "Changing selection immediately disables the old task action");
         delayed.SetResult(Files(FileInfo())); await refresh; await Task.Delay(100);
+        Check(!Field<Button>(control, "btnAcceptTask").Enabled && attachments.Rows.Count == 0,
+            "Old attachment completion cannot ready a new task whose detail is still loading");
+        secondDetail.SetResult(Ok(new { task = TaskWire("2") }));
+        await Until(() => attachments.Rows.Count == 1 && (attachments.Rows[0].Tag as TaskAttachment)?.Name == secondFile.Name);
+        Check(Field<Button>(control, "btnAcceptTask").Enabled, "Only the current successfully loaded task becomes actionable");
         Check((attachments.Rows[0].Tag as TaskAttachment)?.Name == secondFile.Name, "Late task1 attachments cannot replace selected task2");
         Check(attachments.Columns[2] is DataGridViewButtonColumn, "Existing grid exposes explicit save action");
         api.ClearIdentity(); await Until(() => attachments.Rows.Count == 0);
         Check(Field<Label>(control, "lblText4").Text.Contains("업무 선택"), "Logout clears previous attachments");
         form.Close();
+    }
+
+    private static async Task DetailReadyBeforeAttachments()
+    {
+        foreach (string outcome in new[] { "unavailable", "expired", "logout" })
+        {
+            using var h = new Handler(); using var api = await Login(h);
+            var detail = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var files = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            h.Respond = path =>
+            {
+                if (path.Contains("tasks?")) return Ready(Ok(new { items = new[] { TaskWire("1") } }));
+                if (path.EndsWith("shared/tasks/1")) return files.Task;
+                if (path.EndsWith("tasks/1")) return detail.Task;
+                return Ready(Error(503, "FIXTURE_NOT_PROVIDED"));
+            };
+            using var form = new Form { ShowInTaskbar = false, Location = new(-19000, -19000), StartPosition = FormStartPosition.Manual, Size = new(1100, 850) };
+            using var control = new TasksControl(PreviewRole.Employee, new HttpTaskQueryService(api)) { Dock = DockStyle.Fill };
+            form.Controls.Add(control); form.Show();
+            Button accept = Field<Button>(control, "btnAcceptTask"), refresh = Field<Button>(control, "btnRetryQuery");
+            DataGridView tasks = Field<DataGridView>(control, "gridTasks"), attachments = Field<DataGridView>(control, "gridTaskAttachments");
+            try
+            {
+                await Until(() => h.Paths.Any(p => p.EndsWith("/tasks/1") && !p.Contains("/shared/")));
+                Check(!accept.Enabled && !refresh.Enabled, "Task actions remain unavailable until core detail succeeds");
+                detail.SetResult(Ok(new { task = TaskWire("1") }));
+                await Until(() => h.Paths.Any(p => p.EndsWith("shared/tasks/1")));
+                Check(Field<TextBox>(control, "txtContent").Text.Contains("내용 1"), "Core detail is visible while attachments are pending");
+                Check(accept.Enabled && refresh.Enabled, "Optional attachment latency does not block task accept or refresh");
+                Check(attachments.Rows.Count == 0 && Field<Label>(control, "lblText4").Text.Contains("불러오는 중"), "Attachment loading remains separate from core readiness");
+                if (outcome == "unavailable")
+                {
+                    files.SetResult(Error(503, "SHARED_ATTACHMENT_SCHEMA_REQUIRED"));
+                    await Until(() => Field<Label>(control, "lblText4").Text.Contains("준비 필요"));
+                    Check(accept.Enabled && refresh.Enabled && tasks.Rows.Count == 1, "Attachment failure does not discard successful core detail");
+                }
+                else
+                {
+                    if (outcome == "logout") api.ClearIdentity();
+                    files.SetResult(outcome == "expired" ? Error(401, "SESSION_EXPIRED") : Files(FileInfo()));
+                    await Until(() => tasks.Rows.Count == 0);
+                    Check(!accept.Enabled && attachments.Rows.Count == 0, "Expired or logged-out detail cannot keep task actions or late files");
+                    Check(api.CurrentUser is null, "Authentication invalidation remains effective after early detail readiness");
+                }
+            }
+            finally
+            {
+                detail.TrySetResult(Ok(new { task = TaskWire("1") }));
+                files.TrySetResult(Files());
+                form.Close();
+            }
+        }
     }
 
     private sealed class Handler : HttpMessageHandler
