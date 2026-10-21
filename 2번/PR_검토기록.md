@@ -1,3 +1,41 @@
+<a id="pr52-full-recheck-20261021"></a>
+## PR52 전체 재검토 — R52-01/02 해결, 새 R52-03/P2로 미병합, 2026-10-21
+
+- PR head: `32fc71124ac9534fd34ddd00bf1cd99969c84a51`
+- 실제 alpha: `44c85f322d22a3f48422353aedb45a09e8970e3c` (PR API의 오래된 base8ed25c6 대신 원격을 직접 확인)
+- 충돌 없는 결합 tree: `c80e19d0acac1ed3856e23bffc813c56d6d732b8`
+- [3번 새 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52#issuecomment-6308742417), [기존 위치에 보완한 팀장 검토 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52#issuecomment-6287667210)
+
+### 새 수정 요청 R52-03/P2 — 새 참조를 놓쳐 공유 파일 접근이 막힘
+
+`RemoteWork.Server/remotework/features/shared_attachments.py:94~96`의 `_links`는 일반 REPEATABLE READ 조회입니다. 인증 조회로 이미 A100만 보이는 snapshot이 생긴 요청에서 다른 요청의 B200 연결/commit을 기다린 다음 A100을 해제하면, `202~207`의 `_mark_unreferenced`가 현재 B 참조를 놓쳐 파일을 `deleting`으로 저장합니다. 공유 guard와 파일 행의 잠금 조회만으로 앞서 생긴 snapshot은 갱신되지 않습니다.
+
+독립 실제 MySQL+원본 helper/API 재현: A 해제200, 실제 남은 참조 `[200]`, 물리파일 존재true인데 저장 state=deleting, 다운로드404/ATTACHMENT_NOT_FOUND. 대조군(B 연결이 요청 이전에 commit)은 ready/다운로드200입니다. 자동 cleanup은 새 TX에서 B 참조를 보아 물리파일을 삭제하지 않지만 deleting을 되돌리지도 않아 접근 불가가 유지됩니다. **실제 파일 삭제/이력 유실까지 발생했다고 보고하지 않습니다.**
+
+참조 존재·제거·마지막 참조 판정이 현재 참조를 읽도록 보완하고, A/B·과거 제출 참조 보존·동일TX rollback·현재권한을 유지하면서 이 순서의 회귀를 추가해 주세요. 재현/대조2는 정상기능 검사134와 합산하지 않습니다.
+
+### 직접 재검증과 해결된 지적
+
+| 범위 | 이번 직접 결과 |
+|---|---|
+| 기존 R52-01 | 불변 task/submission/round 캡처와 선택 잠금 확인; 이전 독립 race에서 표시202/POST202 |
+| 기존 R52-02 | 확정실패+not_recorded 최신문맥 재준비/입력·파일 보존, 불명결과 동일key/body 유지 |
+| JS | 원본 handler/명시 DOM·HTTP 대역52; 세션변경/401/403 뒤 강제쓰기0 추가12 |
+| 결과물 서버/웹/C# | 소유 실제 MySQL 서버191·쿠키/CSRF 웹183·실제 loopback HTTP/WinForms41; C#115소스0오류0경고 |
+| 취소/연장 통합 | 실제2·3번 서비스/소유 MySQL·HTTP258; 현재 취소 FOR UPDATE·pending lock=True·파일IO전후·receipt/과거파일·rollback |
+| 공용 첨부 | 소유 실제 MySQL/HTTP134; 실제2번 제품 소비가 아닌 명시 fixture 경계 유지 |
+| 빌드/기본off | 전체솔루션 Release 오류0·경고0; cold/JS구문/diffcheck 통과 |
+
+서버/웹/C# 원본 검사의 첫 실행은 검사 자체가 모두 통과한 뒤 Python3.14의 미회수 test response 파일 때문에 임시폴더 정리에 실패했습니다. 제품·검사 assertion을 바꾸지 않는 외부 runner에서 종료 직전 gc.collect만 수행해 원본 검사를 다시 실행했고 마지막 실행은 정리까지 정상 종료했습니다. 반복 실행 수치를 합산하지 않았습니다. 첫 실패의 테스트 전용 잔여 폴더는 사용자 자료가 없고 MySQL 프로세스 종료 후 남은 상태로 별도 감사 기록에 표시했습니다. Release는 외부 offline config/설치된8.0.31 참조팩/출력경로를 사용했고 제품csproj를 바꾸지 않았습니다.
+
+### 담당별 후속과 실제 환경 경계
+
+3번의 취소/실제 연장 소비·8행동 이력·공용 첨부/웹 진입 제공 코드는 확인했습니다. 1번은 추가3테이블 초안의 물리 스키마/적용을 검토하며 기존006 blob `d65a713e60a4d70071e474c26d3a9d884a05288e`는 유지됩니다. 새 공용 모델은 common Base를 상속하여 opt-in import 후 명시 init-db 생성 대상에 포함되지만 기본off/일반시작/HTTP의 자동DDL은 아닙니다.
+
+2번은 실제 등록/교체/취소 TX에서 버전 증가 전 replace_task_files/release_task_files 호출, 파일 선택·목록·다운로드 UI와 업무 웹→결과물 이동/처리 후 GET 갱신을 연결해야 합니다. 현재 함수의 실제2번 제품 호출은 없고 테스트 fixture만 존재합니다. 기존 WinForms 제출 진입/성공 GET은 이미 제공되어 재구현하지 않습니다. 현재 명시 검토자 기준·기존 채택 정책을 새로 변경하지 않습니다.
+
+**판정: 기존 R52-01/02 해결, 새 R52-03/P2 수정 후 재검토. PR52 미병합.** 실제 제품 폴더/사용자DB/공유서버·.env/DDL/배포ACK/쓰기503·장비를 변경하지 않았습니다. 별도 문서 회신 PR도 만들지 않았습니다.
+
 <a id="pr57-review-20261021"></a>
 ## 최신 검토 — PR57 협업 Draft 수정 필요, 2026-10-21
 
