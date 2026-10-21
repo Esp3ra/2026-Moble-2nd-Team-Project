@@ -39,7 +39,8 @@
 | POST `/api/v1/collaboration-requests/{request_id}/actions/{decision}` | accept/decline/withdraw/complete/leave |
 | GET `/api/v1/collaboration-requests/{request_id}/history` | 당사자의 협업 상태이력(event_id/status/reason/actor_id/occurred_at) |
 
-history 경로는 이번 B7 보완의 신규 읽기 계약으로1번 재검토 대상이다.
+history 경로는 B7 보완의 읽기 계약으로1번이 당사자/종료90일·현재인증 범위에서 기술 방향을 수용했다.
+공통 설치·실제 배포 완료와는 구분한다.
 
 공통 `/write-requests/keys`와 `/write-requests/result`를 재사용하며 행동은
 `collaboration.created/accepted/declined/withdrawn/completed/left`다.
@@ -85,7 +86,7 @@ DDL은 백업·물리 구조 대조 후 담당자가 적용한다. `storage.crea
 
 ## 남은 연결 협의
 
-1. 1번: 수용한 명시 등록 방향·6행동/W1·예약012의 실제 공통 조립과 신규 history 읽기 대조.
+1. 1번: 수용한 명시 등록 방향·6행동/W1·예약012·history 읽기의 실제 공통 조립.
    물리 검증·격리 dump/새DB 복원은 검사했지만 공유 DB 백업·적용/재시작은 미실행이다.
 2. 1·2번: 현재 업무/취소/중간 상태 이력의 읽기 계약. 버전 변경 후 연속성 판정 경로.
    관리자만 변경된 경우와 제출 후 복귀한 경우를 구별해야 한다.
@@ -95,6 +96,8 @@ DDL은 백업·물리 구조 대조 후 담당자가 적용한다. `storage.crea
    명시 주입은 `CollaborationRequestForm(source, service, sharedNotifications: scope)`다.
    빌린 폼은 별도 타이머/큐를 만들지 않고 닫혀도 공유 scope를 Dispose하지 않는다.
    공유 scope가 없는 독립 폼만 자체 수신기를 소유한다. 이미 보이는 중요공지/협업 응답 창에는 표시를 양보한다.
+   목록 조회 중 창이 열리거나 owner가 숨김/최소화되면 표시 직전에 다시 양보하며,
+   보류한 후보는 표시 완료로 기록하지 않아 조건 해제 후 다음 조회에서 받을 수 있다.
    중요공지가 나중에 들어오는 역방향을 포함한 실제 동시 통합은1번 조립 뒤 추가 확인한다.
 4. 표시 정책: 현재10초 폴링·닫은 버전은 해당 창 수명 동안 재표시하지 않음·재로그인 pending 표시 등은
    로컬 제안이다. 공지 확인 정책/마감 알림 주기와 섞지 않는다. 공통 합의로 간주하지 않는다.
@@ -110,3 +113,5 @@ DDL은 백업·물리 구조 대조 후 담당자가 적용한다. `storage.crea
 물리 오류8종·당사자 이력/90일·raw012 적용·합성자료 dump/새 소유DB 복원 검사를 추가한다.
 취소 반대편은 실제2번 HTTP/통합ACK가 아닌 명시적 소유DB 보호 TX 대역이다.
 UI 검사는 실제 WinForms+명시 서비스/HTTP 대역이며 공유 서버/두 PC를 대신하지 않는다.
+R57-04는 받은/보낸 조회 대기 각각에서 수동 응답창·중요공지·owner 숨김/최소화의8순서를
+검사한다. 표시 직전의 현재 수명/표시 조건을 재확인하며 실제 표시한 버전만 중복 억제한다.

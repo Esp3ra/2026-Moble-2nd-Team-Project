@@ -12,6 +12,11 @@ PR57 회귀는 결과불명→미기록→재전송409→입력 보존/재준비
 중요공지가 이미 보일 때 표시 양보·종료 후 늦은 응답 차단·지연 표시·상태이력 읽기를 추가한다.
 Form.Shown 실제 이벤트를 기다리며 임의의 짧은 지연을 성공 조건으로 쓰지 않는다.
 
+R57-04는 받은/보낸 목록의 각 await 중 수동 응답창·중요공지 표시 또는 owner 숨김·최소화를
+만드는8시나리오를 실제 WinForms에서 검사한다. 표시 직전 재검사로 자동 팝업을 보류하고,
+방해 조건 해제 후 같은 후보가 표시되며 실제 표시 뒤에는 같은 버전을 반복하지 않는지 확인한다.
+서버 쓰기 없이 명시 TaskCompletionSource로 조회 완료 순서를 제어한다.
+
 서버: `RemoteWork.Server`에서
 `python -m pytest tests/test_collaboration_requests.py tests/test_collaboration_review.py -q -W error::pytest.PytestUnhandledThreadExceptionWarning`.
 DB 검사는 MySQL만 사용한다. 별도 폐기용 `MYSQL_TEST_URL`이 없으면 건너뛰며 다른 DB로 대체하지 않는다.

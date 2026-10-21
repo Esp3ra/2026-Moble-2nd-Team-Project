@@ -94,6 +94,7 @@ internal static class CollaborationReviewChecks
             main.Close(); delayed.SetResult([Entry()]); await waiting;
             check(Popups()==0 && service.ListCalls==1,"late response after owner disposal opens no popup or second request");
         }
+        await NotificationRaceChecks(check);
         using (var service = new Service())
         {
             var late=Entry() with {Status="accepted",IsLate=true};
@@ -104,6 +105,52 @@ internal static class CollaborationReviewChecks
             await history.LoadHistoryAsync();
             check(Field<ListBox>(history,"list").Items.Count==2,"status history displayed in dedicated collaboration view");
             check(service.Writes.Count==0,"history and late display do not mutate requests");
+        }
+    }
+    private static async Task NotificationRaceChecks(Action<bool,string> check)
+    {
+        // Complete a real awaited list only after the UI changes. No sleeps or
+        // production guards are replaced; both received and sent waits matter.
+        foreach (bool waitForSent in new[] {false,true})
+        foreach (string blocker in new[] {"response","notice","hidden","minimized"})
+        {
+            string scenario=$"R57-04 { (waitForSent ? "sent" : "received") }/{blocker}";
+            using var service=new Service {Pending=Entry()};
+            using var main=new Form {ShowInTaskbar=false,Opacity=0};
+            await ShowAsync(main);
+            using var scope=new CollaborationNotificationScope(main,service,TimeSpan.FromMinutes(10));
+            var delayed=new TaskCompletionSource<IReadOnlyList<CollaborationEntry>>(TaskCreationOptions.RunContinuationsAsynchronously);
+            bool held=false;
+            service.List=sent=>
+            {
+                if(sent==waitForSent) { held=true; return delayed.Task; }
+                return Task.FromResult<IReadOnlyList<CollaborationEntry>>(sent?[]:[service.Pending!]);
+            };
+            var waiting=scope.CheckAsync();
+            check(held && !waiting.IsCompleted,scenario+" reaches the intended await");
+            using Form? other=blocker switch
+            {
+                "response"=>new CollaborationResponseForm(service,service.Pending!),
+                "notice"=>new ImportantNoticeForm(),
+                _=>null
+            };
+            if(other is not null) await ShowAsync(other,main);
+            else if(blocker=="hidden") main.Hide();
+            else main.WindowState=FormWindowState.Minimized;
+            delayed.SetResult(waitForSent?[]:[service.Pending!]);
+            await waiting;
+            check(Popups()==(blocker=="response"?1:0),scenario+" defers automatic popup after UI change");
+            other?.Close();
+            if(blocker=="hidden") main.Show();
+            else if(blocker=="minimized") main.WindowState=FormWindowState.Normal;
+            service.List=null;
+            await scope.CheckAsync();
+            check(Popups()==1,scenario+" keeps deferred candidate eligible");
+            ClosePopups();
+            await scope.CheckAsync();
+            check(Popups()==0,scenario+" still suppresses an actually displayed version");
+            check(service.Writes.Count==0,scenario+" does not write or respond automatically");
+            main.Close();
         }
     }
     private static int Popups() => Application.OpenForms.OfType<CollaborationResponseForm>().Count(f=>f.Visible);

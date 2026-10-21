@@ -23,16 +23,16 @@ public sealed class CollaborationNotificationCoordinator : Component
         timer.Tick += async (_, _) => await CheckAsync();
         owner.FormClosed += OwnerClosed;
     }
-    private bool Current => !stopped && !owner.IsDisposed && service.IsCurrent && !lifetime.IsCancellationRequested;
+    private bool Current => !stopped && !owner.IsDisposed && !owner.Disposing && service.IsCurrent && !lifetime.IsCancellationRequested;
+    private bool CanPresent => Current && popup is null && owner.Visible &&
+        owner.WindowState != FormWindowState.Minimized &&
+        !Application.OpenForms.Cast<Form>().Any(f => f.Visible &&
+            (f is ImportantNoticeForm || f is CollaborationResponseForm));
     public async Task StartAsync() { if (Current) { timer.Start(); await CheckAsync(); } }
     public async Task CheckAsync()
     {
         if (!Current) { timer.Stop(); popup?.Close(); return; }
-        if (checking || popup is not null || !owner.Visible || owner.WindowState == FormWindowState.Minimized) return;
-        // Yield to an already visible important notice or manually opened
-        // collaboration response. Do not mark candidates displayed yet.
-        if (Application.OpenForms.Cast<Form>().Any(f => f.Visible &&
-                (f is ImportantNoticeForm || f is CollaborationResponseForm))) return;
+        if (checking || !CanPresent) return;
         checking = true;
         try
         {
@@ -45,7 +45,10 @@ public sealed class CollaborationNotificationCoordinator : Component
             var candidate = received.Where(x => x.Status == "pending")
                 .Concat(sent.Where(x => x.Status is "accepted" or "declined" or "left" or "expired" or "ended"))
                 .FirstOrDefault(x => !displayed.Contains(x.RequestId + ":" + x.RowVersion));
-            if (candidate is null) return;
+            // UI state can change while either list request is awaited (or a
+            // status subscriber runs). Recheck immediately before claiming the
+            // candidate; yielding must not consume its displayed-version key.
+            if (candidate is null || !CanPresent) return;
             displayed.Add(candidate.RequestId + ":" + candidate.RowVersion);
             popup = new CollaborationResponseForm(service, candidate);
             var active = popup;
