@@ -15,6 +15,7 @@ namespace RemoteWork.WinForms.Shell
         private readonly IChatService? chatService;
         private UserControl? currentPage;
         private ImportantNoticeCoordinator? noticeCoordinator;
+        private LoginCollaborationNotifications? collaborationNotifications;
         private readonly System.Windows.Forms.Timer identityTimer = new() { Interval = 30000 };
         private readonly UserInfo? signedInUser;
         private bool allowClose;
@@ -47,6 +48,22 @@ namespace RemoteWork.WinForms.Shell
             }
             var note = new Label { AutoSize = true, MaximumSize = new Size(460, 0), Text = "로그인 연결됨 · 업무 조회 연결 상태는 업무 화면에서 확인하세요.", Padding = new Padding(5, 7, 0, 0) };
             footer.Controls.Add(note);
+            var collaborationStatus = new Label { AutoSize = true, Text = "협업 알림 미연결", Padding = new Padding(5, 7, 0, 0) };
+            footer.Controls.Add(collaborationStatus);
+            var collaborationInterval = LoginCollaborationNotifications.ParseInterval(
+                Environment.GetEnvironmentVariable("REMOTEWORK_COLLABORATION_POLL_SECONDS"));
+            if (collaborationInterval is TimeSpan interval)
+            {
+                collaborationNotifications = new(this,
+                    new HttpCollaborationService(AppServices.Api.CaptureSession()), interval);
+                components!.Add(collaborationNotifications);
+                collaborationStatus.Text = "협업 알림 준비 중";
+                collaborationNotifications.Scope.StatusChanged += status =>
+                {
+                    if (!IsDisposed && !closingSession && !expired)
+                        collaborationStatus.Text = string.IsNullOrEmpty(status) ? "협업 알림 연결됨" : status;
+                };
+            }
             layoutWorkspace.RowCount = 3;
             layoutWorkspace.RowStyles.Add(new RowStyle(SizeType.Absolute, 60F));
             layoutWorkspace.SetRowSpan(layoutSidebar, 3);
@@ -151,6 +168,7 @@ namespace RemoteWork.WinForms.Shell
         {
             if (IsDisposed || expired || closingSession) return;
             expired = true;
+            collaborationNotifications?.Dispose();
             noticeCoordinator?.Dispose();
             identityTimer.Stop();
             BeginInvoke(() =>
@@ -169,6 +187,7 @@ namespace RemoteWork.WinForms.Shell
             e.Cancel = true;
             if (closingSession) return;
             closingSession = true;
+            collaborationNotifications?.Dispose();
             noticeCoordinator?.Dispose();
             identityTimer.Stop();
             try { await AppServices.Api.LogoutAsync(); }

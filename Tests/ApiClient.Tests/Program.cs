@@ -42,6 +42,10 @@ internal static class Program
         scenarios.Add(("feature-session-relogin", FeatureSessionRelogin));
         scenarios.Add(("feature-session-expiry", FeatureSessionExpiry));
         scenarios.Add(("feature-session-screen-cancellation", FeatureSessionScreenCancellation));
+        scenarios.Add(("delete-captured-session", DeleteCapturedSession));
+        scenarios.Add(("delete-late-session", DeleteLateSession));
+        scenarios.Add(("delete-current-401", DeleteCurrentUnauthorized));
+        scenarios.Add(("delete-no-retry", DeleteNoRetry));
         var selectedScenarios = scenarios.Where(x => args.Length == 0 || x.Name == args[0]).ToList();
         Check(selectedScenarios.Count > 0, "Unknown scenario");
         foreach (var scenario in selectedScenarios)
@@ -387,6 +391,69 @@ internal static class Program
         Check(!scope.IsCurrent, "Explicit cleanup invalidates scope");
     }
 
+    private static async Task DeleteCapturedSession()
+    {
+        var handler = new Handler();
+        using var api = new ApiClient("http://localhost:5000", handler);
+        await api.LoginAsync("A", "test-password");
+        var session = api.CaptureSession();
+        await session.DeleteAsync<HealthResult>("probe");
+        Check(handler.LastMethod == HttpMethod.Delete && !handler.LastHasBody, "DELETE has no invented JSON body");
+        Check(handler.LastBearer == "token-A" && handler.LastRequestKey is null, "DELETE binds captured bearer without invented W1 key");
+        await api.DeleteAsync<HealthResult>("probe");
+        Check(handler.LastMethod == HttpMethod.Delete, "Shared client exposes the same DELETE transport");
+        var before = handler.RequestCount;
+        foreach (var path in new[] { "/results/shared", "https://other.test/api", "results/../users" })
+        {
+            try { await session.DeleteAsync<HealthResult>(path); throw new Exception("External/escaping DELETE accepted"); }
+            catch (ArgumentException) { checks++; }
+        }
+        Check(handler.RequestCount == before, "Rejected DELETE never reaches HTTP");
+        await api.LoginAsync("B", "test-password");
+        before = handler.RequestCount;
+        await Canceled(session.DeleteAsync<HealthResult>("probe"));
+        Check(handler.RequestCount == before && api.CurrentUser?.LoginId == "B", "Old screen cannot delete with B's credentials");
+    }
+    private static async Task DeleteLateSession()
+    {
+        foreach (var body in new[] { "success", "html" })
+        {
+            var handler = new Handler();
+            using var api = new ApiClient("http://localhost:5000", handler);
+            await api.LoginAsync("A", "test-password");
+            int expired = 0; api.AuthenticationExpired += (_, _) => expired++;
+            var old = api.CaptureSession().DeleteAsync<IdentityResult>("auth/me");
+            var pending = await handler.Next();
+            Check(pending.Bearer == "token-A", "In-flight DELETE kept original bearer");
+            await api.LoginAsync("B", "test-password");
+            pending.Complete(body == "success" ? JsonResponse(new IdentityResult(User("A"), DateTimeOffset.UtcNow.AddHours(1))) : Unauthorized(body));
+            await Canceled(old);
+            Check(api.CurrentUser?.LoginId == "B" && expired == 0, "Late DELETE success/401 cannot affect B");
+        }
+    }
+    private static async Task DeleteCurrentUnauthorized()
+    {
+        var handler = new Handler();
+        using var api = new ApiClient("http://localhost:5000", handler);
+        await api.LoginAsync("A", "test-password");
+        var session = api.CaptureSession(); int expired = 0;
+        api.AuthenticationExpired += (_, _) => expired++;
+        var deleted = session.DeleteAsync<IdentityResult>("auth/me");
+        (await handler.Next()).Complete(Unauthorized("html"));
+        await ApiError(deleted, 401);
+        Check(!session.IsCurrent && api.CurrentUser is null && expired == 1, "DELETE 401 expires current login once");
+    }
+    private static async Task DeleteNoRetry()
+    {
+        var handler = new Handler();
+        using var api = new ApiClient("http://localhost:5000", handler);
+        await api.LoginAsync("A", "test-password");
+        int before = handler.RequestCount;
+        try { await api.CaptureSession().DeleteAsync<HealthResult>("probe/failure"); throw new Exception("Transport failure hidden"); }
+        catch (ApiException) { checks++; }
+        Check(handler.RequestCount == before + 1, "Failed DELETE is sent once; no automatic retry");
+    }
+
     private sealed class Handler : HttpMessageHandler
     {
         private readonly Channel<Pending> requests = Channel.CreateUnbounded<Pending>();
@@ -395,12 +462,15 @@ internal static class Program
         public string? LastBearer { get; private set; }
         public string? LastRequestKey { get; private set; }
         public int RequestCount { get; private set; }
+        public HttpMethod? LastMethod { get; private set; }
+        public bool LastHasBody { get; private set; }
         public Task<Pending> Next() => requests.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             LastBearer = request.Headers.Authorization?.Parameter;
             LastRequestKey = request.Headers.TryGetValues("Idempotency-Key", out var keys) ? keys.Single() : null;
             RequestCount++;
+            LastMethod = request.Method; LastHasBody = request.Content is not null;
             var route = request.RequestUri!.AbsolutePath;
             if (route.EndsWith("probe/failure")) throw new HttpRequestException("test transport failure");
             string? account = null;

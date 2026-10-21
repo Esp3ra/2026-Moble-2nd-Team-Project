@@ -24,10 +24,7 @@ public sealed class CollaborationNotificationCoordinator : Component
         owner.FormClosed += OwnerClosed;
     }
     private bool Current => !stopped && !owner.IsDisposed && !owner.Disposing && service.IsCurrent && !lifetime.IsCancellationRequested;
-    private bool CanPresent => Current && popup is null && owner.Visible &&
-        owner.WindowState != FormWindowState.Minimized &&
-        !Application.OpenForms.Cast<Form>().Any(f => f.Visible &&
-            (f is ImportantNoticeForm || f is CollaborationResponseForm));
+    private bool CanPresent => Current && popup is null && NotificationPresentation.CanPresent(owner);
     public async Task StartAsync() { if (Current) { timer.Start(); await CheckAsync(); } }
     public async Task CheckAsync()
     {

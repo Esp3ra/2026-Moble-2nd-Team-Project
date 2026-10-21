@@ -1,7 +1,7 @@
-"""Explicit candidate integration entry point; does not change common create_app.
+"""Compatibility factory for the explicit normal create_app integration.
 
-Member 1 must choose and review the actual deployment setup. Merely importing
-this factory neither creates storage nor enables routes in the existing server.
+Merely importing this factory neither creates storage nor enables routes.
+An identical second install is a no-op; a different bridge/mode is rejected.
 """
 from ... import create_app
 from . import install

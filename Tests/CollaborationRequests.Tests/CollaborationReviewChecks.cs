@@ -3,6 +3,9 @@ using System.Text.Json;
 using RemoteWork.WinForms.Features.Collaboration;
 using RemoteWork.WinForms.Features.Tasks.Queries;
 using RemoteWork.WinForms.Infrastructure;
+using RemoteWork.WinForms.Shell;
+using System.Net;
+using System.Text;
 
 internal static class CollaborationReviewChecks
 {
@@ -95,6 +98,7 @@ internal static class CollaborationReviewChecks
             check(Popups()==0 && service.ListCalls==1,"late response after owner disposal opens no popup or second request");
         }
         await NotificationRaceChecks(check);
+        await LoginHostAndNoticeChecks(check);
         using (var service = new Service())
         {
             var late=Entry() with {Status="accepted",IsLate=true};
@@ -152,6 +156,95 @@ internal static class CollaborationReviewChecks
             check(service.Writes.Count==0,scenario+" does not write or respond automatically");
             main.Close();
         }
+    }
+    private static async Task LoginHostAndNoticeChecks(Action<bool,string> check)
+    {
+        foreach (var missing in new string?[] {null,"","0","-1"," 10","1.5","3601","invalid"})
+            check(LoginCollaborationNotifications.ParseInterval(missing) is null,"missing/invalid interval never silently enables reception");
+        check(LoginCollaborationNotifications.ParseInterval("10")==TimeSpan.FromSeconds(10),"explicit development interval is preserved");
+        using var service=new Service();
+        using var owner=new Form {ShowInTaskbar=false,Opacity=0};
+        using var loginHost=new LoginCollaborationNotifications(owner,service,TimeSpan.FromMinutes(10));
+        await ShowAsync(owner);
+        check(service.ListCalls==2,"owner Shown starts exactly one received/sent receiver");
+        using (var page=new UserControl()) { owner.Controls.Add(page); owner.Controls.Remove(page); }
+        check(loginHost.Scope.IsCurrent && service.ListCalls==2,"menu dispose does not stop or duplicate login receiver");
+        using (var requestForm=new CollaborationRequestForm(new Directory(service),service))
+        {
+            await ShowAsync(requestForm,owner);
+            check(ReferenceEquals(Field<CollaborationNotificationScope>(requestForm,"borrowedNotifications"),loginHost.Scope),"actual request dialog borrows common login host scope");
+            check(Field<object?>(requestForm,"notifications") is null && service.ListCalls==2,"borrowed dialog never starts another poller");
+            requestForm.Close();
+        }
+        using var api=new ApiClient("http://localhost:5000",new LoginHandler());
+        await api.LoginAsync("fixture","public-test-password");
+        var noticeSource=new NoticeSource();
+        using var notices=new ImportantNoticeCoordinator(owner,api,noticeSource,2);
+        var checkNotices=typeof(ImportantNoticeCoordinator).GetMethod("CheckAsync",BindingFlags.Instance|BindingFlags.NonPublic)!;
+        async Task PollNotices()=>await (Task)checkNotices.Invoke(notices,null)!;
+        await PollNotices(); // Empty login baseline; never acknowledge existing notices.
+        service.Pending=Entry();
+        await loginHost.Scope.CheckAsync();
+        check(Popups()==1,"login host presents collaboration candidate");
+        noticeSource.Items=[NoticeItem(1)];
+        await PollNotices();
+        check(Application.OpenForms.OfType<ImportantNoticeForm>().Count()==0,"notice yields to already visible collaboration popup");
+        ClosePopups(); await PollNotices();
+        check(Application.OpenForms.OfType<ImportantNoticeForm>().Count(f=>f.Visible)==1,"deferred notice was not consumed and can display later");
+        service.Pending=Entry() with {RowVersion="2"};
+        await loginHost.Scope.CheckAsync();
+        check(Popups()==0,"collaboration yields in reverse direction to visible notice");
+        notices.Dispose();
+        await loginHost.Scope.CheckAsync();
+        check(Popups()==1,"notice closure preserves deferred collaboration version");
+        ClosePopups();
+        owner.Enabled=false; service.Pending=Entry() with {RowVersion="3"};
+        await loginHost.Scope.CheckAsync();
+        check(Popups()==0,"disabled modal owner cannot open automatic popup");
+        owner.Enabled=true; await loginHost.Scope.CheckAsync();
+        check(Popups()==1,"candidate is still eligible after owner resumes");
+        check(service.Writes.Count==0 && noticeSource.Confirms==0,"presentation and yielding never write or confirm automatically");
+        ClosePopups();
+        var delayedNoticeSource=new NoticeSource();
+        using (var delayedNotices=new ImportantNoticeCoordinator(owner,api,delayedNoticeSource,2))
+        {
+            async Task PollDelayed()=>await (Task)checkNotices.Invoke(delayedNotices,null)!;
+            await PollDelayed();
+            var reply=new TaskCompletionSource<PendingNoticePopups>(TaskCreationOptions.RunContinuationsAsynchronously);
+            delayedNoticeSource.Read=()=>reply.Task;
+            var waiting=PollDelayed();
+            check(!waiting.IsCompleted,"notice list reaches a controlled asynchronous response");
+            service.Pending=Entry() with {RowVersion="4"}; await loginHost.Scope.CheckAsync();
+            check(Popups()==1,"collaboration can arrive while notice list is awaited");
+            reply.SetResult(new PendingNoticePopups([NoticeItem(2)],null)); await waiting;
+            check(!Application.OpenForms.OfType<ImportantNoticeForm>().Any(f=>f.Visible),"late notice rechecks common presentation gate after await");
+            ClosePopups(); delayedNoticeSource.Read=null; delayedNoticeSource.Items=[NoticeItem(2)];
+            await PollDelayed();
+            check(Application.OpenForms.OfType<ImportantNoticeForm>().Count(f=>f.Visible)==1,"late deferred notice remains unconsumed for next poll");
+        }
+        owner.Close();
+        check(!loginHost.Scope.IsCurrent && Popups()==0,"owner close disposes login scope and popup");
+
+        using var lateService=new Service(); using var lateOwner=new Form {ShowInTaskbar=false,Opacity=0};
+        var delayed=new TaskCompletionSource<IReadOnlyList<CollaborationEntry>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        lateService.List=_=>delayed.Task;
+        using var lateHost=new LoginCollaborationNotifications(lateOwner,lateService,TimeSpan.FromMinutes(10));
+        await ShowAsync(lateOwner);
+        lateOwner.Close(); delayed.SetResult([Entry()]); await Task.Yield();
+        check(!lateHost.Scope.IsCurrent && Popups()==0,"late received list cannot recreate popup after owner logout/close");
+    }
+    private static Notice NoticeItem(int id)=>new() {Id=id,PopupKey="synthetic-notice-"+id,Title="합성 공지",Content="합성 본문",Target="전 직원",IsPinned=true};
+    private sealed class NoticeSource:INoticePopupService
+    {
+        public IReadOnlyList<Notice> Items=[]; public int Confirms;
+        public Func<Task<PendingNoticePopups>>? Read;
+        public Task<PendingNoticePopups> GetPendingPopupsAsync(int afterId=0,CancellationToken ct=default)=>Read?.Invoke()??Task.FromResult(new PendingNoticePopups(Items,null));
+        public Task ConfirmNoticeAsync(Notice item,CancellationToken ct=default) {Confirms++;return Task.CompletedTask;}
+    }
+    private sealed class LoginHandler:HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken ct)=>Task.FromResult(
+            new HttpResponseMessage(HttpStatusCode.OK) {Content=new StringContent(JsonSerializer.Serialize(new {ok=true,data=new LoginResult("public-test-token","Bearer",DateTimeOffset.UtcNow.AddHours(1),new UserInfo(2,"fixture","합성 직원","T2","개발팀","employee",true))},ApiClient.Json),Encoding.UTF8,"application/json")});
     }
     private static int Popups() => Application.OpenForms.OfType<CollaborationResponseForm>().Count(f=>f.Visible);
     private static async Task ShowAsync(Form form,Form? owner=null)
