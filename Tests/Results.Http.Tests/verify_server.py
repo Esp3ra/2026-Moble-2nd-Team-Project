@@ -167,6 +167,16 @@ def run(database_url, storage, run_client=False):
         downloaded.extend(base64.b64decode(chunk["data"]));offset=chunk["next_offset"]
         if chunk["eof"]: break
     check(bytes(downloaded)==content,"actual authenticated download bytes")
+    # Current task managers may read files without gaining reviewer authority.
+    call("upper","get",f"results/attachments/{attachment}/chunks?offset=0",status=403)
+    with app.app_context(),transaction() as db:
+        db.add(TaskManager(task_id=1,user_id=ids["upper"]))
+    managed_chunk=call("upper","get",f"results/attachments/{attachment}/chunks?offset=0")
+    check(base64.b64decode(managed_chunk["data"])==content[:16384],"current non-reviewer manager reads attachment bytes")
+    call("upper","get",f"results/submissions/{saved['submission_id']}/context",status=403)
+    with app.app_context(),transaction() as db:
+        db.delete(db.get(TaskManager,(1,ids["upper"])))
+    call("upper","get",f"results/attachments/{attachment}/chunks?offset=0",status=403)
     call("outsider","get",f"results/attachments/{attachment}/chunks?offset=0",status=403)
     call("worker","get",f"results/submissions/{saved['submission_id']}/context",status=403)
     decision_context=call("manager","get",f"results/submissions/{saved['submission_id']}/context")
@@ -262,7 +272,13 @@ def run(database_url, storage, run_client=False):
         db.flush()
         task=db.get(TaskRecord,1);task.current_assignment_revision=2;task.row_version+=1;task.task_status="not_started"
     call("worker","get","results/tasks/1/submissions",status=403)
+    # A changed assignee does not revoke a separate current-manager role.
+    call("manager","get","results/tasks/1/activity")
+    with app.app_context(),transaction() as db:
+        db.delete(db.get(TaskManager,(1,ids["manager"])))
     call("manager","get","results/tasks/1/activity",status=403)
+    with app.app_context(),transaction() as db:
+        db.add(TaskManager(task_id=1,user_id=ids["manager"]))
     if engine.dialect.name=="mysql":
         def concurrent_submit(task_id,same_key):
             body={"expected_row_version":"1","expected_assignment_revision":1,

@@ -168,14 +168,21 @@ def local_facts(db, task, assignment, *, lock=False):
     if lock:
         query = query.with_for_update()
     relation = db.scalar(query.execution_options(populate_existing=True))
-    gate_query = select(SubmissionGate).where(SubmissionGate.task_id == task.task_id)
-    if lock:
-        gate_query = gate_query.with_for_update()
-    gate = db.scalar(gate_query.execution_options(populate_existing=True))
-    # This explicitly selected development store has no pending request when no gate exists.
-    # It is never used as an implicit fallback for an unknown production extension model.
+    from .tasks.lifecycle_support import storage_present, pending_extension_facts
+    if storage_present(db):
+        # The real member 2 source remains authoritative even if its route flag
+        # is disabled. Missing/partial schema raises 503, never an implicit False.
+        pending = pending_extension_facts(db, task.task_id, assignment.revision, lock=lock)
+    else:
+        # Only the explicitly selected local-development environment without
+        # lifecycle storage uses the old development gate; it is not an ACK.
+        gate_query = select(SubmissionGate).where(SubmissionGate.task_id == task.task_id)
+        if lock:
+            gate_query = gate_query.with_for_update()
+        gate = db.scalar(gate_query.execution_options(populate_existing=True))
+        pending = False if gate is None else gate.extension_pending
     return ExternalFacts(None if relation is None else relation.reviewer_id,
-                         False if gate is None else gate.extension_pending)
+                         pending)
 
 def _error(status, code, message):
     raise AppError(status, code, message)
@@ -193,9 +200,9 @@ def _uuid(value):
     return value
 
 
-def _fields(names):
-    body = payload()
-    if set(body) != set(names):
+def _fields(names, body=None):
+    body = payload() if body is None else body
+    if not isinstance(body, dict) or set(body) != set(names):
         _error(400, "INVALID_INPUT", "입력 항목을 확인해 주세요.")
     return body
 
@@ -257,10 +264,10 @@ def _owner(assignment):
 
 
 def _readable(db, task, assignment, managers):
-    if assignment.assignee_id == g.user.id:
+    if assignment.assignee_id == g.user.id or (g.user.role == "admin" and g.user.id in managers):
         return
     if g.user.role != "admin":
-        _error(403, "FORBIDDEN", "현재 담당자·검토자만 조회할 수 있습니다.")
+        _error(403, "FORBIDDEN", "현재 담당자·업무 관리자·검토자만 조회할 수 있습니다.")
     try:
         facts, reviewer = _facts(db, task, assignment, managers)
     except AppError as error:
@@ -268,7 +275,7 @@ def _readable(db, task, assignment, managers):
             _error(403, "FORBIDDEN", "현재 검토 권한이 없습니다.")
         raise
     if (facts.reviewer_id != g.user.id or reviewer is None or not reviewer.is_active):
-        _error(403, "FORBIDDEN", "현재 담당자·검토자만 조회할 수 있습니다.")
+        _error(403, "FORBIDDEN", "현재 담당자·업무 관리자·검토자만 조회할 수 있습니다.")
 
 
 def _latest(db, task_id):
@@ -306,6 +313,8 @@ def _authorize_decision(db, target):
 
 
 def _first_submit_conditions(db, task, assignment, managers):
+    from .tasks.lifecycle_support import ensure_not_cancelled
+    ensure_not_cancelled(db, task.task_id)
     if task.task_status != "in_progress":
         _error(409, "TASK_STATE_CONFLICT", "진행중 업무만 제출할 수 있습니다. 반려 후에는 재작업 시작이 필요합니다.")
     facts, reviewer = _facts(db, task, assignment, managers)
@@ -368,10 +377,10 @@ def submission_context(task_id):
 
 @bp.post("/tasks/<task_id>/submissions")
 @login_required
-def submit(task_id):
+def submit(task_id, *, body=None):
     task_id = positive_bigint(task_id, "task_id")
     body = _fields({"expected_row_version", "expected_assignment_revision",
-                    "description", "attachment_ids"})
+                    "description", "attachment_ids"}, body)
     expected = ExpectedVersions.from_body(body)
     description = _text(body["description"], required=True)
     ids = body["attachment_ids"]
@@ -389,8 +398,14 @@ def submit(task_id):
         files = list(db.scalars(select(Attachment).where(Attachment.id.in_(ids))
             .order_by(Attachment.id).with_for_update()
             .execution_options(populate_existing=True))) if ids else []
+        shared_ids = [value for value in ids if value not in {file.id for file in files}]
+        shared = current_app.extensions.get("results_shared_attachments")
+        if shared_ids:
+            if shared is None:
+                _error(409, "ATTACHMENT_UNAVAILABLE", "현재 업무에 업로드한 첨부를 확인해 주세요.")
+            shared.selection(db, shared_ids)
         now = utcnow()
-        if len(files) != len(ids) or any(
+        if any(
             f.task_id != task_id or f.owner_id != g.user.id or
             f.submission_id is not None or f.state != "ready" or f.expires_at <= now
             for f in files):
@@ -401,6 +416,8 @@ def submit(task_id):
             submitted_by=g.user.id, reviewer_at_submission=facts.reviewer_id,
             description=description, status="submitted", submitted_at=now)
         db.add(submission)
+        if shared_ids:
+            shared.attach_new_submission(db, submission, shared_ids)
         db.flush()
         for attachment in files:
             attachment.submission_id = submission.id
@@ -421,9 +438,9 @@ def submit(task_id):
 
 @bp.post("/submissions/<submission_id>/decisions")
 @login_required
-def decide(submission_id):
+def decide(submission_id, *, body=None):
     submission_id = positive_bigint(submission_id, "submission_id")
-    body = _fields({"expected_row_version", "expected_assignment_revision", "outcome", "reason"})
+    body = _fields({"expected_row_version", "expected_assignment_revision", "outcome", "reason"}, body)
     expected = ExpectedVersions.from_body(body)
     outcome = body["outcome"]
     if outcome not in ("approved", "returned"):
@@ -433,6 +450,8 @@ def decide(submission_id):
     def mutate(db):
         source = db.get(Submission, submission_id)
         task, assignment, managers = _current(db, source.task_id)
+        from .tasks.lifecycle_support import ensure_not_cancelled
+        ensure_not_cancelled(db, task.task_id)
         expected.check(row_version=task.row_version,
                        assignment_revision=task.current_assignment_revision)
         last = _latest(db, task.task_id)
@@ -464,6 +483,10 @@ def _submission_json(db, item):
     decision = db.scalar(select(Decision).where(Decision.submission_id == item.id))
     files = list(db.scalars(select(Attachment).where(Attachment.submission_id == item.id)
                            .order_by(Attachment.id)))
+    attachments = [_attachment_json(file) for file in files]
+    shared = current_app.extensions.get("results_shared_attachments")
+    if shared is not None:
+        attachments.extend(shared.submission_files(db, item.id))
     return dict(submission_id=str(item.id), task_id=str(item.task_id),
         assignment_revision=item.assignment_revision, round_no=str(item.round_no),
         submitted_by=item.submitted_by,
@@ -473,8 +496,7 @@ def _submission_json(db, item):
         reviewer_id=decision.reviewer_id if decision else None,
         reason=decision.reason if decision else "",
         reviewed_at=iso(decision.decided_at) if decision else None,
-        attachments=[dict(attachment_id=f.id, name=f.name, size=f.size,
-                          sha256=f.sha256) for f in files])
+        attachments=attachments)
 
 
 @bp.get("/tasks/<task_id>/submissions")
@@ -523,12 +545,24 @@ def _activity_item(db, task_id, event):
         "task.rework_started": "status_changed", "task.assigned": "assignee_changed",
         "task.assignee_changed": "assignee_changed", "task.status_changed": "status_changed",
         "task.progress_changed": "progress_changed", "submission.submitted": "submitted",
-        "submission.returned": "returned", "submission.approved": "approved"}
+        "submission.returned": "returned", "submission.approved": "approved",
+        "task.updated": "updated", "task.reassigned": "reassigned",
+        "task.managers_changed": "managers_changed", "task.cancelled": "cancelled",
+        "task.deadline_extension_requested": "deadline_extension_requested",
+        "task.deadline_extension_approved": "deadline_extension_approved",
+        "task.deadline_extension_rejected": "deadline_extension_rejected",
+        "task.deadline_extension_withdrawn": "deadline_extension_withdrawn"}
     labels = {"task.created": "업무 생성", "task.accepted": "업무 수락",
         "task.rework_started": "반려된 업무 재작업 시작", "task.assigned": "담당자 변경",
         "task.assignee_changed": "담당자 변경", "task.status_changed": "상태 변경",
         "task.progress_changed": "진행률 변경", "submission.submitted": "결과 제출",
-        "submission.returned": "반려", "submission.approved": "승인"}
+        "submission.returned": "반려", "submission.approved": "승인",
+        "task.updated": "업무 수정", "task.reassigned": "담당자 변경",
+        "task.managers_changed": "관리자 변경", "task.cancelled": "업무 취소",
+        "task.deadline_extension_requested": "마감 연장 신청",
+        "task.deadline_extension_approved": "마감 연장 승인",
+        "task.deadline_extension_rejected": "마감 연장 반려",
+        "task.deadline_extension_withdrawn": "마감 연장 철회"}
     summary = labels.get(event.action, event.action)
     if event.resource_type == "submission":
         item = db.get(Submission, int(event.resource_id))
@@ -549,6 +583,30 @@ def _activity_item(db, task_id, event):
                     old, new = str(before[key]), str(after[key])
                     if key == "task_status": old, new = states.get(old, old), states.get(new, new)
                     changes.append(f"{label}: {old} → {new}")
+            if event.action == "task.updated":
+                names = {"title": "업무명", "description": "업무 설명", "start_date": "시작일", "due_date": "마감일"}
+                changed = details.get("changed_fields")
+                if isinstance(changed, list):
+                    fields = [names[key] for key in changed if isinstance(key, str) and key in names]
+                    if fields:
+                        changes.append("변경 항목: " + ", ".join(fields))
+                for key, label in (("start_date", "시작일"), ("due_date", "마감일")):
+                    old, new = details.get("before_" + key), details.get(key)
+                    if isinstance(old, str) and isinstance(new, str) and old != new:
+                        changes.append(f"{label}: {old} → {new}")
+            if event.action == "task.reassigned":
+                old, new = details.get("before_assignee_id"), details.get("assignee_id")
+                if type(old) is int and type(new) is int:
+                    changes.append(f"담당자 ID: {old} → {new}")
+            if event.action == "task.managers_changed":
+                old, new = details.get("before_manager_user_ids"), details.get("manager_user_ids")
+                if (isinstance(old, list) and isinstance(new, list) and
+                        all(type(value) is int for value in old + new)):
+                    changes.append("관리자 ID: " + ", ".join(map(str, old)) + " → " + ", ".join(map(str, new)))
+            if event.action == "task.deadline_extension_requested" and isinstance(after.get("requested_due_date"), str):
+                changes.append("희망 마감일: " + after["requested_due_date"])
+            if event.action in ("task.deadline_extension_rejected", "task.deadline_extension_withdrawn") and isinstance(after.get("due_date"), str):
+                changes.append("기존 마감일 유지: " + after["due_date"])
             if changes: summary += " · " + " / ".join(changes)
     actor = db.get(User, event.actor_id) if event.actor_id else None
     return dict(event_id=str(event.id), task_id=str(task_id),
@@ -631,6 +689,8 @@ def decision_context(submission_id):
         _authorize_decision(db, str(submission_id))
         item = db.get(Submission, submission_id)
         task, assignment, managers = _current(db, item.task_id)
+        from .tasks.lifecycle_support import ensure_not_cancelled
+        ensure_not_cancelled(db, task.task_id)
         last = _latest(db, task.task_id)
         if last is None or last.id != item.id or item.status != "submitted" or task.task_status != "submitted":
             _error(409, "TASK_STATE_CONFLICT", "최신 검토 대기 제출물만 판단할 수 있습니다.")
@@ -682,6 +742,7 @@ def upload(task_id):
     with authenticated_transaction() as db:
         task, assignment, managers = _current(db, task_id)
         _owner(assignment)
+        _first_submit_conditions(db, task, assignment, managers)
     if len(request.files) != 1 or "file" not in request.files or request.form:
         _error(400, "INVALID_INPUT", "file 항목에 파일 하나만 첨부해 주세요.")
     part = request.files["file"]
@@ -695,6 +756,7 @@ def upload(task_id):
     with authenticated_transaction() as db:
         task, assignment, managers = _current(db, task_id)
         _owner(assignment)
+        _first_submit_conditions(db, task, assignment, managers)
         now = utcnow()
         db.add(Attachment(id=attachment_id, task_id=task_id, owner_id=g.user.id,
             name=name, size=0, sha256="", state="uploading",
@@ -714,6 +776,7 @@ def upload(task_id):
         with authenticated_transaction() as db:
             task, assignment, managers = _current(db, task_id)
             _owner(assignment)
+            _first_submit_conditions(db, task, assignment, managers)
             item = db.scalar(select(Attachment).where(Attachment.id == attachment_id)
                 .with_for_update().execution_options(populate_existing=True))
             if item is None or item.state != "uploading" or item.expires_at <= utcnow():
@@ -732,23 +795,34 @@ def upload(task_id):
         raise
 
 
+def _download_file(db, attachment_id):
+    item = db.get(Attachment, attachment_id)
+    shared = current_app.extensions.get("results_shared_attachments")
+    if item is None and shared is not None:
+        return shared.download_info(db, attachment_id), True
+    if item is None or item.submission_id is None:
+        _error(404, "ATTACHMENT_NOT_FOUND", "제출된 첨부를 찾을 수 없습니다.")
+    task, assignment, managers = _current(db, item.task_id)
+    _readable(db, task, assignment, managers)
+    item = db.scalar(select(Attachment).where(Attachment.id == attachment_id)
+                     .with_for_update().execution_options(populate_existing=True))
+    return item, False
+
+
+def _download_root(shared):
+    return current_app.extensions["results_shared_attachments"].storage() if shared else _storage()
+
+
 @bp.get("/attachments/<attachment_id>/download")
 @login_required
 def download(attachment_id):
     attachment_id = _uuid(attachment_id)
-    root = _storage()
     with authenticated_transaction() as db:
-        item = db.get(Attachment, attachment_id)
-        if item is None or item.submission_id is None:
-            _error(404, "ATTACHMENT_NOT_FOUND", "제출된 첨부를 찾을 수 없습니다.")
-        task, assignment, managers = _current(db, item.task_id)
-        _readable(db, task, assignment, managers)
-        item = db.scalar(select(Attachment).where(Attachment.id == attachment_id)
-            .with_for_update().execution_options(populate_existing=True))
+        item, shared = _download_file(db, attachment_id)
         if item.state != "ready":
             _error(404, "ATTACHMENT_NOT_FOUND", "첨부를 사용할 수 없습니다.")
         name = item.name
-    path = root / attachment_id
+    path = _download_root(shared) / attachment_id
     if not path.is_file() or path.is_symlink():
         _error(404, "ATTACHMENT_NOT_FOUND", "첨부파일을 찾을 수 없습니다.")
     return send_file(path, as_attachment=True, download_name=name,
@@ -769,6 +843,9 @@ def _upload_owner(db, attachment_id):
         _error(404, "ATTACHMENT_NOT_FOUND", "업로드를 찾을 수 없습니다.")
     task, assignment, managers = _current(db, source.task_id)
     _owner(assignment)
+    if source.owner_id != g.user.id or source.submission_id is not None:
+        _error(403, "FORBIDDEN", "현재 본인 임시 업로드만 처리할 수 있습니다.")
+    _first_submit_conditions(db, task, assignment, managers)
     item = db.scalar(select(Attachment).where(Attachment.id == attachment_id)
                      .with_for_update().execution_options(populate_existing=True))
     if item.owner_id != g.user.id or item.submission_id is not None:
@@ -787,9 +864,9 @@ def _valid_file_name(name):
 
 @bp.post("/tasks/<task_id>/uploads/start")
 @login_required
-def start_json_upload(task_id):
+def start_json_upload(task_id, *, body=None):
     task_id = positive_bigint(task_id, "task_id")
-    body = _fields({"name", "size", "sha256"})
+    body = _fields({"name", "size", "sha256"}, body)
     name = _valid_file_name(body["name"])
     size, digest = body["size"], body["sha256"]
     if type(size) is not int or not 0 <= size <= MAX_FILE_BYTES:
@@ -812,9 +889,14 @@ def start_json_upload(task_id):
 
 @bp.post("/uploads/<attachment_id>/chunks")
 @login_required
-def write_json_chunk(attachment_id):
+def write_json_chunk(attachment_id, *, body=None):
+    return _write_chunk(attachment_id, body=body, owner=_upload_owner,
+                        chunks=UploadChunk, storage=_storage)
+
+
+def _write_chunk(attachment_id, *, body, owner, chunks, storage):
     attachment_id = _uuid(attachment_id)
-    body = _fields({"offset", "data"})
+    body = _fields({"offset", "data"}, body)
     offset, encoded = body["offset"], body["data"]
     if type(offset) is not int or offset < 0 or offset % CHUNK_BYTES:
         _error(400, "INVALID_INPUT", "파일 조각 위치를 확인해 주세요.")
@@ -825,13 +907,13 @@ def write_json_chunk(attachment_id):
     except (ValueError, binascii.Error):
         _error(400, "INVALID_INPUT", "파일 조각 형식이 올바르지 않습니다.")
     with authenticated_transaction() as db:
-        item = _upload_owner(db, attachment_id)
+        item = owner(db, attachment_id)
         if item.state != "uploading":
             _error(409, "ATTACHMENT_UNAVAILABLE", "이미 완료된 업로드입니다.")
         if len(content) != min(CHUNK_BYTES, item.size - offset) or not content:
             _error(400, "INVALID_INPUT", "파일 조각의 위치·크기가 다릅니다.")
     digest = hashlib.sha256(content).hexdigest()
-    root = _storage()
+    root = storage()
     part = root / f"{attachment_id}.{offset}.{digest}.part"
     temp = root / f"{attachment_id}.{uuid.uuid4()}.writing"
     try:
@@ -841,12 +923,12 @@ def write_json_chunk(attachment_id):
             os.fsync(output.fileno())
         os.replace(temp, part)
         with authenticated_transaction() as db:
-            item = _upload_owner(db, attachment_id)
+            item = owner(db, attachment_id)
             if item.state != "uploading":
                 _error(409, "ATTACHMENT_UNAVAILABLE", "업로드 상태가 변경되었습니다.")
-            existing = db.get(UploadChunk, (attachment_id, offset))
+            existing = db.get(chunks, (attachment_id, offset))
             if existing is None:
-                db.add(UploadChunk(attachment_id=attachment_id, offset=offset,
+                db.add(chunks(attachment_id=attachment_id, offset=offset,
                                    size=len(content), sha256=digest))
             elif existing.size != len(content) or existing.sha256 != digest:
                 _error(409, "UPLOAD_CHUNK_CONFLICT", "같은 위치에 다른 파일 내용이 있습니다.")
@@ -857,17 +939,22 @@ def write_json_chunk(attachment_id):
 
 @bp.post("/uploads/<attachment_id>/complete")
 @login_required
-def complete_json_upload(attachment_id):
+def complete_json_upload(attachment_id, *, body=None):
+    return _complete_upload(attachment_id, body=body, owner=_upload_owner,
+                            chunks=UploadChunk, storage=_storage)
+
+
+def _complete_upload(attachment_id, *, body, owner, chunks, storage):
     attachment_id = _uuid(attachment_id)
-    _fields(set())
+    _fields(set(), body)
     with authenticated_transaction() as db:
-        item = _upload_owner(db, attachment_id)
+        item = owner(db, attachment_id)
         data = _attachment_json(item)
         if item.state == "ready":
             return success(data)
         parts = [(c.offset, c.size, c.sha256) for c in db.scalars(
-            select(UploadChunk).where(UploadChunk.attachment_id == attachment_id)
-            .order_by(UploadChunk.offset))]
+            select(chunks).where(chunks.attachment_id == attachment_id)
+            .order_by(chunks.offset))]
     cursor = 0
     for offset, size, _ in parts:
         if offset != cursor:
@@ -875,7 +962,7 @@ def complete_json_upload(attachment_id):
         cursor += size
     if cursor != data["size"]:
         _error(409, "UPLOAD_INCOMPLETE", "파일 전송이 끝나지 않았습니다.")
-    root = _storage()
+    root = storage()
     temp = root / f"{attachment_id}.{uuid.uuid4()}.assembling"
     digest = hashlib.sha256()
     total = 0
@@ -899,7 +986,7 @@ def complete_json_upload(attachment_id):
             _error(409, "ATTACHMENT_CORRUPTED", "파일 크기·해시가 일치하지 않습니다.")
         os.replace(temp, root / attachment_id)
         with authenticated_transaction() as db:
-            item = _upload_owner(db, attachment_id)
+            item = owner(db, attachment_id)
             if item.state not in ("uploading", "ready"):
                 _error(409, "ATTACHMENT_UNAVAILABLE", "업로드 상태가 변경되었습니다.")
             item.state = "ready"
@@ -916,17 +1003,12 @@ def read_json_chunk(attachment_id):
     if not raw.isascii() or not raw.isdigit() or (len(raw) > 1 and raw.startswith("0")):
         _error(400, "INVALID_INPUT", "다운로드 위치를 확인해 주세요.")
     offset = int(raw)
-    root = _storage()
     with authenticated_transaction() as db:
-        item = db.get(Attachment, attachment_id)
-        if item is None or item.submission_id is None:
-            _error(404, "ATTACHMENT_NOT_FOUND", "제출된 첨부가 없습니다.")
-        task, assignment, managers = _current(db, item.task_id)
-        _readable(db, task, assignment, managers)
+        item, shared = _download_file(db, attachment_id)
         size = item.size
         if item.state != "ready" or offset > size:
             _error(400, "INVALID_INPUT", "첨부 상태·위치를 확인해 주세요.")
-    path = root / attachment_id
+    path = _download_root(shared) / attachment_id
     if path.is_symlink() or not path.is_file() or path.stat().st_size != size:
         _error(404, "ATTACHMENT_NOT_FOUND", "첨부가 없거나 손상되었습니다.")
     with path.open("rb") as source:
@@ -1103,3 +1185,7 @@ def register_results(state):
     for action in ("submission.approved", "submission.returned"):
         register_write_action(app, action=action,
                               authorize=_authorize_decision, result_fields=fields)
+    if app.config.get("ENABLE_SHARED_ATTACHMENTS_DRAFT",
+            os.getenv("REMOTEWORK_ENABLE_SHARED_ATTACHMENTS_DRAFT") == "1"):
+        from .shared_attachments import bp as shared_bp
+        app.register_blueprint(shared_bp)

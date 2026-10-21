@@ -195,12 +195,15 @@ def execute_start(db, *, target, action, body, key):
                         authorize=authorize, mutate=mutate)
 
 
-def _start(target, action):
+def _start(target, action, *, body=None):
     authorize = _authorizer(action)  # Retain the API's common-off precedence.
     with authenticated_transaction() as db:
         if authorize(db, target) is not True:
             raise AppError(403, "FORBIDDEN", "현재 업무를 시작할 권한이 없습니다.")
-        body, _ = _input()
+        if body is None:
+            body, _ = _input()
+        else:
+            body, _ = validate_start_body(body)
         result = execute_start(db, target=target, action=action, body=body,
                                key=request.headers.get("Idempotency-Key"))
     return success(result.data, result.status)
