@@ -1,4 +1,4 @@
-"""Read-only task web regressions in a newly owned disposable MySQL.
+"""Task web read/write regressions in a newly owned disposable MySQL.
 
 Uses existing member2 identity/Windows Job/cleanup helpers, reviewed raw DDL,
 synthetic web users and Flask requests. No user server, .env or SQLite is used.
@@ -18,7 +18,9 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 TEST_TARGETS = (
-    "test_task_web.py", "test_task_web_lifecycle.py",
+    "test_task_web.py", "test_task_web_lifecycle.py", "test_task_web_context.py",
+    "test_task_cancellation_current.py",
+    "test_task_web_writes.py", "test_task_creation.py", "test_task_start_api.py",
     "test_task_lifecycle.py::test_request_lists_do_not_grant_old_assignment_or_other_requester_history",
     "test_task_lifecycle.py::test_cancel_closes_pending_and_preserves_task_assignment_and_readable_history",
     "test_task_lifecycle.py::test_missing_or_wrong_ack_denies_writes_and_exposes_readonly_context",
@@ -30,7 +32,7 @@ helper_spec.loader.exec_module(helpers)
 owned = helpers.owned
 
 
-def run_pytest(env, runtime, report):
+def run_pytest(env, runtime, report, targets):
     child_env = env.copy()
     child_env.update(MYSQL_TEST_URL=env["DATABASE_URL"], REMOTEWORK_RUN_TASK_WEB_MYSQL_TESTS="1",
                      PYTHONPATH=str(ROOT / "RemoteWork.Server"))
@@ -38,20 +40,20 @@ def run_pytest(env, runtime, report):
     try:
         job = owned.WindowsJob()
         command = [sys.executable, "-m", "pytest", "-q", "--tb=no",
-                   *(str(ROOT / "RemoteWork.Server/tests" / name) for name in TEST_TARGETS)]
+                   *(str(ROOT / "RemoteWork.Server/tests" / name) for name in targets)]
         with owned.defer_spawn_interrupt():
             process = subprocess.Popen(command, cwd=runtime, env=child_env,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL,
                 text=True, encoding="utf-8", creationflags=subprocess.CREATE_NO_WINDOW | owned.CREATE_SUSPENDED)
             job.assign(process)
         try:
-            stdout, _stderr = process.communicate(timeout=600)
+            stdout, _stderr = process.communicate(timeout=900)
         except subprocess.TimeoutExpired:
             job.close()
             owned.stop_owned_process(process)
             stdout, _stderr = process.communicate(timeout=20)
             report["pytest"] = helpers.safe_pytest_report(stdout, process.returncode, timeout=True)
-            raise owned.shared.RunFailure("owned task web pytest exceeded 600 seconds") from None
+            raise owned.shared.RunFailure("owned task web pytest exceeded 900 seconds") from None
         report["pytest"] = helpers.safe_pytest_report(stdout, process.returncode)
         if process.returncode != 0:
             raise owned.shared.RunFailure("owned task web pytest failed: "
@@ -73,8 +75,10 @@ def run(args, report):
     if not args.allow_disposable_mysql or os.name != "nt" or args.mysql_bin_dir is None:
         raise owned.shared.RunFailure("Windows, explicit --allow-disposable-mysql and --mysql-bin-dir are required")
     executable = owned.validate_binary_directory(args.mysql_bin_dir)
+    targets = ("test_task_web.py", "test_task_web_writes.py") if args.suite == "web" else TEST_TARGETS
+    report["suite"], report["test_targets"] = args.suite, list(targets)
     if not all((ROOT / "RemoteWork.Server/tests" / name.split("::", 1)[0]).is_file()
-               for name in TEST_TARGETS):
+               for name in targets):
         raise owned.shared.RunFailure("member2 task web and existing lifecycle regression sources are required")
     mysql = runtime = None
     try:
@@ -85,7 +89,7 @@ def run(args, report):
                 env["DATABASE_URL"] = mysql.url.render_as_string(hide_password=False)
                 initial_ddl, initial_shape = helpers.prepare_schema(env, runtime)
                 report["initial_ddl_sha256"] = initial_ddl
-                run_pytest(env, runtime, report)
+                run_pytest(env, runtime, report, targets)
                 from sqlalchemy import create_engine
                 engine = create_engine(env["DATABASE_URL"], hide_parameters=True)
                 try:
@@ -120,6 +124,8 @@ def main():
     parser.add_argument("--allow-disposable-mysql", action="store_true")
     parser.add_argument("--mysql-bin-dir", type=Path)
     parser.add_argument("--report-dir", type=Path)
+    parser.add_argument("--suite", choices=("full", "web"), default="full",
+                        help="full: web plus existing API regressions; web: read/write web after an integration change")
     args = parser.parse_args()
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "_" + secrets.token_hex(4)
     audit = (args.report_dir or ROOT.parent / ("remote_work_member2_task_web_mysql_" + stamp)).resolve()
@@ -128,7 +134,8 @@ def main():
         return 1
     audit.mkdir(parents=True)
     report = {"mode": "task_web_flask_mysql", "lifecycle_sql": helpers.LIFECYCLE_SQL,
-              "readonly_web": True, "integrated_ack_installed": False,
+              "web_actions": ["task.created", "task.accepted", "task.rework_started"],
+              "integrated_ack_installed": False,
               "member3_lifecycle_consumption_verified": False, "shared_environment_verified": False,
               "started_utc": datetime.now(timezone.utc).isoformat()}
     exit_code = 0

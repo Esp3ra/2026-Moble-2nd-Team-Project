@@ -1,8 +1,23 @@
-# 업무 웹 읽기 전용 MySQL 검사
+<a id="업무-웹-읽기-전용-mysql-검사"></a>
+# 업무 웹 조회·등록·수락·재작업 MySQL 검사
 
-`RemoteWork.Server/tests/test_task_web.py`의 현재 인증·관계·읽기 경계를 새 소유 MySQL에서 검사합니다. 사용자 `.env`·설정 DB·실행 중 서비스·SQLite를 사용하지 않습니다. 기존 소유권/Windows Job helper와 실제 raw002/004/006/009를 재사용하며 전역 schema version1과 물리DDL을 보존합니다.
+업무 웹과 기존 등록·시작 API를 새 소유 MySQL에서 검사합니다. 사용자 `.env`·설정 DB·실행 중 서비스·SQLite를 사용하지 않습니다. 기존 소유권/Windows Job helper와 실제 raw002/004/006/009를 재사용하며 전역 schema version1과 물리DDL을 보존합니다. 아래31/62/85개 결과는 각각 앞선 읽기 회차의 기록이며 현재 실행 결과와 합산하지 않습니다.
 
-후속 신청함은 `test_task_web_lifecycle.py`와 기존 lifecycle3개 대상(매개변수 포함6검사)을 함께 실행합니다. 기존6검사의 성공 변경은 TESTING·실제 results 비활성·명시 lifecycle 대역이며 실제3번 통합 성공이 아닙니다. 웹은 계속 GET/HEAD/OPTIONS만 제공합니다.
+## 현재 등록·수락·재작업 연결 검사
+
+**최종 실행:** PR59 병합 전 전체 소유 MySQL **196통과·실패/생략0,504.69초**, PR59와 결합한 소스의 웹 **81통과·실패/생략0,168.15초**를 각각 확인했습니다. 두 실행을 합산한 고유 검사 수로 표시하지 않습니다. 후자는 기존/상류 메뉴 읽기33+신규 쓰기48이며 변경되지 않은 API의 앞선 전체 회귀를 다시 실행한 수치가 아닙니다. 순수 전이/날짜/cold 등록은 별도로 **172통과,17.43초**입니다. 두 MySQL 실행 모두 물리DDL 불변·schema1·소유 DB/프로세스/runtime 정리를 확인했습니다.
+
+근거는 소스 밖 `ES/tmp/remote_work_member2_task_web_writes_20261021_mysql_final/verification.json`과 `..._mysql_merged/verification.json`입니다. 결합 후 웹만 재현하려면 같은 실행기에 `--suite web`을 추가합니다. API 포함 전체는 기본 `--suite full`입니다. commit 후 응답 생성 실패/감사 실패/결과 조회 실패는 명시 주입 검사이며 실제 네트워크 장애나 실제3번 통합의 완료 근거로 확대하지 않습니다.
+
+현재 실행기는 `test_task_web_writes.py`의 cookie/CSRF·정확한 로그인 바인딩·서명 확인/실행·후보 선택·동일 키 재응답/결과 확인·권한/버전/취소/날짜 검사를 포함합니다. API 추출 회귀는 기존 `test_task_creation.py`와 `test_task_start_api.py`를 함께 실행하고,아래 기존 읽기·신청함·상세·취소 guard와 lifecycle6개 검사도 유지합니다. **최종 실행 결과는 [LOG/2번 구현·검증](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md)과 해당 회차의 `verification.json` 후속 기록을 기준으로 확인합니다.** 수집·무DB 생략·서로 다른 반복 실행을 실제 통과 수로 더하지 않습니다.
+
+별도 소유 MySQL·합성 계정의 브라우저에서는 신규 등록 입력→`not_recorded` 결과 확인→명시 실행→직원 로그인→업무 수락→현재 진행중 재조회와,반려 업무의 재작업 시작→진행중을 확인했습니다. 미리보기 자원 정리는 별도 보고서로 확인하며 Flask 검사 수에 포함하지 않습니다. 실제 공유 계정·두PC·작은 폭/모바일·3번의 실제 제출/첨부 차단·경합·integrated ACK는 이 확인의 완료 범위가 아닙니다.
+
+웹은 별도 옵션에서 확인/실행 POST를 제공하며 query-only에서는 기존 읽기 전용을 유지합니다. 서명 확인폼은 열린 폼에서만 복구하며 닫은 브라우저/메뉴 재진입의 보류 요청 복원은 제공하지 않습니다. 자동 새 키·재전송은 없고 웹 기능 off에서는 웹 결과 경로도 닫힙니다. 기존 API 계약·취소/연장 실제 변경503와 ACK 미설치를 유지합니다. [제품 계약과 제한](../../docs/TASK_WEB.md#task-web-create-start)을 함께 확인합니다.
+
+후속 신청함은 `test_task_web_lifecycle.py`와 기존 lifecycle3개 대상(매개변수 포함6검사)을 함께 실행합니다. 기존6검사의 성공 변경은 TESTING·실제 results 비활성·명시 lifecycle 대역이며 실제3번 통합 성공이 아닙니다. 이 읽기 회차의 웹은 GET/HEAD/OPTIONS만 제공했습니다.
+
+상세 정보 후속은 `test_task_web_context.py`20개와 `test_task_cancellation_current.py`3개를 추가합니다. 새 인증 snapshot 이후 독립 트랜잭션이 재배정/취소/권한 회수를 commit하는 실제 MySQL 경합을 검사하고,취소 guard는 현재 버전8을 전달해 버전 충돌이 이전 snapshot의 마커 누락을 가리지 못하게 합니다. 두 신규 모듈은 명시 소유 MySQL opt-in 없이 DB 검사를 수행하지 않습니다. 일반 SELECT가 옛 취소 부재를 보는 조건과 보완 guard의409·무효과를 구분하며3번 소비/운영 ACK를 활성화하지 않습니다.
 
 서버 의존성이 설치된 Python으로 다음을 실행합니다. 보고서 폴더는 소스 밖의 **새 경로**로 지정합니다.
 
@@ -28,3 +43,9 @@ python Tests/TaskWeb.Tests/run_mysql_check.py --allow-disposable-mysql --mysql-b
 근거는 `ES/tmp/remote_work_member2_task_web_inbox_20261021_server_final/verification.json`입니다. 중간 실행은 작업 입력 전환으로 중단돼 완료로 세지 않습니다. 실제3번 취소/연장 소비·공유 계정/두PC와 integrated ACK는 여전히 미검증입니다.
 
 게시 전 다른 채팅의 PR55/56 병합 alpha `395d70d`를 보존해2번 변경을 합쳤습니다. 그 결합 소스 `129cc1c`에서 동일62개를 다시 실행해 **62통과·실패/생략0,138.70초**,독립 물리DDL 불변/schema1·소유 자원 정리를 확인했습니다. 근거는 `ES/tmp/remote_work_member2_task_web_inbox_20261021_merged/verification.json`입니다. 이 반복62개를 고유 검사 수에 더하지 않습니다. 이후 게시 문서만 갱신하며 다른 담당 제품 검증/실물 등록 완료로 확대하지 않습니다.
+
+## 상세 취소·연장 대기와 현재 값 후속
+
+등록·시작 웹 연결 전 상세 후속 실행은 **85 passed in 186.70s**,실패/생략0입니다. 기존62+새 상세20+새 취소 guard3이며 앞선 실행 횟수를 통과 수에 더하지 않습니다. 실제 MySQL의 인증 snapshot 이후 독립 재배정/취소/관리자 회수,현재 버전8과 취소 guard409·추가 변경/receipt/감사 없음,기본off·정보/오류/API 필드 보존을 확인했습니다. 독립 물리DDL 불변/schema_versions `[1]`·소유 자원 정리도 확인했습니다.
+
+근거는 소스 밖 `ES/tmp/remote_work_member2_task_web_context_20261021_mysql_final/verification.json`입니다. 환경 전환으로 중단된 앞선 시도는 완료로 세지 않습니다. 새20개 무DB의1통과/19생략·새3개 단독 수집도 실제85개에 더하지 않습니다. 기존 lifecycle 대역과 새 guard의2번 소유 검사를 실제3번 제출/첨부 소비·공유 환경 통합 완료로 확대하지 않습니다.
