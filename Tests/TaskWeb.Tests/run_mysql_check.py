@@ -17,6 +17,12 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[2]
+TEST_TARGETS = (
+    "test_task_web.py", "test_task_web_lifecycle.py",
+    "test_task_lifecycle.py::test_request_lists_do_not_grant_old_assignment_or_other_requester_history",
+    "test_task_lifecycle.py::test_cancel_closes_pending_and_preserves_task_assignment_and_readable_history",
+    "test_task_lifecycle.py::test_missing_or_wrong_ack_denies_writes_and_exposes_readonly_context",
+)
 helper_spec = importlib.util.spec_from_file_location("member2_web_owned_helpers",
     ROOT / "Tests/TaskLifecycle.Integration.Tests/run_mysql_check.py")
 helpers = importlib.util.module_from_spec(helper_spec)
@@ -32,7 +38,7 @@ def run_pytest(env, runtime, report):
     try:
         job = owned.WindowsJob()
         command = [sys.executable, "-m", "pytest", "-q", "--tb=no",
-                   str(ROOT / "RemoteWork.Server/tests/test_task_web.py")]
+                   *(str(ROOT / "RemoteWork.Server/tests" / name) for name in TEST_TARGETS)]
         with owned.defer_spawn_interrupt():
             process = subprocess.Popen(command, cwd=runtime, env=child_env,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL,
@@ -67,8 +73,9 @@ def run(args, report):
     if not args.allow_disposable_mysql or os.name != "nt" or args.mysql_bin_dir is None:
         raise owned.shared.RunFailure("Windows, explicit --allow-disposable-mysql and --mysql-bin-dir are required")
     executable = owned.validate_binary_directory(args.mysql_bin_dir)
-    if not (ROOT / "RemoteWork.Server/tests/test_task_web.py").is_file():
-        raise owned.shared.RunFailure("member2 task web regression source is required")
+    if not all((ROOT / "RemoteWork.Server/tests" / name.split("::", 1)[0]).is_file()
+               for name in TEST_TARGETS):
+        raise owned.shared.RunFailure("member2 task web and existing lifecycle regression sources are required")
     mysql = runtime = None
     try:
         with owned.owned_runtime() as runtime:
