@@ -32,7 +32,7 @@ helper_spec.loader.exec_module(helpers)
 owned = helpers.owned
 
 
-def run_pytest(env, runtime, report):
+def run_pytest(env, runtime, report, targets):
     child_env = env.copy()
     child_env.update(MYSQL_TEST_URL=env["DATABASE_URL"], REMOTEWORK_RUN_TASK_WEB_MYSQL_TESTS="1",
                      PYTHONPATH=str(ROOT / "RemoteWork.Server"))
@@ -40,7 +40,7 @@ def run_pytest(env, runtime, report):
     try:
         job = owned.WindowsJob()
         command = [sys.executable, "-m", "pytest", "-q", "--tb=no",
-                   *(str(ROOT / "RemoteWork.Server/tests" / name) for name in TEST_TARGETS)]
+                   *(str(ROOT / "RemoteWork.Server/tests" / name) for name in targets)]
         with owned.defer_spawn_interrupt():
             process = subprocess.Popen(command, cwd=runtime, env=child_env,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL,
@@ -75,8 +75,10 @@ def run(args, report):
     if not args.allow_disposable_mysql or os.name != "nt" or args.mysql_bin_dir is None:
         raise owned.shared.RunFailure("Windows, explicit --allow-disposable-mysql and --mysql-bin-dir are required")
     executable = owned.validate_binary_directory(args.mysql_bin_dir)
+    targets = ("test_task_web.py", "test_task_web_writes.py") if args.suite == "web" else TEST_TARGETS
+    report["suite"], report["test_targets"] = args.suite, list(targets)
     if not all((ROOT / "RemoteWork.Server/tests" / name.split("::", 1)[0]).is_file()
-               for name in TEST_TARGETS):
+               for name in targets):
         raise owned.shared.RunFailure("member2 task web and existing lifecycle regression sources are required")
     mysql = runtime = None
     try:
@@ -87,7 +89,7 @@ def run(args, report):
                 env["DATABASE_URL"] = mysql.url.render_as_string(hide_password=False)
                 initial_ddl, initial_shape = helpers.prepare_schema(env, runtime)
                 report["initial_ddl_sha256"] = initial_ddl
-                run_pytest(env, runtime, report)
+                run_pytest(env, runtime, report, targets)
                 from sqlalchemy import create_engine
                 engine = create_engine(env["DATABASE_URL"], hide_parameters=True)
                 try:
@@ -122,6 +124,8 @@ def main():
     parser.add_argument("--allow-disposable-mysql", action="store_true")
     parser.add_argument("--mysql-bin-dir", type=Path)
     parser.add_argument("--report-dir", type=Path)
+    parser.add_argument("--suite", choices=("full", "web"), default="full",
+                        help="full: web plus existing API regressions; web: read/write web after an integration change")
     args = parser.parse_args()
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "_" + secrets.token_hex(4)
     audit = (args.report_dir or ROOT.parent / ("remote_work_member2_task_web_mysql_" + stamp)).resolve()

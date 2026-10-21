@@ -2,7 +2,7 @@
 
 ## 업무 웹 읽기 화면 — 2026-10-21
 
-같은 `list_tasks`/`get_task`·현재 권한을 재사용하는 [업무 웹 목록·상세](TASK_WEB.md)를 제공합니다. 기존 조회 opt-in에서 `/tasks`·`/tasks/<id>`의 내/관리 업무·전체/5상태·취소 표시와 상세 복귀를 연결했습니다. query-only 서버는 읽기 전용이며,공통 쓰기와 등록/시작 옵션을 별도로 켠 서버에는 [등록·수락·재작업 시작](TASK_WEB.md#task-web-create-start)도 연결했습니다. 웹은 기존 cookie/CSRF,API는 Bearer 인증을 유지하며 API DTO·DB 계약·공통 메뉴는 바꾸지 않습니다. 기존 `/features/tasks` 준비 메뉴 연결은1번 후속입니다. 최초 읽기 회차의31검사와 아래 날짜별 기록은 당시 검증이며,현재 실행 범위·결과와 미실행은 [전용 검증 안내](../Tests/TaskWeb.Tests/README.md)를 따릅니다.
+같은 `list_tasks`/`get_task`·현재 권한을 재사용하는 [업무 웹 목록·상세](TASK_WEB.md)를 제공합니다. 기존 조회 opt-in에서 `/tasks`·`/tasks/<id>`의 내/관리 업무·전체/5상태·취소 표시와 상세 복귀를 연결했습니다. query-only 서버는 읽기 전용이며,공통 쓰기와 등록/시작 옵션을 별도로 켠 서버에는 [등록·수락·재작업 시작](TASK_WEB.md#task-web-create-start)도 연결했습니다. 웹은 기존 cookie/CSRF,API는 Bearer 인증을 유지하며 API DTO·DB 계약은 바꾸지 않습니다. 공통 업무 메뉴는1번 PR59 병합본을 보존해 query on이면 `/tasks`로 이동하고 off면 준비 화면을 유지합니다. 최초 읽기 회차의31검사와 아래 날짜별 기록은 당시 검증이며,현재 실행 범위·결과와 미실행은 [전용 검증 안내](../Tests/TaskWeb.Tests/README.md)를 따릅니다.
 
 후속으로 기존 lifecycle 옵션에서만 **웹 마감일 연장 신청함 조회**를 제공합니다. 기존 API 요청함의 현재 관계/배정·5처리 상태·정렬을 같은 읽기 함수로 재사용하고 날짜/사유와 업무 상세 링크를 표시합니다. 업무5상태와 연장5처리 상태를 구분하며 API DTO·쓰기·ACK는 변경하지 않습니다. [제공/실행 경계](TASK_WEB.md#후속-마감일-연장-신청함-읽기)를 확인합니다.
 
