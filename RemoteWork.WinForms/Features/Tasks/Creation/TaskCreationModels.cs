@@ -8,7 +8,8 @@ namespace RemoteWork.WinForms.Features.Tasks.Creation;
 public sealed class TaskCreationRequest
 {
     public TaskCreationRequest(string title, string description, DateOnly startDate,
-        DateOnly dueDate, int assigneeId, IReadOnlyList<int> managerUserIds)
+        DateOnly dueDate, int assigneeId, IReadOnlyList<int> managerUserIds,
+        IReadOnlyList<string>? attachmentIds = null)
     {
         ArgumentNullException.ThrowIfNull(title);
         ArgumentNullException.ThrowIfNull(description);
@@ -38,6 +39,21 @@ public sealed class TaskCreationRequest
                 throw new ArgumentException("업무 관리자 ID는 양수이고 중복될 수 없습니다.");
             managerIds.Add(id);
         }
+        if (attachmentIds is not null)
+        {
+            if (attachmentIds.Count > 10)
+                throw new ArgumentException("업무 첨부파일은 최대 10개까지 선택할 수 있습니다.", nameof(attachmentIds));
+            var copied = new List<string>();
+            var seenAttachments = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string attachmentId in attachmentIds)
+            {
+                if (!Guid.TryParseExact(attachmentId, "D", out Guid parsed)
+                    || parsed.ToString("D") != attachmentId || !seenAttachments.Add(attachmentId))
+                    throw new ArgumentException("첨부 ID는 중복되지 않는 정규 소문자 UUID여야 합니다.", nameof(attachmentIds));
+                copied.Add(attachmentId);
+            }
+            AttachmentIds = copied.AsReadOnly();
+        }
         Title = title;
         Description = description;
         StartDate = startDate;
@@ -52,6 +68,9 @@ public sealed class TaskCreationRequest
     public DateOnly DueDate { get; }
     public int AssigneeId { get; }
     public IReadOnlyList<int> ManagerUserIds { get; }
+    // Null preserves the original six-field request; [] is an explicitly empty
+    // final list. Never sort or deduplicate the frozen idempotent request body.
+    public IReadOnlyList<string>? AttachmentIds { get; }
 }
 
 public sealed class TaskCreationResult
@@ -84,7 +103,7 @@ public enum TaskCreationFailure
 {
     NotConfigured, AuthenticationExpired, Forbidden, InvalidInput,
     AssigneeUnavailable, ManagerUnavailable, KeyReused, KeyExpired,
-    Conflict, Unavailable, InvalidResponse
+    Conflict, Unavailable, InvalidResponse, AttachmentUnavailable
 }
 
 public sealed class TaskCreationException : Exception
@@ -96,10 +115,11 @@ public sealed class TaskCreationException : Exception
     {
         TaskCreationFailure.NotConfigured => "업무 등록 연결이 활성화되지 않았습니다.",
         TaskCreationFailure.AuthenticationExpired => "로그인이 만료되었습니다. 다시 로그인해 주세요.",
-        TaskCreationFailure.Forbidden => "현재 로그인에는 업무 등록 권한이 없습니다. 다시 로그인해 주세요.",
+        TaskCreationFailure.Forbidden => "현재 로그인에는 업무 등록 또는 선택 첨부의 접근 권한이 없습니다. 현재 권한을 확인해 주세요.",
         TaskCreationFailure.InvalidInput => "업무 입력 내용과 전송 크기를 확인해 주세요.",
         TaskCreationFailure.AssigneeUnavailable => "선택한 담당자를 현재 배정할 수 없습니다. 담당자를 다시 확인해 주세요.",
         TaskCreationFailure.ManagerUnavailable => "선택한 관리자를 현재 지정할 수 없습니다. 관리자를 다시 확인해 주세요.",
+        TaskCreationFailure.AttachmentUnavailable => "선택한 첨부파일이 없거나 전송 완료 상태가 아닙니다. 파일 목록을 다시 확인해 주세요. 기존 선택은 유지했습니다.",
         TaskCreationFailure.KeyReused => "요청 키의 내용이 일치하지 않습니다. 새로 등록하지 말고 처리 내역을 확인해 주세요.",
         TaskCreationFailure.KeyExpired => "요청 키 또는 결과 보관 기간이 지났습니다. 새로 등록하지 말고 처리 내역을 확인해 주세요.",
         TaskCreationFailure.Conflict => "등록 요청과 서버 정보가 일치하지 않습니다. 처리 내역을 확인해 주세요.",

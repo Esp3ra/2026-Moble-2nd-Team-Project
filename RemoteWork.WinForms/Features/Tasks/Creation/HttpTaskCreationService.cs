@@ -45,15 +45,16 @@ public sealed class HttpTaskCreationService : ITaskCreationService
         EnsureSession();
         if (!request.ManagerUserIds.Contains(UserId))
             throw new TaskCreationException(TaskCreationFailure.InvalidInput);
-        var body = new
+        var body = new Dictionary<string, object>
         {
-            title = request.Title,
-            description = request.Description,
-            start_date = request.StartDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            due_date = request.DueDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            assignee_id = request.AssigneeId,
-            manager_user_ids = request.ManagerUserIds
+            ["title"] = request.Title,
+            ["description"] = request.Description,
+            ["start_date"] = request.StartDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            ["due_date"] = request.DueDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            ["assignee_id"] = request.AssigneeId,
+            ["manager_user_ids"] = request.ManagerUserIds
         };
+        if (request.AttachmentIds is not null) body["attachment_ids"] = request.AttachmentIds;
         // This is the common HTTP body limit, not an additional description policy.
         if (Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(body, ApiClient.Json)) > 32 * 1024)
             throw new TaskCreationException(TaskCreationFailure.InvalidInput);
@@ -148,6 +149,8 @@ public sealed class HttpTaskCreationService : ITaskCreationService
             (401, _) => TaskCreationFailure.AuthenticationExpired,
             (403, _) => TaskCreationFailure.Forbidden,
             (400 or 413, _) => TaskCreationFailure.InvalidInput,
+            (404, "ATTACHMENT_NOT_FOUND") or (409, "ATTACHMENT_UNAVAILABLE")
+                => TaskCreationFailure.AttachmentUnavailable,
             (404 or 405, _) => TaskCreationFailure.NotConfigured,
             (409, "ASSIGNEE_UNAVAILABLE") => TaskCreationFailure.AssigneeUnavailable,
             (409, "TASK_MANAGER_UNAVAILABLE") => TaskCreationFailure.ManagerUnavailable,
