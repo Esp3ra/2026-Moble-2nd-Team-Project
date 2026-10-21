@@ -369,29 +369,34 @@ def lifecycle_context(task_id):
     return success({"context": data})
 
 
+def list_extension_requests(db, actor, scope, status=None):
+    """Existing read policy; callers must first enter authenticated_transaction."""
+    if scope not in ("own", "managed") or (status is not None and status not in EXTENSION_STATUSES):
+        raise AppError(400, "INVALID_INPUT", "연장 요청의 범위 또는 상태를 확인해 주세요.")
+    if scope == "managed" and actor.role != "admin":
+        raise AppError(403, "FORBIDDEN", "지정 관리자만 관리 요청을 조회할 수 있습니다.")
+    require_lifecycle_schema(db)
+    query = select(TaskDeadlineExtension).join(TaskRecord,
+        TaskRecord.task_id == TaskDeadlineExtension.task_id).join(TaskAssignment,
+        (TaskAssignment.task_id == TaskRecord.task_id) &
+        (TaskAssignment.revision == TaskRecord.current_assignment_revision)).where(
+            TaskDeadlineExtension.assignment_revision == TaskRecord.current_assignment_revision)
+    if scope == "own":
+        query = query.where(TaskAssignment.assignee_id == actor.id,
+                            TaskDeadlineExtension.requested_by == actor.id)
+    else:
+        query = query.join(TaskManager, (TaskManager.task_id == TaskRecord.task_id) &
+                           (TaskManager.user_id == actor.id))
+    if status is not None:
+        query = query.where(TaskDeadlineExtension.status == status)
+    rows = list(db.scalars(query.order_by(TaskDeadlineExtension.extension_id.desc())))
+    return [_serialize(row) for row in rows]
+
+
 @login_required
 def extension_requests():
     with authenticated_transaction() as db:
         _query({"scope", "status"})
         scope, status = request.args.get("scope", "own"), request.args.get("status")
-        if scope not in ("own", "managed") or (status is not None and status not in EXTENSION_STATUSES):
-            raise AppError(400, "INVALID_INPUT", "연장 요청의 범위 또는 상태를 확인해 주세요.")
-        if scope == "managed" and g.user.role != "admin":
-            raise AppError(403, "FORBIDDEN", "지정 관리자만 관리 요청을 조회할 수 있습니다.")
-        require_lifecycle_schema(db)
-        query = select(TaskDeadlineExtension).join(TaskRecord,
-            TaskRecord.task_id == TaskDeadlineExtension.task_id).join(TaskAssignment,
-            (TaskAssignment.task_id == TaskRecord.task_id) &
-            (TaskAssignment.revision == TaskRecord.current_assignment_revision)).where(
-                TaskDeadlineExtension.assignment_revision == TaskRecord.current_assignment_revision)
-        if scope == "own":
-            query = query.where(TaskAssignment.assignee_id == g.user.id,
-                                TaskDeadlineExtension.requested_by == g.user.id)
-        else:
-            query = query.join(TaskManager, (TaskManager.task_id == TaskRecord.task_id) &
-                               (TaskManager.user_id == g.user.id))
-        if status is not None:
-            query = query.where(TaskDeadlineExtension.status == status)
-        rows = list(db.scalars(query.order_by(TaskDeadlineExtension.extension_id.desc())))
-        data = {"items": [_serialize(row) for row in rows]}
+        data = {"items": list_extension_requests(db, g.user, scope, status)}
     return success(data)
