@@ -274,8 +274,12 @@ public sealed class TaskCreationWorkflow : IDisposable
             else if (kind == OperationKind.Check)
                 state = TaskCreationState.NeedsResultCheck;
             else if (reason is TaskCreationFailure.InvalidInput or TaskCreationFailure.AssigneeUnavailable
-                or TaskCreationFailure.ManagerUnavailable or TaskCreationFailure.NotConfigured)
+                or TaskCreationFailure.ManagerUnavailable or TaskCreationFailure.NotConfigured
+                or TaskCreationFailure.AttachmentUnavailable)
             {
+                // A definite rejection permits explicit editing; keep the
+                // original selection/body until the user submits a new one.
+                // This is not permission to delete or replace temporary files.
                 state = TaskCreationState.Editing;
                 requestKey = null;
                 message = cancelled ? "등록 요청 전에 취소했습니다. 입력을 확인한 뒤 다시 등록해 주세요."

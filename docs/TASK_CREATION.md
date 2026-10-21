@@ -20,7 +20,7 @@ REMOTEWORK_ENABLE_TASK_CREATE_DRAFT=1
 
 ## 웹 등록 연결 — 2026-10-21
 
-위 query/common/create 옵션을 명시한 서버의 `/tasks/new`에서 기존 cookie 인증·CSRF로 등록합니다. 활성 관리자만 공통 후보 서비스의 이름/부서·20명 단위 페이지를 검색하고,업무 입력과 선택을 유지할 수 있습니다. 등록자 필수 관리자·최소 공개 후보 정보·최종 활성 후보 검사는 기존 계약을 따릅니다. API 경로·본문·응답·DB를 바꾸거나 브라우저에 Bearer를 주지 않습니다.
+위 query/common/create 옵션을 명시한 서버의 `/tasks/new`에서 기존 cookie 인증·CSRF로 등록합니다. 활성 관리자만 공통 후보 서비스의 이름/부서·20명 단위 페이지를 검색하고,업무 입력과 선택을 유지할 수 있습니다. 등록자 필수 관리자·최소 공개 후보 정보·최종 활성 후보 검사는 기존 계약을 따릅니다. 현재 웹 폼은 첨부 입력 없이 기존 여섯 필드 본문을 만들며, 브라우저에 Bearer를 주지 않습니다.
 
 `등록 내용 확인`은 현재 로그인에 묶인 서명 확인폼과 W1 키만 준비하며 업무를 저장하지 않습니다. 별도 실행에서 API와 같은 `execute_creation`과 단일 transaction/감사/receipt를 사용합니다. 결과 불확실 시 같은 열린 폼에서 명시적으로 결과를 확인하고,`not_recorded` 뒤에만 같은 키/본문을 다시 전송합니다. 자동 재전송·새 키 자동 발급은 없습니다. 확인폼을 닫은 뒤 복원하는 저장소는 제공하지 않으며 새 등록 확인은 별개 요청입니다. 웹 기능을 끄면 이 웹 결과 경로도 닫힙니다.
 
@@ -49,7 +49,7 @@ REMOTEWORK_ENABLE_TASK_CREATE_DRAFT=1
 ## 요청과 성공 결과
 
 1. 활성 admin이 기존 `POST /api/v1/write-requests/keys`에 `{"action":"task.created","target":"new"}`를 보내 요청 키를 받습니다.
-2. `POST /api/v1/tasks`에 Bearer 토큰과 `Idempotency-Key` 헤더, 아래 여섯 필드만 보냅니다. 예시 사용자 ID는 실제 후보 조회 결과로 교체합니다.
+2. `POST /api/v1/tasks`에 Bearer 토큰과 `Idempotency-Key` 헤더, 아래 여섯 필수 필드를 보냅니다. 2026-10-21 수용한 선택 필드 `attachment_ids`도 지원합니다. 예시 사용자 ID는 실제 후보 조회 결과로 교체합니다.
 
 ```json
 {
@@ -67,6 +67,17 @@ REMOTEWORK_ENABLE_TASK_CREATE_DRAFT=1
 - 담당자는 현재 활성 employee/admin 1명, 관리자는 현재 활성 admin이어야 합니다. ID는 양의 JSON 정수이며 관리자 중복은 거절합니다.
 - 인증된 등록자는 서버에서 관리자에 자동 포함합니다. 요청 관리자 목록이 비어도 등록자 1명은 저장됩니다. 요청의 상태·수행자·버전·시각 위조 필드는 거절합니다.
 
+<a id="task-creation-attachment-selection"></a>
+### 선택 첨부 목록 — 2026-10-21
+
+[팀장 수용 규약](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member3-proposals-accepted-20261021)에 따라 `attachment_ids`는 업무에 연결할 최종 파일 ID 배열입니다. 생략과 `[]`는 모두 첨부 없는 신규 등록이며 첨부 제공부를 요구하지 않습니다. 생략·빈 배열·값 및 배열 순서는 서로 다른 W1 원문으로 보존합니다. 최대 10개, 소문자 하이픈 포함 정규 UUID 문자열만 허용하고 중복·null·비문자열을 거절합니다. 전체 JSON 본문에는 기존 32KiB 제한을 적용합니다.
+
+값이 있으면 새 업무·최초 배정·관리자를 flush한 뒤 현재 등록된 3번 `replace_task_files`를 **같은 Session·트랜잭션**에서 호출합니다. 초기 기대 버전은 row_version 1·assignment_revision 1입니다. 제공부의 현재 접근 권한·업로드 완료·참조 검사를 통과해야 하며, 실패하면 업무·첨부 연결·감사·receipt가 함께 rollback됩니다. 등록에 별도 버전 증가나 첨부 전용 성공 이벤트를 추가하지 않고 기존 `task.created`와 최소 성공 결과를 유지합니다. 결과 응답 유실 뒤 저장된 성공을 찾으면 첨부를 다시 연결하지 않습니다.
+
+기존 업무 등록 옵션만으로 첨부 제공부·013 구조를 자동 준비하지 않습니다. 값이 있는 요청은 3번 results/shared 제공부의 기존 활성화 조건과 준비된 `013_shared_attachments.mysql.sql` 구조도 필요하며, 제공부가 없으면 `503 TASK_ATTACHMENT_PROVIDER_REQUIRED`입니다. 제공부의 파일 오류를 다른 성공이나 빈 첨부로 바꾸지 않습니다. 공유 DB·DDL 적용·운영 ACK를 이 연결에서 활성화하지 않습니다.
+
+C# `TaskCreationRequest`는 선택 `IReadOnlyList<string>? attachmentIds = null`을 불변 사본으로 보관합니다. null은 JSON 전송에서 생략하고, 빈 배열·원래 ID 순서는 그대로 전송·복구합니다. **WinForms/업무 웹의 업로드·파일 선택 UI는 미연결**이므로 현재 화면 등록은 기존 여섯 필드로 진행합니다. 수정의 최종 목록 교체는 [별도 기술 조건과 503 차단](TASK_MANAGEMENT.md#task-management-attachment-selection)을 따릅니다.
+
 성공은 공통 envelope의 HTTP 201입니다. `data`의 필수 필드는 다음과 같습니다.
 
 ```json
@@ -83,9 +94,9 @@ REMOTEWORK_ENABLE_TASK_CREATE_DRAFT=1
 
 ## 권한·원자성·재요청
 
-기존 `authenticated_transaction(roles=("admin",))`과 현재 `task.created/new` authorizer를 재사용합니다. 같은 요청 Session에서 사용자 정렬 잠금·후보의 활성/역할 검사·업무·최초 배정·관리자·`task.created` 감사·공통 receipt를 함께 저장합니다. 개별 commit이나 외부 파일/네트워크 동작을 끼우지 않습니다.
+기존 `authenticated_transaction(roles=("admin",))`과 현재 `task.created/new` authorizer를 재사용합니다. 같은 요청 Session에서 사용자 정렬 잠금·후보의 활성/역할 검사·업무·최초 배정·관리자·선택 첨부 연결·`task.created` 감사·공통 receipt를 함께 저장합니다. 개별 commit이나 업로드/다운로드·외부 네트워크 동작을 끼우지 않습니다.
 
-최초 후보 검사는 mutate 안에서 합니다. 성공 뒤 후보가 비활성화돼도 같은 원문 본문·키는 기존 성공을 재응답하며, 현재 요청 수행자의 권한은 재검사합니다. 같은 키로 다른 본문을 보내면 409 `IDEMPOTENCY_KEY_REUSED`입니다. 관리자 ID의 요청 순서까지 포함한 원문 JSON 값이 비교되므로 실패·응답 유실 뒤 본문을 임의로 바꾸지 않습니다.
+최초 후보와 선택 첨부의 현재 상태 검사는 mutate 안에서 합니다. 성공 뒤 후보나 파일 상태가 바뀌어도 같은 원문 본문·키는 기존 성공을 재응답하며, 현재 요청 수행자의 권한은 재검사합니다. 같은 키로 다른 본문을 보내면 409 `IDEMPOTENCY_KEY_REUSED`입니다. 관리자·첨부 ID의 요청 순서와 첨부 필드 생략 여부까지 원문 JSON 값으로 비교하므로 실패·응답 유실 뒤 본문을 임의로 바꾸지 않습니다.
 
 응답 유실은 같은 action/target/key로 기존 결과 조회를 사용하고 업무를 재조회합니다. 새 키로 자동 생성 요청을 반복하지 않습니다. 만료·공통 결과 보관·현재 권한 재검사는 W1 계약을 따릅니다.
 
@@ -96,12 +107,24 @@ REMOTEWORK_ENABLE_TASK_CREATE_DRAFT=1
 | 입력·날짜·중복 관리자·위조 필드 | 400 `INVALID_INPUT` |
 | 현재 담당자 후보 불가 | 409 `ASSIGNEE_UNAVAILABLE` |
 | 현재 관리자 후보 불가 | 409 `TASK_MANAGER_UNAVAILABLE` |
+| 선택 첨부 형식·개수·중복 오류 | 400 `INVALID_INPUT` |
+| 선택 첨부 없음·삭제 처리 중 | 404 `ATTACHMENT_NOT_FOUND` |
+| 선택 첨부 미완료 등 제공부 사용 불가 | 409 `ATTACHMENT_UNAVAILABLE` |
+| 선택 첨부 현재 접근 권한 없음 | 403 `FORBIDDEN` — 등록 권한 오류와 같은 공통 코드 |
+| 첨부 제공부 미등록 | 503 `TASK_ATTACHMENT_PROVIDER_REQUIRED` |
+| 첨부 구조·저장소 준비 문제 | 제공부의 기존 503 오류 |
 | 요청 크기 초과 | 공통 413 |
 | 공통 쓰기 비활성화 | 503 `WRITE_SUPPORT_DISABLED` |
 | 생성 권한 함수 미연결 | 503 `WRITE_ACTION_NOT_READY` |
 | 업무/receipt 구조 누락·DB 실패 | 기존 공통 DB/스키마 503 |
 
+WinForms는 첨부 전용 404/409를 확정 실패로 구분해 입력 단계로 돌아가되 원래 파일 ID와 본문을 유지합니다. 자동 파일 삭제·선택 제거는 없습니다. 공통 403은 원인이나 미기록 여부를 추측하지 않고 기존 접속 차단/메모리 정리 규칙을 유지하며, 401도 기존 만료 처리입니다. 원래 접속이 유효한 서버 503·결과 불확실은 기존 키/본문으로 처리 결과를 먼저 확인합니다. 권한 상실·접속 교체 뒤에는 이전 입력을 다시 사용하지 않으며 파일 자동 DELETE·새 키 자동 재등록도 없습니다. 저장 성공 확인 뒤의 후속 오류를 새 등록이나 재전송 사유로 쓰지 않습니다.
+
 ## 검증
+
+2026-10-21 선택 첨부 확장의 C# 제어 검사는 `dotnet run --project Tests/TaskCreation.Tests/TaskCreation.Tests.csproj -c Release`로 **133개 통과**를 직접 확인했습니다. 불변 목록·생략/빈 배열·순서·32KiB·정확한 오류 분류·결과 유실/동일 키 복구를 포함하며 실제 WinForms와 명시 HTTP 대역의 범위입니다. 실제 서버/DB·파일 바이트 검증 수치로 해석하지 않습니다.
+
+서버의 실제 등록된 제공부와 파일 바이트·같은 트랜잭션·rollback·명시 첨부 수정 차단은 `test_task_creation_attachments.py` 및 [소유 MySQL `--suite attachments` 실행](../Tests/TaskWeb.Tests/README.md#task-creation-attachment-checks)으로 따로 검사합니다. 이번 소유 MySQL/Flask 직접 실행은 기존 등록·관리 API/웹 회귀를 포함해 **274개 통과**입니다. 실제 파일 청크/바이트를 사용했지만 C#→실서버 소켓·공유 서버/두PC 검증은 아닙니다. 해당 회차의 보고서/LOG를 확인하며 아래 이전 회차 수치와 합산하지 않습니다.
 
 2026-10-19 WinForms 연결 회차의 실제 실행은 다음과 같습니다. 서로 다른 실행의 검사 수를 하나의 통과 수치로 합산하지 않습니다.
 

@@ -1,6 +1,21 @@
 <a id="업무-웹-읽기-전용-mysql-검사"></a>
 # 업무 웹 조회·등록·수락·재작업 MySQL 검사
 
+<a id="task-creation-attachment-checks"></a>
+## 선택 첨부 등록과 기존 API·웹 회귀
+
+2026-10-21 직접 실행: **274 passed in 500.35s**. 아래 신규 첨부/기존 등록·관리·웹 대상을 한 소유 MySQL 실행에서 확인했습니다. raw013 적용 후 물리 DDL 불변·schema version1 유지·소유 MySQL/DB/런타임 정리를 확인했습니다. 스키마 미준비 오류는 공개 제공부 경계의 명시 오류 주입으로 검증했으며 실제013을 누락한 운영 DB를 변경한 검사는 아닙니다.
+
+`--suite attachments`는 `test_task_creation_attachments.py`, `test_task_creation.py`, `test_task_management.py`, `test_task_web_writes.py`, `test_task_web_management.py`를 새 소유 MySQL에서 실행합니다. 기존 raw002/004/006/009와 실제 raw013을 명시 fixture로 적용하고 물리 DDL·공통 schema version1 불변 및 소유 자원 정리를 검사합니다. 기존 사용자 DB·`.env`·공유 설정을 사용하지 않습니다.
+
+새 첨부 모듈은 Flask test client와 실제 등록된 3번 shared 제공부·업로드 청크/파일 바이트를 사용합니다. 신규 업무 flush 뒤 초기 버전1/1·같은 TX 연결, 직원의 다운로드, 감사 실패 시 전체 rollback과 동일 키 재시도, 성공 receipt 재생, 제공부가 없어도 생략/빈 배열 등록, 값 배열의 제공부 미준비503, 원문 순서에 따른 키 충돌, 파일404/409/403·잘못된 배열 거절을 검사합니다. 기존 업무의 파일을 재사용해도 원래 링크가 남는지, 일반 수정의 첨부 생략 유지·명시 배열503 무효과·버전409 우선도 대조합니다.
+
+```powershell
+& .\RemoteWork.Server\.venv\Scripts\python.exe .\Tests\TaskWeb.Tests\run_mysql_check.py --allow-disposable-mysql --mysql-bin-dir 'C:/Program Files/MySQL/MySQL Server 8.2/bin' --suite attachments --report-dir 'C:/검증결과/새업무첨부검사'
+```
+
+위 보고서 폴더는 소스 밖의 아직 없는 경로로 지정합니다. 이 선택자는 취소·연장의 소유 fixture ACK나 운영 ACK를 설치하지 않습니다. **수정 첨부 교체 성공·업로드/선택 UI·웹 cookie 첨부·`view=read`/`back_context`·공유 서버·두 PC 완료 검사가 아닙니다.** 최종 실행 건수/결과는 해당 `verification.json`과 [LOG/2번 구현·검증](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md)의 같은 회차를 확인합니다. 아래 과거 회차와 합산하지 않습니다. 별도 [C# 등록 제어 133검사](../TaskCreation.Tests/README.md)는 HTTP 대역·WinForms 결과로 구분합니다.
+
 <a id="task-web-remainder-checks"></a>
 ## 현재 취소·연장 웹 / 첨부 취소 / 연속성 검사
 
@@ -38,7 +53,7 @@ python Tests/TaskWeb.Tests/run_mysql_check.py --allow-disposable-mysql --mysql-b
 python Tests/TaskWeb.Tests/run_mysql_check.py --allow-disposable-mysql --mysql-bin-dir 'C:/Program Files/MySQL/MySQL Server 8.2/bin' --suite management-web --report-dir 'C:/검증결과/새업무웹관리검사'
 ```
 
-PR52의3번 취소/pending 차단·공용 첨부 제공 코드 병합과 운영 통합을 구분합니다. 이전 management-web 회차는013과첨부소비를실행하지않았습니다. 현재 remainder 회차는위실제013/취소참조해제를별도로검사합니다. 등록/수정첨부저장·운영통합ACK·공유DB는활성화하지않습니다. 취소·연장 실제 변경503은 유지합니다.
+PR52의3번 취소/pending 차단·공용 첨부 제공 코드 병합과 운영 통합을 구분합니다. 이전 management-web 회차는013과 첨부 소비를 실행하지 않았습니다. remainder 회차는 실제013/취소 참조 해제를 별도로 검사했고, 이후 선택 첨부 등록은 위 `--suite attachments`로 분리합니다. 수정 첨부 교체 성공·운영 통합 ACK·공유 DB를 활성화하지 않으며, 취소·연장 실제 변경503은 유지합니다.
 
 ## 현재 등록·수락·재작업 연결 검사
 
