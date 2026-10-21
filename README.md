@@ -1,3 +1,7 @@
+## 최신 — 기한 알림 A1~A6·협업 B1~B7 진행 기준 채택, 2026-10-21
+
+팀장이 본 채팅에서 앞선 추천안대로 진행하고 문서를 푸시하도록 지시했습니다. **A1~A6·B1~B7을 개발 진행 기준으로 채택**하며 [전체 정책·담당·기술 확인/검증 경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member4-policy-adopted-20261021)를 따릅니다. 기능 구현·새 API/DB/DDL·실제 통합 검증 완료를 뜻하지 않습니다. 기존 문서의 F4 정책 미확정 표시는 당시 이력으로 보존합니다. 지문 운영·근태/연차·별도 수동/자동 검토 요청과 실제 데이터 삭제/감사·백업 보존 정책은 이번 채택 범위에 포함하지 않습니다.
+
 ## 최신 — PR53 및 1·3·4·5번 후속 회신 게시, 2026-10-20
 
 사용자의 명시 지시로 [4번/PR53 등록 환경 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/53#issuecomment-6287665911), [3번/PR52 소유 접점·수정 기준](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52#issuecomment-6287667210), [1·5번/PR43 공통 수용·실패 복구 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/43#issuecomment-6287668801)을 각각 한 번 게시하고 계정 Esp3ra의 실제 댓글 원문 일치를 확인했습니다. 새 협의 문서 PR/회신용 파일을 요구하지 않았습니다. [확인 범위·미완료](2번/공통규약.md#pr53-and-owner-replies-20261020)를 따릅니다.
