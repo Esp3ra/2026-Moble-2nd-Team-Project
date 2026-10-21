@@ -5,7 +5,7 @@
 <a id="task-web-create-start"></a>
 ## 현재 연결: 등록·수락·재작업 시작
 
-이미 수용된1번 W1/웹 공통과3번의 명시적 재작업 정책을 사용합니다. 새 회신으로 정책을 추정하지 않았습니다. 공통 `web.py`·auth·DB·W1·메뉴·기본 template와 다른 담당 제품은 수정하지 않았습니다. 웹은 기존 cookie/CSRF/CSP/no-store를 사용하고 API는 Bearer를 유지합니다. 브라우저에 API 토큰을 주거나 내부 API HTTP 호출을 만들지 않습니다.
+이미 수용된1번 W1/웹 공통과3번의 명시적 재작업 정책을 사용합니다. 새 회신으로 정책을 추정하지 않았습니다. 2번은 공통 auth·DB·W1·기본 template와 다른 담당 제품을 직접 수정하지 않았습니다. 이후 병합된1번 PR59의 공통 `web.py`/메뉴·기존 웹검사를 원본 merge로 보존했습니다. 웹은 기존 cookie/CSRF/CSP/no-store를 사용하고 API는 Bearer를 유지합니다. 브라우저에 API 토큰을 주거나 내부 API HTTP 호출을 만들지 않습니다.
 
 기존 query 옵션에 `REMOTEWORK_ENABLE_COMMON_WRITE_DRAFT=1`과 사용할 기능의 `REMOTEWORK_ENABLE_TASK_CREATE_DRAFT=1`/`REMOTEWORK_ENABLE_TASK_START_DRAFT=1`을 명시해야 해당 웹 경로가 등록됩니다. 설정만으로 DDL·공유 DB·샘플을 생성하지 않습니다. 공통 off 또는 기능 off에서는 해당 웹 경로/버튼을 제공하지 않습니다. 실제 공유 서버 설정은 변경하지 않았습니다.
 
@@ -45,7 +45,7 @@ DB/결과 조회 오류나 실행 키410은 같은 확인 내용을 보존한 �
 
 공통 서버의 기존 `REMOTEWORK_ENABLE_TASK_QUERY_DRAFT=1`을 명시적으로 켜고, 공통 웹 로그인 후 `/tasks`로 이동합니다. 기본 off에서는 웹 두 경로와 기존 업무 API가 등록되지 않으며 업무 모델도 import하지 않습니다. 새 운영 옵션·테이블·자동 초기화·시드 경로를 추가하지 않았습니다. 업무 개발 DB는 기존 [조회 안내](TASK_QUERIES.md)와 실제 002/004/006/009의 적용 조건을 따릅니다. 사용자 서버·공유 DB를 이 화면 실행만으로 변경하지 않습니다.
 
-이번에는 2번의 `features/tasks`·전용 template/CSS만 변경했습니다. 공통 `web.py`, registry, `base.html`, `app.css`는 수정하지 않았습니다. **기존 공통 메뉴 `/features/tasks`는 준비 화면을 유지합니다.** 1번이 활성화된 `task_web.index`를 공통 메뉴에 연결하는 작업은 후속이며 현재는 직접 `/tasks`로 진입합니다. 이 후속은 새 웹 쓰기·권한을 승인하는 요청이 아닙니다.
+이번에는 2번의 `features/tasks`·전용 template/CSS만 변경했습니다. 공통 `web.py`, registry, `base.html`, `app.css`는 수정하지 않았습니다. **1번 PR59의 공통 메뉴 `/features/tasks`는 조회 기능이 등록되어 있으면 `/tasks`로 이동합니다.** 기본 off에서는 준비 화면입니다.2번이 공통 파일을 직접 수정한 것이 아니며 결과물/취소·연장 쓰기 권한까지 개방하는 변경도 아닙니다.
 
 ## 화면과 조회 조건
 

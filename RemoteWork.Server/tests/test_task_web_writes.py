@@ -571,4 +571,3 @@ def test_web_expired_execute_key_can_still_recover_within_success_retention(writ
     found = _send(client, _hidden(expired, "ticket"), "result")
     assert found.status_code == 200 and "처리 결과가 확인되었습니다" in found.text
     assert _snapshot(write_rows) == before
-
