@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}업무{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='tasks.css') }}">{% endblock %}
+{% block content %}
+<div class="task-page">
+<p class="eyebrow">TASKS</p><h1>업무</h1>
+<p class="muted">담당 업무의 상태와 내용을 확인하세요.</p>
+<section class="card task-filters" aria-labelledby="task-filter-heading">
+<h2 id="task-filter-heading">업무 조회</h2>
+<form class="task-filter-form" method="get" action="{{ url_for('task_web.index') }}">
+<div class="task-scope"><label for="task-scope">조회 범위</label>
+<select id="task-scope" name="scope"><option value="own" {% if scope == 'own' %}selected{% endif %}>내 업무</option>{% if g.user.role == 'admin' %}<option value="managed" {% if scope == 'managed' %}selected{% endif %}>관리 업무</option>{% endif %}</select></div>
+{% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+<label class="task-checkbox" for="task-cancelled"><input id="task-cancelled" type="checkbox" name="include_cancelled" value="true" {% if include_cancelled %}checked{% endif %}>취소된 업무 포함</label>
+<button type="submit">조회</button>
+</form>
+<div class="task-status-filter" role="group" aria-label="업무 상태">
+{% for value, label, link in status_links %}<a class="task-status-link{% if status == value %} task-status-current{% endif %}" href="{{ link }}" {% if status == value %}aria-current="true"{% endif %}>{{ label }}</a>{% endfor %}
+</div>
+</section>
+<section class="card" aria-labelledby="task-list-heading">
+<div class="task-list-heading"><h2 id="task-list-heading">{{ '관리 업무' if scope == 'managed' else '내 업무' }} 목록</h2><p class="muted">총 {{ items|length }}건 · 마감일 빠른 순</p></div>
+{% if items %}
+<div class="table-wrap"><table class="task-table"><thead><tr><th scope="col">업무명</th><th scope="col">담당자</th><th scope="col">상태</th><th scope="col">시작일</th><th scope="col">마감일</th></tr></thead>
+<tbody>{% for task in items %}<tr data-task-id="{{ task.task_id }}"><td class="task-title-cell"><a href="{{ url_for('task_web.detail', task_id=task.task_id, **filters) }}">{{ task.title }}</a>{% if task.get('is_cancelled') %}<span class="task-cancelled">취소됨</span>{% endif %}</td><td>{{ task.assignee_name }}</td><td><span class="task-state task-state-{{ task.task_status }}">{{ status_labels[task.task_status] }}</span></td><td><time datetime="{{ task.start_date }}">{{ task.start_date }}</time></td><td><time datetime="{{ task.due_date }}">{{ task.due_date }}</time></td></tr>{% endfor %}</tbody></table></div>
+{% else %}<p class="task-empty" role="status">조회 조건에 맞는 업무가 없습니다.</p>{% endif %}
+</section>
+</div>
+{% endblock %}

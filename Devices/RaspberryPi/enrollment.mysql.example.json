@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "contract": "enrollment-mysql-v1",
+  "device_id": "APPROVED_DEVICE_UUID",
+  "key_id": "APPROVED_KEY_ID",
+  "key_epoch": null,
+  "request_key_b64": "PRIVATE_REQUEST_KEY_FROM_TRUSTED_TRANSFER",
+  "result_key_b64": "PRIVATE_RESULT_KEY_FROM_TRUSTED_TRANSFER",
+  "profile": {
+    "expected_capacity": null,
+    "minimum_slot": null,
+    "maximum_slot": null
+  },
+  "state_directory": "/PRIVATE_CONFIG_PARENT/state"
+}

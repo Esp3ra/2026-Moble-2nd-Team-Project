@@ -7,13 +7,16 @@ import threading
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "Devices" / "RaspberryPi"))
 import test_fingerprint_enrollment_adapter as fixtures
-from test_fingerprint_enrollment_online import FakeApprovalRelay
+from test_fingerprint_enrollment import FakeSensor, CODES
+from fingerprint_enrollment import SensorProfile
+from fingerprint_enrollment_mysql import MySqlEnrollmentAdapter
 from fingerprint_enrollment_relay import EnrollmentRelayJobs
 from fingerprint_enrollment_wire import decode64, encode64, verify, verify_result_binding, RESULT
 
-case = fixtures.AdapterTests("test_verified_ticket_reaches_two_capture_core_and_signed_minimal_result")
-case.setUp()
-jobs = EnrollmentRelayJobs(case.adapter(current_approval=None, trusted_utc=None),
+sensor = FakeSensor()
+adapter = MySqlEnrollmentAdapter(sensor=sensor, codes=CODES, sensor_lock=threading.Lock(),
+    keys=fixtures.KEYS, profile=SensorProfile(300, 7, 7))
+jobs = EnrollmentRelayJobs(adapter,
                           approval_clock=__import__("time").monotonic)
 
 
@@ -30,7 +33,7 @@ class Handler(BaseHTTPRequestHandler):
     def dispatch(self):
         try:
             length = int(self.headers.get("Content-Length", "0"))
-            if not 0 <= length <= 30000:
+            if not 0 <= length <= 65536:
                 raise ValueError()
             body = json.loads(self.rfile.read(length)) if length else {}
             capability = self.headers.get("X-Enrollment-Relay", "")
@@ -39,7 +42,7 @@ class Handler(BaseHTTPRequestHandler):
                 raw = decode64(body["result_envelope"], 16384)
                 value = verify(raw, RESULT, fixtures.KEYS)
                 verify_result_binding(fixtures.REQUEST_PAYLOAD, fixtures.EXPECTED_DIGEST, value)
-                result = {"valid": True, "stores": len(case.sensor.stores)}
+                result = {"valid": True, "stores": len(sensor.stores)}
             elif parts == ["enrollments", "jobs"] and self.command == "POST":
                 result = jobs.start(body, capability)
             elif len(parts) in (3, 4) and parts[:2] == ["enrollments", "jobs"]:
@@ -76,4 +79,3 @@ finally:
     thread.join(timeout=3)
     server.server_close()
     jobs.close()
-    case.doCleanups()
