@@ -383,12 +383,14 @@ def create_app(fingerprint_service, motion_feed, enrollment_jobs=None):
     return app
 
 
-def main(enrollment_factory=None):
+def main(enrollment_factory=None, *, identity_factory=None):
     """Default demo, or an explicitly composed enrollment runtime.
 
     enrollment_factory borrows the existing FingerprintService. It must return
     an object with jobs/close(), without opening another UART or generating keys.
     No environment variable or local file enables enrollment automatically.
+    identity_factory borrows the same owner and returns mount(app)/close().
+    Readiness/restart reconciliation belongs to that explicitly supplied runtime.
     """
     import serial
     import adafruit_fingerprint as af
@@ -410,6 +412,7 @@ def main(enrollment_factory=None):
     worker = None
     fingerprint = None
     enrollment = None
+    identity = None
     try:
         uart = serial.Serial(FINGER_PORT, 57600, timeout=1, exclusive=True)
         finger = af.Adafruit_Fingerprint(uart)
@@ -422,6 +425,11 @@ def main(enrollment_factory=None):
                 raise RuntimeError("지문 등록 실행 구성이 필요합니다")
         worker = MotionWorker(feed, display, serial.Serial)
         app = create_app(fingerprint, feed, None if enrollment is None else enrollment.jobs)
+        if identity_factory is not None:
+            identity = identity_factory(fingerprint)
+            if identity is None:
+                raise RuntimeError("지문 본인 확인 실행 구성이 필요합니다")
+            identity.mount(app)
         display.show_scan("시스템 준비 완료", "PC 요청 대기")
         worker.start()
         app.run(host="0.0.0.0", port=HTTP_PORT, debug=False,
@@ -430,8 +438,12 @@ def main(enrollment_factory=None):
         if fingerprint is not None:
             fingerprint.stopping.set()
         try:
-            if enrollment is not None:
-                enrollment.close()
+            try:
+                if identity is not None:
+                    identity.close()
+            finally:
+                if enrollment is not None:
+                    enrollment.close()
         finally:
             try:
                 if worker is not None and worker.thread.ident is not None:
