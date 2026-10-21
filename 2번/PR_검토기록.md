@@ -1,3 +1,33 @@
+<a id="pr61-review-20261021"></a>
+## PR61 마감 알림 독립 검토 — 수정 3건·Draft 유지, 2026-10-21
+
+사용자의 PR61 검토 요청에 따라 최신 alpha **388d50b68ef114b40a5df8b424f91ab3103a6093**와 PR head **5cca781b5f43e5e45dceae55d0b6497bb44e2946**를 격리 clone에서 무충돌 결합했습니다. 검토 tree는 **e79df7c0c661e2e8a5d5246b599150d6fe5bc688**입니다. [PR61 통합 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/61#issuecomment-6311013832) 한 건에 수정 요청과 2번 기술 답변을 게시했고 Draft·미병합을 유지합니다.
+
+### 직접 재현한 결함
+
+세 건 모두 `DeadlineAlertScope.cs`의 현재 head 기준이며 P2입니다.
+
+| ID | 위치와 조건 | 직접 관찰·요청 |
+|---|---|---|
+|R61-01|OpenTaskAsync 129~139행, 표시 뒤 업무 보기 Recheck401 또는403|두 경우 모두 scopeCurrent=True/snapshotItems=1/visiblePopups=1. 일반 조회·확인과 같은 폐기 경로로 알림 문맥/팝업/타이머/callback 종료 필요|
+|R61-02|132~138행, 업무 보기 Recheck 대기 중 새 조회가 빈 목록 반영|새 조회 뒤 unread0/popup0 → 옛 응답 뒤 unread1/callback1. 조회·재검사 공통 순서 보호로 옛 Apply와 탐색 모두 폐기 필요|
+|R61-03|83~89행의 중간 Apply와123~124행의 failures 초기화|Read성공+Recheck503 4회 간격2,2,2,2분. Read503 대조2,4,5,5분. 중간 snapshot 반영과 전체 조회 성공의 초기화 분리 필요|
+
+R61-02는 알림 문맥/탐색의 최신성 결함입니다. 실제 업무 화면도 현재 권한을 별도로 검사해야 합니다. R61-03은 실패 때 snapshot 제거/팝업 차단이 유지되지만 채택 A3의 부하 완화 간격이 깨집니다. 각 최소 재현/대조의 회귀를 기존 검사에 추가하도록 요청했습니다.
+
+### 직접 검사와 미실행 범위
+
+- 공식 DeadlineAlerts **78PASS**, 기존 Notices **35PASS**. 실제 WinForms+명시 source/HTTP 대역이며 실제 서버/DB 검사가 아닙니다.
+- 독립 대역: R61-01의401/403, R61-02의지연 응답, R61-03의Recheck503/Read503 대조를 원본 코드로 실행했습니다. 위 공식 수치에 합산하지 않습니다.
+- 결합 솔루션 Release **오류0/경고0**, diff-check 통과. 설치8.0.31 참조 팩·외부 offline 검토 설정과 별도 출력 경로를 사용했으며 제품 csproj는 무수정입니다.
+- 실제 HTTP/인증·확인 MySQL/DDL·DB 경합/백업복원·90일 history·MainForm 양방향 조립·공유 서버/두 PC는 미실행입니다. 작성자의 실제 폴더 반영 보고도 이번 직접 검사/동기화로 표시하지 않습니다.
+
+### 2번 기술 회신과 후속 접점
+
+[현재 원본/잠금·사건·확인 원자성 대조](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr61-technical-review-20261021)를 기존 공통규약에 취합했습니다. 기존 reader/감사 원본 재사용 가능과 알림용 최소 투영/실제 사건·초기 이력/같은 TX 확인 저장의 미구현을 구분합니다. 최신388d50b도 실제 버전 구간 연속성 reader를 신규 제공한 변경은 아닙니다.
+
+A1~A6 채택은 유지하고 정책 재승인 요청으로 바꾸지 않습니다. HTTP/DDL/MainForm/90일 조회는 PR 본문에 명시된 Draft 후속 범위이며 세 재현 결함과 구분합니다. 새 회신용 MD/브랜치/PR을 만들거나 제품·실제 DB/설정·공유 환경을 변경하지 않았습니다. 기존 기록은 당시 이력으로 보존합니다.
+
 <a id="pr57-58-60-merged-20261021"></a>
 ## PR57·58 수정본과 신규60 재검토·모두 병합, 2026-10-21
 
