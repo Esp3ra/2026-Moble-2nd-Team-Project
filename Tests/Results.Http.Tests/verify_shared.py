@@ -169,7 +169,7 @@ def run(url, directory):
             tokens[login]=reply['access_token']
         meta={'name':'TEST.any','size':0,'sha256':hashlib.sha256(b'').hexdigest()}
         api('manager','results/shared/uploads/start',meta,status=503)
-        sql=(ROOT/'RemoteWork.Server/migrations/drafts/shared_attachments.mysql.sql').read_text(encoding='utf-8')
+        sql=(ROOT/'RemoteWork.Server/migrations/013_shared_attachments.mysql.sql').read_text(encoding='utf-8')
         sql='\n'.join(line for line in sql.splitlines() if not line.lstrip().startswith('--'))
         with engine.begin() as conn:
             for statement in sql.split(';'):
