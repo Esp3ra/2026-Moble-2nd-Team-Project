@@ -1,3 +1,9 @@
+## 최신 — PR61 마감 알림 검토·수정 3건과 2번 기술 회신, 2026-10-21
+
+alpha388d50b+head5cca781을 독립 결합해 공식 마감78·공지35·Release0/0을 직접 확인했습니다. 별도 실제 WinForms 대역에서 **R61-01/P2 업무 보기 재검사 401/403 뒤 scope/기존 팝업 유지, R61-02/P2 늦은 응답이 제거된 미확인 항목 복원/탐색 실행, R61-03/P2 Read 성공+Recheck503 연속 실패의 2,2,2,2분**을 재현하여 Draft·미병합입니다. [수정 조건·재검사 요청과 2번 기술 회신 한 곳](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/61#issuecomment-6311013832)·[중앙 근거](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr61-review-20261021)를 따릅니다.
+
+A1~A6 정책을 재질문하지 않습니다. 기존 2번의 현재 잠금/실효 due_date·감사 원본은 재사용 가능하지만 알림 최소 reader·실제 사건과 초기 자료 전환/연속성·같은 TX 확인 저장은 아직 후속입니다. 1번 인증/서버 시각·W1/확인 저장·MainForm과 2번 탐색 조립도 미완료입니다. 구체 endpoint/DTO/DDL 번호·설정명·due_revision을 이번 검토로 확정하지 않습니다. 실제 HTTP/MySQL·90일 history·공유 서버/DB·물리 두 PC 검사는 미실행이며 실제 제품 폴더/환경은 변경하지 않았습니다.
+
 ## 최신 — PR57 전체지적 해결·병합 완료, 2026-10-21
 
 head0f47e5d의R57-04를UI113/이전독립재현으로해결확인했습니다. 수동창중자동추가0·닫힌후1회표시·동일버전중복0/쓰기0, 기존409최신문맥/새key도확인했습니다. 사용자지시에따라Draft→Ready후 **ba9e312**로병합했습니다. [기존최종회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/57#issuecomment-6308590391)·[검사/재사용·실제경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr57-58-60-merged-20261021)를따릅니다. 기존서버/검사/012동일성으로이전MySQL55를재사용했고이번에재실행했다고표시하지않습니다.1번공통설치/MainForm/공지양방향·실제012/공유배포,2번실제연속성reader와운영값은후속이며None/503과원업무/파일권한경계를유지합니다.
