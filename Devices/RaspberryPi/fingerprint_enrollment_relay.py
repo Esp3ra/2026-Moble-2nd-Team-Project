@@ -107,7 +107,9 @@ class EnrollmentRelayJobs:
 
     def answer(self, relay_id, capability, body):
         require(type(body) is dict and set(body) == {"probe_nonce", "approval_envelope"})
-        raw = decode64(body["approval_envelope"], 16384)
+        # MySQL receipt RPCs can contain a base64url signed result. These bytes
+        # are transport data; only the adapter's permit verifier grants writes.
+        raw = decode64(body["approval_envelope"], 32768)
         digest = hashlib.sha256(raw).hexdigest()
         job = self._get(relay_id, capability)
         with job.condition:
@@ -203,8 +205,8 @@ def register_enrollment_relay(app, jobs):
             return jsonify(success=False, message="등록 통신 상태를 확인해 주세요"), 409
 
     def body():
-        require(request.is_json and request.content_length is not None and request.content_length <= 30000)
-        return parse_json(request.get_data(), 30000)
+        require(request.is_json and request.content_length is not None and request.content_length <= 65536)
+        return parse_json(request.get_data(), 65536)
 
     @bp.post("")
     def start():

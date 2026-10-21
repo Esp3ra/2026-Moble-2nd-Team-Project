@@ -102,6 +102,20 @@ class RuntimeTests(unittest.TestCase):
         self.assertFalse(self.display.scanning)
         self.assertFalse(self.service.lock.locked())
 
+    def test_duplicate_finger_displays_reason_and_never_restarts_or_stores(self):
+        self.fx.sensor.search_result = CODES.OK
+        with self.assertRaises(EnrollmentError) as caught:
+            self.enroll()
+        self.assertEqual(caught.exception.code, "already_registered")
+        self.assertEqual(self.frames[-1], ("이미 등록된 지문", "등록을 중단합니다", "PC 안내 확인"))
+        self.assertEqual(self.fx.sensor.stores, [])
+        self.assertFalse(self.display.scanning)
+        self.assertFalse(self.service.lock.locked())
+        self.fx.sensor.calls.clear()
+        with self.assertRaises(EnrollmentError):
+            self.enroll()
+        self.assertEqual(self.fx.sensor.calls, [])
+
     def test_oled_failures_never_repeat_store_or_leak_shared_lock(self):
         self.service.display = SimpleNamespace(
             begin_scan=Mock(side_effect=OSError("synthetic display unavailable")),

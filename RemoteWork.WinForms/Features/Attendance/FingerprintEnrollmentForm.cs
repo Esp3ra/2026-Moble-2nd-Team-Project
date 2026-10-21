@@ -8,6 +8,7 @@ public sealed class FingerprintEnrollmentForm : Form
     private readonly EnrollmentTarget target;
     private readonly FingerprintEnrollmentRelay relay;
     private readonly Action<string>? validateDevice;
+    private bool manualReviewRequired;
     private readonly FeatureUiScope scope;
     private readonly CancellationTokenSource viewLifetime;
     private readonly CancellationTokenRegistration lifetimeRegistration;
@@ -118,6 +119,11 @@ public sealed class FingerprintEnrollmentForm : Form
         }
         catch (OperationCanceledException)
         { scope.TryPost(view, () => status.Text = "등록을 중단했습니다. 저장 여부는 확인이 필요할 수 있습니다."); }
+        catch (EnrollmentPiFailureException error) when (error.AlreadyRegistered)
+        {
+            manualReviewRequired = true;
+            scope.TryPost(view, () => status.Text = error.Message);
+        }
         catch (Exception error) when (error is ApiException or InvalidOperationException or InvalidDataException or HttpRequestException)
         { scope.TryPost(view, () => status.Text = attempt is null
             ? "등록을 시작하지 못했습니다. 선택한 장치의 주소 설정을 확인해 주세요."
@@ -131,8 +137,8 @@ public sealed class FingerprintEnrollmentForm : Form
                 if (!RegistrationCompleted)
                 {
                     devices.Enabled = attempt is null;
-                    start.Text = attempt is null ? "지문 등록" : "같은 작업 다시 확인";
-                    start.Enabled = true;
+                    start.Text = manualReviewRequired ? "현재 작업 확인 필요" : attempt is null ? "지문 등록" : "같은 작업 다시 확인";
+                    start.Enabled = !manualReviewRequired;
                 }
             });
         }

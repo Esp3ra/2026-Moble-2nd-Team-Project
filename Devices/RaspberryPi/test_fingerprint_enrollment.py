@@ -176,9 +176,12 @@ class EnrollmentTests(unittest.TestCase):
         self.assertEqual(self.sensor.calls, [])
 
     def test_already_registered_finger_is_not_copied_into_a_new_slot(self):
+        stages = []
+        self.worker = self.make_worker(progress=stages.append)
         self.sensor.search_result = 0
         self.assert_error("already_registered")
         self.assertEqual(self.sensor.stores, [])
+        self.assertEqual(stages[-1], "already_registered")
 
     def test_different_fingers_fail_without_store_or_automatic_retry(self):
         self.sensor.model_result = CODES.ENROLLMISMATCH

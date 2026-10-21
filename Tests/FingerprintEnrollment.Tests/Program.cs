@@ -22,6 +22,10 @@ internal static class Program
     {
         public int Issues, Completes, Approvals, Lookups;
         public bool LoseIssue, LoseComplete, FailBeforeCommit;
+        public bool LosePhysical, HasIntent;
+        public string? PhysicalRaw;
+        public int PhysicalReads, PhysicalWrites, StoreIntents;
+        public Func<Dictionary<string, object?>, Dictionary<string, object?>> ChangeReceipt = value => value;
         public string State = "issued";
         public string ClientId = "";
         public readonly List<string> Results = [];
@@ -42,6 +46,29 @@ internal static class Program
             {
                 Check(request.Headers.Authorization?.Parameter == "public-synthetic-bearer", "server gets pinned bearer");
                 if (path.Contains("eligible-devices")) data = new { devices = new[] { new EnrollmentDevice(Device, "가상 장치", "1") } };
+                else if (path.EndsWith("/physical-result"))
+                {
+                    if (request.Method == HttpMethod.Post)
+                    {
+                        PhysicalWrites++;
+                        var raw = body.GetProperty("result_envelope").GetString()!;
+                        Check(PhysicalRaw is null || PhysicalRaw == raw, "write-once physical receipt bytes");
+                        PhysicalRaw = raw;
+                        if (LosePhysical) { LosePhysical = false; throw new HttpRequestException("physical response lost"); }
+                    }
+                    else PhysicalReads++;
+                    data = Physical();
+                }
+                else if (path.EndsWith("/storage-intent"))
+                {
+                    StoreIntents++;
+                    bool fresh = !HasIntent;
+                    HasIntent = true;
+                    var value = Physical();
+                    value["may_store"] = fresh;
+                    value["approval_envelope"] = fresh ? RealProof ? MakeApproval(body) : B64("opaque server approval") : null;
+                    data = value;
+                }
                 else if (path.EndsWith("/device-enrollments"))
                 {
                     Issues++;
@@ -57,6 +84,7 @@ internal static class Program
                 }
                 else if (path.EndsWith("/complete"))
                 {
+                    Check(PhysicalRaw == body.GetProperty("result_envelope").GetString(), "mapping requires recorded exact result");
                     Completes++;
                     Results.Add(body.GetProperty("result_envelope").GetString()!);
                     if (VerifyResult is not null) await VerifyResult(Results[^1]);
@@ -69,6 +97,28 @@ internal static class Program
                 else { Lookups++; data = Job(); }
             }
             return Json(new { ok = true, data });
+        }
+        public Dictionary<string, object?> Physical()
+        {
+            Dictionary<string, object?> value = new()
+            {
+            ["enrollment_id"] = JobId, ["operation_revision"] = "1", ["reserved_slot"] = 7,
+            ["claim_revision"] = "1", ["key_epoch"] = "1", ["contract"] = "enrollment-mysql-v1",
+            ["phase"] = PhysicalRaw is not null ? "result_recorded" : HasIntent ? "store_intent" : "not_recorded",
+            ["result_envelope"] = PhysicalRaw, ["result_id"] = PhysicalRaw is null ? null : "af7de985-1df9-4e65-a310-dd86fa4c6862",
+            ["outcome"] = PhysicalRaw is null ? null : "sensor_stored", ["failure_code"] = null,
+            ["intent_at"] = HasIntent ? "2026-10-20T01:01:00Z" : null,
+            ["reported_at"] = PhysicalRaw is null ? null : "2026-10-20T01:01:01Z",
+            ["may_store"] = false, ["approval_envelope"] = null
+            };
+            if (RealProof && PhysicalRaw is not null)
+            {
+                using var envelope = JsonDocument.Parse(EnrollmentValidation.Base64(PhysicalRaw));
+                using var payload = JsonDocument.Parse(EnrollmentValidation.Base64(envelope.RootElement.GetProperty("payload_b64").GetString()!));
+                foreach (string name in new[] { "result_id", "outcome", "failure_code" })
+                    value[name] = payload.RootElement.GetProperty(name).Clone();
+            }
+            return ChangeReceipt(value);
         }
         public EnrollmentJob Job() => new(JobId, "1", 7, "1", "1", ClientId, Device, State,
             "2026-10-20T01:03:00Z", State != "issued" && State != "completed", State == "issued" ? RequestEnvelope : null,
@@ -101,9 +151,18 @@ internal static class Program
             using var challenge = JsonDocument.Parse(JsonSerializer.Serialize(new
             { operation_revision = "1", reserved_slot = 7, claim_revision = "1", key_epoch = "1",
                 ticket_digest = new string('a', 64), probe_nonce = B64(new string('x', 32)),
-                scope = WrongScope ? "result_read" : readOnly ? "result_read" : "sensor_write" }));
+                scope = WrongScope ? "sensor_write" : readOnly ? "result_read" : "sensor_capture" }));
             string response = await approve(challenge.RootElement, cancellation);
             Check(response == B64("opaque server approval"), "approval bytes forwarded unchanged");
+            if (!readOnly)
+            {
+                var body = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(challenge.RootElement.GetRawText())!;
+                body["scope"] = JsonSerializer.SerializeToElement("sensor_store");
+                using var storeBody = JsonDocument.Parse(JsonSerializer.Serialize(body));
+                string storeReply = await approve(storeBody.RootElement, cancellation);
+                using var receipt = JsonDocument.Parse(EnrollmentValidation.Base64(storeReply, 32768));
+                Check(receipt.RootElement.GetProperty("may_store").GetBoolean(), "store requires first committed intent reply");
+            }
             if (Wait is not null) await Wait.Task;
             if (BeforeReturn is not null) await BeforeReturn();
             if (Fail) { Fail = false; throw new HttpRequestException("synthetic Pi reply lost"); }
@@ -120,8 +179,39 @@ internal static class Program
         await LostReplies();
         await LifetimesAndScope();
         await PiHttpBoundary();
+        await PiFailureReports();
+        await MySqlRecovery();
         if (args.Length == 2 && args[0] == "--pi-python") await PythonLoopback(args[1]);
         Console.WriteLine($"Fingerprint enrollment relay: {checks} checks PASS (public synthetic fixtures; no production keys/hardware/DB).");
+    }
+
+    private static async Task MySqlRecovery()
+    {
+        foreach (string mode in new[] { "intent_only", "physical_response_lost", "old_contract", "wrong_binding" })
+        {
+            var server = new Server { HasIntent = mode == "intent_only", LosePhysical = mode == "physical_response_lost" };
+            if (mode == "old_contract") server.ChangeReceipt = value => { value["contract"] = "legacy"; return value; };
+            if (mode == "wrong_binding") server.ChangeReceipt = value => { value["claim_revision"] = "2"; return value; };
+            using var api = new ApiClient("http://127.0.0.1:5000", server);
+            await api.LoginAsync("admin", "synthetic");
+            var pi = new Pi();
+            var relay = new FingerprintEnrollmentRelay(new EnrollmentTarget(88, api.CaptureSession(), () => true, CancellationToken.None), pi);
+            var attempt = relay.CreateAttempt(Device);
+            if (mode is "old_contract" or "wrong_binding")
+            {
+                await Throws<InvalidDataException>(() => relay.RunAsync(attempt));
+                Check(pi.Writes == 0 && pi.Reads == 0 && server.Completes == 0, mode + ": blocked before contacting sensor");
+            }
+            else
+            {
+                if (mode == "physical_response_lost")
+                    await Throws<ApiException>(() => relay.RunAsync(attempt));
+                Check((await relay.RunAsync(attempt)).State == "completed", mode + ": recorded evidence completes");
+                Check(pi.Writes == (mode == "intent_only" ? 0 : 1), mode + ": no repeated sensor write");
+                Check(pi.Reads == (mode == "intent_only" ? 1 : 0), mode + ": intent is read-only");
+                Check(server.PhysicalRaw == Opaque && server.Results.All(raw => raw == Opaque), mode + ": result bytes stay fixed");
+            }
+        }
     }
 
     private static async Task NormalAndReplay()
@@ -140,6 +230,7 @@ internal static class Program
         var held = new Pi { Wait = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously) };
         var other = new FingerprintEnrollmentRelay(target, held);
         server.State = "issued";
+        server.PhysicalRaw = null; server.HasIntent = false;
         var next = other.CreateAttempt(Device);
         var first = other.RunAsync(next);
         await Throws<InvalidOperationException>(() => other.RunAsync(next));
@@ -198,24 +289,30 @@ internal static class Program
     {
         private string? relayId, capability;
         public int Calls, Cancels;
+        public int Writes, Reads;
+        public bool Failed;
+        public object? FailureCode;
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             Calls++;
             Check(request.Headers.Authorization is null, "Pi never receives administrator bearer");
             string incoming = request.Headers.GetValues("X-Enrollment-Relay").Single();
             capability ??= incoming;
-            Check(capability == incoming, "one transport capability per attempt");
+            Check(capability == incoming, "one transport capability per Pi relay job");
             object data;
             if (request.RequestUri!.AbsolutePath.EndsWith("/jobs"))
             {
                 using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
                 relayId = body.RootElement.GetProperty("relay_id").GetString();
-                Check(body.RootElement.GetProperty("request_envelope").GetString() == Opaque, "request envelope stays opaque");
-                data = new { relay_id = relayId, state = "awaiting_approval", challenge = new { probe_nonce = B64(new string('x', 32)) } };
+                bool readOnly = body.RootElement.GetProperty("mode").GetString() == "read_result";
+                if (readOnly) Reads++; else Writes++;
+                Check(body.RootElement.GetProperty("request_envelope").GetString() == (readOnly ? null : Opaque), "request envelope stays opaque/read-only has none");
+                data = Failed ? new { relay_id = relayId, state = "failed", error_code = FailureCode }
+                    : (object)new { relay_id = relayId, state = "awaiting_approval", challenge = new { probe_nonce = B64(new string('x', 32)) } };
             }
             else
             {
-                if (request.RequestUri.AbsolutePath.EndsWith("/cancel")) Cancels++;
+                if (request.RequestUri.AbsolutePath.EndsWith("/cancel")) { Cancels++; capability = null; }
                 else
                 {
                     using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
@@ -234,6 +331,29 @@ internal static class Program
             "issued", "2026-10-20T01:03:00Z", false, Opaque, null);
         string result = await channel.TransferAsync(job, false, (_, _) => Task.FromResult(Opaque), null, CancellationToken.None);
         Check(result == Opaque && handler.Cancels == 1 && handler.Calls == 3, "Pi async job protocol and final cleanup");
+    }
+
+    private static async Task PiFailureReports()
+    {
+        foreach (object? code in new object?[] { "already_registered", "PRIVATE_UNTRUSTED_DETAIL", 42, null })
+        {
+            var server = new Server(); using var api = new ApiClient("http://127.0.0.1:5000", server);
+            await api.LoginAsync("admin", "synthetic");
+            var handler = new PiHttp { Failed = true, FailureCode = code };
+            using var channel = new HttpEnrollmentPiChannel("http://127.0.0.1:8080", handler);
+            var relay = new FingerprintEnrollmentRelay(new EnrollmentTarget(88, api.CaptureSession(), () => true, CancellationToken.None), channel);
+            var attempt = relay.CreateAttempt(Device);
+            try { await relay.RunAsync(attempt); throw new Exception("Expected Pi failure"); }
+            catch (EnrollmentPiFailureException error)
+            {
+                Check(error.AlreadyRegistered == Equals(code, "already_registered"), "duplicate-finger display code only");
+                Check(!error.Message.Contains("PRIVATE_UNTRUSTED_DETAIL"), "untrusted Pi detail is not displayed");
+                if (error.AlreadyRegistered) Check(error.Message.Contains("이미 등록된 지문"), "duplicate reason is readable");
+            }
+            await Throws<EnrollmentPiFailureException>(() => relay.RunAsync(attempt));
+            Check(handler.Writes == 1 && handler.Reads == 1, "failure never authorizes a fresh scan on the same attempt");
+            Check(server.Issues == 1 && server.Completes == 0 && handler.Cancels == 2, "failure retains claim/job and performs transport cleanup only");
+        }
     }
 
     private static async Task PythonLoopback(string python)
@@ -268,6 +388,8 @@ internal static class Program
             var job = attempt.Job!;
             string replayed = await channel.TransferAsync(job, true, async (body, ct) =>
             {
+                if (body.TryGetProperty("action", out _))
+                    return EnrollmentValidation.Encode(JsonSerializer.SerializeToUtf8Bytes(server.Physical()));
                 Check(body.GetProperty("scope").GetString() == "result_read", "real HTTP recovery has read-only scope");
                 var approved = await api.CaptureSession().PostAsync<EnrollmentApproval>($"device-enrollments/{JobId}/approval", body, ct);
                 return approved.ApprovalEnvelope;

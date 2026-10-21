@@ -14,6 +14,6 @@ dotnet run --project Tests/FingerprintEnrollment.Tests/FingerprintEnrollment.Tes
 dotnet run --project Tests/FingerprintEnrollment.Tests/FingerprintEnrollment.Tests.csproj -c Release -- --pi-python <테스트용-python.exe-절대경로>
 ```
 
-추가 대조를 포함한 최종114검증이며86개와 합산하지 않는다. `pi_loopback.py`는 자신이 생성한 loopback HTTP 포트·임시 SQLite·가짜 센서만 사용하고 종료 시 소유 서버/하위 프로세스/임시 DB를 정리한다. 합성 서버의 공개 시험 키로 승인을 만들고 Python이 만든 실제 서명 결과의 바인딩을 검증한다. 테스트의 합성 키/서명기를 실제 PC 중계에 넣지 않는다.
+2026-10-21 MySQL 전용 클라이언트 후속은 추가 대조를 포함해283검증을 통과했다. 위86개/과거114개와 합산하지 않는다. `pi_loopback.py`는 자신이 생성한 loopback HTTP 포트·RAM 상태의 새 MySQL 어댑터·가짜 센서만 사용하고 종료 시 소유 서버/하위 프로세스를 정리한다. 합성 서버의 공개 시험 키로 capture/store/read 승인을 만들고 결과 바이트를 보관하는 대역을 사용한다. 실제 MySQL에 연결하는 검사가 아니다. 테스트의 합성 키/서명기를 실제 PC 중계에 넣지 않는다.
 
 실제 서버/MySQL·운영 권한/키·실물 채취/전원장애·공유/두PC 검증은 아니다. 실제 WinForms 검사는 별도 `FingerprintEnrollment.Ui.Tests` 프로젝트다.
