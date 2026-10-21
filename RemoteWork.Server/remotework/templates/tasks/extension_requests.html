@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}마감일 연장 신청함{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='tasks.css') }}">{% endblock %}
+{% block content %}
+<div class="task-page">
+<a class="task-back" href="{{ url_for('task_web.index', scope=scope) }}">← 업무 목록으로</a>
+<p class="eyebrow">DEADLINE EXTENSIONS</p><h1>마감일 연장 신청함</h1>
+<p class="muted">연장 신청 내용과 처리 결과를 확인하세요.</p>
+<section class="card task-filters" aria-labelledby="extension-filter-heading">
+<h2 id="extension-filter-heading">연장 신청 조회</h2>
+<form class="task-filter-form" method="get" action="{{ url_for('task_web.extension_requests') }}">
+<div class="task-scope"><label for="extension-scope">조회 범위</label><select id="extension-scope" name="scope"><option value="own" {% if scope == 'own' %}selected{% endif %}>내 신청</option>{% if g.user.role == 'admin' %}<option value="managed" {% if scope == 'managed' %}selected{% endif %}>관리 업무의 신청</option>{% endif %}</select></div>
+{% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}<button type="submit">조회</button>
+</form>
+<div class="task-status-filter" role="group" aria-label="연장 신청 상태">{% for value, label, link in status_links %}<a class="task-status-link{% if status == value %} task-status-current{% endif %}" href="{{ link }}" {% if status == value %}aria-current="true"{% endif %}>{{ label }}</a>{% endfor %}</div>
+</section>
+<section aria-labelledby="extension-list-heading">
+<div class="task-list-heading"><h2 id="extension-list-heading">{{ '관리 업무의 신청' if scope == 'managed' else '내 신청' }} 내역</h2><p class="muted">총 {{ items|length }}건</p></div>
+{% for item in items %}
+<article class="card task-extension-request" data-extension-id="{{ item.extension_id }}">
+<div class="task-extension-heading"><h3>신청 #{{ item.extension_id }} <span class="task-extension-state task-extension-state-{{ item.status }}">{{ extension_labels[item.status] }}</span></h3><a href="{{ url_for('task_web.detail', task_id=item.task_id, scope=scope, include_cancelled='true') }}">업무 #{{ item.task_id }} 보기 →</a></div>
+<dl class="task-extension-info"><dt>신청 당시 마감일</dt><dd><time datetime="{{ item.original_due_date }}">{{ item.original_due_date }}</time></dd><dt>희망 마감일</dt><dd><time datetime="{{ item.requested_due_date }}">{{ item.requested_due_date }}</time></dd><dt>신청 일시</dt><dd><time datetime="{{ item.created_at }}">{{ item.created_at|replace('T', ' ')|replace('Z', ' UTC') }}</time></dd>{% if item.decided_at %}<dt>처리 일시</dt><dd><time datetime="{{ item.decided_at }}">{{ item.decided_at|replace('T', ' ')|replace('Z', ' UTC') }}</time></dd>{% endif %}</dl>
+<h4>신청 사유</h4><div class="task-extension-reason">{{ item.reason }}</div>
+{% if item.decision_reason is not none %}<h4>처리 사유</h4><div class="task-extension-reason">{{ item.decision_reason }}</div>{% endif %}
+</article>
+{% else %}<div class="card"><p class="task-empty" role="status">조회 조건에 맞는 연장 신청이 없습니다.</p></div>{% endfor %}
+</section>
+</div>
+{% endblock %}

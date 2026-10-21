@@ -1,5 +1,6 @@
 """Cookie-authenticated task reads using the existing server query policy."""
-from flask import Blueprint, g, render_template, request, url_for
+import os
+from flask import Blueprint, current_app, g, render_template, request, url_for
 
 from ...auth import login_required
 from ...common import AppError
@@ -12,6 +13,19 @@ STATUS_LABELS = {
     "not_started": "진행전", "in_progress": "진행중", "submitted": "제출완료",
     "approved": "승인완료", "returned": "반려완료",
 }
+EXTENSION_LABELS = {
+    "pending": "대기", "approved": "승인", "rejected": "반려",
+    "withdrawn": "철회", "cancelled": "취소",
+}
+
+
+@bp.record_once
+def register_lifecycle_inbox(state):
+    # Keep lifecycle imports and routes behind their existing explicit opt-in.
+    enabled = state.app.config.get("ENABLE_TASK_LIFECYCLE_DRAFT",
+        os.getenv("REMOTEWORK_ENABLE_TASK_LIFECYCLE_DRAFT") == "1")
+    if enabled is True:
+        state.add_url_rule("/extension-requests", "extension_requests", extension_requests, methods=["GET"])
 
 
 def _filters():
@@ -47,7 +61,8 @@ def index():
                         for value in TASK_STATUSES)
     return render_template("tasks/index.html", items=items, scope=scope, status=status,
                            include_cancelled=include_cancelled, filters=filters,
-                           status_links=status_links, status_labels=STATUS_LABELS)
+                           status_links=status_links, status_labels=STATUS_LABELS,
+                           has_lifecycle_inbox="task_web.extension_requests" in current_app.view_functions)
 
 
 @bp.get("/<int:task_id>")
@@ -61,3 +76,22 @@ def detail(task_id):
     task = get_task(g.user, task_id)
     return render_template("tasks/detail.html", task=task, status_labels=STATUS_LABELS,
                            back_url=url_for("task_web.index", **_list_args(scope, status, include_cancelled)))
+
+
+@login_required
+def extension_requests():
+    from ...auth import authenticated_transaction
+    from .lifecycle import EXTENSION_STATUSES, _query, list_extension_requests
+
+    # Reuse the API's current identity refresh and exact read policy. These
+    # guarded reads neither grant an action nor require a write integration ACK.
+    with authenticated_transaction() as db:
+        _query({"scope", "status"})
+        scope, status = request.args.get("scope", "own"), request.args.get("status")
+        items = list_extension_requests(db, g.user, scope, status)
+    status_links = [(None, "전체", url_for("task_web.extension_requests", scope=scope))]
+    status_links.extend((value, EXTENSION_LABELS[value],
+                         url_for("task_web.extension_requests", scope=scope, status=value))
+                        for value in EXTENSION_STATUSES)
+    return render_template("tasks/extension_requests.html", items=items, scope=scope, status=status,
+                           status_links=status_links, extension_labels=EXTENSION_LABELS)
