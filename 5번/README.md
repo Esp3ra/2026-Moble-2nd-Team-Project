@@ -1,3 +1,12 @@
+<a id="pr73-member5-consumption-20261022"></a>
+## 5번 인계 — 공통 퇴근 결과 소유권 제공·명시 소비 대기
+
+[PR73](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/73#issuecomment-6335730169) 최종 head **5070911**(초기b442에 최신alpha 수신)를 Draft→Open 후 **f542902e3edfa551e33eb97ed81f4ef12eff27c3**에 병합했습니다. 최신7692ce4 결합 tree **0a6ee3ad17fb5ed1610088eb065c94957f791248**와 실제 병합본이 일치합니다. [공통 소유권 규약](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/f542902e3edfa551e33eb97ed81f4ef12eff27c3/docs/DEVICE_IDENTITY_V2.md)에서 `MainForm.PrepareClockOutFinalizationAsync`/`FinishConfirmedClockOut`와 로그인 소유 `ClockOutFinalization`의 수명을 확인합니다.
+
+5번 연결 위치는 `FingerprintWorkdayOperation`의 **verified clock_out 이후 finalize 경계**입니다. 기존 원 work UUID/DATE·challenge·OriginalFinalizeId를 그대로 전달하고 monitor/근무 poll의 종료·대기 callback을 먼저 연결한 뒤, 직접 일반 Session finalize를 같은 소유자의 `CompleteAsync`로 바꿉니다. 불명일 때 새 작업/UUID를 만들지 않고, 검증 receipt 표시 후 같은 소유자로만 완료합니다. 정오 경로·단순 창닫기/Logout은 기존 의미를 유지합니다.
+
+공통35검사/12시나리오·MainForm11·기존144/29·26/179/115·Release0/0, 실제 원 C#·Flask/AttendanceWorkflow·소유MySQL2 PASS/10.87초를 확인했습니다. 성공응답 유실 뒤 원 작업 복구와 AuthSession0/근무ended/receipt1을 대조했으며 서명·회원·매핑/스캔은 fixture입니다. [상세 검사·선행 실행·정리](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr73-reviewed-merged-20261022)를 구분합니다. 실제5번 제품 소비·센서/두PC·서버 운영 준비 완료를 의미하지 않고, 실제5000/.env·DB/키·새지문OFF는 변경하지 않았습니다. 정지 monitor의 임의 재시작·앱 재시작 뒤 RAM 복구를 제공하지 않습니다.
+
 <a id="pr71-pr72-merged-20261022"></a>
 ## 근무일 조회·정오/근무 감시·연차 보완 병합, 2026-10-22
 

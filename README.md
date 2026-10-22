@@ -1,3 +1,12 @@
+<a id="pr73-merged-status-20261022"></a>
+## 최신 — PR73 퇴근 결과 소유권 검토·병합, 2026-10-22
+
+사용자의 “병합 가능 시 Draft→Open→Merge” 지시에 따라 [PR73](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/73#issuecomment-6335730169) 최종 head **5070911**(초기b442에 최신alpha 수신)를 검토하고 Draft 해제 후 alpha **f542902e3edfa551e33eb97ed81f4ef12eff27c3**에 병합했습니다. 최신7692ce4와의 결합 tree **0a6ee3ad17fb5ed1610088eb065c94957f791248**가 실제 병합본과 일치합니다. 일반 요청 중단·drain 뒤 원 퇴근 challenge/UUID/body만 복구하는 공통 소유권과 MainForm 명시 접점을 제공합니다. 아래 ‘퇴근 drain 후속’은 당시 이력이며, 5번의 실제 소비·결합 검증은 계속 후속입니다.
+
+동일 제품 소스의 원본 C# **35검사/12시나리오**, MainForm **11**, 기존 ApiClient **144/29시나리오**·WorkdayActivity **26**·정오/퇴근 **179**·Leave **115**, Release **0오류/0경고**를 확인했습니다. 최신 결합본의 원 C#→loopback Flask/AttendanceWorkflow→소유MySQL 정상·응답 유실 **2 PASS/10.87초**는 별도 범위이며 수치를 합산하지 않습니다. [정확한 SHA·검사·선행 실행 구분](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr73-reviewed-merged-20261022)·[인계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr73-handoff-20261022)를 따릅니다.
+
+실제5000/.env·공유DB/DDL·운영 옵션·키·센서/두PC는 변경·검증하지 않았습니다. 같은 LAN의 사설IP+PORT 접속 기준을 유지합니다. 2번 기한 journal 실제 연결은 [동시 제공 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr72-journal-connection-20261022)으로 보존하며 이번 PR73의 신규 검증으로 합산하지 않습니다.
+
 ## 최신 — PR70·71·72 병합 수신·2번 기한 사건 연결, 2026-10-22
 
 병합 기준 alpha7135a29의 [실제 병합 확인](2번/PR_검토기록.md#pr70-72-merged-owner2-connected-20261022) 후2번 생성·기한 수정·연장 승인의 같은TX 기록을 연결했습니다. 실제 MySQL32통과·기존writer7/HTTP21 재통과·Release0경고/0오류이며, [정확한 검사·미실행](2번/업무_구현검증.md#member2-pr72-journal-check-20261022)과 [1~5번 다음 연결·공동 협의사항](2번/공통규약.md#member2-pr72-journal-connection-20261022)을 기존 위치에 취합합니다. alpha [7692ce4](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/7692ce41cf36e89e6f5881b61efcc7fcb05fe5e5)와 사용자 프로젝트728파일 일치·DOCX7파일 보존을 확인했습니다. 다른 담당 제품·공유 서버/운영 ACK는 변경하지 않았습니다. 아래 Draft/미병합은 각 검토 시점의 기록입니다.

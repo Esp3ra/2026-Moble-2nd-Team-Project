@@ -1,3 +1,10 @@
+<a id="member2-pr73-status-20261022"></a>
+## PR73 병합과 병행 2번 기록 보존 — 2026-10-22
+
+공통 퇴근 drain·원 결과 소유/MainForm 명시 접점 [PR73](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/73#issuecomment-6335730169)을 사용자 지시에 따라 Draft→Open→**f542902e3edfa551e33eb97ed81f4ef12eff27c3**에 병합했습니다. 최신7692ce4 포함 tree **0a6ee3ad17fb5ed1610088eb065c94957f791248**를 검토·병합본과 대조했습니다. [실제 검사/대역·선행 실행](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr73-reviewed-merged-20261022)과 [1·5번 연결 경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr73-handoff-20261022)로 취합합니다.
+
+이번 PR73은2번 업무에 새 근태 조건을 추가하지 않습니다. 별도 병행 기록의 [2번 생성·기한 수정·연장 승인 실제 journal 연결](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr72-journal-connection-20261022)·32/기존7·21 검사·사용자 프로젝트 동기화 보고는 원문 그대로 보존하며 PR73의 새 독립 검사로 합산하지 않습니다. 기존2번8문서/앵커를 유지했고 새 회신용 공개MD/브랜치/PR은 만들지 않았습니다. 4번 binding 소비·baseline/중간상태/공유 적용은 각 담당의 기존 후속 범위입니다.
+
 ## 최신 — PR72 병합본·2번 실제 기한 사건 연결, 2026-10-22
 
 PR70·71·72의 [실제 병합 상태](PR_검토기록.md#pr70-72-merged-owner2-connected-20261022)를 확인하고2번 생성·실제 기한 수정·연장 승인에 같은TX 사건 기록을 연결했습니다. **새 실제 MySQL32통과·기존writer7/HTTP21 재통과·Release경고0/오류0**이며, 기본OFF/결과읽기전용·실패rollback/성공replay를 확인했습니다. [변경·직접 검사·미실행](업무_구현검증.md#member2-pr72-journal-check-20261022)과 [담당별 다음 연결/협의사항](공통규약.md#member2-pr72-journal-connection-20261022)을 구분합니다. 다른 담당 제품은 수정하지 않았으며 기존8문서/앵커를 유지합니다. 아래 PR70 Draft/미병합은 과거 회차 기록입니다.

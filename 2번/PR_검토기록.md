@@ -1,3 +1,43 @@
+<a id="pr73-reviewed-merged-20261022"></a>
+## PR73 최종 검토·실제 병합 — 2026-10-22
+
+사용자 “병합 가능 시 Draft→Open→Merge” 지시에 따라 아래 고정본을 검토하고 Draft 해제 후 병합했습니다. 추가 확정 차단 결함을 발견하지 못했습니다. 최신 alpha7692ce4의2번 기한 journal 변경14파일은 보존했습니다. 작성자가 이를 정상 merge한 최종5070911의tree가 마지막 검증 결합tree와 완전히 같아 추가 코드변경 없이 근거를 수신했습니다. 기존73 base7135와 최종 결합본을 구분합니다.
+
+| 항목 | 정확한 기준 |
+|---|---|
+|PR/최종 댓글|[PR73 통합 검토](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/73#issuecomment-6335730169)|
+|최종 PR head / base|`5070911612d038d9e9395a52eaa469cc6623d14f` / `7692ce41cf36e89e6f5881b61efcc7fcb05fe5e5`|
+|최초 검토 head / base|`b442b9b20cc21c18f29f1073c2d2b3abeed6904b` / `7135a2933ae9ae6382da28ab6dbef36acbc421ec`|
+|원본 head tree|`fd199a2a1e04603350063315071c4ac3cf71111a`|
+|최종 검토 base|`7692ce41cf36e89e6f5881b61efcc7fcb05fe5e5`|
+|실제 alpha merge / tree|`f542902e3edfa551e33eb97ed81f4ef12eff27c3` / `0a6ee3ad17fb5ed1610088eb065c94957f791248`|
+
+### 코드·권한·수명
+
+현재 로그인과 verified/pending/clock_out 원 도전을 확인하고 일반 요청 lane을 닫은 뒤 in-flight 요청을 취소·drain합니다. 취소는 서버 TX rollback의 증거가 아니며 서버 공통guard/퇴근·AuthSession 폐기 TX가 최종 인가·직렬화를 담당합니다. 늦은 일반401과 실제 복구401을 구분하고 전역 인증우회는 추가하지 않습니다.
+
+work UUID/DATE는 준비 입력으로 고정하고 CompleteAsync의 응답 영수증에서 원 값과 대조합니다. 결과 소유자는 원 challenge/UUID/body만 가진 CompleteAsync, 검증된 최소receipt·확정 cache를 제공하고 최대24시간 RAM 상한을 재시도로 연장하지 않습니다. 로그아웃/서버 변경·같은 계정 새 로그인세대는 옛 소유권을 폐기합니다. 미송신 Dispose와 첫 전송 이후 미확정 Dispose를 구분하고 옛 EndSession/Dispose가 새 로그인을 지우지 않습니다. MainForm은 monitor/poll 종료·대기를 먼저 받고 소유권을 보관해 빌린창 수명과 분리합니다. 같은 소유자의 검증receipt 후에만 타이머/알림 정리·EndSession을 하고 auth/logout을 다시 보내지 않습니다.
+
+### 이번 직접 검사 — 서로 합산하지 않음
+
+| 검사 | 결과·경계 |
+|---|---|
+|원 ClockOutRecovery.Tests|초기b442에서35검사/12시나리오 PASS, 실제ApiClient+명시HTTP대역: drain/늦은401·응답유실 원문복구·같은token 새세대·동시/취소·폐기|
+|원 ClockOutOwner.Tests|실제MainForm11 PASS, 합성loopbackHTTP: monitor종료대기·poll0·빌린창·동일소유자receipt·새로그인 보존, 실제Flask/센서 아님|
+|기존 회귀|초기b442의동일 제품 소스에서ApiClient144/29시나리오·WorkdayActivity26·정오/퇴근179·Leave115 PASS, 각 원본 검사와 명시대역 범위|
+|실제 원서버·MySQL 결합|최신7692+b442 tree에서 원 C#→loopback Flask/AttendanceWorkflow→소유MySQL **2 PASS/10.87초**, fail/error/skip0|
+|Release|초기b442 Release0오류/0경고; 최종 결합본의 C# 제품/검사 소스 동일 확인(추가 빌드 실행 수로 합산 안 함), 외부 artifacts/offline 환경|
+
+실제MySQL2는 원 `test_clock_out_recovery_client.py`를 수정 없이 실행했습니다. 정상 finalize1회와 서버 commit 뒤 첫 성공응답만 유실시키고 같은 원 UUID/body/token으로2번째 finalize해 결과를 복구하는 두 건입니다. 각 원본 검사가 대상 AuthSession0·WorkSession.ended_at 존재·WorkflowReceipt1을 확인했습니다. 동적 `__test/clock-out` route와 회원·매핑·키·스캔/서명은 시험 fixture이며 제품 새 route나 물리 Pi 검사가 아닙니다. 원 fixture의 공통 테이블 ORM 생성/identity 초안DDL 적용은 빈 소유DB 안에서만 수행했습니다.
+
+최종 결합 실행 pytest10.87초/자식12.25초/격리wrapper18.84초는 같은 실행입니다. Server/관련 원본219파일·원DLL SHA256 `63d0a85ea5c7d718f708779b129281fea6b3d6a56ae8dd86eda3fd3905c8bfe9`가 전후 불변, git clean·소유MySQL/DB·전체native process/runtime 정리 완료입니다. 앞선 head-only2 PASS/10.52초(217파일 불변)는 최초 대조로 보존하고 최종2건과 합산하지 않습니다. 최신base와 기존head 사이 C#/identity/auth/원2test/DLL소스 diff0을 확인했습니다. 별도 독립 담당의 drain/취소·권한 경합15검사도 통과했으며 [최종 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/73#issuecomment-6335730169)의 별도 근거를 따릅니다.
+
+### 인계·미실행
+
+[공통 소유권 규약](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/f542902e3edfa551e33eb97ed81f4ef12eff27c3/docs/DEVICE_IDENTITY_V2.md)의 **5번 verified 퇴근→원 finalize 경계 명시 소비/결합 검증**이 남았습니다.5번 Form/Operation을 대신 교체하거나 기본 경로에 자동 설치하지 않았습니다. 실제5000/.env·공유DB/DDL·flags·키·센서/두PC는 변경·검증하지 않았고 새지문OFF를 유지합니다. 강제 종료/재시작 뒤 RAM복구·정지 monitor의 임의 재시작·실제identity 저장/회수·보존/복원·readiness는 운영 후속입니다. 같은 LAN 사설IP+PORT 기준을 보존합니다.
+
+병행2번 실제 기한 writer 연결32/기존7·21 및 사용자 프로젝트728파일/DOCX7 보존 보고는 [별도 최신 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr72-journal-connection-20261022)으로 보존하며 이번 PR73 신규 실행/검증으로 합산하지 않습니다. [1·5번 인계와 공동 후속](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr73-handoff-20261022)을 따르고 기존2번8문서 구조/원문/앵커를 유지합니다.
+
 <a id="pr70-72-merged-owner2-connected-20261022"></a>
 ## PR70·71·72 실제 병합 확인·2번 연결 — 2026-10-22
 
