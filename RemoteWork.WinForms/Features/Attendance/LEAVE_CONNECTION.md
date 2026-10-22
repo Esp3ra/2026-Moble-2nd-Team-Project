@@ -27,3 +27,12 @@ await main.ConnectLeaveWorkflowAsync(session =>
 병가·공가의 연차 차감 제외는 사용자 요구다. 나머지 연차 정책/휴일 원본/개인 부여·검토 담당자는 팀장 결정과 1번의 비공개 설정이 필요하다. 이 코드는 정책 승인, 실제 계정 생성·배정, 운영 write 설정 또는 실제 장비 검증을 뜻하지 않는다. MainForm의 수정은 5번 메뉴의 연결 소비에 한정한다.
 
 검증 명령과 범위는 [연차 UI 검사](../../../../Tests/Leave.Ui.Tests/README.md)에 기록한다. 관련 협업은 [PR58 대표 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309485288)에서 관리한다. 팀장 전용 날짜 LOG나 별도 브랜치 문서는 코드 PR에 섞지 않는다.
+
+## 2026-10-22 직접 검증
+
+- Windows/.NET 8 Release 빌드: 오류 0, 경고 0. 실제 Designer 화면의 PNG도 확인했다.
+- 연차 UI: 144항목 통과. 합성 신원/metadata/workflow로 기존115 + 새 연결/로그아웃 경합29를 검사했다.
+- 기존 WorkdayActivity 51항목, LeavePreview 11항목 통과. 이들은 합성 장치/메모리 기반이며 실물 검사와 다르다.
+- 실제 MainForm/폼·PR79 adapter·Flask API/W1·소유 MySQL8.2: 4시나리오 통과, 13.21초. 정상 승인, 신청/승인 응답 유실, 신청/반려 응답 유실, 정책 OFF. POST는 각 작업당 한 번, 원 intent 결과 복구, 단일 신청·최종 revision2·예약 해제/사용량을 SQL로 확인했다. 소유 MySQL/DB/runtime 정리 완료.
+- 결합 기준: 5번 `5cb7ab7d7d26ca0d671cc1b614d7c25628795d3f` + PR79 `88f78fa8364a2e50129c20ef3e5ea14739c96cbc`, tree `7c07653f6063bfc336f991a21397563f37807167`. 결합 DLL SHA256 `5c7ac8badcf0296016acffacfdc8cdf762d79abef0e5a4d9877e28f925fa3675`.
+- 미실행: 팀 운영 서버/실제 계정/실물 Pi·지문·카메라, 두 PC 동시 접속, 실제 D1/D2 설정. Draft PR79는 alpha에 미병합이며 제품 기본 시작에서 연차 adapter를 자동 설치하지 않는다. 검토용 명시 연결만 검사했다.
