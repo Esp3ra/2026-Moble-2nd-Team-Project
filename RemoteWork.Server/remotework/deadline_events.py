@@ -118,7 +118,7 @@ def read_current(db, *, task_id):
     return event
 
 
-def read_event(db, *, event_id):
+def read_event(db, *, event_id, task_id=None):
     """Trusted retained lookup; caller must authorize before exposing a value."""
     storage(db)
     if not isinstance(event_id, str):
@@ -128,13 +128,23 @@ def read_event(db, *, event_id):
             raise ValueError()
     except ValueError:
         raise ValueError("Canonical event UUID required") from None
-    # Guard serializes cooperating writers. Discover parent without a journal
-    # row lock, then preserve the parent-before-journal lock order.
-    task_id = db.scalar(select(journal.c.task_id).where(journal.c.event_id == event_id))
-    if task_id is None:
+    if task_id is not None:
+        # Preferred exact parent: never consult an authentication-era RR snapshot.
+        _task(db, task_id)
+        value = _find(db, event_id)
+        return value if value is not None and value.task_id == task_id else None
+    # Compatibility for old trusted callers lacking a task ID. Lock current
+    # parents BEFORE any journal lock, then make a current journal read. This
+    # bounded fallback does not guess absence from a stale consistent snapshot.
+    parents = list(db.scalars(select(TaskRecord.task_id).order_by(TaskRecord.task_id)
+        .limit(1001).with_for_update()))
+    if len(parents) > 1000:
+        unavailable('DEADLINE_EVENT_TASK_REQUIRED')
+    if not parents:
         return None
-    _task(db, task_id)
-    return _find(db, event_id)
+    row = db.execute(select(journal).where(journal.c.event_id == event_id,
+        journal.c.task_id.in_(parents)).with_for_update()).mappings().first()
+    return DeadlineChange(**row) if row else None
 
 
 def record_change(db, *, task_id, source_row_version, source_action, before_due_date, due_date):

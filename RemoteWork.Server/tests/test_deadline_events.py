@@ -14,7 +14,9 @@ from remotework.common import AppError
 from remotework.features.tasks.models import TaskRecord
 from remotework.features.tasks.models import TaskAssignment
 from remotework.write_requests import register_write_action, register_write_result_reader, issue_key, lookup_result
-from test_task_deadline_facts import deadline_app, deadline, guarded, add_task
+from test_task_deadline_facts import deadline_app, deadline, guarded, add_task, identity
+from remotework.auth import authenticated_transaction
+from remotework.write_requests import _authorize, _authorizer
 
 
 @pytest.fixture(scope="module")
@@ -270,3 +272,26 @@ def test_binding_max_signed_ids_fit_the_existing_w1_target_without_ddl_change():
     assert len(value)<=80 and binding.target(binding.parse_target(value))==value
     with pytest.raises(AppError):
         binding.parse_target('d1:'+('9'*5000)+':aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa:1')
+
+
+def test_authentication_rr_snapshot_does_not_hide_new_retained_event_or_key_authorization(env):
+    first=create(env)
+    # load_identity already opened the RR transaction. Force a consistent view.
+    with identity(env) as db:
+        assert db.scalar(select(port.journal.c.event_id).where(port.journal.c.event_id==first.event_id))==first.event_id
+        with ThreadPoolExecutor(1) as workers:
+            def writer():
+                with guarded(env) as other:
+                    return change(env,other)
+            new=workers.submit(writer).result(timeout=10)
+        # An ordinary RR read still misses the other transaction's new UUID.
+        assert db.scalar(select(port.journal.c.event_id).where(port.journal.c.event_id==new.event_id)) is None
+        with authenticated_transaction() as same:
+            assert same is db
+            assert port.read_current(db,task_id=env.task_id)==new
+            assert port.read_event(db,event_id=new.event_id)==new
+            assert port.read_event(db,event_id=new.event_id,task_id=env.task_id)==new
+            original=binding.target(binding.current_binding(db,task_id=env.task_id))
+            assert binding.read_bound_event(db,original)[1]==new
+            _authorize(db,original,_authorizer('deadline_alert.confirmed'))
+            assert issue_key(action='deadline_alert.confirmed',target=original)['request_key']

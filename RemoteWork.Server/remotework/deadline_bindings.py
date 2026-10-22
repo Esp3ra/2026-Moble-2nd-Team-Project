@@ -78,7 +78,7 @@ def read_bound_event(db, value):
         .execution_options(populate_existing=True))
     if original is None or original.assignee_id != g.user.id:
         raise AppError(403, "FORBIDDEN", "이 배정의 확인 결과를 조회할 권한이 없습니다.")
-    event = read_event(db, event_id=binding.event_id)
+    event = read_event(db, event_id=binding.event_id, task_id=binding.task_id)
     if event is None:
         raise AppError(404, "DEADLINE_EVENT_NOT_FOUND", "마감 사건을 찾을 수 없습니다.")
     if event.task_id != binding.task_id:
