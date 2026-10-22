@@ -237,10 +237,14 @@
     $("pending-panel").hidden = false; $("retry").hidden = $("reprepare").hidden = true;
     await sendPending();
   }
-  async function successWrite() {
-    const id = pending.taskId; pending = null; pendingFailure = null; canReprepare = false; $("pending-panel").hidden = true;
+  async function successWrite(result) {
+    const confirmed = pending, id = confirmed.taskId;
+    const actionName = {"submission.submitted":"결과 제출", "submission.approved":"승인", "submission.returned":"반려", "task.rework_started":"재작업 시작"}[confirmed.action];
+    const round = result?.round_no ? ` · ${result.round_no}차` : "";
+    // Identify the confirmed request even after another task or action is selected.
+    pending = null; pendingFailure = null; canReprepare = false; $("pending-panel").hidden = true;
     $("submission-dialog").close(); $("decision-dialog").close(); files = []; lock(false);
-    show("save-confirmed", "서버 저장 성공을 확인했습니다. 이후 조회 권한이 바뀌어도 이 저장 성공은 유지됩니다.");
+    show("save-confirmed", `확인된 처리 결과 — 업무 ${id}${round} · ${actionName} 저장 성공. 이후 조회 권한이 바뀌어도 이 처리 결과는 유지됩니다.`);
     $("save-confirmed").hidden = false;
     await refresh(id); if (!$("message").classList.contains("error")) show("message", "서버 저장을 확인하고 목록을 갱신했습니다.");
   }
@@ -248,7 +252,7 @@
     if (!pending) return;
     pendingFailure = null; canReprepare = false; $("reprepare").hidden = true;
     lock(true); show("pending-message", "서버 저장을 확인하고 있습니다.");
-    try { await action(pending.operation,pending.target,pending.body,pending.key); await successWrite(); }
+    try { const result = await action(pending.operation,pending.target,pending.body,pending.key); await successWrite(result); }
     catch (error) {
       if (invalid) return;
       // Only a definite application rejection plus a later not_recorded receipt
@@ -266,7 +270,7 @@
     lock(true);
     try {
       const data = await action("lookup",pending.target,{action:pending.action},pending.key);
-      if (data.state === "completed") await successWrite();
+      if (data.state === "completed") await successWrite(data.result);
       else if (data.state === "not_recorded") {
         canReprepare = Boolean(pendingFailure);
         show("pending-message",canReprepare ? "저장되지 않은 실패 요청입니다. 최신 정보를 조회한 뒤 다시 작성할 수 있습니다." : "저장 기록이 없습니다. 같은 요청을 직접 다시 전송할 수 있습니다.");
