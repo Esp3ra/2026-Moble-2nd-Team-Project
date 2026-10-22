@@ -1,5 +1,72 @@
 # 5번 인계: RW-ID-v2 본인인증 계약 2.0
 
+## 2026-10-22 후속: 정상 요청 drain과 원 퇴근 결과 소유권
+
+1번 제공: `ApiClient.Session.BeginClockOutFinalizationAsync(workId,workDate,challengeId,
+originalFinalizeId,ct)` → `ApiClient.ClockOutFinalization`. 이미 서버가 verified/pending/clock_out으로
+확인한 도전만 수용하며 새 센서 검색/도전/승인이나 정상 token 인수는 하지 않는다.
+기존 identity challenge GET으로 목적을 재검사한 뒤 현재 로그인 lane을 닫고, 이전 일반
+HTTP 요청을 취소하고 완료를 기다린다. 그동안 모든 일반 Session/API 호출은 취소되며,
+늦은 취소 응답401이 원 퇴근 결과 소유권을 지우지 못한다. 실제 복구 요청의401은
+기존처럼 인증을 종료한다. 전역401 무시나 업무권한 연장은 없다.
+
+반환된 소유자는 원 challenge/UUID/body의 `CompleteAsync(ct)`만 제공한다. 같은 최초
+작업/최소 receipt를 RAM에 보관하고 새 동작/일반 GET·POST/token 추출 기능을 제공하지 않는다.
+서버의 더 짧은 기한/철회/비밀번호 변경·권한 회수/401이 우선하며 로컬 상한은 준비 시점부터
+최대24시간이고 재시도로 연장되지 않는다. 정상 로그아웃·서버 변경·같은 계정 재로그인도
+이전 세대를 취소하며 같은 문자열 토큰이어도 새 접속으로 결과를 넘기지 않는다.
+영수증의 completed·원 work UUID/DATE·정규 receipt UUID와 토큰 미포함을 확인한다.
+결과 불명에는 같은 소유자의 CompleteAsync로만 재확인하고, 성공 캐시는 추가POST하지 않는다.
+
+일반 요청을 취소했다는 것은 서버에서 진행되던 업무 TX가 취소됐다는 증거가 아니다.
+서버 공통 guard와 퇴근/AuthSession 폐기 TX가 최종 직렬화·인가를 담당한다.
+미송신 소유자 Dispose는 일반 통신을 다시 허용하지만 한 번이라도 finalize를 보냈으면
+Dispose 시 현재 해당 로그인만 폐기한다. 미확정 퇴근 뒤 일반 업무를 자동 재개하지 않는다.
+다른 접속으로 바뀐 뒤 옛 Dispose/EndSession은 새 로그인을 지우지 않는다.
+
+### MainForm 접점과5번 소비 방법
+
+`MainForm.PrepareClockOutFinalizationAsync(workId,date,verifiedChallenge,originalFinalizeId,
+stopWorkdayAndWait,ct)`는 표시된 로그인UI에서만 호출한다.5번이 소유한 monitor/근무 poll
+종료·대기 callback을 먼저 await하고 공통 drain을 연결한다. 반환된 소유자는 로그인
+component가 보관하므로 빌린 지문창/메뉴를 닫아도 폐기되지 않는다.
+준비/미확정 보관 중에는 기존 주기 auth/me를 전송하지 않는다.
+
+5번은 `FingerprintWorkdayOperation`의 **verified clock_out 이후 finalize 경계**에만
+이 접점을 소비한다. 원 `OriginalFinalizeId`, 근무일/UUID, Attempt의 원 challenge를 전달하고,
+기존 일반 `session.PostAsync(.../finalize)`를 이 소유자의 `CompleteAsync`로 대체한다.
+새 operation/UUID나 일반 토큰으로 복구하지 않는다. 정오 경로는 기존 정상 Session 그대로다.
+영수증을 사용자에게 표시한 뒤 `MainForm.FinishConfirmedClockOut(같은소유자)`가 현재
+로그인·동일소유자·검증receipt를 확인하고 공통알림/타이머를 정리한 뒤 EndSession/화면종료한다.
+퇴근 commit 후 auth/logout을 다시 보내지 않으며 단순 창닫기/일반로그아웃을 퇴근으로 표시하지 않는다.
+
+**이것은 명시 소비 접점이다.**5번 Form/Operation 코드를 대신 교체하거나 기본 시작 경로에
+자동 설치하지 않았다. 기존5번 operation의 직접 Session finalize는 이 새 소유권 연결을
+소비하기 전 상태다. UI 소유자가 같은RAM작업을 재사용하도록5번 연결·결합검증이 필요하다.
+카메라를 중단한 후 사전검사가 실패했다면 실제 근무를 다시 읽고 소유자가 명시 재연결해야 하며
+정지한 monitor를 공통 코드가 임의 복구하지 않는다. 강제 종료/재시작 뒤 RAM복구는 제공하지 않는다.
+
+### 다섯 묶음의 현재 경계
+
+| 묶음 | 제공/다음 담당 |
+|---|---|
+| 현재근무 | PR71의WorkdayStateConnection/GET 제공 유지.5번PR72의projection/명시reader소비와대조 |
+| 정오 |5번PR72의서버시각전환/원작업/응답유실복구 공급.1번이같은동작을재구현하지않음 |
+| 퇴근 |이번공통drain/원finalize소유/MainForm접점제공.5번verified→finalize경계소비후결합검증 |
+| 활동 |5번로그인소유monitor/StopAsync를callback으로연결.활동저장API/DB는미제공·로컬판정유지 |
+| 실물/운영 |실제identity6테이블/프로필·분리키묶음/회수·1년정리/백업복원/Linux서비스·readiness·두PC는별도운영준비.이번실DB/실키/장비·활성화없음 |
+
+공유 새지문은OFF를유지한다.실제설치시간/장치준비를추정하지않는다.현재개발·시연은
+같은네트워크의서버사설IP+PORT직접접속이며Tailscale/VPN/터널·외부HTTPS는선행조건이아니다.
+초기등록/완료mapping을재초기화하거나시험ready=True를운영승인으로쓰지않는다.
+
+검사: `Tests/ClockOutRecovery.Tests`12시나리오35검사, 기존 `Tests/ApiClient.Tests`29시나리오144,
+`Tests/ClockOutOwner.Tests`실제MainForm11검사, `test_clock_out_recovery_client.py`실제C#/Flask/
+소유MySQL2검사(정상·성공응답유실,AuthSession0/근무ended/receipt1대조).
+센서/키·회원/열린근무·서명결과는fixture이며실물/공유서버·5번새경계소비완료가아니다.
+검사자식은기존ownedJob helper로정리한다.최초UI검사listener종료대기는ConfigureAwait(false)로
+시험서버만교정했고제품성공수치에실패시도를합산하지않는다.
+
 ## 2026-10-22 추가: 재접속 후 현재 근무 조회 — 구현 제공·5번 대조 대기
 
 `GET /api/v1/device-identity/workday`를 identity blueprint에 추가했다. 새 개발
