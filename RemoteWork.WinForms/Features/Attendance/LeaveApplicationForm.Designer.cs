@@ -10,6 +10,7 @@ namespace RemoteWork.WinForms.Features.Attendance
 
         protected override void Dispose(bool disposing)
         {
+            if (disposing) EndLifetime();
             if (disposing && components != null) components.Dispose();
             base.Dispose(disposing);
         }
@@ -37,6 +38,8 @@ namespace RemoteWork.WinForms.Features.Attendance
             flowActions = new FlowLayoutPanel();
             btnApplyLeave = new Button();
             btnClose = new Button();
+            lblStatus = new Label();
+            lblCharge = new Label();
             layoutPage.SuspendLayout();
             layoutHeading.SuspendLayout();
             panelFields.SuspendLayout();
@@ -46,16 +49,28 @@ namespace RemoteWork.WinForms.Features.Attendance
             // layoutPage
             layoutPage.ColumnCount = 1;
             layoutPage.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            layoutPage.RowCount = 3;
+            layoutPage.RowCount = 5;
             layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 48F));
             layoutPage.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 36F));
+            layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 64F));
             layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 58F));
             layoutPage.Dock = DockStyle.Fill;
             layoutPage.Margin = new Padding(0);
             layoutPage.Name = "layoutPage";
             layoutPage.Controls.Add(layoutHeading, 0, 0);
             layoutPage.Controls.Add(panelFields, 0, 1);
-            layoutPage.Controls.Add(flowActions, 0, 2);
+            layoutPage.Controls.Add(lblCharge, 0, 2);
+            layoutPage.Controls.Add(lblStatus, 0, 3);
+            layoutPage.Controls.Add(flowActions, 0, 4);
+            lblCharge.Name = "lblCharge";
+            lblCharge.Dock = DockStyle.Fill;
+            lblCharge.TextAlign = ContentAlignment.MiddleLeft;
+            lblStatus.Name = "lblStatus";
+            lblStatus.Dock = DockStyle.Fill;
+            lblStatus.AutoEllipsis = true;
+            lblStatus.Padding = new Padding(0, 8, 0, 0);
+            lblStatus.Text = "서버 연결 전입니다.";
             // layoutHeading
             layoutHeading.ColumnCount = 1;
             layoutHeading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
@@ -105,7 +120,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             lblApplicant.TextAlign = ContentAlignment.MiddleLeft;
             lblApplicant.Font = new Font("맑은 고딕", 9F, FontStyle.Bold);
             lblApplicant.Name = "lblApplicant";
-            txtApplicant.Text = "김직원 · 개발팀";
+            txtApplicant.Text = "";
             txtApplicant.ReadOnly = true;
             txtApplicant.Dock = DockStyle.Fill;
             txtApplicant.Margin = new Padding(0, 10, 0, 8);
@@ -155,6 +170,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             txtLeaveReason.BorderStyle = BorderStyle.FixedSingle;
             txtLeaveReason.Margin = new Padding(0, 10, 0, 0);
             txtLeaveReason.Name = "txtLeaveReason";
+            txtLeaveReason.MaxLength = 1000;
             // flowActions
             flowActions.Dock = DockStyle.Fill;
             flowActions.FlowDirection = FlowDirection.RightToLeft;
@@ -171,7 +187,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             btnApplyLeave.ForeColor = Color.White;
             btnApplyLeave.Margin = new Padding(10, 0, 0, 0);
             btnApplyLeave.Name = "btnApplyLeave";
-            btnApplyLeave.Click += new System.EventHandler(Unavailable_Click);
+            btnApplyLeave.Click += new System.EventHandler(ApplyLeave_Click);
             btnClose.Text = "닫기";
             btnClose.Size = new Size(100, 36);
             btnClose.FlatStyle = FlatStyle.Flat;
@@ -227,5 +243,7 @@ namespace RemoteWork.WinForms.Features.Attendance
         private FlowLayoutPanel flowActions;
         private Button btnApplyLeave;
         private Button btnClose;
+        private Label lblStatus;
+        private Label lblCharge;
     }
 }
