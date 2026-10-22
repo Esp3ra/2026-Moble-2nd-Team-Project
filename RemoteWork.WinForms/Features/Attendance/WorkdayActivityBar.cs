@@ -14,11 +14,13 @@ public partial class WorkdayActivityBar : UserControl
         if (IsDisposed || activity is null) return;
         lblWorkday.Text = activity.Status + (activity.IsCurrent && activity.Monitor.IsRunning ? " · " + activity.Monitor.Latest.Status : "");
         btnNoon.Enabled = activity.CanCheckNoon;
-        btnRefresh.Enabled = activity.IsCurrent;
-        btnActivity.Enabled = activity.IsCurrent && activity.Workday is not null;
+        btnRefresh.Enabled = activity.CanRefresh;
+        btnActivity.Enabled = activity.CanRefresh && activity.Workday is not null;
+        btnClockOut.Enabled = activity.CanClockOut;
     }
     private async void Noon_Click(object? sender, EventArgs e) { if (activity is not null) await activity.ShowNoonAsync(); }
     private async void Refresh_Click(object? sender, EventArgs e) { if (activity is not null) await activity.CheckAsync(); }
+    private async void ClockOut_Click(object? sender, EventArgs e) { if (activity is not null) await activity.ShowClockOutAsync(); }
     private void Activity_Click(object? sender, EventArgs e)
     {
         if (activity?.IsCurrent != true) return;
