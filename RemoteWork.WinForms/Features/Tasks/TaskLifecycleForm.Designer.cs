@@ -19,6 +19,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             SuspendLayout(); layout.SuspendLayout(); fields.SuspendLayout(); actions.SuspendLayout();
             layout.Name = "layout"; layout.Dock = System.Windows.Forms.DockStyle.Fill; layout.Padding = new System.Windows.Forms.Padding(20);
             layout.ColumnCount = 1; layout.RowCount = 5;
+            layout.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             layout.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             layout.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 110));
             layout.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100));

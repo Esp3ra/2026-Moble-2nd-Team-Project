@@ -331,12 +331,13 @@ def test_tampered_signed_ids_do_not_save_a_different_file(web_files):
     assert snapshot(web_files) == before
 
 
-@pytest.mark.parametrize("name", ["attachment_ids", "attachment_scope"])
+@pytest.mark.parametrize("name", ["attachment_ids", "attachment_scope", "attachment_display"])
 def test_duplicate_attachment_form_fields_are_rejected(web_files, name):
     client = login(web_files)
     scope = config(client.get("/tasks/new"))["session"]
     fields = dict(csrf_token=csrf(client), op="prepare", **create_fields(web_files),
-        attachment_ids="[]", attachment_scope=scope)
+        attachment_ids="[]", attachment_scope=scope,
+        attachment_display=json.dumps({"mode": "create", "task_id": None, "items": []}))
     body = MultiDict(fields)
     body.add(name, fields[name])
     before = snapshot(web_files)
@@ -390,3 +391,106 @@ def test_saved_attachment_result_survives_current_provider_outage(web_files, mon
     assert send(client, ticket, endpoint="result").status_code == 200
     assert send(client, ticket).status_code == 200
     assert snapshot(web_files) == after
+
+
+def display_hint(item, *, mode="create", task_id=None, **changes):
+    record = dict(item, temporary=True)
+    record.update(changes)
+    return json.dumps(dict(mode=mode, task_id=task_id, items=[record]), ensure_ascii=False)
+
+
+@pytest.mark.parametrize("mode", ["create", "edit"])
+@pytest.mark.parametrize("operation", ["search", "invalid_prepare"])
+def test_form_rerender_restores_completed_upload_display_without_saving(web_files, mode, operation):
+    client = login(web_files)
+    path = "/tasks/new" if mode == "create" else "/tasks/101/manage/edit?scope=managed"
+    scope = config(client.get(path))["session"]
+    uploaded = upload(client, scope, task_id=None if mode == "create" else 101)
+    before = snapshot(web_files)
+    changes = dict(attachment_scope=scope, attachment_ids=json.dumps([uploaded["attachment_id"]]),
+        attachment_display=display_hint(uploaded, mode=mode, task_id=None if mode == "create" else "101"))
+    changes["op"] = "search" if operation == "search" else "prepare"
+    if operation == "invalid_prepare":
+        changes["title"] = ""
+    response = (prepare_new if mode == "create" else prepare_edit)(web_files, client, **changes)
+    assert response.status_code == (200 if operation == "search" else 400), response.text[:500]
+    panels = Panels(response.text).configs
+    assert len(panels) == 1
+    assert panels[0]["ids"] == [uploaded["attachment_id"]]
+    assert panels[0]["explicit"] is True
+    assert panels[0]["display"] == [dict(uploaded, temporary=True)]
+    assert json.loads(_hidden(response, "attachment_display")) == dict(
+        mode=mode, task_id=None if mode == "create" else "101", items=[dict(uploaded, temporary=True)])
+    assert snapshot(web_files) == before, "display recovery must not save a task, link, receipt or audit event"
+
+
+@pytest.mark.parametrize("mode", ["create", "edit"])
+def test_display_hints_are_excluded_from_signed_write_body_and_summary(web_files, mode):
+    client = login(web_files)
+    path = "/tasks/new" if mode == "create" else "/tasks/101/manage/edit?scope=managed"
+    scope = config(client.get(path))["session"]
+    uploaded = upload(client, scope, task_id=None if mode == "create" else 101)
+    before = snapshot(web_files)
+    prepared = (prepare_new if mode == "create" else prepare_edit)(web_files, client,
+        attachment_scope=scope, attachment_ids=json.dumps([uploaded["attachment_id"]]),
+        attachment_display=display_hint(uploaded, mode=mode, task_id=None if mode == "create" else "101"))
+    assert prepared.status_code == 200, prepared.text[:500]
+    frozen = intent(web_files, prepared)
+    assert frozen["body"]["attachment_ids"] == [uploaded["attachment_id"]]
+    encoded = json.dumps(frozen, ensure_ascii=False)
+    for presentation in ("attachment_display", "temporary", uploaded["name"], uploaded["sha256"]):
+        assert presentation not in encoded
+    assert snapshot(web_files) == before
+    assert send(client, _hidden(prepared, "ticket")).status_code == 200
+
+
+@pytest.mark.parametrize("mode", ["create", "edit"])
+def test_cross_page_display_and_old_scope_cannot_restore_or_create_writes(web_files, mode):
+    client = login(web_files)
+    path = "/tasks/new" if mode == "create" else "/tasks/101/manage/edit?scope=managed"
+    scope = config(client.get(path))["session"]
+    uploaded = upload(client, scope, task_id=None if mode == "create" else 101)
+    before = snapshot(web_files)
+    invoke = prepare_new if mode == "create" else prepare_edit
+    mismatch = display_hint(uploaded, mode="edit", task_id="202")
+    response = invoke(web_files, client, attachment_scope=scope,
+        attachment_ids=json.dumps([uploaded["attachment_id"]]), attachment_display=mismatch)
+    assert response.status_code == 400
+    old_scope = invoke(web_files, client, attachment_scope="0" * 64,
+        attachment_ids=json.dumps([uploaded["attachment_id"]]),
+        attachment_display=display_hint(uploaded, mode=mode, task_id=None if mode == "create" else "101"))
+    assert old_scope.status_code == 409
+    assert snapshot(web_files) == before
+
+
+def test_restored_temporary_hint_cannot_delete_another_users_upload(web_files):
+    client = login(web_files)
+    scope = config(client.get("/tasks/new"))["session"]
+    uploaded = upload(client, scope)
+    # A UI hint is not authority, even when copied to another authenticated page.
+    other = login(web_files, "staff1")
+    other_scope = other.get("/results").headers["X-Results-Session"]
+    before = snapshot(web_files)
+    response = post_shared(other, other_scope,
+        f"/results/data/shared/uploads/{uploaded['attachment_id']}/discard", {})
+    assert response.status_code == 403, response.json
+    assert snapshot(web_files) == before
+    with web_files[0].app_context():
+        stored = get_db().get(web_files[2].SharedFile, uploaded["attachment_id"])
+        assert stored.state == "ready" and stored.owner_id == web_files[1]["admin1"]
+
+
+def test_restored_temporary_hint_cannot_delete_a_now_linked_file(web_files):
+    client = login(web_files)
+    scope = config(client.get("/tasks/new"))["session"]
+    uploaded = upload(client, scope)
+    prepared = prepare_new(web_files, client, attachment_scope=scope,
+        attachment_ids=json.dumps([uploaded["attachment_id"]]), attachment_display=display_hint(uploaded))
+    assert send(client, _hidden(prepared, "ticket")).status_code == 200
+    before = snapshot(web_files)
+    response = post_shared(client, scope,
+        f"/results/data/shared/uploads/{uploaded['attachment_id']}/discard", {})
+    assert response.status_code == 403, response.json
+    assert snapshot(web_files) == before
+    with web_files[0].app_context():
+        assert get_db().get(web_files[2].SharedFile, uploaded["attachment_id"]).state == "ready"

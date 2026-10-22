@@ -18,7 +18,8 @@ internal static class Program
     {
         try
         {
-            Inputs(); Http(); Workflows(); Ui(args.Length == 2 && args[0] == "--layout-dir" ? args[1] : null);
+            string? layoutDirectory = args.Length == 2 && args[0] == "--layout-dir" ? args[1] : null;
+            Inputs(); Http(); Workflows(); Ui(layoutDirectory); UiRecovery(layoutDirectory); UiReadPermissionLoss();
             Console.WriteLine($"PASS TaskLifecycle controlled: {checks} checks. Explicit HTTP/workflow doubles; no actual server or DB."); return 0;
         }
         catch (Exception error) { Console.Error.WriteLine("FAIL TaskLifecycle controlled: " + error); return 1; }
@@ -251,6 +252,131 @@ internal static class Program
         { Control control = Field<Control>(page, name); Rectangle rectangle = page.RectangleToClient(control.RectangleToScreen(control.ClientRectangle)); Check(rectangle.Right <= page.Width && rectangle.Bottom <= page.Height && rectangle.Top >= 0, "new entry fits existing Designer layout " + name); }
         Save(page, directory, "tasks-lifecycle.png"); host.Close();
     }
+    private static void UiRecovery(string? directory)
+    {
+        foreach (var kind in Enum.GetValues<TaskLifecycleKind>())
+        {
+            int actor = kind is TaskLifecycleKind.RequestExtension or TaskLifecycleKind.WithdrawExtension ? 2 : 1;
+            string reason = kind is TaskLifecycleKind.ApproveExtension or TaskLifecycleKind.WithdrawExtension ? ""
+                : "  원래 요청 사유\r\n" + string.Join("\r\n", Enumerable.Range(1, 30).Select(i => "상세 사유 " + i)) + "  ";
+            var request = TaskLifecycleRequest.Create(kind, Context(pending: kind is not (TaskLifecycleKind.Cancel or TaskLifecycleKind.RequestExtension)),
+                actor, reason, kind == TaskLifecycleKind.RequestExtension ? Day.AddDays(3) : null,
+                kind is TaskLifecycleKind.Cancel or TaskLifecycleKind.RequestExtension ? null : Extension(), Day);
+            using var service = new FakeService { Actor = actor, NextFailure = TaskLifecycleFailure.Unavailable };
+            using var workflow = new TaskLifecycleWorkflow(service);
+            workflow.SubmitAsync(request).GetAwaiter().GetResult();
+            using var form = new TaskLifecycleForm(workflow, service);
+            form.Show(); Application.DoEvents();
+            var reasonBox = Field<TextBox>(form, "txtReason"); var dateBox = Field<TextBox>(form, "txtRequestedDueDate");
+            Check(reasonBox.Text == reason && dateBox.Text == (request.RequestedDueDate?.ToString("yyyy-MM-dd") ?? ""),
+                "recovery restores exact original reason and requested date: " + kind);
+            Check(reasonBox.ReadOnly && dateBox.ReadOnly && Field<TextBox>(form, "txtContext").Text.Contains("업무 9")
+                && (request.ExtensionId is null || Field<TextBox>(form, "txtContext").Text.Contains("신청 #7")),
+                "recovery is read-only and identifies the original task/request: " + kind);
+            Check(service.ContextReads == 0 && service.Keys == 1 && service.Changes == 1 && service.Lookups == 0,
+                "opening recovery performs no new read, key or mutation: " + kind);
+            if (kind == TaskLifecycleKind.RequestExtension)
+            {
+                form.Size = form.MinimumSize; Application.DoEvents();
+                Fits(form, reasonBox, "long recovery reason remains accessible at minimum size");
+                Fits(form, Field<Button>(form, "btnConfirm"), "minimum recovery retry button is accessible");
+                Fits(form, Field<Button>(form, "btnCheckResult"), "minimum recovery result lookup is accessible");
+                Check(reasonBox.ScrollBars == ScrollBars.Vertical, "long original reason is scrollable");
+                Save(form, directory, "lifecycle-recovery-minimum.png");
+            }
+            Field<Button>(form, "btnCheckResult").PerformClick(); Application.DoEvents();
+            Check(workflow.CanRetry && service.Lookups == 1 && service.Keys == 1 && service.Changes == 1
+                && reasonBox.Text == reason, "not_recorded preserves displayed original input without automatic resend: " + kind);
+            Field<Button>(form, "btnConfirm").PerformClick(); Application.DoEvents();
+            Check(workflow.State == TaskLifecycleState.Succeeded && service.Keys == 1 && service.Changes == 2
+                && ReferenceEquals(service.LastRequest, request) && ReferenceEquals(service.FirstKey, service.LastKey),
+                "explicit recovery retry sends the same original request and key: " + kind);
+            service.CancelSession(); Application.DoEvents();
+            Check(reasonBox.Text.Length == 0 && dateBox.Text.Length == 0 && !form.ShouldRefreshList,
+                "session replacement clears recovery input and success: " + kind);
+            form.Close();
+        }
+
+        using var forbiddenService = new FakeService { NextFailure = TaskLifecycleFailure.Unavailable };
+        using var forbiddenWorkflow = new TaskLifecycleWorkflow(forbiddenService);
+        forbiddenWorkflow.SubmitAsync(Request()).GetAwaiter().GetResult();
+        using var forbidden = new TaskLifecycleForm(forbiddenWorkflow, forbiddenService);
+        forbidden.Show(); Application.DoEvents(); forbiddenService.LookupFailure = TaskLifecycleFailure.Forbidden;
+        Field<Button>(forbidden, "btnCheckResult").PerformClick(); Application.DoEvents();
+        ShowWorkflow(forbidden);
+        Check(Field<TextBox>(forbidden, "txtReason").Text.Length == 0 && Field<TextBox>(forbidden, "txtRequestedDueDate").Text.Length == 0
+            && !Field<Button>(forbidden, "btnConfirm").Enabled, "forbidden lookup never re-renders the retained private input");
+        forbidden.Close(); ShowWorkflow(forbidden);
+        Check(Field<TextBox>(forbidden, "txtReason").Text.Length == 0, "closed recovery cannot restore old input");
+
+        using var editService = new FakeService { NextFailure = TaskLifecycleFailure.InvalidInput };
+        using var editWorkflow = new TaskLifecycleWorkflow(editService);
+        using var editable = new TaskLifecycleForm(TaskLifecycleKind.Cancel, "9", editService, editWorkflow);
+        editable.Show(); Application.DoEvents(); editWorkflow.SubmitAsync(Request()).GetAwaiter().GetResult(); Application.DoEvents();
+        Field<TextBox>(editable, "txtReason").Text = "새로 고친 사유"; ShowWorkflow(editable);
+        Check(editWorkflow.State == TaskLifecycleState.Editing && Field<TextBox>(editable, "txtReason").Text == "새로 고친 사유"
+            && !Field<TextBox>(editable, "txtReason").ReadOnly, "definite failure never restores old pending input over the new edit");
+        editable.Close();
+    }
+    private static void UiReadPermissionLoss()
+    {
+        using (var service = new FakeService())
+        using (var workflow = new TaskLifecycleWorkflow(service))
+        using (var form = new TaskLifecycleForm(TaskLifecycleKind.Cancel, "9", service, workflow))
+        {
+            form.Show(); Application.DoEvents();
+            Field<TextBox>(form, "txtReason").Text = "현재 권한으로만 볼 입력";
+            service.NextContextFailure = TaskLifecycleFailure.Forbidden;
+            CheckInput(form).GetAwaiter().GetResult(); Application.DoEvents();
+            Check(Field<TextBox>(form, "txtReason").Text.Length == 0 && Field<TextBox>(form, "txtRequestedDueDate").Text.Length == 0
+                && Field<TextBox>(form, "txtContext").Text == "현재 업무 확인 필요" && !Field<Button>(form, "btnConfirm").Enabled,
+                "current input-check 403 clears protected context and input before allowing another confirmation");
+            Check(workflow.PendingRequest is null && service.Keys == 0 && service.Changes == 0
+                && Field<Button>(form, "btnReload").Enabled, "read permission failure never creates a write and permits explicit fresh authorization");
+            form.ReloadAsync().GetAwaiter().GetResult();
+            Field<TextBox>(form, "txtReason").Text = "서버 오류 뒤 유지할 입력";
+            service.NextContextFailure = TaskLifecycleFailure.Unavailable;
+            CheckInput(form).GetAwaiter().GetResult(); Application.DoEvents();
+            Check(Field<TextBox>(form, "txtReason").Text == "서버 오류 뒤 유지할 입력" && Field<Button>(form, "btnConfirm").Enabled,
+                "transient input-check failure preserves editable input instead of treating it as revoked access");
+            form.Close();
+        }
+        foreach (string boundary in new[] { "new-generation", "closed-form", "expired-session" })
+        {
+            using var service = new FakeService(); using var workflow = new TaskLifecycleWorkflow(service);
+            using var form = new TaskLifecycleForm(TaskLifecycleKind.Cancel, "9", service, workflow);
+            form.Show(); Application.DoEvents(); Field<TextBox>(form, "txtReason").Text = "이전 입력";
+            var late = new TaskCompletionSource<TaskLifecycleContext>(TaskCreationOptions.RunContinuationsAsynchronously);
+            service.DelayedContext = late; Task pending = CheckInput(form);
+            Check(!pending.IsCompleted, "input-check read is genuinely pending: " + boundary);
+            service.DelayedContext = null;
+            TaskLifecycleForm active = form;
+            if (boundary == "new-generation") form.ReloadAsync().GetAwaiter().GetResult();
+            else if (boundary == "closed-form")
+            {
+                form.Dispose(); active = new TaskLifecycleForm(TaskLifecycleKind.Cancel, "9", service, workflow);
+                active.Show(); Application.DoEvents();
+            }
+            else { service.CancelSession(); Application.DoEvents(); }
+            if (boundary != "expired-session") Field<TextBox>(active, "txtReason").Text = "새 화면의 현재 입력";
+            late.SetException(new TaskLifecycleException(TaskLifecycleFailure.Forbidden));
+            var timeout = System.Diagnostics.Stopwatch.StartNew();
+            while (!pending.IsCompleted && timeout.Elapsed < TimeSpan.FromSeconds(5)) { Application.DoEvents(); Thread.Sleep(1); }
+            Check(pending.IsCompleted, "late input-check settles without blocking UI: " + boundary);
+            pending.GetAwaiter().GetResult(); Application.DoEvents();
+            if (boundary == "expired-session")
+                Check(Field<TextBox>(active, "txtReason").Text.Length == 0 && Field<Label>(active, "lblStatus").Text.Contains("접속이 변경")
+                    && !Field<Button>(active, "btnConfirm").Enabled, "late 403 cannot replace the session-invalidated screen");
+            else
+                Check(Field<TextBox>(active, "txtReason").Text == "새 화면의 현재 입력" && Field<Button>(active, "btnConfirm").Enabled
+                    && workflow.State == TaskLifecycleState.Editing, "late old 403 cannot erase or block current input: " + boundary);
+            Check(service.Keys == 0 && service.Changes == 0 && workflow.PendingRequest is null,
+                "read race never sends or changes an immutable write request: " + boundary);
+            active.Close(); if (!ReferenceEquals(active, form)) active.Dispose();
+        }
+    }
+    private static Task CheckInput(Form form) => (Task)form.GetType().GetMethod("CheckInputAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(form, null)!;
+    private static void ShowWorkflow(Form form) => form.GetType().GetMethod("ShowWorkflow", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(form, null);
     private static T Field<T>(object target, string name) => (T)target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(target)!;
     private static void Fits(Control parent, Control control, string label)
     { Rectangle rectangle = parent.RectangleToClient(control.RectangleToScreen(control.ClientRectangle)); Check(rectangle.Left >= 0 && rectangle.Top >= 0 && rectangle.Right <= parent.ClientSize.Width && rectangle.Bottom <= parent.ClientSize.Height, label); }
@@ -279,23 +405,32 @@ internal static class Program
         private readonly CancellationTokenSource session = new();
         public bool AllowCurrent = true;
         public bool IsCurrent => AllowCurrent && !session.IsCancellationRequested;
-        public int UserId => 1; public bool IsAdministrator => true;
+        public int Actor = 1;
+        public int UserId => Actor; public bool IsAdministrator => Actor == 1;
         public CancellationToken SessionCancellation => session.Token;
-        public int Keys, Changes; public TaskLifecycleFailure? NextFailure, LookupFailure;
+        public int Keys, Changes, ContextReads, Lookups; public TaskLifecycleFailure? NextFailure, LookupFailure, NextContextFailure;
+        public TaskCompletionSource<TaskLifecycleContext>? DelayedContext;
+        public TaskLifecycleRequest? LastRequest;
         public TaskLifecycleKey? FirstKey, LastKey; public TaskCompletionSource<TaskLifecycleResult>? Delayed;
         public TaskLifecycleContext CurrentContext = Context();
         public IReadOnlyList<TaskExtensionRequest> ExtensionRows = new[] { Extension() };
-        public Task<TaskLifecycleContext> GetContextAsync(string id, CancellationToken ct = default) => Task.FromResult(CurrentContext);
+        public Task<TaskLifecycleContext> GetContextAsync(string id, CancellationToken ct = default)
+        {
+            ContextReads++;
+            if (NextContextFailure is { } failure) { NextContextFailure = null; return Task.FromException<TaskLifecycleContext>(new TaskLifecycleException(failure)); }
+            return DelayedContext?.Task ?? Task.FromResult(CurrentContext);
+        }
         public Task<IReadOnlyList<TaskExtensionRequest>> GetExtensionsAsync(TaskQueryScope scope, TaskExtensionStatus? status = null, CancellationToken ct = default) => Task.FromResult(ExtensionRows);
         public Task<TaskLifecycleKey> GetRequestKeyAsync(TaskLifecycleRequest request, CancellationToken ct = default) { Keys++; FirstKey ??= Key(request); return Task.FromResult(FirstKey); }
         public Task<TaskLifecycleResult> ChangeAsync(TaskLifecycleRequest request, TaskLifecycleKey key, CancellationToken ct = default)
         {
-            Changes++; LastKey = key;
+            Changes++; LastKey = key; LastRequest = request;
             if (NextFailure is { } failure) { NextFailure = null; return Task.FromException<TaskLifecycleResult>(new TaskLifecycleException(failure)); }
             return Delayed?.Task ?? Task.FromResult(Result(request));
         }
-        public Task<TaskLifecycleLookup> GetResultAsync(TaskLifecycleRequest request, TaskLifecycleKey key, CancellationToken ct = default) => LookupFailure is { } failure
-            ? Task.FromException<TaskLifecycleLookup>(new TaskLifecycleException(failure)) : Task.FromResult(new TaskLifecycleLookup(false));
+        public Task<TaskLifecycleLookup> GetResultAsync(TaskLifecycleRequest request, TaskLifecycleKey key, CancellationToken ct = default)
+        { Lookups++; return LookupFailure is { } failure
+            ? Task.FromException<TaskLifecycleLookup>(new TaskLifecycleException(failure)) : Task.FromResult(new TaskLifecycleLookup(false)); }
         public void CancelSession() => session.Cancel(); public void Dispose() => session.Dispose();
     }
     private sealed class HttpFixture : HttpMessageHandler

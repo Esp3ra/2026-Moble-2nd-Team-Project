@@ -16,11 +16,17 @@
     const choose = panel.querySelector("[data-attachment-choose]");
     const upload = panel.querySelector("[data-attachment-upload]");
     const idsField = panel.querySelector("[data-attachment-ids]");
+    const displayField = panel.querySelector("[data-attachment-display]");
     const editable = config.mode !== "read";
     const canHash = !!(globalThis.crypto && globalThis.crypto.subtle);
-    if (!feedback || !list || !count || !refresh || (editable && (!form || !input || !choose || !upload || !idsField))) return;
+    if (!feedback || !list || !count || !refresh || (editable && (!form || !input || !choose || !upload || !idsField || !displayField))) return;
     let alive = true, busy = false, loaded = !config.taskId, explicit = config.explicit === true, serial = 0;
-    let rows = (config.ids || []).map(id => ({key: ++serial, id, name: id, state: "selected", linked: false}));
+    const display = restoredDisplay();
+    let rows = (config.ids || []).map(id => {
+      const hint = display.get(id);
+      return {key: ++serial, id, name: id, ...hint, state: "selected", linked: false,
+        restored: !!hint, temporary: hint?.temporary === true};
+    });
     const controller = new AbortController();
     function say(message, error = false) {
       feedback.textContent = message;
@@ -33,6 +39,7 @@
       alive = false; controller.abort(); rows = []; loaded = false;
       if (input) input.value = "";
       if (idsField) { idsField.value = "[]"; idsField.disabled = true; }
+      if (displayField) { displayField.value = ""; displayField.disabled = true; }
       render(); say(message, true);
     }
     function endpoint(kind, id) {
@@ -75,6 +82,22 @@
       }
       return item;
     }
+    function restoredDisplay() {
+      // These are past display hints, never proof of ownership or current linkage.
+      const result = new Map(), items = config.display;
+      if (items === undefined || items === null) return result;
+      if (!Array.isArray(items) || items.length > 10) return result;
+      try {
+        for (const item of items) {
+          metadata(item);
+          if (Object.keys(item).sort().join(",") !== "attachment_id,name,sha256,size,temporary"
+              || typeof item.temporary !== "boolean" || !(config.ids || []).includes(item.attachment_id)
+              || result.has(item.attachment_id)) return new Map();
+          result.set(item.attachment_id, {name: item.name, size: item.size, sha256: item.sha256, temporary: item.temporary});
+        }
+      } catch (_) { return new Map(); }
+      return result;
+    }
     function same(a, b) { return a.attachment_id === b.attachment_id && a.name === b.name && a.size === b.size && a.sha256 === b.sha256; }
     async function readList() {
       const result = await request(endpoint("list"));
@@ -92,7 +115,9 @@
         const labels = {local: "선택됨 · 전송 전", uploading: "전송 확인 중", ready: "전송 완료 · 업무 저장 전",
           linked: "현재 업무 첨부", selected: "선택 ID · 저장 시 재검사", uncertain: "전송 결과 확인 필요 · 같은 파일로 이어서 확인",
           start_unknown: "전송 시작 결과 불명 · 자동 재시작 안 함", discard_unknown: "삭제 결과 확인 필요"};
-        meta.textContent = `${row.size === undefined ? "" : row.size + " B · "}${labels[row.state]}`;
+        const stateLabel = row.restored && row.state === "selected"
+          ? "이전 업로드 정보 · 저장·삭제 시 재검사" : labels[row.state];
+        meta.textContent = `${row.size === undefined ? "" : row.size + " B · "}${stateLabel}`;
         info.append(name, meta); li.append(info);
         function button(label, action, needsHash = false) {
           const b = document.createElement("button"); b.type = "button"; b.className = "secondary";
@@ -101,8 +126,8 @@
         }
         if (row.linked) button("다운로드", () => run(() => download(row)), true);
         if (editable) {
-          if (row.temporary && row.id) button(row.state === "discard_unknown" ? "임시 삭제 다시 확인" : "임시 파일 삭제", () => {
-            if (window.confirm("내 미연결 임시 파일을 서버에서 삭제할까요? 업무 저장은 실행하지 않습니다.")) run(() => discard(row));
+          if (row.temporary && !row.linked && row.id) button(row.state === "discard_unknown" ? "임시 삭제 다시 확인" : "임시 파일 삭제", () => {
+            if (window.confirm("선택한 임시 파일의 삭제를 요청할까요? 현재 소유·연결 상태는 서버에서 다시 검사합니다. 업무 저장은 실행하지 않습니다.")) run(() => discard(row));
           });
           else button(row.id ? "업무에서 제외" : "선택에서 제외", () => {
             if (row.state === "start_unknown" && !window.confirm("시작 결과가 불명확해 서버 임시 파일이 남아 있을 수 있습니다. 화면 선택만 지울까요?")) return;
@@ -124,7 +149,17 @@
         choose.disabled = input.disabled;
         upload.disabled = !alive || busy || !loaded || !canHash || !rows.some(row => row.file && ["local", "uncertain"].includes(row.state));
         idsField.disabled = !explicit || !alive;
-        idsField.value = JSON.stringify(rows.filter(row => row.id && ["ready", "linked", "selected"].includes(row.state)).map(row => row.id));
+        const selected = rows.filter(row => row.id && ["ready", "linked", "selected"].includes(row.state));
+        idsField.value = JSON.stringify(selected.map(row => row.id));
+        const items = [];
+        for (const row of selected) {
+          try {
+            const item = metadata({attachment_id: row.id, name: row.name, size: row.size, sha256: row.sha256});
+            items.push({...item, temporary: row.temporary === true && !row.linked});
+          } catch (_) { /* A selected ID alone must not invent display or deletion information. */ }
+        }
+        displayField.disabled = !explicit || !alive;
+        displayField.value = alive ? JSON.stringify({mode: config.mode, task_id: config.taskId, items}) : "";
       }
     }
     async function run(operation) {
@@ -142,7 +177,10 @@
       if (!explicit || !editable) rows = items.map(item => ({...item, key: ++serial, id: item.attachment_id, state: "linked", linked: true}));
       else rows.forEach(row => {
         const item = items.find(item => item.attachment_id === row.id);
-        if (item) { Object.assign(row, item); row.linked = true; if (row.state === "selected") row.state = "linked"; }
+        if (item) {
+          Object.assign(row, item); row.linked = true; row.temporary = false; row.restored = false;
+          if (row.state === "selected") row.state = "linked";
+        }
         else { row.linked = false; if (row.state === "linked") row.state = "selected"; }
       });
       loaded = true;

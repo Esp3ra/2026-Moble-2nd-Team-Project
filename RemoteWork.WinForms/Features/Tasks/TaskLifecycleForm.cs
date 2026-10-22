@@ -81,7 +81,16 @@ public partial class TaskLifecycleForm : Form
             checkedRequest = TaskLifecycleRequest.Create(kind, current, service.UserId, txtReason.Text, date, request);
             RenderContext(); lblStatus.Text = "입력·대상을 확인했습니다. ‘실행’을 눌러 서버에 요청하세요. 아직 저장하지 않았습니다.";
         }
-        catch (Exception error) { if (Current(mine)) { checkedRequest = null; lblStatus.Text = ReadError(error); } }
+        catch (Exception error)
+        {
+            if (Current(mine))
+            {
+                if (error is TaskLifecycleException { Failure: TaskLifecycleFailure.Forbidden or TaskLifecycleFailure.AuthenticationExpired })
+                    ClearInput();
+                else checkedRequest = null;
+                lblStatus.Text = ReadError(error);
+            }
+        }
         finally { if (mine == generation && !stopped) { busy = false; SetButtons(); } }
     }
     private long BeginRead()
@@ -123,7 +132,25 @@ public partial class TaskLifecycleForm : Form
             SetButtons(); return;
         }
         else if (snapshot.State != TaskLifecycleState.Editing || snapshot.Failure is not null)
-        { checkedRequest = null; lblStatus.Text = snapshot.Message; if (snapshot.Failure == TaskLifecycleFailure.Forbidden) ClearInput(); }
+        {
+            checkedRequest = null; lblStatus.Text = snapshot.Message;
+            if (snapshot.Failure == TaskLifecycleFailure.Forbidden) ClearInput();
+            else if (snapshot.State != TaskLifecycleState.Editing && snapshot.PendingRequest is { } pending)
+            {
+                // Display the retained request, never a newly fetched/current value.
+                // Editing after a definite failure must keep the user's new input.
+                filling = true;
+                try
+                {
+                    txtReason.Text = pending.Reason;
+                    txtRequestedDueDate.Text = pending.RequestedDueDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "";
+                    txtContext.Text = $"원래 요청 · 업무 {pending.TaskId}\r\n동작: {Caption(pending.Kind)}"
+                        + (pending.ExtensionId is { } id ? $" · 신청 #{id}" : "")
+                        + $"\r\n기존 마감일: {pending.OriginalDueDate:yyyy-MM-dd}\r\n현재 조회값이 아닌 원래 요청을 읽기 전용으로 표시합니다.";
+                }
+                finally { filling = false; }
+            }
+        }
         if (snapshot.State == TaskLifecycleState.Succeeded && snapshot.Result is { } result)
         {
             ConfirmedResult = result; ShouldRefreshList = true;
