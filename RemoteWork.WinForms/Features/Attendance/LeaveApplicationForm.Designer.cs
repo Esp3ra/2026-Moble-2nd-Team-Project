@@ -219,6 +219,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             CancelButton = btnClose;
             Text = "연차 신청";
             Name = "LeaveApplicationForm";
+            FormClosing += LeaveApplication_Closing;
             Controls.Add(layoutPage);
             flowActions.ResumeLayout(false);
             layoutFields.ResumeLayout(false);

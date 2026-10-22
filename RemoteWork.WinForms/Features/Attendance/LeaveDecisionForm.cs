@@ -11,7 +11,7 @@ namespace RemoteWork.WinForms.Features.Attendance
         private readonly bool readOnly;
         private readonly CancellationTokenSource lifetime = new();
         private CancellationTokenRegistration sessionEnding;
-        private bool busy, ended, uncertain;
+        private bool busy, ended, uncertain, reviewedClose;
         private Guid? requestId;
         private string? frozenDecision, frozenReason;
         public bool DecisionCompleted { get; private set; }
@@ -109,6 +109,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             requestId ??= Guid.NewGuid();
             frozenDecision ??= decision;
             frozenReason ??= reason;
+            reviewedClose = false;
             busy = true;
             SetButtons();
             lblStatus.Text = uncertain ? "같은 처리 결과 확인 중…" : "검토 결과 저장 중…";
@@ -139,6 +140,22 @@ namespace RemoteWork.WinForms.Features.Attendance
         private void ClosePreview_Click(object? sender, EventArgs e)
         {
             Close();
+        }
+
+        private void LeaveDecision_Closing(object? sender, FormClosingEventArgs e)
+        {
+            if (readOnly || !Live || DecisionCompleted) return;
+            if (busy)
+            {
+                e.Cancel = true;
+                lblStatus.Text = "검토 결과 저장 중입니다. 결과를 확인한 뒤 닫아주세요. 닫기는 처리 취소가 아닙니다.";
+                return;
+            }
+            if (uncertain && !reviewedClose)
+            {
+                e.Cancel = true; reviewedClose = true;
+                lblStatus.Text = "처리 결과 미확인 · 같은 결과 확인을 권장합니다.\n닫으려면 다시 닫기를 누르세요. 닫은 뒤에는 목록에서 처리 여부를 먼저 확인해 주세요.";
+            }
         }
     }
 }

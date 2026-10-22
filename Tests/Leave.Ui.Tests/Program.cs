@@ -31,6 +31,8 @@ internal static class Program
                 ListScope(false); ListScope(true); LateList();
                 FilteredList(false); FilteredList(true); EmptyAndFailedList(); InputSummary();
                 RejectionDetails(); RejectionScopeAndMissing(); RejectionList();
+                ClosingSubmission(false); ClosingSubmission(true);
+                ClosingDecision(false); ClosingDecision(true); ClosingDecisionSessionEnded();
                 if (args.Length == 1) Render(args[0]);
                 Console.WriteLine($"PASS Leave UI: {checks} assertions; actual WinForms + synthetic workflow/identity; no real server, database or device.");
                 result = 0;
@@ -119,6 +121,71 @@ internal static class Program
         var task = Call(form, "ApplyAsync");
         flow.SubmitCompletion.SetResult(new(flow.Submissions[0].Id, Request(99))); Complete(task);
         Check(!form.SubmissionCompleted, "Other applicant receipt rejected");
+    }
+    private static void ClosingSubmission(bool recover)
+    {
+        using var api = Login(); var flow = new Workflow();
+        using var form = new LeaveApplicationForm(api.CaptureSession(), flow); form.Show(); Fill(form);
+        var pending = Call(form, "ApplyAsync"); Guid id = flow.Submissions[0].Id;
+        form.Close();
+        Check(form.Visible && !flow.LastCancellation.IsCancellationRequested, "Closing pending application preserves the in-flight request");
+        flow.SubmitCompletion.SetException(new HttpRequestException()); Complete(pending);
+        form.Close();
+        Check(form.Visible && Field<Label>(form, "lblStatus").Text.Contains("목록"), "Unknown application close warns before losing in-memory recovery");
+        Check(flow.Submissions.Count == 1, "Closing never sends a new application or cancellation");
+        if (recover)
+        {
+            flow.SubmitCompletion = new(); pending = Call(form, "ApplyAsync");
+            Check(flow.Submissions.Count == 2 && flow.Submissions[1] == flow.Submissions[0], "Recovery after closing warning keeps original application key/body");
+            form.Close(); Check(form.Visible, "Retry in-flight still prevents closing");
+            flow.SubmitCompletion.SetResult(new(id, Request())); Complete(pending);
+            form.Close(); Check(form.IsDisposed && form.SubmissionCompleted, "Confirmed application closes normally");
+        }
+        else
+        {
+            flow.SubmitCompletion = new(); pending = Call(form, "ApplyAsync");
+            flow.SubmitCompletion.SetException(new HttpRequestException()); Complete(pending);
+            form.Close(); Check(form.Visible, "Another uncertain attempt requires a fresh closing warning");
+            form.Close(); Check(form.IsDisposed && !form.SubmissionCompleted, "Explicit second close does not fabricate application success");
+            Check(flow.Submissions.All(x => x.Id == id), "Closing warning never replaces frozen application identity");
+        }
+    }
+    private static void ClosingDecision(bool recover)
+    {
+        using var api = Login(true); var flow = new Workflow();
+        using var form = new LeaveDecisionForm(api.CaptureSession(), flow, Request()); form.Show();
+        Field<TextBox>(form, "txtDecisionReason").Text = "원래 반려 의견";
+        var pending = Call(form, "DecideAsync", "rejected"); Guid id = flow.Decisions[0].Id;
+        form.Close();
+        Check(form.Visible && !flow.LastCancellation.IsCancellationRequested, "Closing pending decision preserves the in-flight request");
+        flow.DecisionCompletion.SetException(new HttpRequestException()); Complete(pending);
+        form.Close();
+        Check(form.Visible && Field<Label>(form, "lblStatus").Text.Contains("목록"), "Unknown decision close warns before losing in-memory recovery");
+        Check(flow.Decisions.Count == 1 && !Field<Button>(form, "btnApprove").Enabled, "Closing cannot send a new or opposite decision");
+        flow.DecisionCompletion = new(); pending = Call(form, "DecideAsync", "rejected");
+        Check(flow.Decisions.Count == 2 && flow.Decisions[1] == flow.Decisions[0], "Recovery after closing warning keeps decision key/revision/body");
+        if (recover)
+        {
+            form.Close(); Check(form.Visible, "Retrying decision cannot close before result");
+            flow.DecisionCompletion.SetResult(new(id, Request() with { Status = "rejected", Revision = "r2", DecisionReason = "원래 반려 의견" })); Complete(pending);
+            form.Close(); Check(form.IsDisposed && form.DecisionCompleted, "Confirmed rejection closes normally");
+        }
+        else
+        {
+            flow.DecisionCompletion.SetException(new HttpRequestException()); Complete(pending);
+            form.Close(); Check(form.Visible, "Another uncertain decision requires a fresh closing warning");
+            form.Close(); Check(form.IsDisposed && !form.DecisionCompleted, "Explicit second close does not fabricate decision success");
+        }
+    }
+    private static void ClosingDecisionSessionEnded()
+    {
+        using var api = Login(true); var flow = new Workflow();
+        using var form = new LeaveDecisionForm(api.CaptureSession(), flow, Request()); form.Show();
+        var pending = Call(form, "DecideAsync", "approved");
+        api.ClearIdentity(); Application.DoEvents();
+        Check(!form.Visible && flow.LastCancellation.IsCancellationRequested, "Ended login overrides pending-decision closing guard");
+        flow.DecisionCompletion.SetResult(new(flow.Decisions[0].Id, Request() with { Status = "approved", Revision = "r2" })); Complete(pending);
+        Check(!form.DecisionCompleted, "Late decision after forced login end cannot show success");
     }
     private static void LateSubmission(bool logout)
     {
@@ -337,6 +404,6 @@ internal static class Program
         { LastCancellation = cancellation; Submissions.Add((draft, requestId)); return SubmitCompletion.Task; }
         public Task<IReadOnlyList<LeaveRequestView>> ListAsync(CancellationToken cancellation) { ListCalls++; return ListCompletion.Task; }
         public Task<LeaveDecisionReceipt> DecideAsync(LeaveRequestView request, string decision, string reason, Guid requestId, CancellationToken cancellation)
-        { Decisions.Add((request, decision, reason, requestId)); return DecisionCompletion.Task; }
+        { LastCancellation = cancellation; Decisions.Add((request, decision, reason, requestId)); return DecisionCompletion.Task; }
     }
 }

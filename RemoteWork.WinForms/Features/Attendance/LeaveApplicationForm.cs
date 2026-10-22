@@ -9,7 +9,7 @@ namespace RemoteWork.WinForms.Features.Attendance
         private readonly ILeaveWorkflow workflow = new UnconnectedLeaveWorkflow();
         private readonly CancellationTokenSource lifetime = new();
         private CancellationTokenRegistration sessionEnding;
-        private bool busy, finished, uncertain, ended;
+        private bool busy, finished, uncertain, ended, reviewedClose;
         private Guid? requestId;
         private LeaveDraft? frozenDraft;
         public bool SubmissionCompleted { get; private set; }
@@ -101,6 +101,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             { lblStatus.Text = "처리 중인 신청 내용이 달라졌습니다. 이전 신청 결과부터 확인해 주세요."; return; }
             requestId ??= Guid.NewGuid();
             frozenDraft ??= draft;
+            reviewedClose = false;
             busy = true;
             SetInput(false);
             btnApplyLeave.Enabled = false;
@@ -137,6 +138,22 @@ namespace RemoteWork.WinForms.Features.Attendance
         private void ClosePreview_Click(object? sender, EventArgs e)
         {
             Close();
+        }
+
+        private void LeaveApplication_Closing(object? sender, FormClosingEventArgs e)
+        {
+            if (!Live || finished) return;
+            if (busy)
+            {
+                e.Cancel = true;
+                lblStatus.Text = "신청 처리 중입니다. 결과를 확인한 뒤 닫아주세요. 닫기는 신청 취소가 아닙니다.";
+                return;
+            }
+            if (uncertain && !reviewedClose)
+            {
+                e.Cancel = true; reviewedClose = true;
+                lblStatus.Text = "신청 결과 미확인 · 같은 신청 확인을 권장합니다.\n닫으려면 다시 닫기를 누르세요. 닫은 뒤에는 목록에서 처리 여부를 먼저 확인해 주세요.";
+            }
         }
 
     }
