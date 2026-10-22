@@ -1,5 +1,152 @@
 # 3번 공용 첨부 제공 계약 — 로컬 구현, 소비/DB 반영 전 검토
 
+## 2026-10-22 공지·채팅 제공부 작업 경계 — 구현 전 기록
+
+기준 alpha `7692ce41cf36e89e6f5881b61efcc7fcb05fe5e5`, LOG
+`d98f6473c2942d5e480e5018b604c11e9e6a278f`, 4번의 PR54 기존 통합 댓글
+`member4-notice-chat-file-ports-20261022` 요청을 따른다.
+3번 소유 파일 전송·검증·참조 함수와 cookie 어댑터만 확장한다.
+1·2·4·5번 제품, 기존 업무/제출 참조와 정식013, 폼/화면은 변경하지 않는다.
+4번이 현재 공지/채팅 권한 콜백과 저장 TX에서 소비하고 1번이 별도 참조 DDL을
+검토해야 실제 화면에서 사용할 수 있다. 새 삭제/보존 정책, 등록 필드, 자동 재전송은
+확정하지 않는다. 아래 추가 제공 계약은 4번 소비 계약의 제안이며 수신 합의가 아니다.
+실제 DB 적용·서버 재시작·원격 게시를 하지 않는다.
+
+### 공지·채팅 제공 코드와 상태
+
+- **로컬 제공 완료:** `features/shared_resource_attachments.py`의 전송/조회/참조 함수,
+  `results_web.py`의 cookie 어댑터, `shared_attachments.py`의 전체 참조 보존/정리 연결.
+  모든 경로는 `RemoteWork.Server/remotework/` 아래이다. 기존 4개 폼은 변경하지 않는다.
+- **기존 기준 유지:** 25MiB/파일, 최종 목록10개, 16KiB/base64 조각, SHA256,
+  미연결24시간, 현재 로그인·자원 권한 재검사, A 해제 후 B 보존. 013/업무·제출 참조는 그대로다.
+- **소비 계약 제안:** 아래 콜백/함수/경로를 4번이 기존 저장·화면에 연결하는 방식.
+  공지/채팅의 기존 등록 HTTP 입력에 `attachment_ids`가 이미 있다고 주장하지 않는다.
+  필드·요청 identity·기존 성공 재생 처리의 실제 소비는 4번 변경/합의가 필요하다.
+- **DDL 검토안:** `docs/sql/notice_chat_attachments.mysql.sql`. 번호를 선점하지 않았다.
+  기존003/005/013을 요구하는 별도3테이블이며 기존 테이블 ALTER/초기화/seed/CASCADE가 없다.
+  `ResourceBase`는 공통 Base와 분리했다. FK 대상 메타정보는 DDL 참조용 최소 정의이며
+  4번 모델을 자동 등록하거나 4번 DB를 직접 읽는 권한 구현이 아니다.
+- **협의/미제공:** 공지 물리 삭제 때 파일 연결 해제/보존을 실행할 조건, 채팅의
+  향후 물리 삭제/탈퇴 보존 정책, 4번 실제 UI/저장 소비와 공지 저장 요청의 결과 불명 복구.
+  새 정책이나 소비 코드를 대신 구현하지 않았다. 채팅 본인 숨김은 참조 해제가 아니다.
+
+### 4번 권한 콜백과 동일 TX
+
+앱 시작 시 최초 요청 전에 다음 제공부를 사용한다. 권한 콜백이 없으면 해당 자원의
+경로는503 `RESOURCE_ATTACHMENT_ADAPTER_REQUIRED`이며 admin을 기본 허용하지 않는다.
+
+```python
+provider = app.extensions["results_resource_attachments"]
+provider.register_adapter(app, "notice",
+    authorize_upload=notice_upload_authority,
+    authorize_resource=notice_resource_authority)
+provider.register_adapter(app, "chat",
+    authorize_upload=chat_upload_authority,
+    authorize_resource=chat_resource_authority)
+```
+
+- `authorize_upload(db, context_id) -> True`: 공지는 context_id=None에서 현재 관리자 작성
+  권한, 채팅은 정규 방UUID에서 현재 참여·개인 숨김·계정 상태를 4번이 확인한다.
+  정확히 True가 아니면403이다. 업로드 시작/조각/완료/상태조회/임시삭제 때 검사하며,
+  파일 IO가 있는 조각/완료는 기존 공통 전송 코드가 IO 전후 각각 검사한다.
+- `authorize_resource(db, resource_id, operation) -> ResourceAccess(context_id)`:
+  operation은 `read`/`attach`/`release`이다. 공지는 양수 signed INTEGER(최대2147483647),
+  채팅은 공개 메시지UUID이며 seq나 업무ID로 대체하지 않는다. 공지에서는
+  ResourceAccess(None), 채팅에서는 실제 메시지가 속한 방UUID를 반환한다.
+  None/임의 bool 반환은 권한 허용이 아니다. 현재 대상/참여·숨김·회수와
+  자원 존재 및 해당 쓰기 권한은 4번이 검사하고403/404 등 기존 오류를 낸다.
+- 콜백은 호출자의 `authenticated_transaction()`과 같은 db에서 현재 locking read 및
+  `populate_existing=True`를 사용한다. 공통 순서 guard → 현재 actor/session →
+  자원/참여자(여러 사용자면 ID 정렬) → 파일/참조를 유지한다. commit/rollback,
+  중첩 TX, 네트워크/파일 IO를 콜백에 추가하지 않는다. 현재 공통 guard 아래만
+  호출하므로 별도 전역 잠금이나 격리 수준 변경은 없다.
+- 현재 읽기 권한은 목록 조회와 다운로드 IO 전후 모두 재검사한다.
+  A 경로는 A의 현재 참조를 요구한다. B 참조가 남았다고 A 경로를 허용하지 않는다.
+  임시 파일은 소유자만 처리한다. 업로드 소유권을 공개 다운로드 권한으로 사용하지 않는다.
+
+### 4번 저장 TX에서 사용할 함수
+
+```python
+# 4번의 기존 인증 TX 안에서 원 공지/메시지 및 감사와 함께 호출한다.
+# 공지/메시지 행은 먼저 flush하되 commit은 하지 않는다.
+files = provider.replace_resource_files(db, "notice", notice.id, final_attachment_ids)
+files = provider.replace_resource_files(db, "chat", message.message_id, final_attachment_ids)
+# 아래는 물리 삭제/연결 해제 정책 합의 후, 원 자원 삭제 전의 동일 TX에서만 호출.
+provider.release_resource_files(db, "notice", notice.id)
+```
+
+`replace_resource_files`의 파라미터는 최종 전체 파일ID 배열이다. 배열 원문은
+호출자가 보존하고 중복 제거/정렬해서 원 요청을 바꾸지 않는다. 중복/형식/10개 초과400,
+권한/다른 자원 종류·채팅방 범위403, 미완료409, 스키마 미준비503이다.
+처음 연결은 본인 유효 임시 파일만 가능하다. 이미 연결된 파일을 재사용할 때는
+원 자원의 현재 열람 권한도 필요하며 공지↔채팅/다른 채팅방 공유를 새 정책으로
+허용하지 않는다. 새 작업의 참조/원 자원/감사가 같은 TX에서 전부 저장되거나 rollback된다.
+이 함수는 등록/수정 필드를 확정하거나 자원 버전/감사/원UUID/receipt를 별도로 저장하지 않는다.
+
+현재 공지 `create_notice_record`에는 영속 요청UUID/W1 결과 조회가 없다.
+따라서 공지 저장의 응답 유실을 이 제공부만으로 복구 완료했다고 표시하지 않는다.
+4번은 저장 요청 identity/조회 계약을 1번과 연결해야 한다. 채팅의 기존 메시지UUID
+성공 재생에서는 원 파일 ID 집합도 원문과 대조하되 이 참조 변경 함수를 재실행하지 않는다.
+구체 감사 필드/요청 필드명은 4번 소비 검토 대상이다.
+
+결과 불명 시 원 파일ID·본문·키/메시지UUID를 보존한다. 새 키/새 메시지/새 업로드로
+대체하거나 임시 파일을 자동 삭제하지 않는다. `uploads/...` 상태 GET은 전송 상태일 뿐
+공지/메시지 저장 성공 증명이 아니다. 연결 후 임시 업로드 조회·삭제는403이며,
+원 자원의 결과 조회로 성공 여부를 확인한다. 실패 확정 뒤에만 사용자가 명시적으로
+임시 삭제할 수 있다. 기존 미참조24시간 정리는 유지한다.
+
+`release_resource_files`는 호출자의 명시 권한·정책 확인 뒤 참조만 해제한다.
+다른 자원 참조가 있으면 바이트를 보존하고 마지막 참조만 없을 때 기존 deleting/재시도
+정리를 사용한다. rollback이면 원 참조/바이트를 유지한다. FK에는 CASCADE가 없어
+참조가 남은 공지/메시지의 물리 삭제는 DB가 막는다. 공지 확인 기록의 CASCADE 합의를
+파일 삭제 정책으로 확대하지 않는다. 채팅 숨김에서는 이 함수를 호출하지 않는다.
+
+### API / cookie 웹 어댑터
+
+API 기본 경로 `P=/api/v1/results/shared/resources`, 웹 `W=/results/data/shared/resources`.
+`kind`는 `notice`/`chat`만 허용한다. API는 기존 Bearer 인증만, 웹은 기존 cookie/CSRF와
+`X-Results-Session`의 원 웹 로그인 결합만 사용한다. 브라우저로 Bearer/다운로드키를 전달하지 않는다.
+
+| 제공 경로 | 입력/출력 |
+|---|---|
+| `POST P/{kind}/uploads/start` | `{name,size,sha256,context_id}` → 기존 `{attachment_id,name,size,sha256}`,201 |
+| `POST P/{kind}/uploads/{id}/chunks` | `{offset,data}`; 기존16KiB/base64·같은 바이트 재시도/충돌409 |
+| `POST P/{kind}/uploads/{id}/complete` | `{}`; 실제 전체 크기/SHA256 검사·동일 ID 명시 재시도 |
+| `GET P/{kind}/uploads/{id}` | 현재 소유자·권한 검사; 메타정보+`state,received_offsets`; 완료 처리를 하지 않음 |
+| `DELETE P/{kind}/uploads/{id}` | 현재 소유자의 미연결 임시 파일만 해제 |
+| `GET P/{kind}/{resource_id}/files` | 현재 자원 열람 권한의 `{items:[기존 파일 메타정보]}` |
+| `GET P/{kind}/{resource_id}/files/{id}/download` | 현재 해당 자원 참조 확인·파일 크기/SHA256·IO 후 현재 권한 재검사 |
+| `GET P/{kind}/{resource_id}/files/{id}/chunks?offset=0` | 기존 조각 다운로드 응답·IO 후 현재 권한 재검사 |
+
+웹에서는 P를 W로 바꾸고, 쓰기는 기존 form의 `csrf_token`과 JSON 문자열 `body`를
+전달한다. 임시 삭제만 `POST W/{kind}/uploads/{id}/discard`에 body=`{}`를 쓴다.
+조회도 X-Results-Session을 요구한다. 이 어댑터는 공지/채팅 페이지를 새로 만들지 않는다.
+
+**LAN 제약:** 서버/데스크톱의 SHA256 검사는 유지한다. 브라우저의 기존
+`crypto.subtle`은 HTTPS 또는 localhost 보안 컨텍스트가 필요하므로 사설IP의 평문HTTP에서
+동일하게 사용 가능하다고 표시하지 않는다. 이 제공부는 대체 JS 해시 구현/인증서/프록시를
+임의 설치하지 않는다. 4번 웹 소비에서 실제 접속 환경을 확인하고 지원 방식은1·3·4번이
+대조해야 한다. 기존 검사 비활성화나 업로드 완료 POST의 자동 재송신은 없다.
+
+### 이번 직접 검증 / 미실행
+
+`Tests/Results.Http.Tests/verify_resource_attachments.py`: 별도 소유 MySQL에 위 검토 SQL을
+적용하고 실제 loopback HTTP로108검사 통과. 권한/소비 콜백·공지/메시지 TX는 명시한
+시험 대역이며 4번 제품 소비가 아니다. 실제 참조 rollback, 같은 최종 목록 중복 효과,
+A 해제/B 보존, 개인 숨김/비참여 관리자 차단, IO 중 대상 변경, 임시 만료 정리,
+cookie/CSRF·접속 변경·API/web 분리·조각 충돌을 직접 확인했다.
+
+기존 회귀: 공용251(내부R52-03 105 포함, 재합산 안 함), 연결150,
+웹183·서버191 통과. 웹 회귀의 C# 실행은 `--skip-csharp`로 제외했다.
+기본off/공유만on 새 프로세스에서 DB 연결 없이 신규 자원 테이블/4번 모델의
+공통 Base 자동 등록이 없음을 확인했다. 새3테이블의 전체 FK/운영 migration 승인은
+1번 검토 대상이며 실제공유 DB/서버/두PC/브라우저/LAN 파일 전송은 미실행이다.
+
+**후속:** 4번은 실제 현재 권한 콜백·동일 저장/원요청 복구/화면 소비 및 삭제 정책 차이를
+기존 통합 댓글에 회신하고, 1번은 참조 DDL/잠금/운영 적용·복구를 검토한다.
+3번은 그 결합본으로 실제 계정·공유 환경 검증을 진행한다. 로컬 제공부 통과를
+공유 배포나 공지·채팅 최종 완료로 표시하지 않는다.
+
 사용자 확정 정책: 업무 등록 첨부와 제출 회차 첨부를 지원한다. 현재 담당자·업무 관리자·검토자만 다운로드하며 관계 변경 후 재검사한다. 업무 등록/교체/취소와 파일 연결/해제는 같은 DB 트랜잭션으로 처리한다. A의 연결 제거가 B를 지우지 않으며 마지막 연결이 없을 때만 파일을 정리한다. 업무 취소 시 업무 첨부만 해제하고 이전 제출 파일은 보존한다. 기존25MiB·10개·임시24시간 기준을 유지한다.
 
 ## 변경 경계와 협업 요청
