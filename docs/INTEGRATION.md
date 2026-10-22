@@ -223,3 +223,102 @@ C# `ApiClient`는 요청 시작 시 서버 주소·접속 세대·Bearer를 캡�
 로그아웃은 로컬 접속을 즉시 비운 뒤 캡처한 이전 Bearer로 서버 폐기를 요청합니다. 그 응답이 늦게 와도 이후 새 로그인을 지우지 않습니다. 서버 폐기 요청 실패 시 로컬 접속은 비워져 있으며 기존 서버 만료 시각은 그대로 적용됩니다.
 
 회귀 검증은 [C# 접속 테스트](../Tests/ApiClient.Tests/README.md), 서버 `tests/test_admin_concurrency.py` 및 [PR 수정 검증 기록](PR2_수정검증_2026-10-16.md)에 정리합니다.
+
+## 2026-10-22: 2·4번 연결용 마감 변경 기록 함수 — 검토 제안
+
+**제공 완료:** `record_change`는 2번의 원래 W1 mutation 안에서 업무 flush/refresh
+후 감사·receipt 전에 호출합니다. `read_current`는 현재 사건, `read_event`는 보관된
+사건을 같은 인증 세션에서 읽습니다. 실제 업무 writer 연결·HTTP/확인 저장은 별도입니다.
+**아직 미확정:** 아래 번호 없는 SQL/사건 투영·확인 키·옛 결과 권한/최초 기준 전환은
+검토 제안입니다. 기본 기동/2번 코드/공유 DB에 자동 설치하지 않습니다.
+**2번 연결:** 실제 생성은 `task.created`/version1/이전 기한 None, 실제 수정·연장 승인은
+`task.updated` 또는 `task.deadline_extension_approved`와 변경 전후 DATE를 전달합니다.
+같은 날짜는 사건을 만들지 않고 A→B→A는 서로 다른 UUID·순서를 기록합니다.
+오류는 잡아서 성공으로 바꾸지 말고 원 업무·사건·감사·receipt 전체를 롤백해야 합니다.
+기존 자료에 현재 사건이 없으면 503이며 현재 날짜로 과거 최초 사건을 만들지 않습니다.
+**4번 연결:** 사건은 업무의 실제 기한 변경이고 수신자/배정은 현재 facts로 별도 판정합니다.
+기존 초안의 `(event,user)` 확인 키와 제안한 `(event,user,assignment_revision)` 경계를
+대조하고 조회/저장/FK/영수증·성공 캐시를 함께 맞춰야 합니다. 보관 사건 reader는
+권한 검사가 아니므로 현재 own 및 원래 확인/receipt의 사용자·배정을 확인한 뒤 노출합니다.
+아래는 정확한 Python 입력·출력/잠금·실패·검증 범위입니다.
+
+This is an **executable review proposal**, not an agreed HTTP/DDL contract or a
+shared deployment. `remotework/deadline_events.py` supplies internal ports;
+neither `create_app` nor any task writer imports/calls them automatically.
+The separate `migrations/drafts/deadline_events.mysql.sql` is unnumbered. Do not
+apply it to the shared database before owner review, fresh backup/restore and
+an agreed rollout. Existing schema version1 is unchanged.
+
+### Owner2: original mutation session, no hook or second commit
+
+Call `record_change(db, task_id=..., source_row_version=...,
+source_action=..., before_due_date=..., due_date=...)` **inside the existing W1
+mutate**, after the task version/flush/refresh and before its audit/WriteResult.
+Reuse the exact authenticated session and existing AdminGuard/parent/assignment
+locks. Then the provider locks the current-event head and journal rows; it adds
+no user/assignment lock after those journal locks. Propagate every failure so
+the original task, journal/head, audit and receipt roll back together. Do not
+call it after `perform_once` returns: a retained W1 result must not create an
+event. This internal provider does not replace the caller's manager/creation
+authorization and does not authorize HTTP access to any task.
+
+- `task.created`: version1, `before_due_date=None`, actual stored new DATE.
+  This captures a **new creation** at its original mutation; it is never a way
+  to bootstrap existing tasks from their current date or old incomplete audit.
+- `task.updated` / `task.deadline_extension_approved`: explicit original and
+  stored new Python DATE. The returned frozen `DeadlineChange` contains UUID,
+  task ID, per-task event order, source version/action, before/after dates,
+  server UTC observation and actor. Same dates return `None`; title, text,
+  start date, attachments, requests/rejections/withdrawals are not new events.
+- A→B→A records separate UUIDs/order. Same task/source version and exact original
+  values return the same record only while it is still current; changed input
+  fails503. UUIDs are not date/version hashes. `recorded_at` is MySQL
+  UTC_TIMESTAMP(6) observed in the transaction, **not a commit timestamp**.
+- Missing current head on an existing task fails503 `DEADLINE_EVENT_UNKNOWN`;
+  mismatched source/current dates or versions fail503
+  `DEADLINE_EVENT_SOURCE_MISMATCH`; missing/incompatible tables fail503
+  `DEADLINE_EVENT_STORAGE_REQUIRED`. No baseline, repair or history inference.
+  Deployment/readiness must check the schema before connecting writers.
+
+### Owner4: immutable task event versus current recipient/assignment
+
+`read_current(db, task_id=...) -> DeadlineChange` is an **internal trusted**
+same-TX reader, not an own-task authorizer. First use owner2's real current
+facts/authorization in that same session; do not pass arbitrary client task IDs
+directly to the internal reader. Missing/unknown/mismatched evidence fails503,
+never an empty successful snapshot. An event records a real task deadline
+mutation; it does not encode a recipient or manufacture another event on
+reassignment. Compose current recipient/assignment from the current facts.
+`read_event(db, event_id=...)` returns the retained task event or `None` for a
+verified absent UUID. It is also an internal trusted reader, without recipient
+authorization: use the retained confirmation/receipt's original actor and
+assignment plus current own access before exposing an old success. Owner4's
+old callback must not treat an immutable task event as a permanently assigned
+recipient projection. Current own access alone never imports an earlier
+assignment's confirmation into a new assignment.
+
+The new functions do not finalize owner4's `DeadlineEvent` projection, old-event
+history/result authorizer or HTTP DTO. In particular, the current review
+confirmation PK `(event,user)` must be reconciled with the proposed
+`(event,user,assignment_revision)` boundary, including all lookup/INSERT/FK/
+receipt and C# success-cache keys. No automatic shared installation is allowed
+for either draft. State transitions without a due change leave the task event
+unchanged; whether confirmation returns on the same assignment after a
+submitted→returned transition remains the existing joint proposal, not a new
+policy decision here. Legacy baseline scope/time/operator/reason/backup also
+remains a joint decision; no baseline function is provided.
+
+### Verification boundaries
+
+`tests/test_deadline_events.py` uses a fresh owned MySQL plus original
+002/004/006/009 and the unnumbered journal draft. It checks sequence/replay,
+non-change, unknown and rollback/storage/session boundaries.
+`tests/test_deadline_event_writers.py` connects the actual owner2 writers/W1 to
+this provider at the reviewed audit boundary **with a test-only adapter**.
+It checks actual create/update/approved-extension, retained result replay,
+non-change and downstream audit/receipt rollback. This is not a registered
+production hook, operational ACK, real baseline, deadline HTTP/source or
+physical two-PC test. Owner2 must explicitly connect the real mutation calls
+after review. Use only an independently owned disposable MySQL, never SQLite or
+the user's server/DB. The shared5000 identity flag and lifecycle ACK remain
+unchanged by this module.
