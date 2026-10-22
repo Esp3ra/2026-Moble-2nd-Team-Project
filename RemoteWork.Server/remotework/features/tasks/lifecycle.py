@@ -336,6 +336,7 @@ def execute_lifecycle(db, *, target, action, body, key, extension_id=None):
             raise AppError(409, "TASK_VERSION_EXHAUSTED", "업무 버전 상한에 도달했습니다.")
         before = {"row_version": str(task.row_version), "task_status": task.task_status,
                   "due_date": task.due_date.isoformat()}
+        before_due_date = task.due_date
         now = utcnow()
         extension = _mutate(session, task, assignment, managers, users, action, body, extension_id, now,
                             expected=expected)
@@ -345,6 +346,9 @@ def execute_lifecycle(db, *, target, action, body, key, extension_id=None):
         session.refresh(task)
         if extension is not None:
             session.refresh(extension)
+        if action == "task.deadline_extension_approved" and task.due_date != before_due_date:
+            from .deadline_journal import record_task_deadline
+            record_task_deadline(session, task=task, action=action, before_due_date=before_due_date)
         result = _result(task, extension)
         audit(action, "task", task.task_id, {"before": before, "after": result})
         return WriteResult(result)

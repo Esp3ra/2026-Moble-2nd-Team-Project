@@ -1,5 +1,22 @@
 # 2번 업무 목록·상세 조회 개발 계약
 
+<a id="task-deadline-journal-writes"></a>
+## PR70 병합 후 실제 업무 mutation의 사건 기록 연결 — 2026-10-22
+
+PR70의 공통 `deadline_events.record_change`를 2번 `deadline_journal.record_task_deadline`에서 명시 소비합니다. 기존 `deadline_http`의 **쓰기 설치가 True**일 때만 실제 호출하며, 기본 OFF·결과 읽기 전용(False)/미설치는 기존 업무 쓰기를 유지합니다. 공통 활성 설정은 True인데 쓰기 설치가 없으면503 `DEADLINE_EVENT_CONNECTION_REQUIRED`로 닫습니다. 새 옵션·registry·API/DTO·DDL/seed를 추가하지 않습니다.
+
+| 원 업무 mutation | 기록 조건·위치 |
+|---|---|
+| 신규 생성 | 원 task/assignment/manager·선택 첨부 flush 후 `refresh(task)`와 감사 사이. 실제 새 업무의 version1·before=None·저장된 DATE를 기록 |
+| 일반수정 | 변경 전 DATE를 보관하고, 실제 기한이 달라졌을 때만 새 버전 flush/refresh 뒤 기록. 제목·본문·시작일·첨부만 변경하거나 같은 기한이면 무기록 |
+| 마감 연장 승인 | 기존 pending/권한·버전/기한 검증과 승인 저장 뒤, 실제 DATE가 달라진 경우만 새 버전 flush/refresh 뒤 기록. 신청/반려/철회/취소는 무기록 |
+
+모든 호출은 기존 `authenticated_transaction`·원 W1 mutate의 같은 DB 세션과 잠금 안에서 실행하고, 사건/현재head·업무·신청/참조·감사·최소 receipt를 함께 commit/rollback합니다. 제공부 오류를 잡아서 업무만 성공시키지 않습니다. 원 W1 성공 replay는 mutate에 재진입하지 않아 사건도 추가하지 않으며, 같은 키의 원 본문·최소 응답 필드는 유지합니다. API와 웹이 동일 실행 함수를 사용하므로 별도 웹 기록 경로를 만들지 않습니다.
+
+실제 생성 시점의 최초 사건과 **기존 업무 baseline**은 별개입니다. 기존 head 누락·기한 불일치·스키마 미준비는 공통503을 전파하고 현재값으로 과거를 복원하지 않습니다. OFF/결과 읽기 전용 중 실제 기한이 바뀐 뒤 다시 켜면 과거 head와 불일치할 수 있으며 자동 보정하지 않습니다. 운영 전환/기준점은1·2·4번의 기존 협의사항입니다. 4번 실제 HTTP source·확인 operation/cache/wrapper·90일 history와 공유 DDL/두 PC·운영 ACK/설정 적용은 이번2번 연결 완료에 포함하지 않습니다.
+
+[직접 실행 범위·재현 명령](../Tests/TaskDeadlineJournal.Tests/README.md)을 확인합니다. 번호 없는 PR70 SQL은 전용 소유 MySQL fixture에만 명시 적용하며 이 코드/실행만으로 사용자 DB나 기본 실행을 활성화하지 않습니다. 아래 원본 reader·작성부 대조의 이전 ‘공급 전’ 표시는 당시 이력입니다.
+
 <a id="own-deadline-current-facts"></a>
 ## PR54 후속 — 현재 본인 업무의 전체 사실 읽기
 
@@ -38,7 +55,7 @@ with authenticated_transaction() as db:
 <a id="deadline-mutation-boundary"></a>
 ## PR54 후속 — 기한 변경 작성부와 같은 TX의 결합 위치
 
-2026-10-22 [1번 14:06 갱신 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54#issuecomment-6305220140)의 **사건 저장 제안에 대한 2번 원본 대조**이다. 현재 facts 제공은 완료됐지만 사건 저장 함수·등록 hook·HTTP API/DDL은 아직 제공/확정되지 않았다. 아래는 1번이 실제 저장부를 제공할 때 결합할 위치와 필요한 실패 계약이며, 이를 자동 활성화한 구현으로 읽지 않는다.
+2026-10-22 [1번 14:06 갱신 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54#issuecomment-6305220140)에 따른 **당시 사건 저장 제안의 2번 원본 대조**이다. 이후 PR70이 병합됐고 위 [실제 연결](#task-deadline-journal-writes)에 세 경계를 반영했다. 아래는 원래 작성부/실패 계약의 근거이며 자동 활성화나 공유 적용 승인으로 읽지 않는다.
 
 | 원본 경로/공개 실행 함수 | 실제 기한 확정과 결합 위치 |
 |---|---|
@@ -51,7 +68,7 @@ with authenticated_transaction() as db:
 - 2번에서 전달 가능한 사실은 원 업무ID·원 action·현재 actor/assignee·assignment_revision·변경 전후 DATE/row_version·기존 mutation에서 잡은 서버 UTC와 승인 extension 식별이다. 이는 DB 내부 정수/date/datetime이며 최종 wire/UUID 필드 계약이 아니다. 사건 UUID·원 mutation 식별/중복 제약·현재 사건 연결은 1번 저장부가 명시해야 한다. 같은 TX에서 얻은 시각도 commit 완료 시각으로 주장하지 않는다.
 - **W1 replay**는 원래 mutation을 실행하지 않으므로 사건도 다시 기록하면 안 된다. 같은 key에 다른 본문은 기존409다. 사건 기록/현재연결 갱신 실패나 후속 감사·receipt/commit 실패는 원 업무 변경까지 모두 rollback하고, 예외를 삼켜 업무만 성공시키지 않는다. A→B→A는 서로 다른 실제 mutation 두 건이며 두 사건을 만들 근거가 된다. 날짜·row_version hash나 감사 PK를 사건 UUID로 대체하지 않는다.
 - 1번의 `UNIQUE(event,user,assignment_revision)` 보완안은 같은 계정 재배정 구분에 필요한 방향이다. 같은 배정에서 제출/반려·복귀한 기존 확인 유지, 옛 성공 결과의 현재 열람, 신규/기존 자료의 최초 사건과 명시 baseline 범위/시간·실행/백업은 아직 1·2·4번 대조/팀장 결정 항목이다. 이 문서가 이를 확정하거나 원본을 변경하지 않는다.
-- **다음 제공물:** 1번은 실제 같은-session 사건 기록 함수의 입력/출력·미설치/실패/중복·현재연결/잠금 계약을 기존 PR54에 한 번으로 제공하고, 4번은 불투명 사건ID+배정세대·전체 snapshot/원래 성공 receipt 소비와 중간상태 차이를 답한다. 2번은 그 제공부에 두 실제 변경 경계를 연결하고 실제 MySQL 원자성/경합을 검증한다. 알림 source/확인 writer·운영 DDL/옵션은 이 단계에서 설치하지 않는다.
+- **현재 후속:** 1번 제공은 PR70으로 수신했고2번의 실제 mutation 연결은 위 절에서 제공한다. 4번의 불투명 사건ID+배정세대·전체 snapshot/원래 성공 receipt 소비와 중간상태 대조는 후속이다. 알림 source·운영 DDL/옵션을2번이 대신 설치하지 않는다.
 
 **이번 독립 준비/실행:** `RemoteWork.Server/tests/test_task_deadline_write_boundaries.py`를 새로 추가해 소유 MySQL8.2의 raw002/004/006/009에서 **17통과·실패/오류/skip0,36.96초**를 확인했다. 실제 creation/management/lifecycle/W1을 호출하고 시험에서만 기존 audit 경계에 `test.deadline_write_probe` 관찰 행을 같은 TX로 넣었다. A→B→A 두 변경·제목/본문/동일 기한/첨부-only 비변경·요청/반려/철회와 승인 구분·원키 replay1효과·creation/edit/approval의 probe 실패/receipt INSERT 후 실패6건 전체 rollback·실제 AdminGuard SQL 대기 뒤 최신 기한을 확인했다. 생성 감사에는 최초 기한이 없다는 근거도 유지한다.
 
@@ -284,7 +301,7 @@ cd .\RemoteWork.Server
 | 경로·DTO·필수/NULL·상태 문자열·DATE/DateOnly 형식·상세403/404 | 1번 회신 수용, 기존 조회 유지 |
 | 초기 상태·수락/재작업 날짜·후속 상태 저장 | 등록 진행전/1/1/acceptedNULL은1번 수용. 시작 KST 기간과 관리·취소·연장 A~E 정책은 팀장 확정·2번 구현. 새 lifecycle 실제 변경은 같은 배포의 통합 검증·ACK 확인 전503 |
 | 사용자 INTEGER·업무 BIGINT FK·공통 Base/트랜잭션·이력 보존 | 1번 회신 수용. 각2번 개발 쓰기는 잠금·버전·같은 TX/복구를 구현. 3번 새 lifecycle 소비 코드는 제공됐으며 정식 DDL·같은 배포의 경합/공유 검증은 별도 |
-| migration 번호·DDL·schema version·공유 DB 적용 | 002 예약·DDL 초안 준비. 정식 DDL·1번 버전 지원·공유 적용은 별도 확인 필요 |
+| migration 번호·DDL·schema version·공유 DB 적용 | 1번의 실제006/009/013 적용·schema1/백업·격리 복구 보고를 수신. 새 journal·확인 저장의 정식 적용/기존 자료 전환과 같은 배포의2번 공유 검증은 별도이며 새 DDL·전역 버전을 임의 추가하지 않음 |
 | 전체 목록·due_date/task_id 정렬·미지원 조건400 | 1번 회신 수용. 페이지·검색 도입은 후속 공동 결정 |
 | 상위 검토자·반려 후 복귀·제출 상태 갱신 | 반려완료→명시적 재작업 시작→진행중→재제출 성공→제출완료 확정. 기존3번 제출 폼/API 연결 존재. 검토자 미확정 정책·새 lifecycle 소비·공용 이벤트/통지는 별도 |
 | 자동 검토 요청·마감 후 직접 제출 | 질문으로 유지. 자동 결과 제출은 제외 |

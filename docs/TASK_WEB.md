@@ -1,5 +1,7 @@
 # 2번 업무 웹 목록·상세 조회
 
+PR70 병합 후 등록·일반수정·연장 승인은 [공통 사건 기록을 연결한 같은2번 W1 실행 함수](TASK_QUERIES.md#task-deadline-journal-writes)를 사용합니다. 웹만의 추가 저장이나 DTO/키를 만들지 않으며 현재 활성 설치·오류/rollback·미확정 결과 복구를 API와 공유합니다. 실제4번 알림 UI·공유 배포까지 연결됐다는 뜻은 아닙니다.
+
 <a id="task-web-attachment-redisplay"></a>
 ## 후보 검색·입력 오류 뒤 첨부 표시 복원 — 2026-10-22
 
