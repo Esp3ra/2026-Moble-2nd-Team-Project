@@ -69,7 +69,11 @@ public sealed class HttpNoticeService(ApiClient api) : INoticeService, INoticePo
 
     public async Task<Notice> CreateNoticeAsync(CreateNoticeRequest request, CancellationToken ct = default)
     {
-        var result = await AttachmentIdentity().PostAsync<NoticeResult>("notices", request, ct);
+        // Empty optional fields must not break a still-deployed legacy server.
+        object body = request.AttachmentIds.Length == 0
+            ? new { request.Title, request.Content, request.Target, request.IsPinned, request.AttachmentNames }
+            : new { request.Title, request.Content, request.Target, request.IsPinned, request.AttachmentNames, request.AttachmentIds };
+        var result = await AttachmentIdentity().PostAsync<NoticeResult>("notices", body, ct);
         return Map(result.Notice);
     }
 

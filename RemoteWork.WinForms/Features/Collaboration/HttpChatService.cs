@@ -201,8 +201,9 @@ internal sealed class HttpChatService : IChatService
         }
         try
         {
-            var response = await identity.PostAsync<MessageResultData>($"chat/rooms/{roomId}/messages",
-                new { message_id = id, content = text, attachment_ids = attachmentIds }, cancellationToken);
+            object body = attachmentIds.Length == 0 ? new { message_id = id, content = text }
+                : new { message_id = id, content = text, attachment_ids = attachmentIds };
+            var response = await identity.PostAsync<MessageResultData>($"chat/rooms/{roomId}/messages", body, cancellationToken);
             SameIdentity(identity);
             var message = Map(response.Message, roomId);
             if (message.Id.ToString("D") != id || message.SenderId != CurrentUser.Id || message.Content != text)

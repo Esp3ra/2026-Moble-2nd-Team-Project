@@ -168,6 +168,7 @@ internal static class Program
             {
                 creates++;
                 using var json = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
+                Check(!json.RootElement.TryGetProperty("attachment_ids", out _), "Empty attachments retain the deployed legacy notice contract");
                 Check(json.RootElement.GetProperty("attachment_names")[0].GetString() == "안내.pdf", "Filename metadata serialized");
                 Check(!json.RootElement.TryGetProperty("author", out _) && !json.RootElement.TryGetProperty("attachment_paths", out _), "No forged author or PC path sent");
                 return Json(new { notice = Wire(23) });
