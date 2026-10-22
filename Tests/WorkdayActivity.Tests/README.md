@@ -15,17 +15,17 @@ dotnet run --project Tests/WorkdayActivity.Tests -c Release
 
 PR71 reader는 이제 제품에 병합됐으므로 이전 외부 Member1WorkdayClientSource 링크 옵션은 제거했다. 최초26/12개 검증 이력은 Attendance의 WORKDAY_ACTIVITY.md에 보존한다.
 
-## 실제 PR73 접점·서버/Pi HTTP·소유 MySQL
+## 실제 병합된 공통 접점·서버/Pi HTTP·소유 MySQL
 
-Draft를 작업 alpha에 복사/병합하지 않고 고정 Git 결합 tree를 외부에 export한다.
+PR73은 원본 f542902에 병합됐다. 이제 별도 Draft/ClockOutPeer 옵션 없이 현재 tracked 소스를 외부에 export하여 실제 기본 제품 연결을 검사한다.
 
 ```powershell
 python Tests/WorkdayActivity.Tests/prepare_peer.py --alpha-ref <own-commit> `
-  --peer-ref 5070911612d038d9e9395a52eaa469cc6623d14f --output <새-외부-폴더>
-dotnet build <외부폴더>/Tests/WorkdayActivity.Tests -c Release -p:ClockOutPeer=true
+  --peer-ref upstream/alpha --output <새-외부-폴더>
+dotnet build <외부폴더>/Tests/WorkdayActivity.Tests -c Release
 ```
 
-충돌 시 한쪽을 자동 선택하지 않고 중단한다. tracked 소스만 export하고 .env/symlink 등을 거절한다. ClockOutPeer=true는 이 결합 시험 프로젝트에만 지정하며 PR73이 없는 일반 alpha에서는 사용하지 않는다.
+충돌 시 한쪽을 자동 선택하지 않고 중단한다. tracked 소스만 export하고 .env/symlink 등을 거절한다. 기존 Draft 외부 결합 설명은 초기 검증 이력이며 현재 제품의 공통 접점을 대신하는 shim은 사용하지 않는다.
 
 기존 Tests/FingerprintIdentity.Server.Tests/run_check.py에 --workday-activity-client <고정 WorkdayActivity.Tests.dll>와 --workday-clockout-client <같은 DLL>을 함께 주면 **14개**(기존10+정오2+퇴근2)를 실행한다. runner의 --allow-disposable-mysql, 검증된 --mysql-bin-dir, 위 export의 --source-root, 외부 --report-directory를 명시한다. 원본 운영 .env/DB나 실제 장비를 사용하지 않는다. 자식/DB/runtime 소유·정리와 DLL SHA 전후 대조는 기존 실행기 책임이다.
 
@@ -33,4 +33,4 @@ dotnet build <외부폴더>/Tests/WorkdayActivity.Tests -c Release -p:ClockOutPe
 
 퇴근 정상/응답 유실 각각에서 센서 검색1회·공통 준비1회, 퇴근 receipt1개/ended, 해당 정상 AuthSession0, auth/logout 전송0을 확인한다. 응답 유실 후 일반 auth/me가 네트워크 전에 차단되고 같은 원 결과는 복구되는 것도 검사한다. 실제 카메라/센서·두PC·Linux 준비/운영 활성화 시험은 별도다.
 
-최종 직접14PASS41.97초/정리 완료와 정확 source/DLL SHA는 Attendance의 CLOCK_OUT_CONNECTION.md에 기록했다. PR73의 공통35/MainForm11 검사와 기존 로그인179/연차115는 별도 수치다.
+최종 직접14PASS41.70초/정리 완료와 정확 source/DLL SHA는 Attendance의 CLOCK_OUT_CONNECTION.md에 기록했다. 실제 제품의 기본 overload가 공통 factory를 설치하는 경로를 사용한다. 공통35/MainForm11 검사와 기존 로그인179/연차115는 별도 수치다.
