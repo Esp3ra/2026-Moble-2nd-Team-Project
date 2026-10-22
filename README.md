@@ -1,3 +1,15 @@
+<a id="member2-own-deadline-facts-status-20261022"></a>
+## PR54 요청 대응 — 2번 현재 본인 업무 읽기 제공, 2026-10-22
+
+2번은 [전체 현재 사실·단건 재검사 내부 함수](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/dc525d08312eb6d31c4c9e56aa6367a71103dfb9/docs/TASK_QUERIES.md#own-deadline-current-facts)를 alpha **dc525d08312eb6d31c4c9e56aa6367a71103dfb9**로 제공했습니다. 관리자도 본인 배정만,5상태·취소·기한·배정/업무 버전을 같은 인증 TX에서 읽습니다. 실제 소유 MySQL **52통과·실패/오류/skip0**, 읽기 전후 전체 DB 무변경·오래된 RR/ORM 캐시 뒤 현재 사실/인증 재검사를 확인했습니다. [제공 범위·1/2/4 합의 구분](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-own-deadline-facts-20261022)·[검사 범위](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md#member2-own-deadline-facts-check-20261022)·[기존 PR54 통합 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54#issuecomment-6305519634)에 취합합니다. 실제 알림 API/source·서버UTC·기한 사건/초기자료 전환·확인 저장은 후속입니다. 아래 과거의 최소 reader 미제공 표시는 당시 이력입니다.
+
+<a id="pr68-merged-20261022"></a>
+## PR68 최종 재검토 — R68-01 해결·병합 완료, 2026-10-22
+
+수정 head **194c472f61c6573f237f8e9d26067345bfeaa9aa**에서 A의 원래 업무·동작에 묶인 성공 안내와 B의 미확정 상태가 구분됨을 확인했습니다. 공식 JS **83PASS**, 독립 해결 회귀 **20PASS**이며 같은 검사는 이전 fec2364 원본에서 실패합니다. JS 구문·diff check도 통과했습니다. 추가 병합 차단 문제가 없어 [PR68](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/68)을 alpha **ff32ba225f9079332e83d568fc545acb595b623f**에 병합했습니다. 실제 tree **b813e2d6e0a27199ad51cf6fcb7efed99b11852f**를 확인했습니다.
+
+서버·템플릿·C# tree가 이전 검증본과 동일해 기존 연결150·공용251·lifecycle258·서버191·웹183·C#43/독립198·Release0오류/0경고 근거를 유지합니다. 이 수치는 이번 JS 수정 재실행 수치로 합산하지 않습니다. [최종 검토 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/68#issuecomment-6331304609)을 따르며, 아래 fec2364의 R68-01 보류/미병합은 당시 이력입니다. 2번 실제 웹 전송·일반수정 첨부 writer 소비와 공유 환경 검증은 후속입니다.
+
 ## 최신 — 2번 업무 웹 화면 준비, 2026-10-22
 
 [2번 기록](2번/README.md)에 등록·일반수정의 로컬 파일 선택·좁은 화면 배치·오류 안내와 원본 JS 86검사/템플릿 16검사·합성 자료 브라우저 검증을 기록했습니다. 실제 파일 전송/저장과 구분하며 [PR68 병합본 수신·남은 연결](2번/공통규약.md#member2-web-file-preparation-20261022)을 따릅니다. 다른 담당 제품과 공유 운영 설정은 변경하지 않았습니다.
@@ -5,6 +17,9 @@
 alpha `e9ee978`와 로컬 프로젝트 동기화를 확인했으며 DOCX는 코드 브랜치에 올리지 않고 보존했습니다.
 
 <a id="pr68-review-status-20261022"></a>
+
+> **최종 상태: PR68은 R68-01 해결 후 ff32ba2에 병합됐습니다.** [최종 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/68#issuecomment-6331304609)을 따르며 아래 보류 표시는 이전 head 당시 기록입니다.
+
 ## PR68 신규 검토 — T3-1~5 제공부 수신·R68-01 수정 대기, 2026-10-22
 
 3번의 [PR68](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/68) head **fec2364b8caf9ba8c4ac43a0052f02f3af479223**가 추가됐습니다. 현재 첨부 ID reader·감사 표시·읽기 전용 결과물/서명 복귀·cookie 공용 첨부·C# 내부 base64 전송 보완을 검토했습니다. **R68-01/P2: A 저장 성공 뒤 B 응답 유실에도 B 화면에 원 작업을 구분하지 않은 성공 안내가 남는 현상**을 독립 재현해 [수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/68#issuecomment-6331304609)했고 현재 미병합입니다. A 성공은 원래 업무/동작을 명시해 보존하고 B의 미확정 결과와 구분해야 합니다.
