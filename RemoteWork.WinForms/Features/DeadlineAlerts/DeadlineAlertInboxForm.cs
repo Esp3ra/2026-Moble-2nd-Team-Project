@@ -51,18 +51,19 @@ public sealed class DeadlineAlertInboxForm : Form
         try
         {
             var result = await scope.ConfirmAsync(row.Item.EventToken);
-            if (IsDisposed) return;
+            if (IsDisposed || !scope.IsCurrent) return;
             RefreshItems();
             status.Text = result.State switch
             {
-                DeadlineConfirmationState.Confirmed => "확인되었습니다.",
+                DeadlineConfirmationState.Confirmed => result.Snapshot is null
+                    ? "확인 완료 · 목록 재조회 필요" : "확인되었습니다.",
                 DeadlineConfirmationState.Changed => "업무 또는 기한이 변경됐습니다. 현재 목록을 확인해 주세요.",
                 DeadlineConfirmationState.NotRecorded => "미기록입니다. 확인을 다시 누르면 명시 재시도합니다.",
                 _ => "결과가 불명확합니다. 결과 확인을 눌러 주세요."
             };
         }
         catch (Exception ex) when (ex is ApiException or HttpRequestException or InvalidDataException or OperationCanceledException)
-        { if (!IsDisposed) status.Text = "확인 결과를 조회해 주세요. " + ex.Message; }
+        { if (!IsDisposed && scope.IsCurrent) status.Text = "확인 결과를 조회해 주세요. " + ex.Message; }
         finally { busy = false; if (!IsDisposed) UpdateConfirm(); }
     }
 }

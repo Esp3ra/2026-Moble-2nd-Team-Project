@@ -1,10 +1,13 @@
 # 마감 알림 — 4번 독립 구현과 1·2번 연결 검토
 
-기준: 원본 alpha388d50b / LOG f2d0c43,
+현재 대조 기준: 원본 alpha9c5c07c / LOG0e0990e (2026-10-22).
+최초 구현 기준 alpha388d50b / LOG f2d0c43,
 [A1~A6 채택](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member4-policy-adopted-20261021),
 기존4번 N4-08/F4-01과1번 기술 답변. 과거의 정책 제안값을 최신 채택 기준으로 대체해 읽는다.
 
-**팝업/조회 수명/목록은 구현, 실제 HTTP·MySQL 확인 저장·MainForm 조립은 기술 회신 대기다.**
+**팝업/조회 수명/목록과 확인 성공·현재 목록 분리는 구현했다.**
+1번 PR64의 MainForm 명시 source 연결·2번 실제 업무 탐색은 원본에 병합됐다.
+실제 마감 source/API·기한 사건/초기자료·MySQL 확인 저장은 여전히1·2번 후속이다.
 실제 서버에 마감 알림이 작동한다고 안내하지 않는다. 이 문서와 C# port는 기술 초안이며
 새 JSON 필드/endpoint/DDL·migration 번호·공통 기능 옵션을 확정하거나 자동 설치하지 않는다.
 
@@ -36,14 +39,11 @@
 - DeadlineAlertPanel: 공지 화면은 scope의 읽기 view를 빌린다. 독립 타이머·샘플 업무·로컬 영속 저장은 없다.
 - NoticesControl.Deadlines: 기존 가짜 주간 보고서 마감 표시를 제거하고 서버 준비/현재 알림 상태를 표시한다.
 
-1번 조립 초안(현재 MainForm은 변경하지 않음):
+1번 PR64 조립 접점(이번4번 보완에서 MainForm은 변경하지 않음):
 
 ```csharp
 // 실제 인증/사건/확인 어댑터가 합의·검증된 뒤만 설치한다.
-var scope = new DeadlineAlertScope(this, reviewedDeadlineSource);
-components.Add(scope);
-scope.TaskRequested += taskId => { /* 2번 현재 권한 조회/탐색 접점 */ };
-await scope.StartAsync();
+await ConnectDeadlineAlertsAsync(session => reviewedSourceFactory(session));
 // NoticesControl은 같은 owner chain의 scope를 찾아 빌린다.
 // 명시 연결은 page.BindDeadlineAlerts(scope); 메뉴 종료는 scope를 Dispose하지 않는다.
 ```
@@ -92,5 +92,37 @@ API/DDL 합의 후 MySQL에서 같은 사건 중복 확인·동시 PC·변경/�
 
 [2번 기술 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/61#issuecomment-6311013832)을 수신했다.
 현재 원본/잠금과 업무 변경·연장 감사의 재사용 가능성은 확인했지만, 최소 reader·사건/초기 자료 완전성·
-현재 확인 writer·실제 task_id 탐색 callback/API/DTO는 아직 제공 완료가 아니다. 별도 recheck가 확인 TX의
+현재 확인 writer/API/DTO는 아직 제공 완료가 아니다. task_id 탐색 callback은 이후2번이 제공했고
+1번 PR64에서 공통 소비를 연결했다. 별도 recheck가 확인 TX의
 원자성을 대신하지 않으며 기존 기술 대기/None·미확정 사건/DB 계약을 그대로 유지한다.
+
+## 2026-10-22 확인 성공과 목록 갱신 분리
+
+[1번 최신 수용 회신](https://github.com/jinkyu1452-cmd/Sang1/pull/1#issuecomment-6312083676)에 따라
+`DeadlineConfirmation`의 snapshot을 선택값으로 바꿨다. 이는 C# 내부 port이며 새 wire/endpoint/DDL이 아니다.
+
+- `Confirmed`는 source가 원래 사건·현재 계정·action/target·원래 W1 key/body에 결합된 성공 receipt를
+  검증한 결과다. source는 이 성공 증거와 원문을 유지한다. UI 상태만으로 성공을 제조하지 않는다.
+- 확인 성공 뒤 전체 목록이 없거나 잘못됐으면 `Confirmed`를 유지하고 snapshot만 버린다.
+  **확인 완료 · 목록 재조회 필요**를 표시하고 과거 팝업/현재 facts를 비우며 업무 보기를 막는다.
+  빈 정상 목록이나 새 사건의 확인으로 만들지 않는다. 다음 복구는 `ReadAsync` GET이다.
+- 성공 사건은 로그인 scope 수명에만 기억해 같은 사건의 다른 화면/중복 클릭이 다시 POST/Resolve하지 않게 한다.
+  실제 계정별 DB 저장·W1 보관 결과를 대체하는 저장소가 아니다. 로그아웃/같은 계정 재로그인 뒤 승계하지 않는다.
+  새 기한 사건의 token은 옛 성공과 별개다. A→B→A의 실제 사건 ID는 source가 제공해야 한다.
+- snapshot은 언제나 권위 있는 **전체 현재 목록**이다. 확인된 동일 사건을 미확인으로 되돌리는 목록이나
+  타입·관계·중복이 잘못된 snapshot은 사용하지 않는다. 정상 GET 복구 전에는 stale facts로 업무를 열지 않는다.
+- Unknown/NotRecorded/Changed에는 전체 현재 snapshot이 필요하다. 잘못된 상태/응답·503·410/통신 실패는
+  미기록으로 추정하지 않는다. 불명 결과는 source의 원래 작업으로 읽기 전용 결과 조회를 한다.
+  유효한 미기록 판정 후 별도 사용자 명시 재시도만 가능하다. 자동 새 key/POST는 없다.
+- source가 성공 receipt 이후 목록 실패를 예외/Unknown으로 바꾸면 성공을 전달할 수 없다.
+  그 경우 `Confirmed`와 snapshot 없음으로 반환해야 한다. 현재401/403은 기존대로 예외/접속 폐기이며
+  목록 실패를 핑계로 인증 경계를 통과시키지 않는다. source/W1 action 등록·OFF 독립 reader는1번 소유다.
+- 1번의 `POST /api/v1/write-requests/result`는 기존 공통 접점이다. 실제 deadline action/target/최소 receipt는
+  아직 후보이며 설치하지 않았다. 키 발급 후24시간과 성공 결과 보관24시간을 구분하고,
+  OFF reader 미설치503/401403/410을 not_recorded로 바꾸지 않는다.
+
+검사: 기존105 + 후속57 = **162개**. 실제 WinForms의 팝업/목록·명시 source/HTTP handler와
+1번의 실제 `LoginDeadlineNotifications`·캡처 ApiClient.Session을 사용했다. 저장 성공/목록 누락·불량,
+GET503/형식 실패와 회복, POST 응답 유실 뒤 결과 조회503/410/성공, 다른 업무·새 사건 보존,
+늦은 목록·401/403·같은 계정 재로그인·borrowed source 소유를 검사한다.
+제품 서버 HTTP/MySQL·실제 사건·두 PC 검사가 아니며 실제 마감 API/DB 완료로 표시하지 않는다.
