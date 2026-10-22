@@ -10,6 +10,7 @@ namespace RemoteWork.WinForms.Shell
 
         protected override void Dispose(bool disposing)
         {
+            if (disposing) EndLoginView();
             if (disposing && components != null) components.Dispose();
             base.Dispose(disposing);
         }

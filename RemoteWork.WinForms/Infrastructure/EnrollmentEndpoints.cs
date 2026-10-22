@@ -9,6 +9,8 @@ public sealed class EnrollmentEndpoints
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RemoteWork", "enrollment-endpoints.json");
     private readonly Dictionary<string, Uri> devices;
     private EnrollmentEndpoints(Dictionary<string, Uri> devices) => this.devices = devices;
+    // Topology only; never implies that a device is assigned to the current user.
+    public IReadOnlyList<string> DeviceIds => devices.Keys.Order(StringComparer.Ordinal).ToArray();
 
     public static EnrollmentEndpoints Load(Uri currentServer, string? path = null)
     {

@@ -7,6 +7,7 @@ namespace RemoteWork.WinForms.Features.Attendance;
 public partial class FingerprintIdentityForm : Form
 {
     private readonly FingerprintIdentityAttempt? attempt;
+    private readonly bool ownsAttempt, closeWhenVerified, autoStart;
     private bool busy, checkingCancel, closing, closeReviewed, released;
     private long displayedSequence = -1;
     private Task cancellationOperation = Task.CompletedTask;
@@ -14,9 +15,11 @@ public partial class FingerprintIdentityForm : Form
     public Task PendingOperation { get; private set; } = Task.CompletedTask;
 
     public FingerprintIdentityForm() : this(null) { }
-    public FingerprintIdentityForm(FingerprintIdentityAttempt? attempt)
+    public FingerprintIdentityForm(FingerprintIdentityAttempt? attempt, bool ownsAttempt = true,
+        bool closeWhenVerified = false, bool autoStart = false)
     {
         InitializeComponent();
+        this.ownsAttempt = ownsAttempt; this.closeWhenVerified = closeWhenVerified; this.autoStart = autoStart;
         if (PreviewActions.IsDesignMode(this)) return;
         this.attempt = attempt;
         if (attempt is null)
@@ -39,7 +42,11 @@ public partial class FingerprintIdentityForm : Form
         catch (InvalidOperationException) { }
     }
     protected override void OnShown(EventArgs e)
-    { base.OnShown(e); if (attempt is not null) ShowUpdate(attempt.Latest); }
+    {
+        if (attempt is not null) ShowUpdate(attempt.Latest);
+        if (autoStart && attempt is not null) PendingOperation = StartAsync();
+        base.OnShown(e);
+    }
 
     private void ShowUpdate(IdentityAttemptUpdate update)
     {
@@ -57,6 +64,8 @@ public partial class FingerprintIdentityForm : Form
         btnStart.Enabled = !busy && !checkingCancel && update.CanRetry;
         btnCancel.Text = update.Phase == IdentityAttemptPhase.ReviewRequired ? "취소 확인" : "요청 취소";
         btnCancel.Enabled = !checkingCancel && update.CanCancel;
+        if (closeWhenVerified && !busy && !checkingCancel && Visible && update.Phase == IdentityAttemptPhase.Verified)
+        { DialogResult = DialogResult.OK; Close(); }
     }
     private async void Start_Click(object? sender, EventArgs e)
     { PendingOperation = StartAsync(); await PendingOperation; }
@@ -113,6 +122,6 @@ public partial class FingerprintIdentityForm : Form
         released = true;
         if (attempt is null) return;
         attempt.Changed -= AttemptChanged;
-        attempt.Dispose();
+        if (ownsAttempt) attempt.Dispose();
     }
 }

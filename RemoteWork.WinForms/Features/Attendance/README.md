@@ -71,7 +71,7 @@ var page = new AttendanceControl(role, monitor);
 
 ## 지문 본인 확인 담당 연결부
 
-캡처한 1번 pending/일반 접속을 5번 relay와 연결하는 `FingerprintIdentityConnection`, 같은 요청의 수명을 관리하는 `FingerprintIdentityAttempt`, Designer 기반 `FingerprintIdentityForm`을 준비했다. 자동 재스캔·일반 토큰 설치·출퇴근 확정은 수행하지 않는다. 요청·결과·취소, 상태 안내와 담당자 확인 사항은 [연결 문서](IDENTITY_CONNECTION.md)를 따른다. 공통 로그인 화면 주입·실서비스 활성화는 별도이며 새 기능은 OFF를 유지한다.
+캡처한 1번 pending/일반 접속을 5번 relay와 연결하는 `FingerprintIdentityConnection`, 같은 요청의 수명을 관리하는 `FingerprintIdentityAttempt`, Designer 기반 `FingerprintIdentityForm`을 제공한다. 사용자 요청으로 LoginForm과 Designer 기반 `FingerprintLoginForm`도 연결했다. 지문 view의 verified는 본인 확인만이며, 별도 `ApiClient.IdentityLogin`에서 서버 출근 finalize·auth/me·원 로그인 세대 확인을 거친 뒤만 정상 토큰을 인수한다. 요청·결과·취소/원 finalize 복구와 담당자 확인 사항은 [연결 문서](IDENTITY_CONNECTION.md)를 따른다. 실제 공유 서버/키·Pi 활성화, 정오/퇴근 화면·운영 수명은 별도이며 새 기능은 OFF를 유지한다.
 
 ## 연차 화면 준비 상태 (2026-10-22)
 

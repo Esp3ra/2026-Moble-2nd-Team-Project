@@ -1,12 +1,13 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 
 namespace RemoteWork.WinForms.Infrastructure;
 
 /// <summary>Shared by all feature screens. Tokens stay in memory and are never logged.</summary>
-public sealed class ApiClient : IDisposable
+public sealed partial class ApiClient : IDisposable
 {
     private readonly HttpClient http;
     private readonly object identityLock = new();
@@ -15,6 +16,7 @@ public sealed class ApiClient : IDisposable
     private Uri serverUri;
     private long generation;
     private CancellationTokenSource sessionCancellation = new();
+    private readonly ConditionalWeakTable<LoginResult, RequestContext> acceptedLogins = new();
     internal sealed record RequestContext(long Generation, string? Token, Uri ServerUri,
         CancellationToken SessionCancellation);
     public Uri ServerUri { get { lock (identityLock) return serverUri; } }
@@ -107,7 +109,9 @@ public sealed class ApiClient : IDisposable
         lock (identityLock)
         {
             EnsureCurrentLocked(context);
+            ct.ThrowIfCancellationRequested();
             previous = ReplaceIdentityLocked(result.AccessToken, result.User);
+            acceptedLogins.Add(result, CaptureLocked());
         }
         previous.Cancel();
         return result;
@@ -146,6 +150,18 @@ public sealed class ApiClient : IDisposable
         CancellationTokenSource previous;
         lock (identityLock) previous = ReplaceIdentityLocked(null, null);
         previous.Cancel();
+    }
+
+    internal bool IsLoginCurrent(LoginResult login)
+    { lock (identityLock) return acceptedLogins.TryGetValue(login, out var accepted) && IsCurrentLocked(accepted); }
+
+    internal void ClearLoginIfCurrent(LoginResult login)
+    {
+        CancellationTokenSource? previous = null;
+        lock (identityLock)
+            if (acceptedLogins.TryGetValue(login, out var accepted) && IsCurrentLocked(accepted))
+                previous = ReplaceIdentityLocked(null, null);
+        previous?.Cancel();
     }
 
     private RequestContext Capture() { lock (identityLock) return CaptureLocked(); }
