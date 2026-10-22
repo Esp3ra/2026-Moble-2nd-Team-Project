@@ -9,8 +9,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from remotework import deadline_events as port
+from remotework import deadline_bindings as binding
 from remotework.common import AppError
 from remotework.features.tasks.models import TaskRecord
+from remotework.features.tasks.models import TaskAssignment
+from remotework.write_requests import register_write_action, register_write_result_reader, issue_key, lookup_result
 from test_task_deadline_facts import deadline_app, deadline, guarded, add_task
 
 
@@ -22,6 +25,11 @@ def journal_app(deadline_app):
         for statement in script.split(";"):
             if statement.strip():
                 db.exec_driver_sql(statement)
+    # Explicit TESTING-only registration; product startup installs nothing.
+    deadline_app.config['ENABLE_COMMON_WRITE_DRAFT'] = True
+    register_write_action(deadline_app, action='deadline_alert.confirmed', authorize=binding.authorize_result,
+        result_fields={'event_id','task_id','assignment_revision','confirmed_at'})
+    register_write_result_reader(deadline_app, action='deadline_alert.confirmed', authorize=binding.authorize_result)
     return deadline_app
 
 
@@ -182,3 +190,83 @@ def test_two_guarded_mutations_keep_distinct_ordered_current_events(env):
     assert len({v.event_id for v in values}) == 2
     with guarded(env) as db:
         assert port.read_current(db, task_id=env.task_id).event_order == 3
+
+
+def test_original_binding_reads_old_unconfirmed_event_without_confirmation_rows(env):
+    first = create(env)
+    with guarded(env) as db:
+        original = binding.current_binding(db, task_id=env.task_id)
+        assert original.event_id == first.event_id
+        change(env, db)
+        target = binding.target(original)
+        assert binding.authorize_result(db, target) is True
+        assert binding.read_bound_event(db, target) == (original, first)
+        assert binding.parse_target(target) == original
+
+
+def test_old_assignment_cannot_be_used_by_another_original_actor(env):
+    first = create(env)
+    value = binding.target(binding.DeadlineBinding(env.task_id, first.event_id, 2))
+    with pytest.raises(AppError) as caught, guarded(env) as db:
+        binding.authorize_result(db, value)
+    assert caught.value.status == 403
+
+
+def test_retained_binding_requires_current_own_before_loading_event(env, monkeypatch):
+    first = create(env)
+    calls=[]
+    monkeypatch.setattr(binding, 'read_event', lambda *a,**kw:calls.append(1))
+    with pytest.raises(AppError) as caught, guarded(env,'staff2') as db:
+        binding.authorize_result(db, binding.target(binding.DeadlineBinding(env.task_id,first.event_id,1)))
+    assert caught.value.status==403 and calls==[]
+
+
+def test_same_actor_reassigned_again_gets_separate_binding_without_new_event(env):
+    first = create(env)
+    original = binding.DeadlineBinding(env.task_id,first.event_id,1)
+    with guarded(env) as db:
+        previous = db.get(TaskAssignment,(env.task_id,1))
+        for revision, actor in [(2,'staff2'),(3,'staff1')]:
+            db.add(TaskAssignment(task_id=env.task_id, revision=revision, assignee_id=env.ids[actor],
+                assigned_by=env.ids['admin1'], assigned_at=previous.assigned_at))
+        db.flush()
+        current = task(db,env)
+        current.current_assignment_revision=3
+        current.row_version=3
+        db.flush()
+        new = binding.current_binding(db,task_id=env.task_id)
+        assert new.event_id==first.event_id and new.assignment_revision==3
+        assert binding.target(original)!=binding.target(new)
+        assert binding.authorize_result(db,binding.target(original)) is True
+        with pytest.raises(AppError) as caught:
+            binding.authorize_result(db,binding.target(binding.DeadlineBinding(env.task_id,first.event_id,2)))
+        assert caught.value.status==403
+
+
+def test_actual_w1_original_target_resolves_not_recorded_after_event_changes(env):
+    first=create(env)
+    with guarded(env) as db:
+        original=binding.target(binding.current_binding(db,task_id=env.task_id))
+        key=issue_key(action='deadline_alert.confirmed',target=original)['request_key']
+        change(env,db)
+        answer=lookup_result(db,key=key,action='deadline_alert.confirmed',target=original,
+            authorize=binding.authorize_result)
+        assert answer=={'state':'not_recorded'}
+        assert binding.read_bound_event(db,original)[1].event_id==first.event_id
+
+
+@pytest.mark.parametrize('value', ['d1:01:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa:1',
+    'd1:1:AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA:1',
+    'd1:1:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa:2147483648'])
+def test_binding_target_is_canonical_and_signed_integer_bounded(value):
+    with pytest.raises(AppError) as caught:
+        binding.parse_target(value)
+    assert caught.value.status==400
+
+
+def test_binding_max_signed_ids_fit_the_existing_w1_target_without_ddl_change():
+    value=binding.target(binding.DeadlineBinding(9223372036854775807,
+        'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',2147483647))
+    assert len(value)<=80 and binding.target(binding.parse_target(value))==value
+    with pytest.raises(AppError):
+        binding.parse_target('d1:'+('9'*5000)+':aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa:1')

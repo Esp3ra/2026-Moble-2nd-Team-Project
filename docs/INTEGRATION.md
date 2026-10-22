@@ -224,6 +224,47 @@ C# `ApiClient`는 요청 시작 시 서버 주소·접속 세대·Bearer를 캡�
 
 회귀 검증은 [C# 접속 테스트](../Tests/ApiClient.Tests/README.md), 서버 `tests/test_admin_concurrency.py` 및 [PR 수정 검증 기록](PR2_수정검증_2026-10-16.md)에 정리합니다.
 
+## 2026-10-22 후속: 옛 미확정 작업의 W1 원 배정 결합 — 구현 제안
+
+4번564b352의 `journal_bridge`가 찾지 못하던 **확인 행이 없는 옛 요청**을 위해
+`remotework/deadline_bindings.py`를 추가했다. 공통 W1/DB를 바꾸지 않으며
+자동 action/reader/HTTP 등록과 배정별 확인 DDL 설치도 하지 않는다.
+
+- `DeadlineBinding(task_id,event_id,assignment_revision)` / `target(binding)` /
+  `parse_target(value)`는 `d1:<task_id>:<event_uuid>:<assignment_revision>`을
+  정규화한다. 최대 signed BIGINT/INTEGER에서도 기존80자 target에 들어간다.
+  **UUID 사건은 바꾸지 않는다.** 이 문자열은 W1 확인 대상이며 새 사건ID가 아니다.
+  raw event만 사용한 이전 대상/키는 새 대상으로 변환하지 않는다.
+- `current_binding(db,task_id=...)`는 실제2번 현재 own facts와1번 현재 사건에서
+  화면의 현재 결합을 만든다. 날짜·버전 hash/임시 suffix로 사건을 제조하지 않는다.
+- `read_bound_event(db,target)`는 같은 인증TX 안에서 **정확한 업무 current own**을
+  먼저 검사하고, 원 `task_assignments(task_id,revision)`의 assignee가 현재 actor인지
+  잠금 대조한 뒤 보관 사건의 같은 task를 확인한다. 확인행/전체 own목록 탐색이
+  없어도 다른 초기불명 업무와 독립적으로 원래 사건을 읽는다. 현재 own 회수나
+  원 배정 타인이면403, 검증된 사건 부재404·저장소/자료 불명503을 구분한다.
+- `authorize_result(db,target)`는 기존 W1에 **명시 등록할 수 있는** 현재 접근
+  callback이다. `/write-requests/keys`, perform_once, read-only result reader에
+  같은 함수를 연결하고 actor/action/target·TTL/원본문 hash는 기존W1 검사를
+  그대로 사용한다. 결과조회 본문은 기존 `{action,target}`로 충분하며 공통 코어에
+  원 assignment 필드를 추가하거나 signed key를 다시 발급하지 않는다.
+- 제안 wire: 새 확인 body에 `task_id`(정규 BIGINT 문자열)와 기존
+  `expected_row_version`/`expected_assignment_revision`을 고정하고 서버가 위 target을
+  재구성·대조한다. 최소 성공은 `task_id,event_id,assignment_revision,confirmed_at`.
+  클라이언트의 원 operation/key/body·성공/불명 cache와 MainForm wrapper도
+  이 결합을 함께 전달해야 한다. **이 wire와 배정별 확인 SQL은 대조 중인 제안**이며
+  현재 HTTP/DDL 최종 규격 또는 구현 완료로 표시하지 않는다.
+- 새 확인 mutate는 현재 event/assignment·상태/취소·expected 버전을 별도로 검사한다.
+  보관 결과 접근이 허용됐다고 옛 요청을 새 배정 확인으로 실행하지 않는다.
+  같은 계정이 배정1→타인2→본인3으로 돌아오면 UUID는 유지하고 target1/3은 다르다.
+  같은 계정의 옛 배정 결과 조회 허용은 현재 own+원 actor+기존 W1 TTL 아래의 제안이며,
+  중간상태·baseline/최종 정책 합의를 대신하지 않는다.
+
+`test_deadline_events.py`에서 실제 journal/facts/배정·W1 key/result와 결합해 검사한다.
+등록은 TESTING fixture만 수행하며 제품 startup이나 기존4번 초안을 수정하지 않는다.
+4번은 수정된109 HTTP/166 UI와50 MySQL 검사를 제공했고1번도 독립 재실행했다.
+추가 실제journal 소비13검사는 고정6302dbe 공급과564b352 bridge의 결합이며,
+최종 배정별 source/확인 저장·2번 제품 hook·공유 적용/물리두PC와 구분한다.
+
 ## 2026-10-22: 2·4번 연결용 마감 변경 기록 함수 — 검토 제안
 
 **제공 완료:** `record_change`는 2번의 원래 W1 mutation 안에서 업무 flush/refresh
