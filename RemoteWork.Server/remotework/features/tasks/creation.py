@@ -17,6 +17,7 @@ from ...models import iso, utcnow
 from ...write_contract import lock_users, positive_integer
 from .models import TaskAssignment, TaskManager, TaskRecord
 from .attachment_selection import validate_attachment_selection
+from .deadline_journal import record_task_deadline
 
 
 INPUT_FIELDS = {"title", "description", "start_date", "due_date", "assignee_id", "manager_user_ids"}
@@ -149,6 +150,7 @@ def execute_creation(db, *, body, key):
         # Use the stored MySQL DATETIME precision for the first response as
         # well as later GETs and the common retained result.
         session.refresh(task)
+        record_task_deadline(session, task=task, action="task.created", before_due_date=None)
         audit("task.created", "task", task.task_id, {
             "row_version": str(task.row_version),
             "assignment_revision": task.current_assignment_revision,

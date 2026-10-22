@@ -11,7 +11,7 @@ public sealed record WorkdayActivityOptions(Guid FingerprintDeviceId, Uri PiAddr
 
 /// <summary>One shown login owns the reader, a single activity monitor and one
 /// retained noon operation. Does not change normal authentication or clock-out.</summary>
-public sealed class LoginWorkdayActivity : System.ComponentModel.Component
+public sealed partial class LoginWorkdayActivity : System.ComponentModel.Component
 {
     private readonly Form owner;
     private readonly Func<CancellationToken, Task<WorkdayActivityState>> read;
@@ -35,7 +35,7 @@ public sealed class LoginWorkdayActivity : System.ComponentModel.Component
     public WorkdayActivityState? Workday { get; private set; }
     public bool HasFreshWorkday { get; private set; }
     public bool IsCurrent => Volatile.Read(ref ended) == 0 && !cancellation.IsCancellationRequested && Session.IsCurrent;
-    public bool CanCheckNoon => IsCurrent && !showingNoon &&
+    public bool CanCheckNoon => IsCurrent && !showingNoon && !showingClockOut && !clockOutPaused &&
         (HasFreshWorkday && Workday?.NoonDue == true || noonOperation is { HasFinalizeAttempt: true, Completed: null });
     public string Status { get; private set; } = "현재 근무 연결 준비 중";
     public event Action? Changed;
@@ -43,7 +43,9 @@ public sealed class LoginWorkdayActivity : System.ComponentModel.Component
     public LoginWorkdayActivity(Form owner, ApiClient.Session session,
         Func<CancellationToken, Task<WorkdayActivityState>> read, WorkdayActivityOptions options,
         IActivityMonitor? monitor = null, Func<FingerprintWorkdayOperation, Task>? presentNoon = null,
-        Func<Uri, IIdentityRelayDevice>? deviceFactory = null, bool automaticallyPoll = true)
+        Func<Uri, IIdentityRelayDevice>? deviceFactory = null, bool automaticallyPoll = true,
+        Func<WorkdayClockOutRequest, Func<Task>, CancellationToken, Task<WorkdayClockOutConnection>>? prepareClockOut = null,
+        Func<FingerprintWorkdayOperation, Task>? presentClockOut = null)
     {
         this.owner = owner ?? throw new ArgumentNullException(nameof(owner));
         Session = session ?? throw new ArgumentNullException(nameof(session));
@@ -65,6 +67,8 @@ public sealed class LoginWorkdayActivity : System.ComponentModel.Component
         Monitor = monitor ?? new ActivityMonitor();
         this.deviceFactory = deviceFactory ?? (address => new HttpFingerprintIdentityDevice(address.ToString()));
         this.presentNoon = presentNoon ?? PresentNoon;
+        this.prepareClockOut = prepareClockOut;
+        this.presentClockOut = presentClockOut ?? PresentNoon;
         timer = new() { Interval = (int)interval.TotalMilliseconds, Tag = automaticallyPoll };
         timer.Tick += async (_, _) => await CheckAsync();
         owner.FormClosing += OwnerClosing;
@@ -92,7 +96,7 @@ public sealed class LoginWorkdayActivity : System.ComponentModel.Component
     public Task CheckAsync(bool allowAutomaticPrompt = true)
     {
         OnUi();
-        if (!IsCurrent) return Task.CompletedTask;
+        if (!IsCurrent || clockOutPaused) return Task.CompletedTask;
         if (reading) return pendingCheck;
         return pendingCheck = CheckCoreAsync(allowAutomaticPrompt);
     }
@@ -102,7 +106,7 @@ public sealed class LoginWorkdayActivity : System.ComponentModel.Component
         try
         {
             var next = await read(cancellation);
-            if (!IsCurrent) return;
+            if (!IsCurrent || clockOutPaused) return;
             Validate(next);
             if (Workday is { } old && (old.WorkSessionId != next.WorkSessionId || old.WorkDate != next.WorkDate))
             {
@@ -118,7 +122,7 @@ public sealed class LoginWorkdayActivity : System.ComponentModel.Component
             {
                 var expected = next.WorkSessionId;
                 await Monitor.StartAsync(new ActivityMonitorContext(expected.ToString("D"),
-                    () => IsCurrent && HasFreshWorkday && Workday?.WorkSessionId == expected, cancellation), options.Camera, options.PiAddress);
+                    () => IsCurrent && HasFreshWorkday && !clockOutPaused && Workday?.WorkSessionId == expected, cancellation), options.Camera, options.PiAddress);
                 if (!IsCurrent) { await Monitor.StopAsync(); return; }
             }
             SetStatus(next.NoonDue ? "정오 지문 확인이 필요합니다." : next.NoonAt is not null ? "근무 중 · 정오 지문 확인 완료" : "근무 중 · 활동 상태 확인 중");
@@ -133,14 +137,14 @@ public sealed class LoginWorkdayActivity : System.ComponentModel.Component
         finally { reading = false; }
         // Initial late connection does not invent a missed-noon/grace policy.
         // Only a before-noon observation followed by server NoonDue opens once.
-        if (allowAutomaticPrompt && IsCurrent && HasFreshWorkday && beforeNoonSeen && !noonPrompted
+        if (allowAutomaticPrompt && IsCurrent && !showingClockOut && !clockOutPaused && HasFreshWorkday && beforeNoonSeen && !noonPrompted
             && Workday?.NoonDue == true && owner.Visible && owner.Enabled && !showingNoon)
             await ShowNoonAsync();
     }
     public async Task ShowNoonAsync()
     {
         OnUi();
-        if (!IsCurrent || showingNoon) return;
+        if (!IsCurrent || showingNoon || showingClockOut || clockOutPaused) return;
         showingNoon = true; Changed?.Invoke();
         try
         {
@@ -193,7 +197,7 @@ public sealed class LoginWorkdayActivity : System.ComponentModel.Component
     }
     private async Task FinishStopAsync()
     {
-        try { timer.Stop(); HasFreshWorkday = false; ReleaseNoon(); await Monitor.StopAsync(); }
+        try { timer.Stop(); HasFreshWorkday = false; ReleaseNoon(); ReleaseClockOut(); await Monitor.StopAsync(); }
         catch (Exception e) when (e is not OutOfMemoryException)
         { Monitor.Dispose(); SetStatus("활동 감지 종료 확인이 필요합니다."); }
         finally { stopped.TrySetResult(); if (!disposed) Changed?.Invoke(); }

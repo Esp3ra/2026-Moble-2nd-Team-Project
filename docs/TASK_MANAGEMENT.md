@@ -1,5 +1,7 @@
 # 업무 수정·재배정·관리자 변경
 
+PR70의 마감 쓰기가 명시 설치된 경우 일반수정의 **실제 DATE 변경만** [원 W1 mutation 안에서 사건 기록](TASK_QUERIES.md#task-deadline-journal-writes)으로 연결합니다. 제목/본문/시작일/첨부-only·같은 기한·재배정/관리자 변경은 사건을 만들지 않으며 기존 요청/응답·권한·W1 복구를 유지합니다. 오류는 원 업무·첨부 참조·감사·receipt와 함께 rollback합니다.
+
 <a id="task-management-recovery-display"></a>
 ## WinForms 원래 변경 대상 확인 — 2026-10-22
 

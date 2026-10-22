@@ -1,5 +1,7 @@
 # 2번 개발용 신규 업무 등록
 
+PR70의 실제 마감 쓰기가 명시 설치된 경우에는 신규 task/배정/관리자·선택 첨부 저장 후 감사 전에 [최초 기한 사건을 같은 TX에서 기록](TASK_QUERIES.md#task-deadline-journal-writes)합니다. 기본 OFF/결과 읽기 전용은 기존 등록 동작을 유지하고, 사건 기록 실패 시 신규 업무·참조·감사·receipt도 함께 rollback합니다. 기존 업무의 최초 기한을 추정하는 baseline은 추가하지 않습니다.
+
 2026-10-19. 기존 공통 W1과 업무 3테이블을 사용하는 개발용 API와 WinForms 신규 등록 연결입니다. 사용자 확정인 등록자 필수 관리자 기준을 적용합니다. 최초 배정/버전 1/1과 POST 입력·결과는 **2번 개발 계약**이며, 2026-10-19 [1번 기술 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/1번/2026-10-19_협업요청_기술검토_회신.md)으로 초기값·원자 저장·재응답·새 개발 DB DDL을 수용받았습니다. PR #25의 실제 MySQL 등록/DDL/복원 검증과 코드 병합을 정식 migration·공유 서버 적용 승인으로 확대하지 않습니다.
 
 [팀장 공통규약·담당별 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md) · [공통 쓰기 지원](WRITE_SUPPORT.md) · [입력/후보 준비](TASK_WRITE_PREPARATION.md)

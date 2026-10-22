@@ -235,6 +235,7 @@ def execute_management(db, *, target, action, body, key):
         task, assignment = _locked_current(session, target, expected, action)
         from .lifecycle_support import ensure_not_cancelled
         ensure_not_cancelled(session, task.task_id)
+        before_due_date = task.due_date
         before = {"task_status": task.task_status, "row_version": str(task.row_version),
                   "assignment_revision": task.current_assignment_revision}
         now = utcnow()
@@ -244,6 +245,9 @@ def execute_management(db, *, target, action, body, key):
         task.updated_at = now
         session.flush()
         session.refresh(task)
+        if action == "task.updated" and task.due_date != before_due_date:
+            from .deadline_journal import record_task_deadline
+            record_task_deadline(session, task=task, action=action, before_due_date=before_due_date)
         result = {"task_id": str(task.task_id), "row_version": str(task.row_version),
                   "assignment_revision": task.current_assignment_revision,
                   "task_status": task.task_status, "updated_at": iso(task.updated_at)}

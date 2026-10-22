@@ -15,6 +15,8 @@ public sealed class FingerprintWorkdayOperation : IDisposable
     private readonly CancellationTokenSource lifetime = new();
     private readonly SemaphoreSlim gate = new(1);
     private Guid? verifiedChallenge;
+    private readonly Func<WorkdayClockOutRequest, CancellationToken, Task<WorkdayClockOutConnection>>? prepareClockOut;
+    public WorkdayClockOutConnection? ClockOutConnection { get; private set; }
     private bool disposed;
     public string Purpose { get; }
     public Guid WorkSessionId { get; }
@@ -26,13 +28,16 @@ public sealed class FingerprintWorkdayOperation : IDisposable
     public WorkdayIdentityReceipt? Completed { get; private set; }
 
     public FingerprintWorkdayOperation(ApiClient.Session session, Guid workSessionId, DateOnly workDate,
-        string purpose, Guid deviceId, IIdentityRelayDevice device)
+        string purpose, Guid deviceId, IIdentityRelayDevice device,
+        Func<WorkdayClockOutRequest, CancellationToken, Task<WorkdayClockOutConnection>>? prepareClockOut = null)
     {
         this.session = session ?? throw new ArgumentNullException(nameof(session));
         session.ThrowIfChanged();
         if (purpose is not ("noon_check" or "clock_out")) throw new ArgumentException("정오 또는 퇴근 확인을 선택해 주세요.", nameof(purpose));
         if (workSessionId == Guid.Empty || workDate == default) throw new ArgumentException("서버의 현재 근무 정보를 확인해 주세요.");
         ArgumentNullException.ThrowIfNull(device);
+        if (prepareClockOut is not null && purpose != "clock_out") throw new ArgumentException("퇴근 전용 연결입니다.");
+        this.prepareClockOut = prepareClockOut;
         Purpose = purpose; WorkSessionId = workSessionId; WorkDate = workDate;
         Attempt = new(new FingerprintIdentityConnection(session, purpose), new BoundDevice(this, device), deviceId);
     }
@@ -63,11 +68,24 @@ public sealed class FingerprintWorkdayOperation : IDisposable
             // Freeze before I/O: a lost response may have already committed clock-out
             // and removed the normal server session. The existing endpoint accepts only
             // this original context's retained result. Do not send auth/logout to recover.
-            HasFinalizeAttempt = true;
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, lifetime.Token);
-            var answer = await session.PostAsync<JsonElement>(
-                "device-identity/challenges/" + verifiedChallenge.Value.ToString("D") + "/finalize",
-                new { client_request_id = OriginalFinalizeId.ToString("D") }, linked.Token).ConfigureAwait(false);
+            JsonElement answer;
+            if (prepareClockOut is not null)
+            {
+                var binding = new WorkdayClockOutRequest(WorkSessionId, WorkDate, verifiedChallenge.Value, OriginalFinalizeId);
+                ClockOutConnection ??= await prepareClockOut(binding, linked.Token).ConfigureAwait(false);
+                Current(ct);
+                if (ClockOutConnection.Request != binding || !ClockOutConnection.IsCurrent) throw Invalid();
+                HasFinalizeAttempt = true;
+                answer = await ClockOutConnection.CompleteAsync(linked.Token).ConfigureAwait(false);
+            }
+            else
+            {
+                HasFinalizeAttempt = true;
+                answer = await session.PostAsync<JsonElement>(
+                    "device-identity/challenges/" + verifiedChallenge.Value.ToString("D") + "/finalize",
+                    new { client_request_id = OriginalFinalizeId.ToString("D") }, linked.Token).ConfigureAwait(false);
+            }
             Current(ct);
             var receipt = Parse(answer);
             Completed = receipt;
