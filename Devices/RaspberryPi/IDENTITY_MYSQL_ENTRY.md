@@ -16,3 +16,5 @@ python3 pi_api_identity_mysql.py --config /private/enrollment.mysql.json \
 2026-10-23 직접 HTTP에서 Pi health200·등록OPTIONS200·identity/v2/jobs OPTIONS404를 확인했다. 사용자의 읽기전용 SSH 출력은 active 서비스의 기존 MySQL entry와 비교6소스 불일치, 인증v2 비공개 프로필 부재, BOOTTIME 사용 가능을 보고했다. 파일 부재와 구버전은 그 출력만으로 구분하지 않는다. 기존 지문·매핑·서비스를 변경하지 않았다.
 
 새 entry4개 검사는 합성 loader/runtime으로 읽기전용·준비누락 차단·동일센서/기존잠금·오류 경계를 확인한다. 기본 Python3.14에는 Flask가 없어 첫 실행이 import 실패했으며, 기존 시험용 Python3.13 환경으로 실행해4개 통과했다. 기존 runtime/HTTP/권한 전체 회귀와 실제 Linux 비공개 설정·센서 시험은 각각 구분한다.
+
+검토한Git export의 전체 Pi 회귀는255실행/252통과·Linux전용3생략,6.547초다. 기존251+새4를 합친 전체이며4를 다시 합산하지 않는다. 사용자가 소스285c8aec의 런타임19파일을 라파의 별도 후보폴더에 배치했고 해시검증PASS/NOT_ACTIVE 결과를 전달했다. 이는 비공개키 설치/서비스 전환/실물인증 성공이 아니다. 기존서비스와 등록지문은 보존했고 준비 callback·키 공급/실효 서버설정은1번과 대조 중이다.
