@@ -24,7 +24,7 @@ from flask import Flask, jsonify, request
 from werkzeug.serving import make_server, WSGIRequestHandler
 import fingerprint_identity_wire as wire
 from fingerprint_identity import IdentityProfile
-from identity_http import mount_identity_http
+from identity_runtime import IdentityRuntime
 from pi_api import DisplayCoordinator, FingerprintService
 
 
@@ -54,7 +54,9 @@ keys = {k: secrets.token_bytes(32) for k in wire.KINDS}
 profile = IdentityProfile("10000000-0000-4000-8000-000000000001", "loopback-generated-only", "1", True,
                           1, 299, 300, keys, (secrets.token_bytes(32),))
 app = Flask(__name__)
-jobs = mount_identity_http(app, service, profile, enabled=True, clock=time.monotonic)
+# Test double only: no production startup reconciliation is claimed by this host.
+runtime = IdentityRuntime(service, profile, ready=lambda _: True, clock=time.monotonic)
+runtime.mount(app)
 lock = threading.RLock()
 tickets, approvals, receipts, result_hashes = {}, {}, {}, {}
 counters = dict(approval_posts=0, complete_posts=0, completions=0)
@@ -142,7 +144,7 @@ def status(challenge):
 def stats():
     with lock:
         return jsonify(dict(counters, searches=sensor.searches, images=sensor.images, sensor_locked=service.lock.locked(),
-                            shared_stopping=service.stopping.is_set(), jobs=len(jobs._jobs)))
+                            shared_stopping=service.stopping.is_set(), jobs=len(runtime._jobs._jobs)))
 
 
 class Quiet(WSGIRequestHandler):
@@ -156,7 +158,7 @@ print(json.dumps(dict(port=server.server_port, loopback_only=True, synthetic=Tru
 try:
     sys.stdin.readline()
 finally:
-    stopped = jobs.close()
+    stopped = runtime.close()
     server.shutdown(); server.server_close(); thread.join(3)
     print(json.dumps(dict(stopped=stopped, shared_stopping=service.stopping.is_set())), flush=True)
     if not stopped: raise SystemExit(2)

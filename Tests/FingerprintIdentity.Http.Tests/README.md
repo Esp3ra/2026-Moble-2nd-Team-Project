@@ -8,6 +8,8 @@ dotnet run --project Tests/FingerprintIdentity.Http.Tests -c Release -- --python
 
 소스 체크아웃이 필요하다. Python에 기존 Flask/tzdata 시험 의존성을 준비하며 실센서·serial/Adafruit/OLED 라이브러리·개인 설정은 읽지 않는다. 프로그램은 `127.0.0.1`의 OS 선택 빈 포트로만 시험 프로세스를 만들고, 종료 시 자기 프로세스/worker를 정리한다. systemd/실제 Pi/서버·계정/DB/키 파일은 바꾸지 않는다. Python 프로세스가 만든 일회성 합성 방향키는 C#에 전달하지 않는다.
 
+2026-10-22부터 이 loopback 호스트는 `IdentityRuntime`의 `mount/close`를 사용한다. `ready=lambda _: True`는 **시험 프로세스만의 대역**이며 실제 서버 재시작 조정이나 운영 활성화 방법이 아니다. 운영 runtime의 기본 차단·실패 후 재개 금지는 별도 `test_identity_runtime.py`로 검사한다. 실제 키 파일의 Linux 소유/권한 검사는 Windows에서 생략되며 실물 적용 전 Linux 검증이 남는다.
+
 검사 범위:
 
 - matched/no_match의 실제 양방향 원문 전달·Pi MAC 검증과 시험 서버의 result binding·영수증. verified도 workflow pending이다.
