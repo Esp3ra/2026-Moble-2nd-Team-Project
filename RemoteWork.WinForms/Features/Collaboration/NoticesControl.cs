@@ -39,6 +39,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
         {
             base.OnLoad(e);
             BindDeadlineAlertsFromOwner();
+            if (!PreviewActions.IsDesignMode(this)) _ = RefreshDeadlineAlertsAsync();
             if (!PreviewActions.IsDesignMode(this)) await ReloadNoticesAsync();
         }
 
