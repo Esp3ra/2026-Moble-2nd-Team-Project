@@ -26,7 +26,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             btnNoon.Name = "btnNoon"; btnNoon.Text = "정오 지문 확인"; btnNoon.Size = new Size(140, 30); btnNoon.Enabled = false; btnNoon.Click += Noon_Click;
             btnActivity.Name = "btnActivity"; btnActivity.Text = "활동 상태"; btnActivity.Size = new Size(110, 30); btnActivity.Enabled = false; btnActivity.Click += Activity_Click;
             btnRefresh.Name = "btnRefresh"; btnRefresh.Text = "근무 다시 확인"; btnRefresh.Size = new Size(140, 30); btnRefresh.Enabled = false; btnRefresh.Click += Refresh_Click;
-            refreshTimer.Interval = 500; refreshTimer.Tick += (_, _) => Render();
+            refreshTimer.Interval = 500; refreshTimer.Tick += RefreshTimer_Tick;
             AutoScaleDimensions = new SizeF(7F, 15F); AutoScaleMode = AutoScaleMode.Font; Font = new Font("맑은 고딕", 9F);
             BackColor = Color.FromArgb(242, 245, 250); Padding = new Padding(10, 0, 10, 2); Size = new Size(800, 66);
             Name = "WorkdayActivityBar"; Controls.Add(layoutStatus);

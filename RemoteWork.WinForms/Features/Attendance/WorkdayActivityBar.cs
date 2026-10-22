@@ -25,4 +25,5 @@ public partial class WorkdayActivityBar : UserControl
         using var view = new ActivityPresenceForm(activity.Monitor); view.ShowDialog(FindForm());
     }
     private void ReleaseBar() { if (activity is not null) activity.Changed -= Render; }
+    private void RefreshTimer_Tick(object? sender, EventArgs e) => Render();
 }

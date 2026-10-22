@@ -16,7 +16,8 @@ internal static partial class Program
     private static readonly WorkdayActivityOptions Options = new(DeviceId, new Uri("http://pi.invalid:8080"), new());
     private static WorkdayActivityState Before => new(Work, new(2026, 10, 22), DateTimeOffset.Parse("2026-10-22T02:59:00Z"), null, false);
     private static WorkdayActivityState Due => Before with { ServerTime = Before.ServerTime.AddMinutes(1), NoonDue = true };
-    private static void Check(bool ok, string message) { checks++; if (!ok) throw new InvalidOperationException(message); }
+    private sealed class VerificationFailure(string message) : Exception(message);
+    private static void Check(bool ok, string message) { checks++; if (!ok) throw new VerificationFailure(message); }
     private static T Field<T>(object target, string name) => (T)target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(target)!;
     private static HttpResponseMessage Reply(object data) => new(HttpStatusCode.OK)
     { Content = new StringContent(JsonSerializer.Serialize(new { ok = true, data }, ApiClient.Json), Encoding.UTF8, "application/json") };
@@ -24,6 +25,8 @@ internal static partial class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        Console.OutputEncoding = new UTF8Encoding(false);
+        Console.SetError(new StreamWriter(Console.OpenStandardError(), new UTF8Encoding(false)) { AutoFlush = true });
         ApplicationConfiguration.Initialize(); Control.CheckForIllegalCrossThreadCalls = true;
         int code = 1;
         using var owner = new Form { ShowInTaskbar = false, StartPosition = FormStartPosition.Manual, Location = new(-20000, -20000) };

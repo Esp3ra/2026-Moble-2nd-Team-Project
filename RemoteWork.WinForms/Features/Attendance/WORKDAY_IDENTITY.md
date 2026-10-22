@@ -1,5 +1,7 @@
 # 정오·퇴근 지문 확인 (5번)
 
+후속 2026-10-22: 현재 근무 reader 주입·MainForm 소유 monitor·정오 안내 연결은 [WORKDAY_ACTIVITY.md](WORKDAY_ACTIVITY.md)에 추가했다. 아래 공통 접점 미제공 설명은 당시 이력이며, 현재 PR71은 Draft로 시험에만 연결했다. 퇴근 중 일반 요청/401/결과 복구 공통 수명은 계속 1번 후속이다.
+
 2026-10-22 PR69 병합·1번 기술 수용 이후, 원본 alpha5594f2a 기준의 후속이다. `FingerprintWorkdayOperation`과 Designer/resx `FingerprintWorkdayForm`을 추가했다. 1번의 기존 정상 Bearer용 `noon_check`/`clock_out` challenge·완료·finalize를 사용하며 서버/DDL/공통 ApiClient/MainForm/실제 Pi는 변경하지 않는다.
 
 ## 이번 구현

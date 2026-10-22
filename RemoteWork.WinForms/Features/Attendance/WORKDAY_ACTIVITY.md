@@ -38,3 +38,18 @@ Designer의 `WorkdayActivityBar`는 정오 지문 확인·활동 상태·근무 
 공유 서버 옵션/DDL/키, Linux 단일 UART/OLED와 재시작 복구, 실제 카메라/라파·두 PC, 지문 인증 기록 보관/탈퇴 정리와 연차 실제 서버 연결은 별도다. 이번에 실제 장치·서비스·공유 DB·키를 변경하지 않았다. 독립 시험의 열린 근무·회원·키·readiness·UART·monitor 대역을 실제 출근/카메라 성공으로 기록하지 않는다.
 
 검사 절차와 범위는 `Tests/WorkdayActivity.Tests/README.md`를 따른다. 협업 기준은 [1번 기존 통합 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309878130), [5번 기존 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309485288)이다. 이번 결과의 원격 회신과 새 코드 PR은 사용자 전송 승인 뒤 별도로 진행한다.
+
+## 2026-10-22 직접 검증 기록
+
+팀장 alpha `57a9b08c35c0c3a5b6aae6249fa97074211500d1`를 로컬 alpha에 병합한 결합 상태다. 아래 수치를 서로 합산해 실물 성공으로 표시하지 않는다.
+
+| 검사 | 결과와 범위 |
+|---|---|
+| `dotnet run --project Tests/WorkdayActivity.Tests -c Release` | 26항목 통과. 실제 폼/MainForm·명시 대역. Draft reader를 외부 링크한 별도 실행도 26항목 통과 |
+| 기존 `Tests/IdentityLogin.Ui.Tests` | 179항목 통과. 실제 폼/ApiClient·HTTP/장치 대역 |
+| 기존 `Tests/ActivityPresence.Tests` | 297항목/12시나리오 통과. 실제 Python stdio·loopback·합성 영상/장치 |
+| 기존 `Tests/Leave.Ui.Tests` | 89항목 통과. 실제 폼·합성 workflow |
+| 소유 MySQL/서버·Pi HTTP/실제 C# | 12통과/36.02초. 기존10개와 정오 정상/응답유실2개. server/Pi export alpha `6aa8816` + PR71 고정 head `81eb880`, 시험 DLL SHA `f8d23d3e14420a14d26e760ab184062ee27ab0c8171625e85e1c9d22f79df065` 전후 동일. 소유 MySQL·DB·프로세스/runtime 정리 완료 |
+| Release 솔루션 / diff | 경고0·오류0 / 통과 |
+
+실패 이력도 보존했다. 카메라 회귀 첫 실행은 저장소 밖 산출물 경로에서 기존 Python 탐색이 실패했으며, 소스 변경 없이 저장소 안의 별도 무시된 bin 폴더로 실행해 통과했다. 정오 통합 첫 세 번의 시도는 모델리스 폼 Shown 이전의 완료 Task를 읽은 시험 조립 문제로 각10통과/2실패였다. 시험에서 Shown을 기다리고, 검증 실패를 제품의 예상 예외 처리에 삼키지 않게 구분하며 stderr UTF-8 처리를 보완한 뒤 위12개가 통과했다. 앞선 소유 MySQL/runtime도 각각 정리 완료다. 제품의 인증/서버 계약을 완화하거나 실제 환경을 바꿔 통과시키지 않았다.

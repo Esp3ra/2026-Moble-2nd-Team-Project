@@ -58,7 +58,7 @@ def test_noon_transition_and_retained_result(working, monkeypatch, mode):
                 p.server_url, p.pi_url, DID, work_id, mode], cwd=dll.parent, env=env,
                 stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8",
                 creationflags=subprocess.CREATE_NO_WINDOW, timeout=45)
-            assert result.returncode == 0, result.stdout + result.stderr
+            assert result.returncode == 0, (result.stdout or "") + (result.stderr or "")
             summary = json.loads(result.stdout.strip().splitlines()[-1])
             assert summary["passed"] and summary["shown"] == (2 if mode == "loss" else 1)
             assert summary["monitor_starts"] == summary["monitor_stops"] == 1

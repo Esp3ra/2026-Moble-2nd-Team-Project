@@ -22,10 +22,14 @@ internal static partial class Program
                 shown++; original ??= operation;
                 Check(ReferenceEquals(original, operation), "Real recovery retains original noon operation");
                 using var form = new FingerprintWorkdayForm(operation, a => a.RunAsync(), autoStart: true);
-                form.Show(owner); await form.PendingOperation;
+                var shownForm = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                form.Shown += (_, _) => shownForm.TrySetResult();
+                form.Show(owner); await shownForm.Task; await form.PendingOperation;
                 if (args[5] == "loss" && shown == 1)
-                    Check(form.CompletedReceipt is null && operation.HasFinalizeAttempt, "Real lost noon response stays unknown");
-                else Check(form.CompletedReceipt is not null, "Real server noon receipt confirmed");
+                    Check(form.CompletedReceipt is null && operation.HasFinalizeAttempt, "Real lost noon response stays unknown; " +
+                        Field<Label>(form, "lblStatus").Text + "; " + operation.Attempt.Latest.Detail);
+                else Check(form.CompletedReceipt is not null, "Real server noon receipt confirmed; " +
+                    Field<Label>(form, "lblStatus").Text + "; " + operation.Attempt.Latest.Detail);
                 form.Dispose(); // Borrowed operation is retained by host, not this view.
             }, automaticallyPoll: false);
         await host.StartAsync();
