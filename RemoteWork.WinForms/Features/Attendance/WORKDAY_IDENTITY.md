@@ -25,3 +25,9 @@
 기존 실제 서버 검사 runner의 `--identity-login-client`를 사용하면 추가4개(정오/퇴근 × 정상/응답유실)를 실행한다. 소유 MySQL에 이전 출근이 확정된 열린 근무를 명시 fixture로 준비하고, 실제 정상 로그인→실제 C# 폼/relay→실제 Pi HTTP→서버 MAC/승인→실제 MySQL finalize를 확인한다. 이전 출근 fixture는 운영 조회 API가 구현됐다는 뜻이 아니다. UART/OLED·키·회원/readiness는 시험용이고 실제 공유 DB·장비는 사용하지 않는다.
 
 Linux 실물 loader/비공개 프로필·readiness/재시작 대조는 운영 자료 미수신으로 미실행이다. 실제 새 지문 기능 OFF 유지, 기존 등록·센서 템플릿/회원 매핑 보존, 원본 직접 push·자가 병합 없음. 1번 협업 회신 초안에는 현재 근무 reader/퇴근 수명 경계를 함께 묶어 전달할 준비를 한다. 날짜LOG는 팀장 취합용이며 팀원은 직접 게시하지 않는다.
+
+## 2026-10-22 실행 결과
+
+제품/검사 소스 `a02bd5a` + 원본 `5594f2a`(source export 충돌0), C# 검사 DLL SHA256 `4bb3469cfd69abffbd9d5456ac1bf5b5007a645198834b6a92c0998d73097e0c` 고정. Windows/.NET10 SDK·net8-windows/Python3.13·MySQL8.2에서 C# **179검사 PASS**, 전체 Release **오류0/경고0**, 실제 서버/Pi HTTP·MySQL/C# **17 passed in51.00s / exit0**, DLL 실행중 변경 없음·소유 MySQL/DB/runtime 정리true. 최초17PASS/50.84초 실행의 UTC 생성함수 폐기예정 경고4개는 검사 fixture에서 명시 UTC 생성으로 바꾼 뒤 위 최종 실행에서 없어졌다. 제품 시간 규칙/서버 시계는 바꾸지 않았다.
+
+정오/퇴근 폼을 실제 WinForms 메시지 루프에서 표시하고 PNG로 저장·시각 대조했다. 테스트 화면/회원·가짜 UART이며 실제 계정/장비의 정오/퇴근 성공을 의미하지 않는다. 현재 근무 reader·MainForm 자동일정/종료·활동monitor 연동/실물2PC는 아직 미구현·협의 대상이다. 기존 PR69의 병합과 이번 후속 변경의 리뷰/병합 상태를 구분한다.

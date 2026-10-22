@@ -2,6 +2,8 @@
 
 2026-10-22 후속: `Workday.cs`/실제 서버 모드4개를 추가했다. 아래77/13은 PR69 당시 결과이며, 현재 기본 명령은 정오·퇴근 검사를 함께 실행한다. [연결 경계](../../RemoteWork.WinForms/Features/Attendance/WORKDAY_IDENTITY.md)를 따른다. 서버 runner의 현재 선택 모듈은 기존10 + 로그인3 + 정오/퇴근4 = **17 pytest 시나리오**다. 실제 실행 결과는 후속 검증 기록과 구분한다.
 
+최종 `a02bd5a`/원본 `5594f2a`: 기본 명령 **179검사 PASS**, Release0오류0경고. 같은 DLL 고정의 실제 서버 검사 **17 passed in51.00s / exit0**, 소유 MySQL/DB/runtime 정리true. 두 검사 수치는 합산하지 않는다. 정오/퇴근은 공개 synthetic fixture의 기존 열린 근무를 명시 준비하며 현재 근무 조회/메인 자동연결을 구현한 것으로 취급하지 않는다.
+
 ```powershell
 dotnet run --project Tests/IdentityLogin.Ui.Tests -c Release
 # 선택: 합성 화면 PNG
