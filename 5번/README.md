@@ -1,3 +1,11 @@
+## 최신 — PR63·65 병합과 PR62 서버 수정 대기, 2026-10-22
+
+[PR63](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/63#issuecomment-6330234285) head4ca48de는 **2eeafe9**, [PR65](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/65#issuecomment-6330376932) headb0f3eb2는 **18a4855**로 병합했습니다.63직접 Python228실행/226통과·POSIX2생략, C#143·loopbackHTTP110 통과입니다. 새65직접 Python251실행/248통과·Linux3생략, 새runtime loopbackHTTP110·독립import/기본차단16을 통과했습니다.65의기존143은 동일blob의이전근거 재사용이며 재실행/합산하지 않습니다.
+
+비공개 loader·키분리/슬롯/권한보호·read-only CLI, 명시factory/공유UART·단일pool·기본503/한번실패뒤재개금지·drain을 확인했습니다. 실제Linux owner/ACL/link·BOOTTIME·비공개키/회수키검사·서비스설치/실센서·재시작상태조정은 미실행입니다. 운영readiness를 상수True/health200/대기로 열지 않습니다.
+
+[PR62](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/62#issuecomment-6330262776)는 실제HTTP/MySQL서비스를 게시했지만 R62-01/P2 외부DB FK준비검사 수정요청으로 미병합입니다. 미제공전체로 취급하지 않으며 실제공급/동일원문·현재관계와pending UI/근태finalize·정상토큰 전환 후속을 구분합니다. [중앙 검사와 실제환경 경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr62-65-review-20261022)를 따릅니다. 실제 키/설정/DB·Pi8080/센서·회원매핑은 이번에 읽거나 변경하지 않았습니다.
+
 ## 최신 재검토 — PR55·PR56 병합 완료, PR52 코드 수정 대기, 2026-10-21
 
 [PR55](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/55) headbc1751d의 R55-04 단일 종료 시각 수정과 회원관리 연결 fixture 보완을 최신 alpha864a2a6에서 검증하고 **`b37fe3a38babe1553fc6d78e39e4b8c07ce0d822`**로 선행 병합했습니다. 공식8모듈239통과·독립 초 경계4통과·Release0/0이며 기존R55-01~04는 모두 해결 확인입니다. [최종 검토/범위](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/55#issuecomment-6306967504)를 따릅니다.
