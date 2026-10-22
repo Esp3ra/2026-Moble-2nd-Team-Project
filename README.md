@@ -1,18 +1,20 @@
 # 원격 근무용 업무 처리 확인 시스템
 
+PR70·71·72 병합본을 기준으로 2번의 [업무 저장과 실제 마감 사건 기록](docs/TASK_QUERIES.md#task-deadline-journal-writes)을 연결했습니다. 업무 생성·실제 기한 수정·연장 승인이 같은 트랜잭션에서 사건·감사·처리 결과와 함께 저장됩니다. 기존 마감 알림 쓰기를 명시 설치한 경우에만 동작하며 기본 OFF·결과 읽기 전용에서는 기존 업무 쓰기를 유지합니다. 근무 조회·정오 감시·연차 화면은 병합된 1·5번 제공부를 보존하고, 실제 조립·운영 적용은 해당 담당 범위로 구분합니다.
+
 업무 웹은 [등록·수정 폼 재표시의 첨부 정보](docs/TASK_WEB.md#task-web-attachment-redisplay)를 유지합니다. 업로드 후 후보 검색이나 입력 오류가 있어도 이전 파일명과 임시 삭제 버튼을 복원하며, 저장·삭제 시 서버가 현재 권한과 연결 상태를 다시 검사합니다. 현재 업무에 연결된 파일에는 임시 삭제를 제공하지 않습니다.
 
-2번의 [응답 유실 복구 화면](docs/TASK_MANUAL_CHECK.md#task-recovery-display-check-20261022)을 보완했습니다. 취소·마감 연장은 원래 사유·날짜를, 재배정·관리자 변경은 원래 대상 번호를 읽기 전용으로 표시합니다. 웹 저장 성공도 처리한 업무 번호와 동작을 표시합니다. 원래 요청·키·권한 검사는 유지하며 1·4번의 사건/확인 저장 연결은 기존 협의사항입니다.
+2번의 [응답 유실 복구 화면](docs/TASK_MANUAL_CHECK.md#task-recovery-display-check-20261022)을 보완했습니다. 취소·마감 연장은 원래 사유·날짜를, 재배정·관리자 변경은 원래 대상 번호를 읽기 전용으로 표시합니다. 웹 저장 성공도 처리한 업무 번호와 동작을 표시합니다. 원래 요청·키·권한 검사는 유지하며, 실제 알림 source·공유 적용과 기존 자료 전환은 후속입니다.
 
 WinForms **업무 수정 → 첨부 확인·변경**도 연결했습니다. 기존 첨부 제외와 새 파일 업로드를 확인한 뒤 변경 실행으로 저장하며, 결과가 불명확한 동안 원래 파일 목록·본문·요청 키를 유지합니다. 기존 업무 첨부를 제외하는 동작과 미연결 임시 파일을 삭제하는 동작을 구분합니다. [사용 방법·동작 범위](docs/TASK_MANAGEMENT.md#task-management-attachments-ui)를 확인하세요.
 
 업무 웹은 [PR68 제공부를 사용하는 실제 첨부 연결](docs/TASK_WEB.md#task-web-t3-consumers)을 지원합니다. 파일 선택→명시 업로드→업무 확인·실행, 일반수정의 첨부 추가·해제, 현재 업무 첨부의 크기·해시 검증 다운로드, 미연결 임시 파일의 명시 삭제를 연결했습니다. 관리 업무는 결과물을 읽기 전용으로 열고 원래 업무·필터로 돌아옵니다. 별도 소유 MySQL·합성 계정의 브라우저에서 등록·다운로드·첨부만 수정·전체 해제를 확인했으며 공유 운영 서버 검증은 별도입니다. 파일 전송에는 HTTPS 또는 localhost 접속이 필요합니다.
 
-2번은 [현재 본인 업무 전체 사실 읽기](docs/TASK_QUERIES.md#own-deadline-current-facts)를 제공합니다. 같은 인증 TX에서 관리자도 본인 배정만 조회하고 현재 기한·5상태·취소·배정/업무 버전을 반환합니다. 실제 제출·반려·재작업 연동과 배정·기한의 [검사 범위 및 재현 방법](Tests/TaskDeadlineEvidence.Tests/README.md)도 제공합니다. 전체 조회 상한 초과/불완전 자료는503이며, 기한 사건·확인 저장·서버UTC·HTTP/실제 알림 source는1·4번과 대조할 후속입니다. 새 DDL·경로·자동 활성화는 없습니다.
+2번은 [현재 본인 업무 전체 사실 읽기](docs/TASK_QUERIES.md#own-deadline-current-facts)를 제공합니다. 같은 인증 TX에서 관리자도 본인 배정만 조회하고 현재 기한·5상태·취소·배정/업무 버전을 반환합니다. 실제 제출·반려·재작업 연동과 배정·기한의 [검사 범위 및 재현 방법](Tests/TaskDeadlineEvidence.Tests/README.md)도 제공합니다. 전체 조회 상한 초과/불완전 자료는503입니다. PR70의 사건·확인 저장/서버UTC·HTTP를 기존 업무 쓰기에 연결한 [별도 검사](Tests/TaskDeadlineJournal.Tests/README.md)를 제공하며 실제4번 알림 source·공유 적용/기존자료 전환은 후속입니다. 2번이 새 DDL·경로·자동 활성화를 추가하지 않습니다.
 
 2번의 [WinForms 업무 등록 첨부 화면](docs/TASK_CREATION.md#task-creation-attachment-ui)은 파일 선택·명시 업로드·미연결 임시 파일의 확인 삭제를 지원합니다. PR64의 로그인에 고정된 공통 DELETE를 사용하며, 업로드가 완료된 파일만 업무 등록에 연결합니다. 등록 결과가 불명확하면 원래 요청과 파일 목록을 고정해 결과를 먼저 확인합니다. [전송 제어440·실제 HTTP33/DB9검사](Tests/TaskCreationUploads.Tests/README.md), [실제 WinForms와 HTTP 대역95검사](Tests/TaskCreationAttachmentUi.Tests/README.md)를 통과했습니다. WinForms 일반수정도 전용 첨부 선택·전송 화면을 연결했으며 공유 운영 서버 검증은 후속입니다. 일반수정 서버와 웹 첨부는 위 연결을 사용합니다.
 
-2번 업무 화면은 [로그인에 고정된 내 업무 탐색 콜백](docs/TASK_QUERIES.md#captured-own-task-navigation)을 제공합니다. 요청 업무를 새 내 업무 목록과 상세에서 확인하며, 대상이 없으면 다른 업무를 대신 열지 않습니다. PR64가 MainForm의 명시적 마감 탐색 연결을 제공합니다. 실제 알림 source·확인 저장과 공유 환경 검증은 후속입니다.
+2번 업무 화면은 [로그인에 고정된 내 업무 탐색 콜백](docs/TASK_QUERIES.md#captured-own-task-navigation)을 제공합니다. 요청 업무를 새 내 업무 목록과 상세에서 확인하며, 대상이 없으면 다른 업무를 대신 열지 않습니다. PR64가 MainForm의 명시적 마감 탐색 연결을 제공합니다. PR70의 확인 저장 제공과4번의 실제 source·공유 환경 연결 검증은 구분합니다.
 
 업무 상세를 읽은 뒤에는 첨부 목록의 응답을 기다리지 않고 기존 업무 행동과 새로고침을 사용할 수 있습니다. 인증 만료·로그아웃·행 변경 때는 이전 상세와 행동을 무효화합니다. 업무 웹의 긴 제목·관리자명도 좁은 화면 안에서 줄바꿈합니다. [화면 보완과 검증 범위](docs/TASK_MANUAL_CHECK.md#task-independent-ui-check-20261021)를 확인하세요.
 
@@ -31,7 +33,7 @@ WinForms **업무 수정 → 첨부 확인·변경**도 연결했습니다. 기�
 
 2번 화면 조작의 준비·확인·명시 실행, 작은 창/오류 안내와 검증 범위는 [화면 실사용 점검 안내](docs/TASK_MANUAL_CHECK.md)를 확인합니다. 자동화·테스트 대역과 공유 실계정의 수동 검증 결과를 구분합니다.
 
-4번 회신에 따른 2번 제공 접점으로 [로그인 접속에 고정된 읽기 어댑터](docs/TASK_QUERIES.md#captured-read-session)를 추가했습니다. `CaptureReadSession()`은 기존 목록·상세 GET과 오류 분류만 재사용하며 로그인 변경 뒤 새 계정으로 자동 이동하지 않습니다. [전용 92검사](Tests/TaskReadSession.Tests/README.md)와 기존 조회304검사를 통과했습니다. 명시적 업무 대역의 취소 제외/포함 필터도 수정했습니다. 2026-10-21 [알림 A1~A6·협업 B1~B7 진행 기준](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member4-policy-adopted-20261021)은 채택됐고 PR61의 독립 알림 UI·정책·source port가 병합됐습니다. 2번의 [현재 기한 facts와 상태·배정 원본 근거](docs/TASK_QUERIES.md#deadline-state-evidence)를 제공합니다. 실제 알림용 DTO/endpoint·기한 사건·서버 시각·확인 저장 계약과 실제 source 주입·공유 통합은 후속입니다. 명시적 MainForm/업무 탐색 조립은 PR64에서 제공됐습니다.
+4번 회신에 따른 2번 제공 접점으로 [로그인 접속에 고정된 읽기 어댑터](docs/TASK_QUERIES.md#captured-read-session)를 추가했습니다. `CaptureReadSession()`은 기존 목록·상세 GET과 오류 분류만 재사용하며 로그인 변경 뒤 새 계정으로 자동 이동하지 않습니다. [전용 92검사](Tests/TaskReadSession.Tests/README.md)와 기존 조회304검사를 통과했습니다. 명시적 업무 대역의 취소 제외/포함 필터도 수정했습니다. 2026-10-21 [알림 A1~A6·협업 B1~B7 진행 기준](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member4-policy-adopted-20261021)은 채택됐고 PR61의 독립 알림 UI·정책·source port가 병합됐습니다. 2번의 [현재 기한 facts와 상태·배정 원본 근거](docs/TASK_QUERIES.md#deadline-state-evidence)를 제공합니다. 실제 알림용 HTTP·기한 사건·서버 시각·확인 저장은 PR70으로 제공됐으며, 업무 쓰기의 사건 기록도 연결했습니다. 실제4번 source 주입·공유 통합과 기존 자료 전환은 후속입니다. 명시적 MainForm/업무 탐색 조립은 PR64에서 제공됐습니다.
 
 5번 Pi 실행 조립은 `EnrollmentRuntime`과 `main(enrollment_factory=...)`의 명시 주입으로 기존 지문 센서·잠금·OLED를 등록과 공유합니다. 기본 실행은 등록 비활성이며 키/정책 자동 생성·서비스 설치는 하지 않습니다. [실행 구성·사용자 Pi123개 대역 검사·실물 적용 전 조건](Devices/RaspberryPi/FINGERPRINT_ENROLLMENT.md)을 확인합니다. 관리자 화면/장치 주소 연결과 실제 신규 지문 저장·회원 매핑/운영 배포는 후속입니다.
 
