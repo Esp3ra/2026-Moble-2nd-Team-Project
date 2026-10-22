@@ -39,6 +39,10 @@ namespace RemoteWork.WinForms.Features.Attendance
         public AttendanceControl(PreviewRole role, IActivityMonitor activityMonitor) : this(role)
         { this.activityMonitor = activityMonitor ?? throw new ArgumentNullException(nameof(activityMonitor)); }
 
+        public AttendanceControl(PreviewRole role, ApiClient.Session session, ILeaveWorkflow? workflow, IActivityMonitor activityMonitor)
+            : this(role, session, workflow)
+        { this.activityMonitor = activityMonitor ?? throw new ArgumentNullException(nameof(activityMonitor)); }
+
         public AttendanceControl() : this(PreviewRole.Employee) { }
 
         public AttendanceControl(PreviewRole role) : this(role, null, null) { }

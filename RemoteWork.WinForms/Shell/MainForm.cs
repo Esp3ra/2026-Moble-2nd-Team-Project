@@ -138,7 +138,9 @@ namespace RemoteWork.WinForms.Shell
 
         private void btnAttendance_Click(object? sender, EventArgs e)
         {
-            ShowPage(new AttendanceControl(previewRole), btnAttendance);
+            if (workdayActivity is null) ShowPage(new AttendanceControl(previewRole), btnAttendance);
+            else if (workdayActivity.IsCurrent)
+                ShowPage(new AttendanceControl(previewRole, workdayActivity.Session, null, workdayActivity.Monitor), btnAttendance);
         }
 
         private void btnHistory_Click(object? sender, EventArgs e)
@@ -168,6 +170,7 @@ namespace RemoteWork.WinForms.Shell
         {
             if (IsDisposed || expired || closingSession) return;
             expired = true;
+            if (workdayActivity is not null) _ = workdayActivity.StopAsync();
             deadlineNotifications?.Dispose();
             collaborationNotifications?.Dispose();
             noticeCoordinator?.Dispose();
@@ -192,7 +195,11 @@ namespace RemoteWork.WinForms.Shell
             collaborationNotifications?.Dispose();
             noticeCoordinator?.Dispose();
             identityTimer.Stop();
-            try { await AppServices.Api.LogoutAsync(); }
+            try
+            {
+                if (workdayActivity is not null) await workdayActivity.StopAsync();
+                await AppServices.Api.LogoutAsync();
+            }
             catch (ApiException ex)
             {
                 if (ex.StatusCode != 401) MessageBox.Show(this,

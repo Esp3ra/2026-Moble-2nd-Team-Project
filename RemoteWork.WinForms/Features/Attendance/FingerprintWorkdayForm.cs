@@ -8,6 +8,7 @@ public partial class FingerprintWorkdayForm : Form
 {
     private readonly FingerprintWorkdayOperation? operation;
     private readonly Func<FingerprintIdentityAttempt, Task> verify;
+    private readonly bool autoStart;
     private readonly CancellationTokenSource lifetime = new();
     private bool busy, closing, reviewedClose, allowClose, released;
     public WorkdayIdentityReceipt? CompletedReceipt { get; private set; }
@@ -15,10 +16,11 @@ public partial class FingerprintWorkdayForm : Form
 
     public FingerprintWorkdayForm() : this(null) { }
     public FingerprintWorkdayForm(FingerprintWorkdayOperation? operation,
-        Func<FingerprintIdentityAttempt, Task>? verify = null)
+        Func<FingerprintIdentityAttempt, Task>? verify = null, bool autoStart = false)
     {
         InitializeComponent();
         this.operation = operation;
+        this.autoStart = autoStart;
         this.verify = verify ?? VerifyInDialog;
         if (PreviewActions.IsDesignMode(this)) return;
         if (operation is null)
@@ -37,6 +39,11 @@ public partial class FingerprintWorkdayForm : Form
         return Task.CompletedTask;
     }
     private bool Live => !released && !IsDisposed && !Disposing && operation?.IsCurrent == true;
+    protected override void OnShown(EventArgs e)
+    {
+        if (autoStart && Live) PendingOperation = ConfirmAsync();
+        base.OnShown(e);
+    }
     private void ShowRetainedState()
     {
         if (operation?.HasFinalizeAttempt == true && operation.Completed is null)
