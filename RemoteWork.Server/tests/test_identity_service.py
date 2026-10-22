@@ -8,7 +8,7 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import delete, func, select, text
+from sqlalchemy import delete, func, inspect, select, text
 
 from remotework import create_app, device_identity_contract as wire
 from remotework.db import get_db, transaction
@@ -470,3 +470,39 @@ def test_concurrent_finalize_one_work_session_and_one_encrypted_receipt(working)
     with e[0].app_context():
         assert get_db().scalar(select(func.count()).select_from(WorkSession)) == 1
         assert get_db().scalar(select(func.count()).select_from(WorkflowReceipt)) == 1
+
+
+def test_fk_parent_database_same_and_external_owned_database_http_regression(identity):
+    e = identity; h, _ = pending(e)
+    engine = e[0].extensions["db_engine"]
+    database = inspect(engine).default_schema_name
+    peer = database + "_fkpeer"
+    assert database.startswith("remote_work_test_") and peer.startswith("remote_work_test_") and peer != database
+    assert len(peer) <= 64 and all(c.isalnum() or c == "_" for c in peer)
+    fk = next(f for f in inspect(engine).get_foreign_keys("identity_contexts") if f["constrained_columns"] == ["user_id"])
+    original = fk["name"]
+    assert all(c.isalnum() or c == "_" for c in original)
+    path = ROOT + "/requests/" + str(uuid4())
+    assert e[1].get(path, headers=h).status_code == 200
+    with engine.begin() as conn:
+        conn.execute(text(f"CREATE DATABASE `{peer}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+        conn.execute(text(f"CREATE TABLE `{peer}`.`users` LIKE `{database}`.`users`"))
+        conn.execute(text(f"INSERT INTO `{peer}`.`users` SELECT * FROM `{database}`.`users`"))
+    current_name = original
+    try:
+        with engine.begin() as conn:
+            conn.execute(text(f"ALTER TABLE identity_contexts DROP FOREIGN KEY `{current_name}`, ADD CONSTRAINT identity_test_same_db FOREIGN KEY(user_id) REFERENCES `{database}`.`users`(id)"))
+        current_name = "identity_test_same_db"
+        assert e[1].get(path, headers=h).status_code == 200
+        with engine.begin() as conn:
+            conn.execute(text(f"ALTER TABLE identity_contexts DROP FOREIGN KEY `{current_name}`, ADD CONSTRAINT identity_test_external_db FOREIGN KEY(user_id) REFERENCES `{peer}`.`users`(id)"))
+        current_name = "identity_test_external_db"
+        actual = next(f for f in inspect(engine).get_foreign_keys("identity_contexts") if f["constrained_columns"] == ["user_id"])
+        assert actual["referred_schema"] == peer
+        rejected = e[1].get(path, headers=h)
+        assert rejected.status_code == 503 and rejected.json["error"]["code"] == "IDENTITY_STORAGE_NOT_READY"
+    finally:
+        with engine.begin() as conn:
+            conn.execute(text(f"ALTER TABLE identity_contexts DROP FOREIGN KEY `{current_name}`, ADD CONSTRAINT `{original}` FOREIGN KEY(user_id) REFERENCES `{database}`.`users`(id)"))
+            conn.execute(text(f"DROP DATABASE `{peer}`"))
+    assert e[1].get(path, headers=h).status_code == 200

@@ -49,6 +49,9 @@ def locked(db, model, *conditions):
 def storage():
     # No DDL or repair here; a partial migration must not become usable.
     inspector = inspect(current_app.extensions["db_engine"])
+    database = inspector.default_schema_name
+    if not database:
+        fail(503, "IDENTITY_STORAGE_NOT_READY")
     tables = list(IdentityBase.metadata.tables.values())
     extra = getattr(current_app.extensions["identity_workflow"], "schema_tables", None)
     if callable(extra):
@@ -73,10 +76,10 @@ def storage():
         if any(tuple(c.name for c in constraint.columns) not in unique
                for constraint in table.constraints if isinstance(constraint, UniqueConstraint)):
             fail(503, "IDENTITY_STORAGE_NOT_READY")
-        fks = {(tuple(f["constrained_columns"]), f["referred_table"], tuple(f["referred_columns"]))
+        fks = {(f.get("referred_schema") or database, tuple(f["constrained_columns"]), f["referred_table"], tuple(f["referred_columns"]))
                for f in inspector.get_foreign_keys(table.name)}
         for fk in table.foreign_key_constraints:
-            wanted = (tuple(c.name for c in fk.columns), fk.referred_table.name,
+            wanted = (database, tuple(c.name for c in fk.columns), fk.referred_table.name,
                       tuple(e.column.name for e in fk.elements))
             if wanted not in fks:
                 fail(503, "IDENTITY_STORAGE_NOT_READY")
