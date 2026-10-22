@@ -16,6 +16,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             lblTarget = new System.Windows.Forms.Label();
             fields = new System.Windows.Forms.TableLayoutPanel();
             fieldsHost = new System.Windows.Forms.Panel();
+            txtRecovery = new System.Windows.Forms.TextBox();
             lblTitle = new System.Windows.Forms.Label(); txtTitle = new System.Windows.Forms.TextBox();
             lblDescription = new System.Windows.Forms.Label(); txtDescription = new System.Windows.Forms.TextBox();
             lblStart = new System.Windows.Forms.Label(); txtStartDate = new System.Windows.Forms.TextBox();
@@ -57,6 +58,10 @@ namespace RemoteWork.WinForms.Features.Tasks
             layout.Controls.Add(lblTarget, 0, 0); layout.Controls.Add(fieldsHost, 0, 1);
             fieldsHost.Dock = System.Windows.Forms.DockStyle.Fill; fieldsHost.AutoScroll = true;
             fieldsHost.Controls.Add(fields);
+            fieldsHost.Controls.Add(txtRecovery);
+            txtRecovery.Name = "txtRecovery"; txtRecovery.Dock = System.Windows.Forms.DockStyle.Fill;
+            txtRecovery.Multiline = true; txtRecovery.ReadOnly = true; txtRecovery.MaxLength = 0;
+            txtRecovery.ScrollBars = System.Windows.Forms.ScrollBars.Vertical; txtRecovery.Visible = false;
             layout.Controls.Add(lblSelection, 0, 2); layout.Controls.Add(lblAttachments, 0, 3);
             layout.Controls.Add(lblStatus, 0, 4); layout.Controls.Add(actions, 0, 5);
             lblTarget.AutoSize = true; lblTarget.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -141,6 +146,7 @@ namespace RemoteWork.WinForms.Features.Tasks
         private System.Windows.Forms.Label lblStart;
         private System.Windows.Forms.Label lblDue;
         private System.Windows.Forms.Label lblSelection;
+        private System.Windows.Forms.TextBox txtRecovery;
         private System.Windows.Forms.Label lblStatus;
         private System.Windows.Forms.Label lblAttachments;
         private System.Windows.Forms.TextBox txtTitle;
