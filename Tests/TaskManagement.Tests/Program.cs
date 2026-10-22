@@ -20,7 +20,8 @@ internal static class Program
         try
         {
             Inputs(); HttpContract(); AttachmentContract(); Workflow();
-            UiReadFenceAndLayout(args.Length == 2 && args[0] == "--layout-dir" ? Path.GetFullPath(args[1]) : null);
+            string? layoutDirectory = args.Length == 2 && args[0] == "--layout-dir" ? Path.GetFullPath(args[1]) : null;
+            UiReadFenceAndLayout(layoutDirectory); UiRecovery(layoutDirectory);
             Console.WriteLine($"PASS TaskManagement controlled: {checks} checks. Explicit HTTP/workflow doubles; no server or DB."); return 0;
         }
         catch (Exception error)
@@ -296,6 +297,56 @@ internal static class Program
         }
         SaveLayout(page, layoutDirectory, "tasks-management-small.png");
     }
+    private static void UiRecovery(string? layoutDirectory)
+    {
+        foreach (var kind in new[] { TaskManagementKind.Reassign, TaskManagementKind.ChangeManagers })
+        {
+            using var service = new FakeService { NextFailure = TaskManagementFailure.Unavailable };
+            using var workflow = new TaskManagementWorkflow(service);
+            var request = kind == TaskManagementKind.Reassign ? Request(kind)
+                : TaskManagementRequest.ChangeManagers(Detail(TaskDisplayStatus.NotStarted), Context(TaskDisplayStatus.NotStarted), 1, Enumerable.Range(11, 60));
+            workflow.SubmitAsync(request).GetAwaiter().GetResult();
+            var preparation = new PreparationFixture(); var queries = new QueryFixture();
+            using var form = new TaskManagementForm(workflow, queries, preparation);
+            form.Show(); Application.DoEvents();
+            var summary = form.Controls.Find("txtRecovery", true).SingleOrDefault() as TextBox;
+            Check(summary is { Visible: true, ReadOnly: true } && summary.Text.Contains("업무 9")
+                && summary.Text.Contains(kind == TaskManagementKind.Reassign ? "담당자 변경" : "관리자 변경")
+                && summary.Text.Contains("표시명"), "recovery identifies the original action and unavailable display names: " + kind);
+            var ids = kind == TaskManagementKind.Reassign ? new[] { request.AssigneeId!.Value } : request.ManagerUserIds;
+            Check(ids.All(id => summary!.Lines.Contains("사용자 #" + id)), "recovery displays every exact original recipient ID: " + kind);
+            Check(service.Keys == 1 && service.Changes == 1 && service.Lookups == 0 && preparation.ContextReads == 0 && queries.DetailReads == 0,
+                "opening recovery never rereads names or issues a new write/key: " + kind);
+            form.Size = form.MinimumSize; Application.DoEvents();
+            VisibleBounds(form, summary!, "recovery recipient list fits minimum size: " + kind);
+            VisibleBounds(form, Field<Button>(form, "btnConfirm"), "recovery retry action fits minimum size: " + kind);
+            VisibleBounds(form, Field<Button>(form, "btnCheckResult"), "recovery result action fits minimum size: " + kind);
+            Check(summary!.ScrollBars == ScrollBars.Vertical, "all original managers remain accessible by scrolling: " + kind);
+            if (kind == TaskManagementKind.ChangeManagers) SaveLayout(form, layoutDirectory, "management-recovery-minimum.png");
+            Field<Button>(form, "btnCheckResult").PerformClick(); Application.DoEvents();
+            Check(workflow.CanRetry && service.Keys == 1 && service.Changes == 1 && service.Lookups == 1,
+                "result lookup preserves original request without automatic resend: " + kind);
+            Field<Button>(form, "btnConfirm").PerformClick(); Application.DoEvents();
+            Check(workflow.State == TaskManagementState.Succeeded && service.Keys == 1 && service.Changes == 2
+                && ReferenceEquals(service.LastRequest, request) && ReferenceEquals(service.FirstKey, service.LastKey),
+                "recovery sends the exact original recipients and key: " + kind);
+            service.AllowCurrent = false; ShowWorkflow(form);
+            Check(summary.Text.Length == 0 && !summary.Visible && !form.ShouldRefreshList,
+                "identity changes clear original recipients before cancellation notification: " + kind);
+            form.Close(); ShowWorkflow(form);
+            Check(summary.Text.Length == 0, "closed recovery cannot restore recipients: " + kind);
+        }
+        using var forbiddenService = new FakeService { NextFailure = TaskManagementFailure.Unavailable };
+        using var forbiddenWorkflow = new TaskManagementWorkflow(forbiddenService);
+        forbiddenWorkflow.SubmitAsync(Request(TaskManagementKind.ChangeManagers)).GetAwaiter().GetResult();
+        using var forbidden = new TaskManagementForm(forbiddenWorkflow);
+        forbidden.Show(); Application.DoEvents(); forbiddenService.LookupFailure = TaskManagementFailure.Forbidden;
+        Field<Button>(forbidden, "btnCheckResult").PerformClick(); Application.DoEvents(); ShowWorkflow(forbidden);
+        var hidden = Field<TextBox>(forbidden, "txtRecovery");
+        Check(hidden.Text.Length == 0 && !hidden.Visible && !Field<Button>(forbidden, "btnConfirm").Enabled,
+            "forbidden result never reveals retained manager-selection details"); forbidden.Close();
+    }
+    private static void ShowWorkflow(Form form) => form.GetType().GetMethod("ShowWorkflow", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(form, null);
     private static T Field<T>(object target, string name) => (T)target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(target)!;
     private static void VisibleBounds(Control parent, Control control, string label)
     {
@@ -327,6 +378,7 @@ internal static class Program
     private sealed class QueryFixture(bool layout = false) : ITaskQueryService, ITaskManagementSource
     {
         private int detailReads;
+        public int DetailReads => detailReads;
         public string SourceDescription => "Explicit controlled task fixture";
         public Task<IReadOnlyList<TaskSummary>> GetTasksAsync(TaskListQuery query, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<TaskSummary>>(new[] { Detail(TaskDisplayStatus.NotStarted).Summary });
@@ -347,7 +399,7 @@ internal static class Program
         public bool IsCurrent => AllowCurrent && !session.IsCancellationRequested;
         public int UserId => 1;
         public CancellationToken SessionCancellation => session.Token;
-        public int Keys, Changes;
+        public int Keys, Changes, Lookups;
         public TaskManagementFailure? NextFailure, LookupFailure;
         public TaskManagementRequest? LastRequest;
         public TaskWriteRequestKey? FirstKey, LastKey;
@@ -360,7 +412,7 @@ internal static class Program
             return Task.FromResult(Result(request));
         }
         public Task<TaskManagementLookup> GetResultAsync(TaskManagementRequest request, TaskWriteRequestKey key, CancellationToken ct = default)
-            => LookupFailure is { } reason ? Task.FromException<TaskManagementLookup>(new TaskManagementException(reason)) : Task.FromResult(new TaskManagementLookup(false));
+        { Lookups++; return LookupFailure is { } reason ? Task.FromException<TaskManagementLookup>(new TaskManagementException(reason)) : Task.FromResult(new TaskManagementLookup(false)); }
         public void CancelSession() => session.Cancel();
         public void Dispose() => session.Dispose();
     }

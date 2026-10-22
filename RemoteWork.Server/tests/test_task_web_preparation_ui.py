@@ -146,6 +146,59 @@ def test_success_page_keeps_success_and_has_no_execute_or_picker():
     assert not any("write_execute" in form.get("action", "") for form in elements.matching("form"))
 
 
+def visible_text(source):
+    class Text(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.parts = []
+
+        def handle_data(self, value):
+            if value.strip():
+                self.parts.append(value.strip())
+
+    parser = Text()
+    parser.feed(source)
+    return "\n".join(parser.parts)
+
+
+@pytest.mark.parametrize("phase,action,label", [
+    ("prepared", "task.created", "업무 등록"),
+    ("recovery", "task.updated", "업무 수정"),
+    ("retry", "task.rework_started", "재작업 시작"),
+    ("recovery", "task.deadline_extension_approved", "마감 연장 승인"),
+])
+def test_success_and_completed_receipt_identify_saved_task_and_original_action(phase, action, label):
+    texts = []
+    for task_id in ("101", "202"):
+        values = confirmation(completed=dict(task_id=task_id), can_open_detail=True, action_label=label)
+        values["intent"].update(action=action, phase=phase,
+            target="new" if action == "task.created" else task_id)
+        # A different currently selected task must not supply the success identity.
+        source = render("tasks/write_confirmation.html", **values,
+            task=dict(task_id="999", title="현재 선택한 다른 업무"))
+        text = visible_text(source)
+        assert "#" + task_id in text
+        assert label in text
+        assert "#999" not in text and "현재 선택한 다른 업무" not in text
+        assert not any("write_execute" in form.get("action", "") for form in Elements(source).matching("form"))
+        texts.append(text)
+    assert texts[0] != texts[1], "two successful tasks must be distinguishable without inspecting the link URL"
+
+
+def test_success_without_result_task_id_never_guesses_identity_or_detail_url():
+    values = confirmation(completed=dict(row_version="7"), can_open_detail=True)
+    values["intent"].update(action="task.updated", target="101")
+    values["intent"]["summary"]["title"] = "원래 요청 제목"
+    source = render("tasks/write_confirmation.html", **values,
+        task=dict(task_id="999", title="현재 다른 업무"))
+    text = visible_text(source)
+    assert "요청이 저장되었습니다" in text
+    assert "업무 번호를 확인하지 못했습니다" in text
+    assert "#101" not in text and "#999" not in text
+    assert "원래 요청 제목" not in text and "현재 다른 업무" not in text
+    assert not any("task_web/detail" in anchor.get("href", "") for anchor in Elements(source).matching("a"))
+
+
 def test_recovery_does_not_offer_execute_and_keeps_original_ticket():
     values = confirmation()
     values["intent"]["phase"] = "recovery"

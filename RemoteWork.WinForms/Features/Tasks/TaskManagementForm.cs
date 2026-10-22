@@ -266,6 +266,12 @@ public partial class TaskManagementForm : Form
     {
         if (stopped || IsDisposed || workflow is null) return;
         var snapshot = workflow.Snapshot;
+        if (snapshot.State == TaskManagementState.Editing && txtRecovery.TextLength > 0)
+        {
+            ClearRecoveryDisplay();
+            if (context is not null) RenderSelection();
+            else lblSelection.Text = "최신 업무를 조회한 뒤 변경 대상을 확인해 주세요.";
+        }
         if (!workflow.IsCurrent)
         {
             ForgetInput(); ConfirmedResult = null; ShouldRefreshList = false;
@@ -276,17 +282,20 @@ public partial class TaskManagementForm : Form
         {
             checkedRequest = null; lblStatus.Text = snapshot.Message;
             if (snapshot.Failure == TaskManagementFailure.Forbidden) ForgetInput();
-            else if (snapshot.State != TaskManagementState.Editing
-                && snapshot.PendingRequest is { Kind: TaskManagementKind.Update } pending)
+            else if (snapshot.State != TaskManagementState.Editing && snapshot.PendingRequest is { } pending)
             {
-                filling = true;
-                try
+                if (pending.Kind == TaskManagementKind.Update)
                 {
-                    txtTitle.Text = pending.Title; txtDescription.Text = pending.Description;
-                    txtStartDate.Text = pending.StartDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-                    txtDueDate.Text = pending.DueDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                    filling = true;
+                    try
+                    {
+                        txtTitle.Text = pending.Title; txtDescription.Text = pending.Description;
+                        txtStartDate.Text = pending.StartDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                        txtDueDate.Text = pending.DueDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                    }
+                    finally { filling = false; }
                 }
-                finally { filling = false; }
+                else RenderRecovery(pending);
             }
         }
         if (snapshot.State == TaskManagementState.Succeeded && snapshot.Result is { } result)
@@ -296,6 +305,22 @@ public partial class TaskManagementForm : Form
                 + "닫으면 최신 업무를 다시 조회합니다. 관리자에서 자신을 제외했다면 이후 조회·결과 확인은 거절될 수 있으며 저장 취소가 아닙니다.";
         }
         SetButtons();
+    }
+    private void RenderRecovery(TaskManagementRequest pending)
+    {
+        string action = pending.Kind == TaskManagementKind.Reassign ? "담당자 변경" : "관리자 변경";
+        string recipients = pending.Kind == TaskManagementKind.Reassign ? "사용자 #" + pending.AssigneeId
+            : string.Join("\r\n", pending.ManagerUserIds.Select(id => "사용자 #" + id));
+        txtRecovery.Text = $"원래 요청 · 업무 {pending.TaskId}\r\n동작: {action}\r\n"
+            + "표시명은 원래 요청에 없어 확인할 수 없습니다.\r\n\r\n변경할 대상:\r\n" + recipients;
+        fields.Visible = false; fieldsHost.AutoScrollPosition = Point.Empty;
+        txtRecovery.Visible = true; txtRecovery.BringToFront();
+        lblSelection.Text = "재전송할 원래 변경 대상을 읽기 전용으로 표시합니다.";
+    }
+    private void ClearRecoveryDisplay()
+    {
+        txtRecovery.Clear(); txtRecovery.Visible = false;
+        fields.Visible = true; fields.BringToFront();
     }
     private void SetButtons()
     {
@@ -327,6 +352,7 @@ public partial class TaskManagementForm : Form
     };
     private void ForgetInput()
     {
+        ClearRecoveryDisplay();
         source = null; context = null; checkedRequest = null; selectedAssignee = 0; selectedManagers = Array.Empty<int>();
         filling = true;
         try { txtTitle.Clear(); txtDescription.Clear(); txtStartDate.Clear(); txtDueDate.Clear(); lblSelection.Text = "이전 선택을 지웠습니다."; }
