@@ -48,7 +48,7 @@ expected 두 필드는 `expected_row_version`, `expected_assignment_revision`입
 
 **현재 구현은 형식 검사와 안전한 차단까지입니다.** 첨부 필드를 생략한 일반 수정은 기존 경로로 실행해 첨부를 유지합니다. `attachment_ids`를 명시하면 빈 배열도 포함해, 현재 권한·버전·상태·과거 수락/제출 자료·날짜 검사 뒤 `503 TASK_ATTACHMENT_REPLACEMENT_NOT_READY`로 차단합니다. 업무 본문을 함께 바꾸려 해도 일부만 저장하지 않으며 업무/첨부/버전·감사·성공 receipt를 만들거나 변경하지 않습니다. 앞선 권한·버전 검사가 실패하면 그 오류가 우선합니다. WinForms·웹 관리 화면의 첨부 입력도 아직 연결하지 않았습니다.
 
-첨부만 바뀌어도 `task.updated`로 한 번 처리하고, 본문과 최종 첨부 집합이 모두 같으면 `409 TASK_CHANGE_NOT_NEEDED`로 끝내는 정책은 수용됐습니다. 이를 실행하려면 같은 트랜잭션에서 현재 첨부 목록과 변경 차이를 읽는 3번 공개 함수(T3-1), 감사 최소 필드(T3-2), 기능 off/오류 조건(T3-3)이 필요합니다. 2026-10-22 3번은 PR52 기존 댓글에 `read_task_attachment_ids`와 감사 reader의 제품 패치를 제공했습니다. 같은 TX/원래 expected·현재 locking read/ID 집합 비교·최소 감사 계약은 수용 기준에 부합합니다. 다만 새 코드·검사 소스는 아직 alpha에 게시되지 않았으므로 코드 PR 검토·병합과 실제2번 소비 검증이 필요합니다. 현재 `replace_task_files`의 변경 후 목록만으로 변경 전 값을 추정하거나, 3번 ORM·SQL을 직접 읽어 우회하지 않습니다. 따라서 이 정책을 실제 수정 구현 완료로 표시하지 않습니다. 신규 등록의 빈 기존 목록은 이 문제와 구분해 [실제 제공부 연결](TASK_CREATION.md#task-creation-attachment-selection)을 지원합니다.
+첨부만 바뀌어도 `task.updated`로 한 번 처리하고, 본문과 최종 첨부 집합이 모두 같으면 `409 TASK_CHANGE_NOT_NEEDED`로 끝내는 정책은 수용됐습니다. 이를 실행하려면 같은 트랜잭션에서 현재 첨부 목록과 변경 차이를 읽는 3번 공개 함수(T3-1), 감사 최소 필드(T3-2), 기능 off/오류 조건(T3-3)이 필요합니다. 2026-10-22 3번은 PR52 기존 댓글에 `read_task_attachment_ids`와 감사 reader의 제품 패치를 제공했습니다. 같은 TX/원래 expected·현재 locking read/ID 집합 비교·최소 감사 계약은 수용 기준에 부합합니다. 새 코드·검사 소스는 PR68로 alpha `ff32ba2`에 병합됐으며 실제 2번 연결·소비 검증이 남았습니다. 현재 `replace_task_files`의 변경 후 목록만으로 변경 전 값을 추정하거나, 3번 ORM·SQL을 직접 읽어 우회하지 않습니다. 따라서 이 정책을 실제 수정 구현 완료로 표시하지 않습니다. 신규 등록의 빈 기존 목록은 이 문제와 구분해 [실제 제공부 연결](TASK_CREATION.md#task-creation-attachment-selection)을 지원합니다.
 
 ## 권한·경합·결과 유실
 

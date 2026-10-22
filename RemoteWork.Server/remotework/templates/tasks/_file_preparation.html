@@ -1,0 +1,16 @@
+<section class="card task-file-preparation" data-task-file-preparation aria-labelledby="task-file-heading">
+<h2 id="task-file-heading">첨부파일 선택</h2>
+<p class="task-file-notice" id="task-file-notice">현재는 파일 선택 화면만 사용할 수 있습니다. 선택한 파일은 서버로 전송되거나 업무에 저장되지 않습니다.</p>
+{% if action|default('') == 'edit' %}<p class="muted">기존 업무 첨부는 그대로 유지됩니다. 아래 목록은 이번 화면에서 선택한 파일만 보여 줍니다.</p>{% endif %}
+<p class="muted" id="task-file-help">최대 10개 · 파일당 25 MiB. 업무 내용을 확인하거나 후보를 검색하려면 선택 목록을 먼저 비워 주세요. 페이지를 떠나면 선택 목록은 지워집니다.</p>
+<div class="task-file-toolbar">
+<input id="task-file-input" data-file-input type="file" multiple disabled hidden>
+<button type="button" data-file-choose disabled aria-describedby="task-file-notice task-file-help">파일 선택</button>
+<button type="button" class="secondary" data-file-clear disabled>선택 목록 비우기</button>
+</div>
+<p data-file-count class="muted">선택한 파일 0 / 10개</p>
+<ul class="task-file-list" data-file-list aria-label="이번 화면에서 선택한 파일"></ul>
+<p class="task-file-empty" data-file-empty>선택한 파일이 없습니다.</p>
+<p class="task-file-feedback" data-file-feedback role="status" aria-live="polite" aria-atomic="true" tabindex="-1">파일 전송은 아직 연결되지 않았습니다.</p>
+<noscript><p>파일 선택 화면을 사용하려면 JavaScript가 필요합니다. 업무 정보는 기존 방식으로 입력할 수 있습니다.</p></noscript>
+</section>
