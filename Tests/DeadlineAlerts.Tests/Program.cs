@@ -18,7 +18,7 @@ internal static partial class Program
         ApplicationConfiguration.Initialize();
         Exception? failure=null;
         using var host=new Form { ShowInTaskbar=false,Opacity=0 };
-        host.Shown+=async(_,_)=>{try{PolicyChecks();await UiChecks();await ReviewRegressionChecks();}catch(Exception ex){failure=ex;}finally{host.Close();}};
+        host.Shown+=async(_,_)=>{try{PolicyChecks();await UiChecks();await ReviewRegressionChecks();await ConfirmationRefreshChecks();}catch(Exception ex){failure=ex;}finally{host.Close();}};
         Application.Run(host);
         if(failure is not null){Console.Error.WriteLine(failure);Environment.ExitCode=1;}
         else Console.WriteLine($"PASS: {checks} deadline policy/UI checks; explicit source doubles, no HTTP server or DB.");
@@ -181,7 +181,7 @@ internal static partial class Program
         source.Confirm=_=>Task.FromResult(new DeadlineConfirmation(DeadlineConfirmationState.Confirmed,Snap(source.Now,Entry() with {IsConfirmed=true})));
         await scope.ConfirmAsync("event-A");Check(scope.Unread.Count==0 && source.Confirms==2,"confirmed server receipt removes reminder");
         source.Items=[Entry("event-B")];await scope.CheckAsync();ClosePopups();
-        try{await scope.ConfirmAsync("event-A");throw new Exception("old event confirmed new one");}catch(ApiException){checks++;}
+        Check((await scope.ConfirmAsync("event-A")).State==DeadlineConfirmationState.Confirmed,"old successful event remains known without a new write");
         Check(source.Confirms==2 && scope.Unread.Single().EventToken=="event-B","old token never confirms new deadline");
         var pending=new TaskCompletionSource<DeadlineConfirmation>(TaskCreationOptions.RunContinuationsAsynchronously);
         source.Confirm=_=>pending.Task;
