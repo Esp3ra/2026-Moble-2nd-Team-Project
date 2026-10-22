@@ -7,11 +7,26 @@ public partial class MainForm
 {
     private LoginWorkdayActivity? workdayActivity;
 
+    public Task ConnectWorkdayActivityAsync(WorkdayActivityOptions options, IActivityMonitor? monitor = null,
+        Func<WorkdayClockOutRequest, Func<Task>, CancellationToken, Task<WorkdayClockOutConnection>>? prepareClockOut = null,
+        Func<FingerprintWorkdayOperation, Task>? presentClockOut = null)
+        => ConnectWorkdayActivityAsync(session =>
+        {
+            var reader = new WorkdayStateConnection(session);
+            return async ct =>
+            {
+                var s = await reader.ReadAsync(ct);
+                return new(s.WorkSessionId, s.WorkDate, s.ServerTime, s.NoonAt, s.NoonDue);
+            };
+        }, options, monitor, prepareClockOut, presentClockOut);
+
     /// <summary>Explicit composition only after a real server workday reader and
     /// trusted device/camera configuration have been provided. Default startup stays off.</summary>
     public async Task ConnectWorkdayActivityAsync(
         Func<ApiClient.Session, Func<CancellationToken, Task<WorkdayActivityState>>> readerFactory,
-        WorkdayActivityOptions options, IActivityMonitor? monitor = null)
+        WorkdayActivityOptions options, IActivityMonitor? monitor = null,
+        Func<WorkdayClockOutRequest, Func<Task>, CancellationToken, Task<WorkdayClockOutConnection>>? prepareClockOut = null,
+        Func<FingerprintWorkdayOperation, Task>? presentClockOut = null)
     {
         if (signedInUser is null || closingSession || expired || IsDisposed || !IsHandleCreated || InvokeRequired)
             throw new InvalidOperationException("현재 로그인 화면에서 근무를 연결해 주세요.");
@@ -20,7 +35,7 @@ public partial class MainForm
         var session = AppServices.Api.CaptureSession();
         if (session.User.Id != signedInUser.Id) throw new OperationCanceledException();
         var reader = readerFactory(session); session.ThrowIfChanged();
-        workdayActivity = new(this, session, reader, options, monitor);
+        workdayActivity = new(this, session, reader, options, monitor, prepareClockOut: prepareClockOut, presentClockOut: presentClockOut);
         components!.Add(workdayActivity);
         var bar = new WorkdayActivityBar { Dock = DockStyle.Fill }; bar.Bind(workdayActivity);
         int row = layoutWorkspace.RowCount++;
