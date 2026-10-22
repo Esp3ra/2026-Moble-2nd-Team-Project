@@ -26,7 +26,7 @@ await main.ConnectLeaveWorkflowAsync(session =>
 
 병가·공가의 연차 차감 제외는 사용자 요구다. 나머지 연차 정책/휴일 원본/개인 부여·검토 담당자는 팀장 결정과 1번의 비공개 설정이 필요하다. 이 코드는 정책 승인, 실제 계정 생성·배정, 운영 write 설정 또는 실제 장비 검증을 뜻하지 않는다. MainForm의 수정은 5번 메뉴의 연결 소비에 한정한다.
 
-검증 명령과 범위는 [연차 UI 검사](../../../../Tests/Leave.Ui.Tests/README.md)에 기록한다. 관련 협업은 [PR58 대표 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309485288)에서 관리한다. 팀장 전용 날짜 LOG나 별도 브랜치 문서는 코드 PR에 섞지 않는다.
+검증 명령과 범위는 [연차 UI 검사](../../../Tests/Leave.Ui.Tests/README.md)에 기록한다. 관련 협업은 [PR58 대표 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309485288)에서 관리한다. 팀장 전용 날짜 LOG나 별도 브랜치 문서는 코드 PR에 섞지 않는다.
 
 ## 2026-10-22 직접 검증
 
