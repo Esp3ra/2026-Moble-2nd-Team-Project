@@ -33,9 +33,9 @@ def _ready():
         raise AppError(503, "CHAT_SCHEMA_REQUIRED", "채팅 테이블이 없습니다. 서버에서 flask --app remotework chat init-tables를 실행해 주세요.")
 
 
-def _body(fields):
-    data = payload()
-    if set(data) != fields:
+def _body(fields, data=None):
+    data = payload() if data is None else data
+    if not isinstance(data, dict) or set(data) != fields:
         raise AppError(400, "INVALID_INPUT", "채팅 입력 항목을 확인해 주세요.")
     return data
 
@@ -94,115 +94,119 @@ def register_storage(bp):
         ChatRoom.metadata.create_all(engine, tables=list(TABLES))
         click.echo("채팅 테이블 준비 완료 (기존 데이터/공통 버전 보존)")
 
-    @bp.get("/rooms")
-    @login_required
-    def rooms():
-        _ready()
-        after, limit = _page_keys()
-        if after is not None:
-            after = _uuid(after)
-        db = get_db()
-        query = select(ChatRoom).join(ChatMember, ChatRoom.id == ChatMember.room_id).where(
-            ChatMember.user_id == g.user.id, ChatMember.hidden_at.is_(None))
-        if after:
-            query = query.where(ChatRoom.id > after)
-        rows = db.scalars(query.order_by(ChatRoom.id).limit(limit + 1)).all()
-        return success({"items": [_room_data(db, r) for r in rows[:limit]],
-                        "next_cursor": rows[limit-1].id if len(rows) > limit else None})
+    # Shared operations also serve the CSRF-protected cookie web adapter.
+    for rule, methods, view in [("/rooms", ["GET"], rooms),
+            ("/rooms", ["POST"], create_room),
+            ("/rooms/<room_id>/hide", ["POST"], hide_room),
+            ("/rooms/<room_id>/messages", ["GET"], messages),
+            ("/rooms/<room_id>/messages", ["POST"], send_message)]:
+        bp.add_url_rule(rule, view_func=view, methods=methods)
 
-    @bp.post("/rooms")
-    @login_required
-    def create_room():
-        _ready()
-        body = _body({"room_id", "title", "is_group", "participant_ids"})
-        room_id = _uuid(body["room_id"])
-        title = _text(body["title"], 60, "대화방 제목")
-        if any(ord(c) < 32 or ord(c) == 127 for c in title) or type(body["is_group"]) is not bool:
-            raise AppError(400, "INVALID_INPUT", "대화방 제목/종류를 확인해 주세요.")
-        ids = body["participant_ids"]
-        if (not isinstance(ids, list) or any(type(n) is not int or not 1 <= n <= 2147483647 for n in ids)
-                or len(set(ids)) != len(ids) or g.user.id in ids
-                or (not body["is_group"] and len(ids) != 1) or (body["is_group"] and len(ids) < 2)):
-            raise AppError(400, "INVALID_INPUT", "개인은 상대방 1명, 그룹은 2명 이상을 선택해 주세요.")
-        with authenticated_transaction() as db:
-            existing = db.scalar(select(ChatRoom).where(ChatRoom.id == room_id).with_for_update().execution_options(populate_existing=True))
-            if existing is not None:
-                members = set(db.scalars(select(ChatMember.user_id).where(ChatMember.room_id == room_id).with_for_update()))
-                if existing.created_by != g.user.id or existing.title != title or existing.is_group != body["is_group"] or members != set(ids) | {g.user.id}:
-                    raise AppError(409, "CHAT_REQUEST_CONFLICT", "같은 요청 ID에 다른 대화방 내용이 전달됐습니다.")
-                _visible_room(db, room_id, locking=True)
-                result = _room_data(db, existing)
-                status = 200
-            else:
-                users = db.scalars(select(User).where(User.id.in_(ids)).order_by(User.id).with_for_update().execution_options(populate_existing=True)).all()
-                if len(users) != len(ids) or any(not u.is_active or u.role not in ("employee", "admin") for u in users):
-                    raise AppError(409, "CHAT_PARTICIPANT_UNAVAILABLE", "선택한 참여자가 비활성화되었거나 사용할 수 없습니다.")
-                room = ChatRoom(id=room_id, title=title, is_group=body["is_group"], created_by=g.user.id)
-                db.add(room)
-                db.flush()
-                for user in sorted([g.user, *users], key=lambda u: u.id):
-                    db.add(ChatMember(room_id=room_id, user_id=user.id, display_name=user.display_name, department=user.department))
-                db.flush()
-                audit("chat.room_created", "chat_room", room_id)
-                result, status = _room_data(db, room), 201
-        return success({"room": result}, status)
 
-    @bp.post("/rooms/<room_id>/hide")
-    @login_required
-    def hide_room(room_id):
-        _ready()
-        room_id = _uuid(room_id)
-        _body(set())
-        with authenticated_transaction() as db:
-            # Also accept repeated hide requests without a second audit event.
-            room = db.scalar(select(ChatRoom).where(ChatRoom.id == room_id).with_for_update())
-            member = db.scalar(select(ChatMember).where(ChatMember.room_id == room_id, ChatMember.user_id == g.user.id)
-                               .with_for_update().execution_options(populate_existing=True))
-            if room is None or member is None:
-                raise AppError(404, "CHAT_ROOM_NOT_FOUND", "참여 중인 대화방이 없습니다.")
-            if member.hidden_at is None:
-                member.hidden_at = utcnow()
-                audit("chat.room_hidden", "chat_room", room_id)
-        return success({"message": "내 대화방 목록에서만 삭제했습니다. 다른 참여자의 대화는 유지됩니다."})
+@login_required
+def rooms():
+    _ready()
+    after, limit = _page_keys()
+    if after is not None:
+        after = _uuid(after)
+    db = get_db()
+    query = select(ChatRoom).join(ChatMember, ChatRoom.id == ChatMember.room_id).where(
+        ChatMember.user_id == g.user.id, ChatMember.hidden_at.is_(None))
+    if after:
+        query = query.where(ChatRoom.id > after)
+    rows = db.scalars(query.order_by(ChatRoom.id).limit(limit + 1)).all()
+    return success({"items": [_room_data(db, r) for r in rows[:limit]],
+                    "next_cursor": rows[limit-1].id if len(rows) > limit else None})
 
-    @bp.get("/rooms/<room_id>/messages")
-    @login_required
-    def messages(room_id):
-        _ready()
-        room_id = _uuid(room_id)
-        after, limit = _page_keys()
-        if after is None:
-            after = "0"
-        if not after.isascii() or not after.isdecimal() or len(after) > 19 or int(after) > 9223372036854775807:
-            raise AppError(400, "INVALID_INPUT", "메시지 조회 커서를 확인해 주세요.")
-        db = get_db()
-        _visible_room(db, room_id)
-        rows = db.scalars(select(ChatMessage).where(ChatMessage.room_id == room_id, ChatMessage.seq > int(after))
-                          .order_by(ChatMessage.seq).limit(limit + 1)).all()
-        return success({"items": [_message_data(m) for m in rows[:limit]],
-                        "next_cursor": str(rows[limit-1].seq) if len(rows) > limit else None})
-
-    @bp.post("/rooms/<room_id>/messages")
-    @login_required
-    def send_message(room_id):
-        _ready()
-        room_id = _uuid(room_id)
-        body = _body({"message_id", "content"})
-        message_id = _uuid(body["message_id"])
-        content = _text(body["content"], 2000, "메시지")
-        with authenticated_transaction() as db:
+@login_required
+def create_room(body=None):
+    _ready()
+    body = _body({"room_id", "title", "is_group", "participant_ids"}, body)
+    room_id = _uuid(body["room_id"])
+    title = _text(body["title"], 60, "대화방 제목")
+    if any(ord(c) < 32 or ord(c) == 127 for c in title) or type(body["is_group"]) is not bool:
+        raise AppError(400, "INVALID_INPUT", "대화방 제목/종류를 확인해 주세요.")
+    ids = body["participant_ids"]
+    if (not isinstance(ids, list) or any(type(n) is not int or not 1 <= n <= 2147483647 for n in ids)
+            or len(set(ids)) != len(ids) or g.user.id in ids
+            or (not body["is_group"] and len(ids) != 1) or (body["is_group"] and len(ids) < 2)):
+        raise AppError(400, "INVALID_INPUT", "개인은 상대방 1명, 그룹은 2명 이상을 선택해 주세요.")
+    with authenticated_transaction() as db:
+        existing = db.scalar(select(ChatRoom).where(ChatRoom.id == room_id).with_for_update().execution_options(populate_existing=True))
+        if existing is not None:
+            members = set(db.scalars(select(ChatMember.user_id).where(ChatMember.room_id == room_id).with_for_update()))
+            if existing.created_by != g.user.id or existing.title != title or existing.is_group != body["is_group"] or members != set(ids) | {g.user.id}:
+                raise AppError(409, "CHAT_REQUEST_CONFLICT", "같은 요청 ID에 다른 대화방 내용이 전달됐습니다.")
             _visible_room(db, room_id, locking=True)
-            message = db.scalar(select(ChatMessage).where(ChatMessage.message_id == message_id).with_for_update().execution_options(populate_existing=True))
-            if message is not None:
-                if message.room_id != room_id or message.sender_id != g.user.id or message.content != content:
-                    raise AppError(409, "CHAT_REQUEST_CONFLICT", "같은 메시지 ID에 다른 내용이 전달됐습니다.")
-                result, status = _message_data(message), 200
-            else:
-                message = ChatMessage(message_id=message_id, room_id=room_id, sender_id=g.user.id,
-                                      sender_name=g.user.display_name, content=content)
-                db.add(message)
-                db.flush()
-                db.refresh(message)
-                audit("chat.message_sent", "chat_message", message_id, {"room_id": room_id})
-                result, status = _message_data(message), 201
-        return success({"message": result}, status)
+            result = _room_data(db, existing)
+            status = 200
+        else:
+            users = db.scalars(select(User).where(User.id.in_(ids)).order_by(User.id).with_for_update().execution_options(populate_existing=True)).all()
+            if len(users) != len(ids) or any(not u.is_active or u.role not in ("employee", "admin") for u in users):
+                raise AppError(409, "CHAT_PARTICIPANT_UNAVAILABLE", "선택한 참여자가 비활성화되었거나 사용할 수 없습니다.")
+            room = ChatRoom(id=room_id, title=title, is_group=body["is_group"], created_by=g.user.id)
+            db.add(room)
+            db.flush()
+            for user in sorted([g.user, *users], key=lambda u: u.id):
+                db.add(ChatMember(room_id=room_id, user_id=user.id, display_name=user.display_name, department=user.department))
+            db.flush()
+            audit("chat.room_created", "chat_room", room_id)
+            result, status = _room_data(db, room), 201
+    return success({"room": result}, status)
+
+@login_required
+def hide_room(room_id, body=None):
+    _ready()
+    room_id = _uuid(room_id)
+    _body(set(), body)
+    with authenticated_transaction() as db:
+        # Also accept repeated hide requests without a second audit event.
+        room = db.scalar(select(ChatRoom).where(ChatRoom.id == room_id).with_for_update())
+        member = db.scalar(select(ChatMember).where(ChatMember.room_id == room_id, ChatMember.user_id == g.user.id)
+                           .with_for_update().execution_options(populate_existing=True))
+        if room is None or member is None:
+            raise AppError(404, "CHAT_ROOM_NOT_FOUND", "참여 중인 대화방이 없습니다.")
+        if member.hidden_at is None:
+            member.hidden_at = utcnow()
+            audit("chat.room_hidden", "chat_room", room_id)
+    return success({"message": "내 대화방 목록에서만 삭제했습니다. 다른 참여자의 대화는 유지됩니다."})
+
+@login_required
+def messages(room_id):
+    _ready()
+    room_id = _uuid(room_id)
+    after, limit = _page_keys()
+    if after is None:
+        after = "0"
+    if not after.isascii() or not after.isdecimal() or len(after) > 19 or int(after) > 9223372036854775807:
+        raise AppError(400, "INVALID_INPUT", "메시지 조회 커서를 확인해 주세요.")
+    db = get_db()
+    _visible_room(db, room_id)
+    rows = db.scalars(select(ChatMessage).where(ChatMessage.room_id == room_id, ChatMessage.seq > int(after))
+                      .order_by(ChatMessage.seq).limit(limit + 1)).all()
+    return success({"items": [_message_data(m) for m in rows[:limit]],
+                    "next_cursor": str(rows[limit-1].seq) if len(rows) > limit else None})
+
+@login_required
+def send_message(room_id, body=None):
+    _ready()
+    room_id = _uuid(room_id)
+    body = _body({"message_id", "content"}, body)
+    message_id = _uuid(body["message_id"])
+    content = _text(body["content"], 2000, "메시지")
+    with authenticated_transaction() as db:
+        _visible_room(db, room_id, locking=True)
+        message = db.scalar(select(ChatMessage).where(ChatMessage.message_id == message_id).with_for_update().execution_options(populate_existing=True))
+        if message is not None:
+            if message.room_id != room_id or message.sender_id != g.user.id or message.content != content:
+                raise AppError(409, "CHAT_REQUEST_CONFLICT", "같은 메시지 ID에 다른 내용이 전달됐습니다.")
+            result, status = _message_data(message), 200
+        else:
+            message = ChatMessage(message_id=message_id, room_id=room_id, sender_id=g.user.id,
+                                  sender_name=g.user.display_name, content=content)
+            db.add(message)
+            db.flush()
+            db.refresh(message)
+            audit("chat.message_sent", "chat_message", message_id, {"room_id": room_id})
+            result, status = _message_data(message), 201
+    return success({"message": result}, status)

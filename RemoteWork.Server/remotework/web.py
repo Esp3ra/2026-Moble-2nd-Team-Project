@@ -75,6 +75,10 @@ def users():
 @bp.get("/features/<name>")
 @login_required
 def feature(name):
+    if name == "chat":
+        if "chat_web.index" not in current_app.view_functions:
+            raise AppError(503, "CHAT_DISABLED", "채팅 기능이 준비되지 않았습니다. 서버의 채팅 활성화 설정을 확인해 주세요.")
+        return redirect(url_for("chat_web.index"))
     if name == "tasks" and "task_web.index" in current_app.view_functions:
         return redirect(url_for("task_web.index"))
     if name == "results" and "results_web.index" in current_app.view_functions:

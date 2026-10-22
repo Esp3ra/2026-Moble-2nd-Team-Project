@@ -1,1 +1,1 @@
-"""Chat invitation directory. Rooms/messages remain client-local for now."""
+"""Shared persisted chat operations for the desktop API and cookie web UI."""
