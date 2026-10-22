@@ -6,7 +6,6 @@ internal static partial class Program
 {
     private static async Task Loopback(Form owner, string[] args)
     {
-#if MEMBER1_WORKDAY_DRAFT
         if (args.Length != 6 || args[5] is not ("normal" or "loss")) throw new ArgumentException("Owned workday test arguments required");
         var server = ApiClient.ValidateUrl(args[1]); var pi = ApiClient.ValidateUrl(args[2]);
         if (new[] { server, pi }.Any(u => u.Scheme != "http" || u.Host != "127.0.0.1")) throw new InvalidOperationException("Owned loopback only");
@@ -43,12 +42,7 @@ internal static partial class Program
             "One completed noon result without duplicate monitoring");
         await host.StopAsync(); Check(monitor.Stops == 1, "Owned host drains monitor");
         Console.WriteLine(JsonSerializer.Serialize(new { passed = true, mode = args[5], checks, shown, monitor_starts = monitor.Starts, monitor_stops = monitor.Stops }));
-#else
-        await Task.CompletedTask;
-        throw new InvalidOperationException("Compile with the explicitly exported reviewed PR71 client source first");
-#endif
     }
-#if MEMBER1_WORKDAY_DRAFT
     private sealed class LostFinalize(HttpMessageHandler inner) : DelegatingHandler(inner)
     {
         private bool lost;
@@ -60,5 +54,4 @@ internal static partial class Program
             return response;
         }
     }
-#endif
 }
