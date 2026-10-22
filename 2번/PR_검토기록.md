@@ -1,3 +1,34 @@
+<a id="pr68-review-20261022"></a>
+## PR68 전체 검토 — R68-01/P2 수정 요청·미병합, 2026-10-22
+
+추가 PR 조회에서 새 PR68 한 건을 확인했습니다. 실제 base alpha **5dcd66e291a0b12470c3347909653a64458ef70e**, head **fec2364b8caf9ba8c4ac43a0052f02f3af479223**를 고정하고 별도 checkout에 결합했습니다. 검토 tree **41120bc743f3f57ebaa96e7d454f51094a7dec5a**, 변경13파일입니다. 정적 권한/현재 잠금·트랜잭션·W1 replay/rollback·IO 전후 참조 재검사·서명 문맥·내부 base64 converter를 대조했습니다.
+
+### R68-01/P2 — 이전 성공과 새 미확정 작업의 안내가 섞임
+
+results.js243~244행은 업무/동작 구분 없이 일반 저장 성공 안내를 표시하며 choose137~147·prepareWrite233~238·응답 유실 catch252~261에서 다음 작업과 구분하지 않습니다. 원본 JS/명시 DOM·HTTP 대역에서 **A(10)/KEY1 제출 성공 → B(11)/KEY2 제출 응답502 유실 → B 모달 닫기**를 재현했습니다. 현재 상세/제출 문맥은B이며 pending은 결과 확인 필요인데 save-confirmed가 visible인 채 “서버 저장 성공을 확인했습니다”를 계속 보여 줍니다.
+
+이는 현재 작업 성공 여부의 UI 혼동입니다. 서버의 B 성공 오판/잘못된 대상 전송·중복 저장이 발생했다고 확대하지 않습니다. A의 확인된 성공을 업무번호·동작/필요 시 회차에 묶어 별도로 보존하고 B의 미확정 안내와 구분하도록 요청했습니다. 동일 작업의 성공 뒤 목록/상세403에서 원 성공 유지, 원 요청/W1 key/body 보존·명시 결과 조회/재시도도 유지해야 합니다. [기존 PR68 통합 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/68#issuecomment-6331304609)에 요청했으며 **R68-01 수정 전 미병합**입니다.
+
+### 직접 실행한 검증
+
+| 범위 | 결과·한계 |
+|---|---|
+| 연결 제공부 | 150PASS·실제 소유 MySQL/Flask cookie/CSRF handler·서명 복귀/다중탭/구접속·현재 ID·W1 replay/rollback·IO중 권한403/참조404와 B보존. 업무 writer는 명시 소비 fixture |
+| 공용 첨부 | 251PASS·실제 별도 소유 MySQL/loopback HTTP·오래된 RR snapshot 이후 현재 참조. 내부105회귀는251에 포함 |
+| 취소/연장 | 258PASS·다른 새 소유 MySQL/실제2·3번 loopback·파일/경합 검사 |
+| 기존 서버/웹/C# | 원본 verify_web 경로 191/183/43PASS·별도 소유 MySQL·원본 C#143소스 컴파일 Errors0/Warnings0 |
+| C# 독립 | 198 assertions PASS·원본 transport/ApiClient+HTTP 대역. plus-heavy0~32769바이트·16KiB 경계/다중청크·offset/원 bytes/hash·파일명 escaping·Bearer·취소/접속 폐기 |
+| JS | 원본 구문·공식 DOM/HTTP61PASS. 독립10확인은 현상 검출7+읽기 전용 늦은 응답 안전성3으로 구성되며 해결 증거/실제 브라우저 시험으로 표시하지 않음 |
+| OFF/정적/빌드 | 원본 cold assertions의 DB URL을 audit wrapper에서 MySQL engine으로 바꾸고 Engine.connect를 금지해 결과물 경로/모델/provider/모듈 미등록 확인. SQLite/실제DB접속 없음. 변경Python6파일 AST·diff check 통과, 최종 결합 Release0오류/0경고·외부 참조팩 설정/제품csproj 무수정 |
+
+connections/shared/lifecycle은 각각1회·exit0이며 세 MySQL/DB/native프로세스/runtime 정리를 확인했습니다. 웹/C#의 소유 DB/프로세스/inner·outer runtime도 정리했습니다. 작성자/이전 반복 수치나 shared 내부105를 합산하지 않습니다. 공식 검사 통과가 위 새 UI 재현을 상쇄하지 않으며 등록 GitHub status/check-run은0건입니다.
+
+### 제공/소비와 실제 적용 구분
+
+T3-1~5 제공부 코드는 수신했으나 PR68은 아직 미병합입니다.2번 실제 웹 own/read 링크의 원 필터 전달·첨부 UI·일반수정의 전후 집합/no-change·감사/버전/receipt 소비와 shared 저장소/관계·같은 배포ACK·실계정/두PC/실제 브라우저 전체 동작은 후속입니다. 이 제공만으로 TASK_ATTACHMENT_REPLACEMENT_NOT_READY를 해제하거나 미합의 정책/새 자동 제출을 추가하지 않았습니다.
+
+기존 PR/LOG/통합 댓글에 취합하고 회신용 새 MD/브랜치/PR은 만들지 않았습니다. 실제5000/.env·공유 DB/DDL·운영 키/계정·장비·제품 workspace 배포는 변경하지 않았습니다.1번의006/009/013 실제 적용 보고 수신과 이번 소유 시험 검증도 구분합니다.
+
 <a id="pr67-fixed-merged-20261022"></a>
 ## PR67 수정 재검토·병합 — 실행기 실패 정리 R67-01 해결, 2026-10-22
 
