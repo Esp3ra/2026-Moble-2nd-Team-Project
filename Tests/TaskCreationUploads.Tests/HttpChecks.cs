@@ -60,6 +60,22 @@ internal static class UploadHttpChecks
             Check(empty.State == TaskCreationUploadState.Completed && empty.CompletedFile?.Size == 0, "zero byte complete");
             Check(handler.ChunkCount == 4, "zero byte file has no chunk request");
 
+            using var toDelete = await uploads.PrepareFileAsync(path);
+            await toDelete.StartAsync();
+            Check(toDelete.State == TaskCreationUploadState.Completed, "temporary file ready for explicit deletion");
+            string deletedId = toDelete.AttachmentId!;
+            handler.LoseDelete = true;
+            await toDelete.DiscardAsync();
+            Check(toDelete.State == TaskCreationUploadState.DiscardUncertain && toDelete.CompletedFile is null,
+                "lost committed delete invalidates selection without inventing success");
+            Check(toDelete.AttachmentId == deletedId && handler.DeleteCount == 1, "lost delete retains original target and does not retry");
+            await toDelete.DiscardAsync();
+            Check(toDelete.State == TaskCreationUploadState.Discarded && handler.DeleteCount == 2,
+                "explicit missing-file replay confirms deletion");
+            before = handler.UploadRequests;
+            await toDelete.DiscardAsync(); await toDelete.RetryAsync();
+            Check(handler.UploadRequests == before, "discarded file cannot upload or delete again");
+
             var creation = new HttpTaskCreationService(session);
             var key = await creation.GetRequestKeyAsync();
             DateOnly today = DateOnly.Parse(Get("today"));
@@ -118,14 +134,19 @@ internal static class UploadHttpChecks
             }
             catch (ApiException ex) when (ex.StatusCode == 403) { checks++; }
 
+            await file.DiscardAsync();
+            Check(file.State == TaskCreationUploadState.Disconnected && file.StatusCode == 403,
+                "server denies deleting a task-linked file even for the uploader");
+            Check((await downloads.GetFilesAsync(created.TaskId)).Count == 2, "denied deletion preserves registered task references");
+
             using var uncertain = await uploads.PrepareFileAsync(path);
             handler.LoseStart = true;
             await uncertain.StartAsync();
             Check(uncertain.State == TaskCreationUploadState.StartUncertain && uncertain.AttachmentId is null, "lost committed start remains uncertain");
             before = handler.UploadRequests;
             await uncertain.StartAsync(); await uncertain.RetryAsync(); uncertain.Dispose();
-            Check(handler.UploadRequests == before && handler.DeleteCount == 0, "unknown upload is not restarted or discarded");
-            Check(handler.StartCount == 3 && handler.ChunkCount == 4 && handler.CompleteCount == 3, "exact real upload route counts");
+            Check(handler.UploadRequests == before && handler.DeleteCount == 3, "unknown upload is not restarted or discarded");
+            Check(handler.StartCount == 4 && handler.ChunkCount == 5 && handler.CompleteCount == 4, "exact real upload route counts");
             Console.WriteLine($"PASS TaskCreationUploads HTTP: {checks} checks.");
             return 0;
         }
@@ -144,7 +165,7 @@ internal static class UploadHttpChecks
     // Requests, database mutations and files are real; only selected replies are lost.
     private sealed class LosingReplyHandler : DelegatingHandler
     {
-        public bool LoseStart, LoseChunk, LoseComplete;
+        public bool LoseStart, LoseChunk, LoseComplete, LoseDelete;
         public int StartCount, ChunkCount, CompleteCount, DeleteCount, Losses, MaxChunkBodyBytes;
         public int UploadRequests => StartCount + ChunkCount + CompleteCount + DeleteCount;
         public LosingReplyHandler() : base(new HttpClientHandler { UseCookies = false, AllowAutoRedirect = false, UseProxy = false }) { }
@@ -157,19 +178,21 @@ internal static class UploadHttpChecks
             bool complete = upload && path.EndsWith("/complete", StringComparison.Ordinal);
             if (start) StartCount++;
             if (complete) CompleteCount++;
-            if (request.Method == HttpMethod.Delete) DeleteCount++;
+            bool delete = upload && request.Method == HttpMethod.Delete;
+            if (delete) DeleteCount++;
             if (chunk)
             {
                 ChunkCount++;
                 MaxChunkBodyBytes = Math.Max(MaxChunkBodyBytes, (await request.Content!.ReadAsByteArrayAsync(ct)).Length);
             }
             var response = await base.SendAsync(request, ct);
-            if (response.IsSuccessStatusCode && ((start && LoseStart) || (chunk && LoseChunk) || (complete && LoseComplete)))
+            if (response.IsSuccessStatusCode && ((start && LoseStart) || (chunk && LoseChunk) || (complete && LoseComplete) || (delete && LoseDelete)))
             {
                 await response.Content.LoadIntoBufferAsync(); response.Dispose(); Losses++;
                 if (start) LoseStart = false;
                 if (chunk) LoseChunk = false;
                 if (complete) LoseComplete = false;
+                if (delete) LoseDelete = false;
                 throw new HttpRequestException("Explicit test-only loss after actual successful HTTP response");
             }
             return response;

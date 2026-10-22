@@ -1,6 +1,6 @@
 # 원격 근무용 업무 처리 확인 시스템
 
-2번의 [업무 등록용 C# 첨부 전송 서비스](docs/TASK_CREATION.md#task-creation-upload-transport)는 기존 공용 업로드 API의 파일 준비·전송·명시 재시도를 지원합니다. 시작 결과를 모르면 재시작을 막고, ID를 확인한 뒤에는 같은 청크 또는 완료 요청만 다시 보냅니다. [제어 HTTP344검사·임시 MySQL에서 실제 HTTP26/DB9검사](Tests/TaskCreationUploads.Tests/README.md)를 통과했습니다. 파일 선택·삭제 화면, 일반수정 첨부 교체, 공유 운영 서버 연동은 아직 연결하지 않았습니다.
+2번의 [WinForms 업무 등록 첨부 화면](docs/TASK_CREATION.md#task-creation-attachment-ui)은 파일 선택·명시 업로드·미연결 임시 파일의 확인 삭제를 지원합니다. PR64의 로그인에 고정된 공통 DELETE를 사용하며, 업로드가 완료된 파일만 업무 등록에 연결합니다. 등록 결과가 불명확하면 원래 요청과 파일 목록을 고정해 결과를 먼저 확인합니다. [전송 제어440·실제 HTTP33/DB9검사](Tests/TaskCreationUploads.Tests/README.md), [실제 WinForms와 HTTP 대역95검사](Tests/TaskCreationAttachmentUi.Tests/README.md)를 통과했습니다. 일반수정 첨부 교체·웹 첨부와 공유 운영 서버 검증은 후속입니다.
 
 2번 업무 화면은 [로그인에 고정된 내 업무 탐색 콜백](docs/TASK_QUERIES.md#captured-own-task-navigation)을 제공합니다. 요청 업무를 새 내 업무 목록과 상세에서 확인하며, 대상이 없으면 다른 업무를 대신 열지 않습니다. PR64가 MainForm의 명시적 마감 탐색 연결을 제공합니다. 실제 알림 source·확인 저장과 공유 환경 검증은 후속입니다.
 
@@ -9,9 +9,9 @@
 <a id="member2-remainder-implementation"></a>
 2번은 취소·마감 연장 웹의 확인/명시 실행/동일 요청 결과 복구, WinForms 업무 첨부 목록·검증 후 다운로드, 취소 시 기존 공용 첨부의 업무 참조 해제를 연결했습니다. 기존 협업 bridge에는 **완전한 2번 이력이 있는 구간만 판정하는 reader**를 제공합니다. 누락·3번 제출 구간은 `None`을 유지합니다. 다른 담당 제품·공유 서버 설정·DB·운영 ACK는 변경하지 않았습니다.
 
-2026-10-21 팀장이 [3번의 첨부 최종 목록·읽기 전용 진입·명시 복귀·웹 첨부 제안 4개를 수용](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member3-proposals-accepted-20261021)했습니다. [신규 등록 API와 C# 요청 DTO](docs/TASK_CREATION.md#task-creation-attachment-selection)는 선택 `attachment_ids`를 지원하며, 값이 있으면 등록된 3번 제공 함수를 같은 트랜잭션에서 호출합니다. 생략·빈 배열은 첨부 없이 등록하며 첨부 제공부가 없어도 동작합니다. 업로드·파일 선택 UI는 아직 연결하지 않았습니다.
+2026-10-21 팀장이 [3번의 첨부 최종 목록·읽기 전용 진입·명시 복귀·웹 첨부 제안 4개를 수용](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member3-proposals-accepted-20261021)했습니다. [신규 등록 API와 C# 요청 DTO](docs/TASK_CREATION.md#task-creation-attachment-selection)는 선택 `attachment_ids`를 지원하며, 값이 있으면 등록된 3번 제공 함수를 같은 트랜잭션에서 호출합니다. 생략·빈 배열은 첨부 없이 등록하며 첨부 제공부가 없어도 동작합니다. WinForms 등록의 파일 선택·업로드는 연결했고 업무 웹의 첨부 화면은 후속입니다.
 
-[일반 수정](docs/TASK_MANAGEMENT.md#task-management-attachment-selection)은 첨부 필드를 생략하면 기존 첨부를 유지합니다. 빈 배열을 포함해 첨부 목록을 명시하면, 같은 트랜잭션의 변경 전 목록·차이 조회와 감사 계약이 제공되기 전까지 `503 TASK_ATTACHMENT_REPLACEMENT_NOT_READY`로 차단합니다. 관리 업무의 `view=read`, 서명된 `back_context`, 웹 첨부 cookie/CSRF 경로는 정책 수용과 구현 제공을 구분하며 아직 연결하지 않았습니다. 남은 기술 조건 T3-1~5는 위 공통규약에 모았습니다. PR64는 `ca781fd`로 병합되어 captured DELETE가 제공됐습니다. 2번 파일 선택·명시 폐기 UI의 소비는 다음 단계입니다.
+[일반 수정](docs/TASK_MANAGEMENT.md#task-management-attachment-selection)은 첨부 필드를 생략하면 기존 첨부를 유지합니다. 빈 배열을 포함해 첨부 목록을 명시하면, 같은 트랜잭션의 변경 전 목록·차이 조회와 감사 계약이 제공되기 전까지 `503 TASK_ATTACHMENT_REPLACEMENT_NOT_READY`로 차단합니다. 관리 업무의 `view=read`, 서명된 `back_context`, 웹 첨부 cookie/CSRF 경로는 아직 연결하지 않았습니다. 3번은 [PR52 기존 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52#issuecomment-6308742417)에 T3-1~5 제품 패치를 제공했습니다. 계약은 기존 수용 기준에 부합하며, 코드 PR 게시·검토·병합과 2번 소비 검증이 남았습니다. 댓글 패치를 alpha 구현 완료로 표시하거나 수정 차단을 미리 해제하지 않습니다. PR64의 captured DELETE는 이번 WinForms 임시 파일 삭제에 소비합니다.
 
 2번의 [업무 웹](docs/TASK_WEB.md)은 공통 로그인 후 `/tasks`에서 내 업무·지정 관리 업무의 목록/상세·전체/5상태·취소 포함을 조회합니다. 기존 공통 쓰기와 기능별 개발 옵션에서는 **등록·수락·재작업 시작·수정·재배정·관리자 변경·취소·마감 연장**을 확인 화면에서 실행하고 저장 결과를 확인할 수 있습니다. 웹과 API는 같은 실행 함수를 사용하며 현재 로그인·관계·버전·상태·날짜를 서버에서 검사합니다. 기존 lifecycle 신청함과 취소·연장 대기 정보도 유지합니다. 1번 PR59의 공통 업무 메뉴는 조회 기능 on일 때 `/tasks`로 연결합니다. PR52는 alpha `cbda025`에 병합됐으며, 현재 본인 업무에서는 기존 3번 결과물 웹으로 이동합니다. 취소·연장 쓰기의 통합 ACK와 실제 변경503은 유지합니다.
 

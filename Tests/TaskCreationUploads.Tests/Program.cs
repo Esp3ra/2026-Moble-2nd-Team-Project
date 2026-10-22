@@ -7,7 +7,7 @@ using RemoteWork.WinForms.Infrastructure;
 
 namespace TaskCreationUploads.Tests;
 
-internal static class Program
+internal static partial class Program
 {
     private const int ChunkBytes = 16 * 1024;
     private const string UploadId = "00112233-4455-6677-8899-aabbccddeeff";
@@ -38,6 +38,12 @@ internal static class Program
             await Run("caller cancellation by upload phase", CancellationAsync);
             await Run("dispose during send suppresses late completion", DisposeAsync);
             await Run("old session late success and error suppression", SessionChangeAsync);
+            await Run("explicit captured discard wire and terminal state", DiscardWireAsync);
+            await Run("discard requires a known idle upload", DiscardEligibilityAsync);
+            await Run("discard ambiguity preserves the original identity", DiscardRecoveryAsync);
+            await Run("discard failure and authentication boundaries", DiscardFailuresAsync);
+            await Run("discard concurrency and caller cancellation", DiscardConcurrencyAsync);
+            await Run("discard disposal and old session responses", DiscardLifetimeAsync);
             Console.WriteLine($"PASS: {checks} checks in {scenarios} controlled HTTP scenarios.");
             return 0;
         }

@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using RemoteWork.WinForms.Features.Tasks.Attachments;
 using RemoteWork.WinForms.Infrastructure;
 
 namespace RemoteWork.WinForms.Features.Tasks.Creation;
@@ -66,7 +67,7 @@ internal static class TaskCreationSessionStore
         public Entry(ApiClient.Session session)
         {
             Session = session;
-            Workflow = new TaskCreationWorkflow(new HttpTaskCreationService(session));
+            Workflow = new TaskCreationWorkflow(new HttpTaskCreationService(session), new HttpTaskCreationUploadService(session));
         }
 
         public ApiClient.Session Session { get; }

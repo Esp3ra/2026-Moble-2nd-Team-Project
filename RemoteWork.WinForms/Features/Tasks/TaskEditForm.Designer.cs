@@ -632,7 +632,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnSelectAttachment.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(255, 213, 220, 231);
             btnSelectAttachment.FlatAppearance.BorderSize = 1;
             btnSelectAttachment.Name = "btnSelectAttachment";
-            btnSelectAttachment.Click += new System.EventHandler(Unavailable_Click);
+            btnSelectAttachment.Click += new System.EventHandler(SelectAttachment_Click);
             //
             // flowActions2
             //

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using RemoteWork.WinForms.Features.Tasks.Attachments;
 using RemoteWork.WinForms.Features.Tasks.Creation;
 using RemoteWork.WinForms.Features.Tasks.Preparation;
 using RemoteWork.WinForms.Features.Tasks.Queries;
@@ -110,7 +111,10 @@ namespace RemoteWork.WinForms.Features.Tasks
             {
                 RestoreCreationDraft();
                 this.creationWorkflow.StateChanged += CreationStateChanged;
+                if (this.creationWorkflow.Attachments is { } attachments) attachments.Changed += AttachmentsChanged;
             }
+            btnSelectAttachment.Enabled = this.creationWorkflow?.Attachments is not null;
+            UpdateAttachmentSummary();
             initializing = false;
             ResetPreparationStatus();
         }
@@ -205,6 +209,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             txtTaskTitle.Clear();
             txtTaskDescription.Clear();
             txtTaskTitle.Enabled = txtTaskDescription.Enabled = false;
+            txtAttachments.Clear();
             dtpStartDate.Checked = dtpDeadline.Checked = false;
             dtpStartDate.CustomFormat = dtpDeadline.CustomFormat = "'—'";
             dtpStartDate.Enabled = dtpDeadline.Enabled = false;
@@ -227,7 +232,11 @@ namespace RemoteWork.WinForms.Features.Tasks
             checkedInput = null;
             checkedCreationRequest = null;
             preparationSessionRegistration.Unregister();
-            if (creationWorkflow is not null) creationWorkflow.StateChanged -= CreationStateChanged;
+            if (creationWorkflow is not null)
+            {
+                creationWorkflow.StateChanged -= CreationStateChanged;
+                if (creationWorkflow.Attachments is { } attachments) attachments.Changed -= AttachmentsChanged;
+            }
             creationLifetime.Cancel();
             creationLifetime.Dispose();
         }
@@ -276,13 +285,21 @@ namespace RemoteWork.WinForms.Features.Tasks
             lblPreparationStatus.ForeColor = Color.FromArgb(30, 42, 61);
             if (creationWorkflow is not null)
             {
+                if (creationWorkflow.Attachments is { IsReady: false })
+                {
+                    CheckedInput = null;
+                    lblPreparationStatus.Text = "선택한 첨부를 업로드하거나 명시적으로 해제한 뒤 입력을 확인해 주세요.";
+                    UpdateCreationButtons();
+                    return;
+                }
                 if (HasCreationSelection())
                 {
                     TaskPreparationSelection selection = PreparedSelection!;
                     try
                     {
                         checkedCreationRequest = new TaskCreationRequest(input.Title, input.Description,
-                            input.StartDate, input.DueDate, selection.Assignee!.Id, selection.ManagerUserIds);
+                            input.StartDate, input.DueDate, selection.Assignee!.Id, selection.ManagerUserIds,
+                            creationWorkflow.Attachments?.CompletedIds);
                     }
                     catch (ArgumentException error)
                     {
@@ -297,7 +314,7 @@ namespace RemoteWork.WinForms.Features.Tasks
                 }
                 lblPreparationStatus.Text = checkedCreationRequest is null
                     ? "입력 형식 확인 · 아직 저장되지 않았습니다.\r\n담당자와 등록자를 포함한 업무 관리자를 선택한 뒤 입력을 다시 확인해 주세요."
-                    : "입력·선택 확인 완료 · 아직 저장되지 않았습니다.\r\n‘등록’을 누르면 신규 업무를 서버에 저장합니다. 첨부파일은 이 등록에 포함되지 않습니다.";
+                    : $"입력·선택 확인 완료 · 아직 저장되지 않았습니다.\r\n‘등록’을 누르면 신규 업무와 첨부 {checkedCreationRequest.AttachmentIds?.Count ?? 0}개를 함께 저장합니다.";
             }
             else
                 lblPreparationStatus.Text = "입력 형식 확인 · 저장·전송 안 됨\r\n담당자 조회·배정 및 업무 저장 규약을 연결한 뒤 서버에서 다시 검증해야 합니다.";
@@ -305,7 +322,7 @@ namespace RemoteWork.WinForms.Features.Tasks
         }
 
         private bool CanEditCreation() => HasCurrentPreparation && (creationWorkflow is null
-            || (!creationOperation && !creationWorkflow.IsBusy && creationWorkflow.IsCurrent
+            || (!creationOperation && !creationWorkflow.IsBusy && !creationWorkflow.AttachmentsBusy && creationWorkflow.IsCurrent
                 && creationWorkflow.CanCreate && creationWorkflow.State == TaskCreationState.Editing));
 
         private bool HasCreationSelection()
@@ -326,7 +343,8 @@ namespace RemoteWork.WinForms.Features.Tasks
             return request.Title == input.Title && request.Description == input.Description
                 && request.StartDate == input.StartDate && request.DueDate == input.DueDate
                 && request.AssigneeId == PreparedSelection!.Assignee!.Id
-                && request.ManagerUserIds.SequenceEqual(PreparedSelection.ManagerUserIds);
+                && request.ManagerUserIds.SequenceEqual(PreparedSelection.ManagerUserIds)
+                && (creationWorkflow?.Attachments is null || creationWorkflow.Attachments.Matches(request.AttachmentIds));
         }
 
         private void RestoreCreationDraft()
@@ -355,8 +373,9 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnCreateTask.Enabled = editable && HasCheckedCreationRequest();
             btnCheckCreationResult.Enabled = current && !creationOperation && !creationWorkflow.IsBusy && creationWorkflow.CanCheckResult;
             btnRetryCreation.Enabled = current && !creationOperation && !creationWorkflow.IsBusy && creationWorkflow.CanRetry;
-            btnSelectAttachment.Enabled = !creationOperation && !creationWorkflow.IsBusy;
-            btnClose.Enabled = !current || (!creationOperation && !creationWorkflow.IsBusy);
+            btnSelectAttachment.Enabled = current && creationWorkflow.Attachments is not null
+                && !creationOperation && !creationWorkflow.IsBusy && !creationWorkflow.AttachmentsBusy;
+            btnClose.Enabled = !current || (!creationOperation && !creationWorkflow.IsBusy && !creationWorkflow.AttachmentsBusy);
         }
 
         private void CreationStateChanged(object? sender, EventArgs e)
@@ -442,7 +461,7 @@ namespace RemoteWork.WinForms.Features.Tasks
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             if (CreatedResult is null && creationWorkflow?.IsCurrent == true
-                && (creationOperation || creationWorkflow.IsBusy) && e.CloseReason == CloseReason.UserClosing)
+                && (creationOperation || creationWorkflow.IsBusy || creationWorkflow.AttachmentsBusy) && e.CloseReason == CloseReason.UserClosing)
             {
                 e.Cancel = true;
                 lblPreparationStatus.Text = "등록 처리 중입니다. 완료되거나 처리 결과 확인 상태가 될 때까지 기다려 주세요.";
@@ -453,6 +472,40 @@ namespace RemoteWork.WinForms.Features.Tasks
         private void Unavailable_Click(object? sender, EventArgs e)
         {
             PreviewActions.ShowUnavailable(this);
+        }
+
+        private void SelectAttachment_Click(object? sender, EventArgs e)
+        {
+            if (!HasCurrentPreparation || creationWorkflow?.Attachments is not { } attachments
+                || !btnSelectAttachment.Enabled) return;
+            using var form = new TaskCreationAttachmentsForm(attachments);
+            form.ShowDialog(this);
+            if (!preparationStopped && !IsDisposed) UpdateAttachmentSummary();
+        }
+
+        private void AttachmentsChanged(object? sender, EventArgs e)
+        {
+            if (preparationStopped || IsDisposed || !IsHandleCreated) return;
+            void Refresh()
+            {
+                if (preparationStopped || IsDisposed) return;
+                checkedCreationRequest = null;
+                checkedInput = null;
+                UpdateAttachmentSummary();
+                UpdateCreationButtons();
+            }
+            try { if (InvokeRequired) BeginInvoke((Action)Refresh); else Refresh(); }
+            catch (InvalidOperationException) { }
+        }
+
+        private void UpdateAttachmentSummary()
+        {
+            if (creationWorkflow?.Attachments is not { } selection)
+            { txtAttachments.Text = "이 화면에서는 첨부 연결을 제공하지 않습니다."; return; }
+            if (!selection.IsCurrent) { txtAttachments.Clear(); return; }
+            var files = selection.Items;
+            txtAttachments.Text = files.Count == 0 ? "선택한 첨부 없음"
+                : $"선택 {files.Count}개 / 업로드 완료 {files.Count(f => f.State == TaskCreationUploadState.Completed)}개 · 파일 선택 창에서 확인";
         }
 
         private void ClosePreview_Click(object? sender, EventArgs e)

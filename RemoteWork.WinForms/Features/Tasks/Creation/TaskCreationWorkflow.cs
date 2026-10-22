@@ -1,4 +1,5 @@
 using System.Globalization;
+using RemoteWork.WinForms.Features.Tasks.Attachments;
 using RemoteWork.WinForms.Features.Tasks.Preparation;
 using RemoteWork.WinForms.Features.Tasks.Queries;
 
@@ -22,6 +23,7 @@ public sealed class TaskCreationWorkflow : IDisposable
     private bool disposed;
     private bool disconnected;
     private bool busy;
+    private bool attachmentsBusy;
     private TaskCreationState state = TaskCreationState.Editing;
     private TaskCreationRequest? pendingRequest;
     private TaskWriteRequestKey? requestKey;
@@ -29,14 +31,39 @@ public sealed class TaskCreationWorkflow : IDisposable
     private TaskCreationFailure? failure;
     private string message = "입력과 담당자·관리자를 확인한 뒤 등록해 주세요.";
 
-    public TaskCreationWorkflow(ITaskCreationService service)
+    public TaskCreationWorkflow(ITaskCreationService service, HttpTaskCreationUploadService? uploads = null)
     {
         this.service = service ?? throw new ArgumentNullException(nameof(service));
         lifetimeToken = lifetime.Token;
+        Attachments = uploads is null ? null : new TaskCreationAttachmentSelection(this, uploads);
         sessionRegistration = service.SessionCancellation.Register(OnSessionChanged);
     }
 
     public event EventHandler? StateChanged;
+    public TaskCreationAttachmentSelection? Attachments { get; }
+    public bool AttachmentsBusy { get { lock (stateLock) return attachmentsBusy; } }
+    public bool CanEditAttachments => CanCreate && !IsBusy && !AttachmentsBusy && State == TaskCreationState.Editing;
+    internal bool TryBeginAttachmentChange()
+    {
+        if (!CanCreate) return false;
+        lock (stateLock)
+        {
+            if (disposed || disconnected || busy || attachmentsBusy || state != TaskCreationState.Editing) return false;
+            attachmentsBusy = true;
+        }
+        NotifyChanged();
+        return true;
+    }
+    internal void EndAttachmentChange()
+    {
+        lock (stateLock) attachmentsBusy = false;
+        NotifyChanged();
+    }
+    internal void BlockAttachmentSession()
+    {
+        lock (stateLock) if (!disposed && !disconnected) DisconnectLocked(TaskCreationFailure.Forbidden);
+        NotifyChanged();
+    }
     public TaskCreationRequest? PendingRequest { get { lock (stateLock) return pendingRequest; } }
     public TaskCreationResult? CreatedResult { get { lock (stateLock) return createdResult; } }
     public TaskCreationState State { get { lock (stateLock) return state; } }
@@ -103,11 +130,13 @@ public sealed class TaskCreationWorkflow : IDisposable
         bool started = false;
         lock (stateLock)
         {
-            if (disposed || disconnected || busy) return;
+            if (disposed || disconnected || busy || attachmentsBusy) return;
             if (!current || !permitted)
                 DisconnectLocked(current ? TaskCreationFailure.Forbidden : TaskCreationFailure.AuthenticationExpired);
             else if (Allowed(kind))
             {
+                if (kind == OperationKind.Submit && Attachments is not null && !Attachments.Matches(input!.AttachmentIds))
+                    throw new ArgumentException("업로드가 끝난 현재 첨부 목록으로 입력을 다시 확인해 주세요.");
                 thisOperation = ++operation;
                 if (kind == OperationKind.Submit)
                 {
@@ -349,6 +378,7 @@ public sealed class TaskCreationWorkflow : IDisposable
         sessionRegistration.Unregister();
         lifetime.Cancel();
         lifetime.Dispose();
+        Attachments?.Dispose();
         NotifyChanged();
     }
 

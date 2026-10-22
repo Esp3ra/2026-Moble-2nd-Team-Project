@@ -76,7 +76,7 @@ REMOTEWORK_ENABLE_TASK_CREATE_DRAFT=1
 
 기존 업무 등록 옵션만으로 첨부 제공부·013 구조를 자동 준비하지 않습니다. 값이 있는 요청은 3번 results/shared 제공부의 기존 활성화 조건과 준비된 `013_shared_attachments.mysql.sql` 구조도 필요하며, 제공부가 없으면 `503 TASK_ATTACHMENT_PROVIDER_REQUIRED`입니다. 제공부의 파일 오류를 다른 성공이나 빈 첨부로 바꾸지 않습니다. 공유 DB·DDL 적용·운영 ACK를 이 연결에서 활성화하지 않습니다.
 
-C# `TaskCreationRequest`는 선택 `IReadOnlyList<string>? attachmentIds = null`을 불변 사본으로 보관합니다. null은 JSON 전송에서 생략하고, 빈 배열·원래 ID 순서는 그대로 전송·복구합니다. **WinForms/업무 웹의 업로드·파일 선택 UI는 미연결**이므로 현재 화면 등록은 기존 여섯 필드로 진행합니다. 수정의 최종 목록 교체는 [별도 기술 조건과 503 차단](TASK_MANAGEMENT.md#task-management-attachment-selection)을 따릅니다.
+C# `TaskCreationRequest`는 선택 `IReadOnlyList<string>? attachmentIds = null`을 불변 사본으로 보관합니다. null은 JSON 전송에서 생략하고, 빈 배열·원래 ID 순서는 그대로 전송·복구합니다. **WinForms 등록 화면은 아래 파일 선택·명시 업로드 UI를 연결**했습니다. 선택을 바꾸지 않으면 필드를 생략하고, 명시적으로 목록을 비우면 빈 배열을 보내며 완료된 파일 ID의 순서를 보존합니다. 업무 웹 첨부 UI는 별도 후속입니다. 수정의 최종 목록 교체는 [별도 기술 조건과 503 차단](TASK_MANAGEMENT.md#task-management-attachment-selection)을 따릅니다.
 
 성공은 공통 envelope의 HTTP 201입니다. `data`의 필수 필드는 다음과 같습니다.
 
@@ -137,9 +137,22 @@ WinForms는 첨부 전용 404/409를 확정 실패로 구분해 입력 단계로
 
 16KiB 청크의 base64 `+`는 기본 JSON 인코더에서 `\u002B`로 늘어나 32KiB 본문 제한을 넘을 수 있습니다. 2번 청크 DTO만 전용 converter로 내부 생성 base64를 기록하며 공통 JSON 인코더·파일명 규칙을 바꾸지 않습니다. 청크 크기를 줄이거나 서버 제한을 늘리지 않습니다.
 
-현재 서비스는 **파일 선택/삭제 UI에 주입하지 않았습니다**. 작업 도중 PR64가 병합되어 캡처된 공통 DELETE는 제공됐습니다. 이를 소비하는 임시 파일의 명시 폐기·선택 상태를 다음 단계에서 연결합니다. `Dispose`는 서버 파일 삭제나24시간 후 자동 삭제를 보장하지 않습니다. 일반수정 첨부의 같은 TX diff/감사, 웹 cookie/CSRF, `view=read`/`back_context`는 기존 T3-1~5 기술 조건을 기다립니다.
+현재 서비스는 같은 로그인에 보관되는 등록 workflow의 첨부 선택 상태에 주입합니다. PR64의 captured `Session.DeleteAsync`는 확인된 ID의 미연결 임시 파일을 사용자가 명시적으로 삭제할 때만 호출합니다. `Dispose`와 창 닫기는 서버 파일 삭제나24시간 후 자동 삭제를 보장하지 않습니다. 일반수정 첨부의 같은 TX diff/감사, 웹 cookie/CSRF, `view=read`/`back_context`는 T3-1~5 댓글 패치가 제공됐으며 코드 PR 게시·검토·병합과 실제 소비가 남았습니다.
 
-[전용 검증](../Tests/TaskCreationUploads.Tests/README.md): 제어 HTTP344개, 실제 C#→TCP→임시 MySQL/파일26개와 독립 DB9개를 통과했습니다. 실제 시작·청크·완료, 등록 연결·같은 키 receipt·직원 다운로드를 확인했고 응답 유실은 실제 성공 응답 뒤 클라이언트에서 명시 주입했습니다. 공유 운영 서버·두PC·GUI·DELETE·25MiB 전체 네트워크 전송은 미실행입니다.
+[전용 검증](../Tests/TaskCreationUploads.Tests/README.md): 제어 HTTP440개, 실제 C#→TCP→임시 MySQL/파일33개와 독립 DB9개를 통과했습니다. 실제 업로드·등록·receipt·직원 다운로드에 더해 삭제 응답 유실 뒤 같은 ID 재확인과 이미 연결된 파일 삭제403을 확인했습니다. 응답 유실은 실제 성공 응답 뒤 클라이언트에서 명시 주입했습니다. 공유 운영 서버·두PC·OS 파일 대화상자의 수동 조작·25MiB 전체 네트워크 전송은 미실행입니다.
+
+<a id="task-creation-attachment-ui"></a>
+## 등록 첨부 선택·명시 삭제 화면 — 2026-10-22
+
+등록 화면의 `첨부 선택`에서 표준 WinForms/Designer 폼을 엽니다. 파일 선택은 이름·크기·바이트를 로컬에서 준비할 뿐 HTTP를 보내지 않습니다. 사용자가 `업로드`를 누르면 기존 start/chunks/complete로 전송하며 최대10개·파일당25MiB를 유지합니다. 미완료·응답 불명 파일이 하나라도 있으면 업무 등록을 차단합니다. 같은 로그인에서 창을 닫았다 다시 열어도 선택과 전송 상태를 유지합니다.
+
+- `임시 파일 삭제`는 표시한 파일을 확인창 전에 고정하고, 확인 뒤에도 같은 ID로만 body 없는 DELETE를 보냅니다. HTTP200의 일치 ID 또는 정확한404 `ATTACHMENT_NOT_FOUND`만 폐기 확인으로 처리합니다. 이는 서버의 정리 상태 확인이며 즉시 물리 삭제를 별도로 보장하지 않습니다.
+- 삭제 응답 유실·잘못된 응답·서버 오류는 ID를 보존하고 등록을 차단합니다. `삭제 다시 확인`에서 같은 ID를 명시적으로 재요청하며 자동 DELETE/새 업로드를 하지 않습니다.
+- 준비 파일·ID를 모르는 시작 불명 파일은 경고 후 선택 목록만 지울 수 있습니다. 정확한409 `ATTACHMENT_UNAVAILABLE`로 삭제가 거절된 만료 파일도 경고 후 로컬 선택만 지울 수 있습니다. 이 동작을 서버 삭제 성공으로 표시하지 않습니다.
+- 파일 처리 중에는 등록과 중복 파일 동작을 차단합니다. 업무 등록 전송·결과 불명·재시도 허용·수동 확인 상태에서는 원래 ID/배열/본문/키를 보존하고 파일 추가·삭제·재업로드를 막습니다. 입력 편집으로 돌아온 뒤에만 첨부를 바꿀 수 있습니다.
+- 401/403·로그아웃·서버/접속 변경은 이전 선택과 화면 파일명을 무효화합니다. 늦은 응답을 새 접속으로 넘기지 않고, 창/메뉴 재진입으로403 차단을 우회하지 않습니다. 성공 뒤 목록 정리는 로컬 메모리만 비우며 연결된 파일을 DELETE하지 않습니다.
+
+[UI 검사](../Tests/TaskCreationAttachmentUi.Tests/README.md)는 실제 WinForms와 명시 HTTP 대역 **9시나리오95검사**, 기존 등록 회귀는 **133검사**를 통과했습니다. 두 번째 행의 선택 이벤트 순서로 버튼 상태가 이전 행을 보던 문제를 `CurrentCellChanged` 연결로 수정하고 전체 재검증했습니다. 표준·최소 크기 렌더를 확인했으며 다중 DPI/OS 대화상자의 수동 조작·실계정/공유 서버 전체 흐름은 별도입니다.
 
 ## 검증
 

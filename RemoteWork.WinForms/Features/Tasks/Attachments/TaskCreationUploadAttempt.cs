@@ -8,13 +8,15 @@ namespace RemoteWork.WinForms.Features.Tasks.Attachments;
 
 public enum TaskCreationUploadState
 {
-    Ready, Sending, NeedsRetry, StartUncertain, Completed, Rejected, Disconnected, Disposed
+    Ready, Sending, NeedsRetry, StartUncertain, Completed, Rejected, Disconnected, Disposed,
+    Discarding, DiscardUncertain, DiscardRejected, Discarded
 }
 
 /// <summary>
 /// One immutable file, one captured login and at most one upload start. Only an
 /// explicit retry repeats a chunk or completion for the same validated upload ID.
-/// This is not an attachment selection or a saved task, and it never sends DELETE.
+/// This is not an attachment selection or a saved task. DELETE requires a separate
+/// explicit call; the creation owner must exclude pending or committed task files.
 /// </summary>
 public sealed class TaskCreationUploadAttempt : IDisposable
 {
@@ -66,8 +68,126 @@ public sealed class TaskCreationUploadAttempt : IDisposable
         }
     }
 
+    public bool CanDiscard
+    {
+        get
+        {
+            bool allowed;
+            lock (gate) allowed = !disposed && !disconnected && !busy && attachmentId is not null
+                && state is (TaskCreationUploadState.Completed or TaskCreationUploadState.NeedsRetry
+                    or TaskCreationUploadState.Rejected or TaskCreationUploadState.DiscardUncertain
+                    or TaskCreationUploadState.DiscardRejected);
+            return allowed && IsCurrent;
+        }
+    }
+
     public Task StartAsync(CancellationToken ct = default) => RunAsync(retry: false, ct);
     public Task RetryAsync(CancellationToken ct = default) => RunAsync(retry: true, ct);
+
+    /// <summary>
+    /// Explicitly discard this captured login's known temporary upload. The owner
+    /// must lock out this action while any task write includes the ID or its result
+    /// is uncertain. This method never obtains a new ID/key or retries on its own.
+    /// </summary>
+    public async Task DiscardAsync(CancellationToken ct = default)
+    {
+        if (ct.IsCancellationRequested) return;
+        bool current = session.IsCurrent && !session.Cancellation.IsCancellationRequested;
+        string id;
+        TaskCreationUploadState previous;
+        TaskAttachment? previousCompleted;
+        lock (gate)
+        {
+            if (disposed || disconnected || busy) return;
+            if (!current) { DisconnectLocked("접속이 변경되었습니다. 이전 파일을 삭제할 수 없습니다."); return; }
+            if (attachmentId is null || state is not (TaskCreationUploadState.Completed
+                or TaskCreationUploadState.NeedsRetry or TaskCreationUploadState.Rejected
+                or TaskCreationUploadState.DiscardUncertain or TaskCreationUploadState.DiscardRejected)) return;
+            if (ct.IsCancellationRequested) return;
+            id = attachmentId;
+            previous = state;
+            previousCompleted = completedFile;
+            busy = true;
+            state = TaskCreationUploadState.Discarding;
+            completedFile = null;
+            statusCode = null;
+            errorCode = null;
+            message = "선택한 임시 첨부의 삭제를 요청하고 있습니다.";
+        }
+
+        bool dispatched = false;
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(ct, lifetime.Token, session.Cancellation);
+        try
+        {
+            cancellation.Token.ThrowIfCancellationRequested();
+            session.ThrowIfChanged();
+            dispatched = true;
+            JsonElement result = await session.DeleteAsync<JsonElement>(UploadPath + "/" + id,
+                cancellation.Token).ConfigureAwait(false);
+            Exact(result, "attachment_id");
+            if (Text(result, "attachment_id") != id) throw InvalidResponse();
+            if (!KeepCurrent()) return;
+            lock (gate)
+            {
+                if (disposed || disconnected) return;
+                state = TaskCreationUploadState.Discarded;
+                message = "서버가 임시 첨부 삭제 요청을 처리했습니다.";
+            }
+        }
+        catch (Exception error)
+        {
+            if (error is ApiException responseError)
+            {
+                lock (gate)
+                {
+                    if (!disposed)
+                    {
+                        statusCode = responseError.StatusCode;
+                        errorCode = responseError.Code;
+                    }
+                }
+            }
+            if (!KeepCurrent()) return;
+            lock (gate)
+            {
+                if (disposed || disconnected) return;
+                if (error is ApiException api)
+                {
+                    if (api.StatusCode is 401 or 403)
+                    {
+                        DisconnectLocked(api.Message);
+                        return;
+                    }
+                    // Only the provider's precise "missing/deleting" response proves
+                    // absence. A generic route/proxy 404 is not a deletion receipt.
+                    if (api.StatusCode == 404 && api.Code == "ATTACHMENT_NOT_FOUND")
+                    {
+                        state = TaskCreationUploadState.Discarded;
+                        message = "서버에 해당 임시 첨부가 없거나 이미 삭제 처리 중입니다.";
+                        return;
+                    }
+                    if (api.StatusCode is 400 or 409 or 413)
+                    {
+                        state = TaskCreationUploadState.DiscardRejected;
+                        message = api.Message;
+                        return;
+                    }
+                }
+                if (!dispatched)
+                {
+                    state = previous;
+                    completedFile = previousCompleted;
+                    message = "임시 첨부 삭제를 요청하지 않았습니다.";
+                }
+                else
+                {
+                    state = TaskCreationUploadState.DiscardUncertain;
+                    message = "삭제 결과를 확인하지 못했습니다. 같은 임시 첨부의 삭제를 명시적으로 다시 확인해 주세요.";
+                }
+            }
+        }
+        finally { FinishRun(); }
+    }
 
     private async Task RunAsync(bool retry, CancellationToken ct)
     {
@@ -215,20 +335,23 @@ public sealed class TaskCreationUploadAttempt : IDisposable
                 }
             }
         }
-        finally
+        finally { FinishRun(); }
+    }
+
+    private void FinishRun()
+    {
+        bool disposeLifetime;
+        lock (gate)
         {
-            bool disposeLifetime;
-            lock (gate)
-            {
-                busy = false;
-                if (state is TaskCreationUploadState.Completed or TaskCreationUploadState.Rejected
-                    or TaskCreationUploadState.StartUncertain or TaskCreationUploadState.Disconnected or TaskCreationUploadState.Disposed)
-                    ClearContentLocked();
-                disposeLifetime = disposed && disposalCancellationFinished && !lifetimeDisposed;
-                if (disposeLifetime) lifetimeDisposed = true;
-            }
-            if (disposeLifetime) lifetime.Dispose();
+            busy = false;
+            if (state is TaskCreationUploadState.Completed or TaskCreationUploadState.Rejected
+                or TaskCreationUploadState.StartUncertain or TaskCreationUploadState.Disconnected or TaskCreationUploadState.Disposed
+                or TaskCreationUploadState.DiscardUncertain or TaskCreationUploadState.DiscardRejected or TaskCreationUploadState.Discarded)
+                ClearContentLocked();
+            disposeLifetime = disposed && disposalCancellationFinished && !lifetimeDisposed;
+            if (disposeLifetime) lifetimeDisposed = true;
         }
+        if (disposeLifetime) lifetime.Dispose();
     }
 
     private bool KeepCurrent()
@@ -309,7 +432,7 @@ public sealed class TaskCreationUploadAttempt : IDisposable
             if (disposed) return;
             disposed = true;
             state = TaskCreationUploadState.Disposed;
-            message = "파일 준비를 해제했습니다. 서버 파일 삭제를 요청하지 않았습니다.";
+            message = "파일 준비를 해제했습니다. 추가 서버 삭제를 요청하지 않았습니다.";
             attachmentId = null;
             completedFile = null;
             confirmedBytes = 0;

@@ -16,7 +16,7 @@ ACK 미설치에서는 확인·실행을 차단하고 강제 POST도503입니다
 
 제공부가 꺼져 있어도 저장된 공용 첨부 테이블을 확인합니다. 현재 업무 참조가 남아 있으면 취소를503으로 막아 참조를 남긴 채 취소 성공으로 처리하지 않습니다. 부분·잘못된 스키마도503이며 자동 DDL이나 공용 파일 모델 import로 복구하지 않습니다. 준비된 저장소에 현재 업무 참조가 없거나 공용 저장소 자체가 없는 기존 업무는 원래 취소 조건을 따릅니다.
 
-생성·수정의 첨부 최종 목록을 업무 본문에 연결하는 것은 사용자 결정대로 **3번과 협의 후 결정**입니다. 이 취소 소비는 새 `attachment_ids` HTTP 필드·업로드 UI·웹 cookie 첨부 접점의 확정이나 공용013 적용 완료를 뜻하지 않습니다. 최종 실행 결과는 [LOG/2번 구현·검증의 최신 회차](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md)에 기록합니다.
+2026-10-21 팀장이 선택 `attachment_ids`의 의미를 수용했습니다. 등록은 생략/빈 배열이면 첨부 없음, 수정은 생략이면 유지·빈 배열이면 해당 업무 참조 해제·값이 있으면 최종 전체 목록입니다. [등록 API/C# DTO](TASK_CREATION.md#task-creation-attachment-selection)는 이미 연결됐고 일반수정은 같은 TX의 전후 목록/diff·감사 접점 제공 전 명시 첨부를503으로 차단합니다. 웹 cookie 첨부와 공유 배포 검증은 별도입니다. 최종 실행 결과는 [LOG/2번 구현·검증의 최신 회차](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md)에 기록합니다.
 
 ## 실행 경계
 
@@ -84,7 +84,7 @@ ACK 미설치에서는 확인·실행을 차단하고 강제 POST도503입니다
 
 3번의 [취소·연장 대기 소비 경로](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-lifecycle-member3-connection)는 PR52에 반영됐습니다.2번 helper는 `ensure_not_cancelled(db,task_id)`와 `pending_extension_facts(db,task_id,assignment_revision,lock=False)`이며3번 쓰기에서는 잠금 옵션을 소비합니다. 실제 pending 어댑터는 미준비를False로 숨기지 않습니다. 기존 `ExternalFacts`의 검토자 원본은 유지하며 취소를 pending=True로 위장하지 않습니다. 제공된 제출·판단·첨부 쓰기 연결과 같은 공용 배포에서의 활성화·동시성 증거를 구분합니다. 과거 결과물/이력/다운로드는 현재 합의된 읽기 권한으로 유지합니다.
 
-실제 공용 배포에서3번 제출/첨부와 취소·신청의 경합, 공유 DB/실계정·두PC·수동 GUI/다중DPI는 별도 확인 대상입니다.4번 [알림 A1~A6·협업 B1~B7](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member4-policy-adopted-20261021)은 진행 기준으로 채택됐으며2번의 [보수적인 버전 이력 reader](TASK_QUERIES.md#task-continuity-reader)는 알려진2번 행동의 완전한 구간만 판정합니다. 새 기한 사건 필드·공용 이벤트,3번의 웹 첨부/관리 읽기/복귀 접점과 생성·수정 첨부 쓰기는 후속입니다. 별도 검토 요청은 이번 확정에 포함되지 않습니다. 새 회신 MD/브랜치/추가 PR은 요구하지 않습니다.
+실제 공용 배포에서3번 제출/첨부와 취소·신청의 경합, 공유 DB/실계정·두PC·수동 GUI/다중DPI는 별도 확인 대상입니다.4번 [알림 A1~A6·협업 B1~B7](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member4-policy-adopted-20261021)은 진행 기준으로 채택됐으며2번의 [보수적인 버전 이력 reader](TASK_QUERIES.md#task-continuity-reader)는 알려진2번 행동의 완전한 구간만 판정합니다. 새 기한 사건 필드·공용 이벤트,3번의 웹 첨부/관리 읽기/복귀 접점과 일반수정 첨부 교체는 후속입니다. 신규 등록의 선택 첨부 API/DTO는 제공됐으며 화면 연결 범위는 [등록 안내](TASK_CREATION.md)를 따릅니다. 별도 검토 요청은 이번 확정에 포함되지 않습니다. 새 회신 MD/브랜치/추가 PR은 요구하지 않습니다.
 
 ## 검증 안내
 
