@@ -1,3 +1,12 @@
+<a id="pr62-latest28-still-blocked-20261022"></a>
+## 최신 PR62 추가 변경 확인 — R62-01 미해결·보류 유지, 2026-10-22
+
+마무리 확인 중 PR62 head **28cd8d94108247ebc656be27e17a151da19795f5**가 추가됐습니다. 이는 외래키 수정이 아니라 근태 finalize·암호화 영수증·같은 날 근무 재로그인·전용 C# pending 연결 등15파일의 기능 확대입니다. **R62-01/P2는 그대로 남아 미병합을 유지**합니다. 최신 `features/identity/routes.py:76~82`의 FK 집합/기대값 AST는 실제 HTTP 결함 재현본 b71과 동일하고, storage()는 여전히 referred_schema를 비교하지 않습니다. [기존 댓글 한 곳의 최신 판정·정확 위치](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/62#issuecomment-6330262776)을 따릅니다.
+
+추가로 **R62-02/P2**를 확인했습니다. 새 `IdentityPendingConnection.cs:21~22,55,91~106`은 최초5분 ExpiresAt으로 결과 복구까지 차단합니다. 서버 `attendance.py:148~159`는 확정 뒤 같은 문맥을 receipt_only/보관기한으로 연장하므로, commit 뒤 응답 유실·초기5분 경과 시 결과는 남아도 전용 연결은 HTTP 전에 취소됩니다. 원본 C#와 HTTP 대역에서 같은 원FinalizeID 복구 요청의 총HTTP1회·OperationCanceled를 재현했습니다. 신규 활동 권한과 이미 보낸 동일작업의 결과전용 복구 수명을 분리하고 현재접속/권한·취소를 유지하는 회귀를 요청했습니다. 공식 pending15검사는 직접통과했지만 이 경계는 포함하지 않습니다. 실제 근태DB 왕복/확대전체검증과 구분하며 **R62-01/02 수정 전 미병합**입니다.
+
+63·64·65의 병합과 실제 merge tree 일치는 유지됩니다. 아래 b71의32PASS·인증/코덱 검토·finalize503 안내는 당시 범위입니다. 새28cd에는 finalize/정상토큰 전환 코드가 게시됐으므로 전체 미구현으로 부르지 않지만, 새 근태/C# 전체의 HTTP·DB·동시성 검증을 완료하거나 운영 정책/배포를 승인한 것은 아닙니다. 추가 auth/receipt 전이의 짧은 정적 대조와 기존 FK 미해결 확인만 수행했습니다. 실제 DB·키·서버/센서·환경은 변경하지 않았으며, 실제 MySQL의 현재/다른DB 동명 FK 회귀와 R62-01 수정을 기존 PR62에서 요청합니다.
+
 ## 최신 — PR64 병합·지문 PR62 수정 요청·63/65 수신, 2026-10-22
 
 [PR64](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/64#issuecomment-6330306907)을 서버 소유MySQL121·UI24/130/105/115/144/35·Release0/0으로 검증해 **ca781fd**로 병합했습니다. normal create_app/coldOFF 결과 읽기·로그인당 협업scope·양방향 표시 gate·captured DELETE·MainForm 명시 deadline 연결/navigator를 수신했습니다. 실제deadline source·확인 writer/사건/초기 자료와4번 receipt/snapshot 포트 보완은 후속입니다. 제안 polling10초를 운영값으로 확정하지 않았습니다.
