@@ -1,3 +1,10 @@
+<a id="member2-pr707172-status-20261022"></a>
+## PR70·71·72 병합과 2번 연결 경계 — 2026-10-22
+
+사용자 지시에 따라70·71 Draft를 해제하고70 **cca5b621**→71 **30fcb30d**→72 **7135a293**를 병합했습니다. 실제 각 merge tree와 검토 결합본이 일치하며 최종 Release0/0·WorkdayActivity26/WorkdayState39를 확인했습니다. [검토·기존 증거 재사용/직접 검사](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr707172-merged-20261022)·[담당별 후속](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr707172-merged-20261022)으로 취합합니다.
+
+2번 현재 facts/변경 경계 제공과1번 실제 journal/binding/HTTP 공급은 코드로 수신했습니다. 원 생성·기한수정·승인연장의 실제 W1 mutate에 기록 함수를 연결하는 작업,4번 새 binding source·baseline/중간상태·정식 DDL/공유 적용은 후속입니다. 기존2번8문서 구조와 아래 원문을 유지하며 새 회신용 MD/PR은 만들지 않았습니다. 실제5000/.env·DB/운영 flags·장비 변경은 없습니다.
+
 ## 최신 — PR70 수정 재검토·이전 P2 해결, 2026-10-22
 
 고정2a50535의 [이전 P2 해결·새 HTTP 검토](PR_검토기록.md#pr70-rechecked-20261022)와 [담당별 제공/잔여·내부망 접속 기준](공통규약.md#member2-pr70-recheck-status-20261022)을 갱신했습니다. 기존 독립 재현과 원23/7·HTTP21·OFF12 및 Release0/0을 직접 확인했으며 Draft/미병합·공유 미적용입니다. [검증 범위](업무_구현검증.md#member2-pr70-recheck-evidence-20261022)를 구분하고 기존8문서를 유지합니다. 아래 수정 필요 표시는920145 당시 이력입니다.

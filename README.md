@@ -1,3 +1,12 @@
+<a id="pr707172-merged-status-20261022"></a>
+## 최신 — PR70·71·72 검토·병합 완료, 2026-10-22
+
+사용자의 “병합 가능 시 Draft→Open→Merge” 지시에 따라 PR70·71의 Draft를 해제한 뒤 순서대로 병합했습니다. [70 최종 검토](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/70#issuecomment-6335250250) → **cca5b621**, [71](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/71#issuecomment-6335251016) → **30fcb30d**, [72](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/72#issuecomment-6335251407) → **7135a293**이며 각 실제 merge tree가 검토 결합본과 일치합니다. 이전 PR70의 P2는 해결됐고 아래 Draft/보류/미병합 표시는 당시 이력입니다.
+
+70은 고정 소스211파일·RR 회귀3파일이 기존 검증과 같아 기존23/21/7·RR1/2/1·HTTP8·cold12 근거를 재사용했습니다(새 실행 아님). 71은 소유 MySQL9·독립 current-RR2·C#39,72는26/179/297/115/Preview11·실제 서버/Pi HTTP·소유MySQL·C#12가 통과했습니다. 수치는 합산하지 않습니다. 최종7135 결합본의 Release0오류/0경고·26/39도 재확인했습니다. [정확한 SHA·실행/대역 구분](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr707172-merged-20261022)·[담당별 후속](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr707172-merged-20261022)을 따릅니다.
+
+실제5000/.env·공유DB/DDL·운영 옵션·센서는 미변경입니다. 2번 실제 writer hook·4번 새 binding 어댑터·baseline/중간상태 정책·정식 DDL/공유 적용·퇴근 finalize 중 drain은 후속이며 코드 병합을 운영/두PC 완료로 확대하지 않습니다.
+
 ## 최신 — PR70 수정 재검토·이전 P2 해결, 2026-10-22
 
 고정2a50535의 [재검토·직접 검사](2번/PR_검토기록.md#pr70-rechecked-20261022)와 [담당별 다음 연결/내부망 접속 기준](2번/공통규약.md#member2-pr70-recheck-status-20261022)을 취합했습니다. 이전 RR결함은 원 재현으로 해결을 확인했고 새 HTTP/확인 저장을 검토했습니다. Draft/미병합·기본OFF·공유 미적용과 협의사항을 구분하며 다른 담당 제품/실제 DB는 수정하지 않았습니다.

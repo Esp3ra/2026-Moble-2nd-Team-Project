@@ -1,3 +1,51 @@
+<a id="pr707172-merged-20261022"></a>
+## PR70·71·72 최종 검토·병합 — 2026-10-22
+
+추가 확정 차단 결함 없이 사용자 지시에 따라 **PR70·71 Draft→Open→Merge**, 이어 PR72를 병합했습니다. 각 실제 merge tree를 검토 결합본과 대조했습니다. 아래 이전 PR70 Draft/보류/미병합 표시는 당시 고정 head의 기록이며 원문을 보존합니다.
+
+| PR | 검토 head | 실제 alpha merge | 실제 merge tree/범위 | 최종 댓글 |
+|---|---|---|---|---|
+|70|`2a505354c521c0ba23da8ed40da458ebb08affe3`|`cca5b621962a3511cab9c1ae961126197a3d4b3b`|`5f27a06dc4dbcfc797514eb9056dc4e572deb84c` 고정70과 일치|[통합 판정](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/70#issuecomment-6335250250)|
+|71|`81eb88060d36767f5a50de74ea9cd40b2f7b52b5`|`30fcb30d78fe7b26a9c57a5e394f0c4b748b8148`|`3a3d1d5aa24878adfb37eac63e4147f1e4cad120` 선행70+검토71 결합|[통합 판정](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/71#issuecomment-6335251016)|
+|72|`10f80ffd17673d412db9408328acf8b5a6ca5123`|`7135a2933ae9ae6382da28ab6dbef36acbc421ec`|`e7d92227853ab10c8ded7c1ca3adbd3d1b21d7ba` 선행70/71+검토72 결합|[통합 판정](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/72#issuecomment-6335251407)|
+
+### PR70: 기존 RR P2 해결과 같은 소스의 검증 재사용
+
+head2a50535/base57a9b08의11파일을 검토했습니다. 기존920145는 오래된 인증 RR snapshot 뒤 새 사건을 부재로 읽었으나,수정본은 정확한 부모를 먼저 잠그고 current journal을 읽으며 binding도 task_id를 전달합니다. 원 task_id 없는 신뢰된 호환 경로는 현재 부모를 정렬 잠금하고1000개 초과503입니다. 현재 own·원 배정 actor·원 task/event의 W1 인가와 새 확인의 현재 사건/배정·두버전·상태/취소·발생시각을 분리합니다. 동일 key/body replay는 새 mutate를 실행하지 않으며 옛 성공을 새 사건 확인으로 승격하지 않습니다.
+
+이번 GitHub 고정본의 RemoteWork.Server와 INTEGRATION **211개 파일**이 기존 `remote_work_pr70_recheck_20261022_2a50535/source`와 byte 동일(누락0/차이0),외부 RR 재현3파일도 보존 SHA256 동일했습니다. 따라서 다음 **기존 실행 근거를 재사용**하며 이번에 새로 실행하거나 합산한 수치가 아닙니다.
+
+| 기존 실행 | 결과/정확한 범위 |
+|---|---|
+|공식 journal/binding|23 PASS/41.72초,소유MySQL8.2·schema1|
+|공식 writer 경계|7 PASS/18.72초,실제2번 writer/W1+시험 audit adapter;제품 hook 아님|
+|공식 HTTP|21 PASS/53.65초,실제 auth/W1/journal/확인·loopback TCP1건 포함(별도 합산 안 함)|
+|이전 RR 회귀 원문|사건1 PASS/5.38초,binding2 PASS/6.93초,키인가1 PASS/5.36초. binding2 중 원래 통과한 helper 대조1은 추가 해결 결함 수가 아님|
+|독립 HTTP 경계|8 PASS/17.41초,5상태·취소·관리관계 무권한·서로 다른 두키의 단일확인/감사|
+|독립 cold OFF|12 checks PASS,DB driver대역/접속시도0·모듈/route/action/reader/메타정보 미설치;실제DB검사와 구분|
+
+이전 보고서의 고정head/schema1·source unchanged·소유DB/runtime 정리를 확인했습니다. 빈 소유DB에 원 fixture가 raw002/004/006/009와 번호 없는 초안3테이블을 만든 결과이며 기존 공유DDL 전후 불변이나 운영 설치 증거가 아닙니다. 기존 Release 근거 역시 이번70 신규빌드로 쓰지 않습니다.
+
+### PR71: 실제 current-workday 조회·독립 RR 경합
+
+head81eb880/base641bc71의 의존 원본은 현재57a9b08의 identity/auth/db/검사·Infrastructure와 같았습니다. 새 일반 로그인 GET은 현재 actor/session과 근무행을 공통guard/current locking read로 검사하고 새 identity Context·user/work query 선택을 만들지 않습니다. 이전 날짜·없음/종료 근무 및 receipt-only 문맥을 당일 일반 권한으로 바꾸지 않습니다. C#은 정확한 필드/UUID/DATE/UTC/KST·시각 순서와 캡처 접속·401/취소를 검증합니다.
+
+독립 담당의 이번 직접 실행은 원 서버 **9 PASS/36.83초**, 별도 소유MySQL current-RR **2 PASS/12.13초**, 실제ApiClient+명시HTTP대역의 C# **39 PASS**입니다. RR2는 오래된 load_identity snapshot+강한 ORM 캐시 뒤 다른 요청이 실제 정오/퇴근 complete/finalize를 commit하는 경합입니다. 최신 noon_at/noon_due=false를 보고,퇴근으로 정상 세션이 삭제된 이전 요청은401로 차단됐습니다. 각각 소유MySQL/DB/프로세스/runtime 정리를 확인했습니다. 실제 공유계정/센서/두PC 검사가 아닙니다.
+
+### PR72: 정오·근무감시 수명·연차 UI
+
+head10f80ff/base57a9b08의43파일을 검토했습니다. 원 근무/목적·finalize UUID/결과 복구,로그인/근무당 monitor 소유·메뉴 borrow,정오 전 관찰→서버 NoonDue의 한번 안내,조회실패/근무교체/접속폐기 중지 및 정상 Logout 전 drain을 확인했습니다. 연차는 원 대상/신청·결정 UUID와 처리중 닫기·불명 경고/재확인·반려사유 상세를 보존하며 Preview는 RAM 도구입니다.
+
+이번 원본 직접 검사는 **WorkdayActivity26 /로그인·근무179 /ActivityPresence297(12시나리오) /Leave115 /Preview11 PASS**입니다. 실제C#과 명시 reader/monitor/센서/HTTP/workflow 대역이며 Leave115는 본문89+닫기보완26의 최종 원 출력입니다. 고정71 reader를 외부 시험 Link로 연결한 실제 서버·Pi HTTP·소유MySQL·C# **12 PASS/71.74초**는 별도입니다. 결합 Server/Pi253파일·원 reader bytes·DLL SHA 불변·소유DB/프로세스/runtime 정리를 확인했습니다.
+
+ActivityPresence의 최초 Python3.12 시계 기반 실패를 보존하고,원본 제품/검사·동일DLL을 소유 Python3.14.7/QPC·OpenCV5/NumPy 환경에서 실행해297을 통과했습니다. 카메라/detector는 대역이며 실제 장치 검증이 아닙니다. 실패 시도나 재실행을 누적 통과 수에 합산하지 않습니다.
+
+### 최종 결합본과 미실행
+
+실제 alpha **7135a2933ae9ae6382da28ab6dbef36acbc421ec /tree e7d92227853ab10c8ded7c1ca3adbd3d1b21d7ba**에서 root가 Release **0오류/0경고**, WorkdayActivity **26**·WorkdayState **39**를 직접 재확인했습니다.71의 StartedAt 포함 상태와72의5필드 상태는 명시 projection wrapper로 캡처 접속/취소를 보존해야 합니다.
+
+실제5000/.env·공유DB/DDL/운영 flags·키·센서 변경은 없습니다. 새지문OFF·기존ACK 유지,2번 실제 writer hook·4번 새 binding 어댑터·baseline/중간상태/옛 성공 열람 정책·정식 DDL/공유 적용·퇴근 finalize 중 일반요청 drain/401 이후 결과전용 수명·실제 monitor/장치/두PC·연차 실제 API/권한/잔여일은 후속입니다. [담당별 다음 경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr707172-merged-20261022)를 따르며 코드 병합·정상 Logout을 필수 지문 퇴근/운영완료로 확대하지 않습니다. 추가 회신용 공개 MD/브랜치/PR은 만들지 않았습니다.
+
 <a id="pr70-rechecked-20261022"></a>
 ## PR70 수정 재검토 — 이전 P2 해결, 2026-10-22
 
@@ -26,6 +74,8 @@
 > 아래920145의 ‘수정 필요’는 이전 고정본 검토 이력입니다. 현재 수정본의 해당 P2는 위 재현으로 해결됐습니다.
 
 <a id="pr70-reviewed-20261022"></a>
+> **최종 상태: PR70의 RR P2는2a50535에서 해결됐고 cca5b621에 병합됐습니다.** [최종 병합·검토](#pr707172-merged-20261022)와 [공개 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/70#issuecomment-6335250250)을 따르며 아래920145 보류 원문은 당시 이력입니다.
+
 ## PR70 최신 6파일 검토 — 수정 필요, 미병합
 
 고정 head **920145ccc631b0308779b153d19bfe8095fb4b43**, base **a37a3c41bc835e8bfae393a99245b643793de3b4**입니다. 실제 사건 journal·원 배정 binding·번호 없는 SQL·두 검사 모듈·공통 안내6파일을 읽고 독립 소유 MySQL에서 검증했습니다. Draft/mergeable 상태와 기능 검증 결과를 구분합니다.

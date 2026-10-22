@@ -1,3 +1,12 @@
+<a id="pr71-pr72-merged-20261022"></a>
+## 근무일 조회·정오/근무 감시·연차 보완 병합, 2026-10-22
+
+[PR71](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/71#issuecomment-6335251016) head81eb880의 현재 근무일 일반 인증 GET/C# 연결을 **30fcb30d**, [PR72](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/72#issuecomment-6335251407) head10f80ff의 정오 지문·근무 감시 수명·연차 화면 보완을 **7135a293**에 병합했습니다.71은 사용자 지시에 따라 Draft→Open 후 병합했으며 실제 merge tree가 선행70과 각 검토본 결합에 일치합니다.
+
+71은 원 서버9 PASS/36.83초·독립 RR2 PASS/12.13초·C#39입니다.72는 WorkdayActivity26·로그인/근무179·ActivityPresence297/12시나리오·Leave115·Preview11 PASS이며 실제 C#+명시 reader/monitor/센서/HTTP/workflow 대역입니다. 고정71 reader를 외부 시험 Link로 연결한 실제 서버/Pi HTTP·소유MySQL·C#12 PASS/71.74초는 별도 범위입니다. 최종7135 결합본 Release0/0·26/39도 확인했으며 합산하지 않습니다. [전체 근거·초기3.12 시계 기반 실패와 원소스/DLL 그대로3.14.7 QPC 환경 재검증](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr707172-merged-20261022)을 보존합니다.
+
+기본 자동 연결·실제5000/.env·공유DB/DDL/키·센서는 미변경입니다.71의 검증된 값을72의5필드 상태로 명시 매핑하는 wrapper,퇴근 finalize 중 drain/401 뒤 원 결과복구 수명,실제 monitor/센서·두PC·운영 loader/연차 API·권한/잔여일은 후속입니다. 정상 Logout을 필수 지문 퇴근 성공으로 표시하지 않습니다.
+
 <a id="pr69-reviewed-merged-20261022"></a>
 ## PR69 검토 — 지문 출근·로그인 연결/연차 화면, 병합 완료
 
