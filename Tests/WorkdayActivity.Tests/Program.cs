@@ -35,10 +35,12 @@ internal static partial class Program
             try
             {
                 if (args.FirstOrDefault() == "--loopback-workday-activity") await Loopback(owner, args);
+                else if (args.FirstOrDefault() == "--loopback-clockout-activity") await ClockOutLoopback(args);
                 else
                 {
                     await NoonAndBorrowedViews(owner); await LateAndOtherPc(owner); await ErrorsAndConcurrency(owner);
                     await EndedAndChangedWork(owner); await InvalidSource(owner); await MainOwnership(); await NormalCloseDrains();
+                    await ClockOutFlow(owner, false); await ClockOutFlow(owner, true); await ClockOutFailure(owner);
                     Console.WriteLine($"PASS workday activity: {checks} assertions; real C# forms/captured sessions, synthetic reader/monitor/device; no production changes.");
                 }
                 code = 0;
@@ -213,12 +215,8 @@ internal static partial class Program
     }
     private static Func<CancellationToken, Task<WorkdayActivityState>> Reader(ApiClient.Session session, Server server)
     {
-#if MEMBER1_WORKDAY_DRAFT
         var reader = new WorkdayStateConnection(session);
         return async ct => { var s = await reader.ReadAsync(ct); return new(s.WorkSessionId, s.WorkDate, s.ServerTime, s.NoonAt, s.NoonDue); };
-#else
-        return _ => Task.FromResult(Before);
-#endif
     }
     private sealed class Server : IDisposable
     {

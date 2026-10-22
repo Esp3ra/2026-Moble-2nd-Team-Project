@@ -34,6 +34,7 @@ def main():
     parser.add_argument("--report-directory", type=Path, required=True)
     parser.add_argument("--identity-login-client", type=Path)
     parser.add_argument("--workday-activity-client", type=Path)
+    parser.add_argument("--workday-clockout-client", type=Path)
     args = parser.parse_args()
     if os.name != "nt": raise RuntimeError("Windows owned-process runner required")
     source = args.source_root.resolve(strict=True)
@@ -76,6 +77,13 @@ def main():
                     env["PYTHONPATH"] += os.pathsep + str(Path(__file__).parent)
                     report["activity_client_sha256"] = hashlib.sha256(activity_client.read_bytes()).hexdigest()
                     command.append(str(ROOT / "Tests/WorkdayActivity.Tests/test_real_server.py"))
+                if args.workday_clockout_client is not None:
+                    clockout_client = args.workday_clockout_client.resolve(strict=True)
+                    if clockout_client.name != "WorkdayActivity.Tests.dll": raise RuntimeError("Explicit reviewed clock-out feature client required")
+                    env["MEMBER5_WORKDAY_CLOCKOUT_CLIENT"] = str(clockout_client)
+                    env["PYTHONPATH"] += os.pathsep + str(Path(__file__).parent)
+                    report["clockout_client_sha256"] = hashlib.sha256(clockout_client.read_bytes()).hexdigest()
+                    command.append(str(ROOT / "Tests/WorkdayActivity.Tests/test_clockout_real_server.py"))
                 try:
                     result = capture_pytest(command, runtime, env)
                     stdout, stderr, code = result.stdout, result.stderr, result.returncode
@@ -88,6 +96,9 @@ def main():
                 if args.workday_activity_client is not None and hashlib.sha256(activity_client.read_bytes()).hexdigest() != report["activity_client_sha256"]:
                     code = 1
                     report["activity_client_changed_during_check"] = True
+                if args.workday_clockout_client is not None and hashlib.sha256(clockout_client.read_bytes()).hexdigest() != report["clockout_client_sha256"]:
+                    code = 1
+                    report["clockout_client_changed_during_check"] = True
                 (args.report_directory / "pytest.private.txt").write_text(stdout + "\n" + stderr, encoding="utf-8")
                 summaries = re.findall(r"^.*\d+ (?:passed|failed|error).* in [0-9.]+s.*$", stdout, re.M)
                 report.update(exit=code, summary=summaries[-1] if summaries else "No completed pytest summary",
