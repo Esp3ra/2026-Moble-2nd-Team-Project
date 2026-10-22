@@ -1,3 +1,12 @@
+<a id="pr74-common-consumed-20261022"></a>
+## 1번 공통 수신 — 5번 기본 제품 경로의 실제 소비 완료
+
+[PR74](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/74#issuecomment-6336089532) 최종4452996은 **652b21a20b08fd7c4e3d77332a7d219366dac779**에 병합됐고 실제 tree **d527263428820b2b39acef5e42053331b94b5ae4**가 검토본과 일치합니다. 원 PR73의 ApiClient/MainForm 공통 소유자를 복사·우회하지 않고, `ConnectWorkdayActivityAsync(options,...)` 기본 overload에서 실제 `PrepareClockOutFinalizationAsync`/`FinishConfirmedClockOut` 어댑터를 공급합니다. 이전 시험 factory/조건부 ClockOutPeer 옵션은 제거했습니다.
+
+verified 퇴근의 원 work/DATE·challenge/OriginalFinalizeId와 UI 스레드 준비·monitor/poll stop-and-wait·drain·같은 원 결과복구를 보존합니다. 정상/응답유실마다 검색1·준비1·receipt1·ended/AuthSession0·auth/logout0을 실제 C#/서버·Pi HTTP·소유MySQL에서 확인했습니다. 최신51(기존26 포함)·Owner11·Release0/0·통합14/65.28초와 초기031의 기존 회귀는 [실행별 근거](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr74-reviewed-merged-20261022)로 구분합니다.
+
+[정확한 제품 조립](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/652b21a20b08fd7c4e3d77332a7d219366dac779/RemoteWork.WinForms/Features/Attendance/CLOCK_OUT_CONNECTION.md)을 따르며 기본 시작은 자동 설치하지 않습니다. 공통 실제 endpoint/새DDL/전역401 예외나 token 추출을 추가하지 않았고 실제5000/.env·DB/키·센서/공유 운영은 미변경입니다. 실제 loader/identity 저장소·회수·보존/복원·readiness·두PC는 별도 후속입니다.2번 기한 hook은 [최신 별도 연결 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr72-journal-connection-20261022)을 유지하며 같은 요청을 반복하지 않습니다.
+
 <a id="pr73-common-handoff-20261022"></a>
 ## 1번 공통 퇴근 결과 소유권 병합 — 2026-10-22
 

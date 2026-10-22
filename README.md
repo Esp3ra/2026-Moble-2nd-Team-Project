@@ -1,3 +1,12 @@
+<a id="pr74-merged-status-20261022"></a>
+## 최신 — PR74 기본 퇴근 연결·결과 복구 병합, 2026-10-22
+
+[PR74 최종 검토](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/74#issuecomment-6336089532) head **4452996**를 검토해 alpha **652b21a20b08fd7c4e3d77332a7d219366dac779**에 병합했습니다. 실제 tree **d527263428820b2b39acef5e42053331b94b5ae4**가 검증본과 같습니다.5번 MainForm의 명시 근무 연결에서 기본 overload가 병합된 reader와 PR73 공통 퇴근 소유자를 실제 소비하며, 시험 전용 factory/ClockOutPeer shim을 제거했습니다. 아래 ‘5번 명시 소비 후속’은 당시 이력입니다. 기본 시작 자동 설치·실장비/운영 활성화는 후속입니다.
+
+최신445의 WorkdayActivity **51**(기존26 포함)·MainForm Owner **11**·Release **0오류/0경고**, 실제 C# MainForm/폼/reader/common→원 서버·Pi HTTP·소유MySQL **14 PASS/65.28초**를 확인했습니다.14는 기존10+정오2+퇴근2의 전체이며 별도로 더하지 않습니다. 초기031 검사의179/115/공통35·12시나리오 및14/64.38초는 [이전 근거와 최신 실행](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr74-reviewed-merged-20261022)으로 구분합니다.
+
+현재 정책·새지문OFF와 같은 LAN 사설IP+PORT 접속을 유지합니다. 실제5000/.env·공유DB/DDL·flags·키/센서·사용자 프로젝트는 이번 검토에서 변경하지 않았습니다. [담당별 인계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr74-default-consumption-20261022)와 [병행2번 실제 journal 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr72-journal-connection-20261022)을 보존하며 코드 병합을 운영/두PC 완료로 확대하지 않습니다.
+
 <a id="pr73-merged-status-20261022"></a>
 ## 최신 — PR73 퇴근 결과 소유권 검토·병합, 2026-10-22
 
