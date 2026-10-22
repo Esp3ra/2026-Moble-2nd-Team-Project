@@ -1,6 +1,8 @@
 # 원격 근무용 업무 처리 확인 시스템
 
-2번 업무 화면은 [로그인에 고정된 내 업무 탐색 콜백](docs/TASK_QUERIES.md#captured-own-task-navigation)을 제공합니다. 요청 업무를 새 내 업무 목록과 상세에서 확인하며, 대상이 없으면 다른 업무를 대신 열지 않습니다. 1·4번의 실제 알림 source/MainForm 연결과 공유 환경 검증은 후속입니다.
+2번의 [업무 등록용 C# 첨부 전송 서비스](docs/TASK_CREATION.md#task-creation-upload-transport)는 기존 공용 업로드 API의 파일 준비·전송·명시 재시도를 지원합니다. 시작 결과를 모르면 재시작을 막고, ID를 확인한 뒤에는 같은 청크 또는 완료 요청만 다시 보냅니다. [제어 HTTP344검사·임시 MySQL에서 실제 HTTP26/DB9검사](Tests/TaskCreationUploads.Tests/README.md)를 통과했습니다. 파일 선택·삭제 화면, 일반수정 첨부 교체, 공유 운영 서버 연동은 아직 연결하지 않았습니다.
+
+2번 업무 화면은 [로그인에 고정된 내 업무 탐색 콜백](docs/TASK_QUERIES.md#captured-own-task-navigation)을 제공합니다. 요청 업무를 새 내 업무 목록과 상세에서 확인하며, 대상이 없으면 다른 업무를 대신 열지 않습니다. PR64가 MainForm의 명시적 마감 탐색 연결을 제공합니다. 실제 알림 source·확인 저장과 공유 환경 검증은 후속입니다.
 
 업무 상세를 읽은 뒤에는 첨부 목록의 응답을 기다리지 않고 기존 업무 행동과 새로고침을 사용할 수 있습니다. 인증 만료·로그아웃·행 변경 때는 이전 상세와 행동을 무효화합니다. 업무 웹의 긴 제목·관리자명도 좁은 화면 안에서 줄바꿈합니다. [화면 보완과 검증 범위](docs/TASK_MANUAL_CHECK.md#task-independent-ui-check-20261021)를 확인하세요.
 
@@ -9,7 +11,7 @@
 
 2026-10-21 팀장이 [3번의 첨부 최종 목록·읽기 전용 진입·명시 복귀·웹 첨부 제안 4개를 수용](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member3-proposals-accepted-20261021)했습니다. [신규 등록 API와 C# 요청 DTO](docs/TASK_CREATION.md#task-creation-attachment-selection)는 선택 `attachment_ids`를 지원하며, 값이 있으면 등록된 3번 제공 함수를 같은 트랜잭션에서 호출합니다. 생략·빈 배열은 첨부 없이 등록하며 첨부 제공부가 없어도 동작합니다. 업로드·파일 선택 UI는 아직 연결하지 않았습니다.
 
-[일반 수정](docs/TASK_MANAGEMENT.md#task-management-attachment-selection)은 첨부 필드를 생략하면 기존 첨부를 유지합니다. 빈 배열을 포함해 첨부 목록을 명시하면, 같은 트랜잭션의 변경 전 목록·차이 조회와 감사 계약이 제공되기 전까지 `503 TASK_ATTACHMENT_REPLACEMENT_NOT_READY`로 차단합니다. 관리 업무의 `view=read`, 서명된 `back_context`, 웹 첨부 cookie/CSRF 경로는 정책 수용과 구현 제공을 구분하며 아직 연결하지 않았습니다. 남은 기술 조건 T3-1~5는 위 공통규약에 모았습니다. PR64는 미병합이며 DELETE 공통 클라이언트가 제공된 것으로 처리하지 않습니다.
+[일반 수정](docs/TASK_MANAGEMENT.md#task-management-attachment-selection)은 첨부 필드를 생략하면 기존 첨부를 유지합니다. 빈 배열을 포함해 첨부 목록을 명시하면, 같은 트랜잭션의 변경 전 목록·차이 조회와 감사 계약이 제공되기 전까지 `503 TASK_ATTACHMENT_REPLACEMENT_NOT_READY`로 차단합니다. 관리 업무의 `view=read`, 서명된 `back_context`, 웹 첨부 cookie/CSRF 경로는 정책 수용과 구현 제공을 구분하며 아직 연결하지 않았습니다. 남은 기술 조건 T3-1~5는 위 공통규약에 모았습니다. PR64는 `ca781fd`로 병합되어 captured DELETE가 제공됐습니다. 2번 파일 선택·명시 폐기 UI의 소비는 다음 단계입니다.
 
 2번의 [업무 웹](docs/TASK_WEB.md)은 공통 로그인 후 `/tasks`에서 내 업무·지정 관리 업무의 목록/상세·전체/5상태·취소 포함을 조회합니다. 기존 공통 쓰기와 기능별 개발 옵션에서는 **등록·수락·재작업 시작·수정·재배정·관리자 변경·취소·마감 연장**을 확인 화면에서 실행하고 저장 결과를 확인할 수 있습니다. 웹과 API는 같은 실행 함수를 사용하며 현재 로그인·관계·버전·상태·날짜를 서버에서 검사합니다. 기존 lifecycle 신청함과 취소·연장 대기 정보도 유지합니다. 1번 PR59의 공통 업무 메뉴는 조회 기능 on일 때 `/tasks`로 연결합니다. PR52는 alpha `cbda025`에 병합됐으며, 현재 본인 업무에서는 기존 3번 결과물 웹으로 이동합니다. 취소·연장 쓰기의 통합 ACK와 실제 변경503은 유지합니다.
 
@@ -19,7 +21,7 @@
 
 2번 화면 조작의 준비·확인·명시 실행, 작은 창/오류 안내와 검증 범위는 [화면 실사용 점검 안내](docs/TASK_MANUAL_CHECK.md)를 확인합니다. 자동화·테스트 대역과 공유 실계정의 수동 검증 결과를 구분합니다.
 
-4번 회신에 따른 2번 제공 접점으로 [로그인 접속에 고정된 읽기 어댑터](docs/TASK_QUERIES.md#captured-read-session)를 추가했습니다. `CaptureReadSession()`은 기존 목록·상세 GET과 오류 분류만 재사용하며 로그인 변경 뒤 새 계정으로 자동 이동하지 않습니다. [전용 92검사](Tests/TaskReadSession.Tests/README.md)와 기존 조회304검사를 통과했습니다. 명시적 업무 대역의 취소 제외/포함 필터도 수정했습니다. 2026-10-21 [알림 A1~A6·협업 B1~B7 진행 기준](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member4-policy-adopted-20261021)은 채택됐고 PR61의 독립 알림 UI·정책·source port가 병합됐습니다. 실제 알림용 DTO/endpoint·현재 관계/기한 사건·서버 시각·확인 저장 계약과 MainForm/업무 탐색 조립·공유 통합은 후속입니다.
+4번 회신에 따른 2번 제공 접점으로 [로그인 접속에 고정된 읽기 어댑터](docs/TASK_QUERIES.md#captured-read-session)를 추가했습니다. `CaptureReadSession()`은 기존 목록·상세 GET과 오류 분류만 재사용하며 로그인 변경 뒤 새 계정으로 자동 이동하지 않습니다. [전용 92검사](Tests/TaskReadSession.Tests/README.md)와 기존 조회304검사를 통과했습니다. 명시적 업무 대역의 취소 제외/포함 필터도 수정했습니다. 2026-10-21 [알림 A1~A6·협업 B1~B7 진행 기준](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member4-policy-adopted-20261021)은 채택됐고 PR61의 독립 알림 UI·정책·source port가 병합됐습니다. 실제 알림용 DTO/endpoint·현재 관계/기한 사건·서버 시각·확인 저장 계약과 실제 source 주입·공유 통합은 후속입니다. 명시적 MainForm/업무 탐색 조립은 PR64에서 제공됐습니다.
 
 5번 Pi 실행 조립은 `EnrollmentRuntime`과 `main(enrollment_factory=...)`의 명시 주입으로 기존 지문 센서·잠금·OLED를 등록과 공유합니다. 기본 실행은 등록 비활성이며 키/정책 자동 생성·서비스 설치는 하지 않습니다. [실행 구성·사용자 Pi123개 대역 검사·실물 적용 전 조건](Devices/RaspberryPi/FINGERPRINT_ENROLLMENT.md)을 확인합니다. 관리자 화면/장치 주소 연결과 실제 신규 지문 저장·회원 매핑/운영 배포는 후속입니다.
 
