@@ -149,7 +149,7 @@ namespace RemoteWork.WinForms.Shell
 
         private async void RefreshIdentity(object? sender, EventArgs e)
         {
-            if (refreshing || closingSession || IsDisposed) return;
+            if (refreshing || closingSession || preparingClockOut || clockOutFinalization is { IsCurrent: true } || IsDisposed) return;
             refreshing = true;
             try
             {
