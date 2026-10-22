@@ -1,3 +1,12 @@
+<a id="pr62-merged-status-20261022"></a>
+## PR62 최종 재검토 — 두 지적 해결·alpha 병합 완료, 2026-10-22
+
+최신 head **95ef89dfa8d9478e0cb6c3cb26282cd43c09a820**에서 **R62-01(FK 참조 DB)·R62-02(5분 뒤 동일 결과 복구) 해결**을 독립 확인했습니다. 추가 병합 차단 문제를 발견하지 못해 [PR62](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/62)를 alpha에 병합했습니다. 실제 merge [a6427ad](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/a6427adf221074d27df143c02f3386b2ed073642)의 tree **84c01fb8ec05cd59241cbaf1ccfe3367a79d4663**는 검토한 결합본과 정확히 일치합니다.
+
+최신 pending 공식43검사·독립20검사, 동일 서버 소스의 FK HTTP1검사·인증/codec120검사를 확인했고 최종 Release 빌드는 0오류/0경고입니다. 서버39대상의 최초38PASS/정오1FAIL과 실행기 세션 설정 수정 후 해당1검사 PASS는 [상세 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr62-merged-20261022)에 구분했습니다. [기존 댓글의 최종 판정](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/62#issuecomment-6330262776)을 따르며, 아래 미병합/미해결 표시는 이전 head 당시 이력입니다.
+
+**코드 병합과 실제 적용은 구분합니다.** 기본 OFF·검토용 SQL 초안6테이블 상태입니다. 공유 서버/DB·정식 migration·키/프로필/provider·LoginForm/MainForm/5번 relay·정상 토큰 UI 인수·Pi/두PC 검증은 후속이며 이번에 실제 환경을 변경하지 않았습니다. 만료 후 C# 복구는 기록된 GET/원 finalize로 한정됩니다. 보관 문맥의 명시 Revoke/폐기는 실제 UI 수명 연결 시 함께 대조합니다.
+
 ## 최신 — 2번 첨부 전송·재개와 회신 갱신, 2026-10-22
 
 [LOG/2번 최신 기록](2번/README.md)은1번 실제 DB 적용 보고·PR64 병합과 captured DELETE 제공,1·4번 확인/갱신 분리 방향 수용과3번 T3-1~5 기술 접점을 구분합니다.2번 C# 업로드 서비스는 제어344·실제HTTP26/DB9검사 및 Release0/0을 확인했습니다. 파일 선택/삭제 UI·공유 운영 통합은 후속이며 다른 담당 코드는 바꾸지 않았습니다. 기존8문서/취합 한 곳 회신 원칙을 유지합니다.

@@ -1,3 +1,33 @@
+<a id="pr62-merged-20261022"></a>
+## PR62 최종 재검토·병합 — R62-01·R62-02 해결, 2026-10-22
+
+사용자의 수정 확인·전체 재검토 후 문제없으면 병합 요청에 따라 최종 head **95ef89dfa8d9478e0cb6c3cb26282cd43c09a820**를 고정했습니다. 추가 병합 차단 문제를 발견하지 못해 alpha에 병합했습니다. 실제 merge [a6427adf221074d27df143c02f3386b2ed073642](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/a6427adf221074d27df143c02f3386b2ed073642)의 부모는 **9c5c07c9aa6757c83a6d52a0c01cf7bcc3b85fc6 / 95ef89dfa8d9478e0cb6c3cb26282cd43c09a820**, 실제 tree는 **84c01fb8ec05cd59241cbaf1ccfe3367a79d4663**입니다. 실제 tree와 검토한 index/merge-tree 간 차이가 없음을 fetch 후 확인했습니다. GitHub 등록 status/check-run은 각각0건으로 CI 통과와 구분합니다.
+
+### 해결 확인
+
+| 항목 | 독립 재검토 결과 |
+|---|---|
+| R62-01/P2 | 현재 DB의 referred_schema(None/현재 DB)를 정규화하고 외부 DB의 동명 부모를 거절합니다. 컬럼 순서·부모 테이블/컬럼 검사는 유지됩니다. 소유 MySQL/원본 HTTP에서 정상FK200 → 현재DB 명시FK200 → 외부DB 동명users FK503 IDENTITY_STORAGE_NOT_READY → 정상복구200을 확인했습니다. |
+| R62-02/P2 | 최초 finalize 송신 전에 challenge/원 finalize UUID·최초24시간 상한을 RAM에 고정합니다. 첫 응답 유실 후6분이 지나도 기록된 challenge GET·같은 UUID/동일 본문 finalize로 결과를 복구합니다. 새 인증 활동·다른 challenge/UUID는 HTTP 전에 차단합니다. 현재 로그인 세대·외부 취소·Dispose·401·늦은 응답 차단, 동시 다른UUID 차단과 재조회로 연장되지 않는 상한을 확인했습니다. |
+
+미완료 pending의 서버 만료401·현재 권한/원 UUID·결과 보관기한은 계속 최종 기준입니다. 신규 활동 전체를24시간 허용하거나 새 UUID/새 채취로 대체하지 않습니다.
+
+### 직접 실행한 검사와 재사용 범위
+
+- 최신95 pending 공식 **43검사 PASS**, 기존 실패 사례를 바꿔 실행한 독립 복구·동시성/기한 검사 **20검사 PASS**입니다. 합성 HTTP로 확인했으며 실제 C#↔Flask/MySQL/Pi 종단 검사로 표시하지 않습니다.
+- R62-01 소유 MySQL/원본 HTTP **1PASS/4.99초**와 인증/codec **120PASS**는447에서 직접 실행했습니다.447→95 전체 서버 tree가 **835cc2ada917d87d9454ec51639d03963758cb9d**로 정확히 같아 이 근거를 재사용했습니다. 첫 audit DDL은 동일 FK 이름 DROP+ADD를 한 ALTER에 넣어 제품 HTTP 전에1826으로 실패했으며, 별도 문장으로 고쳐 새 소유 DB에서 확인했습니다. 준비 실패를 통과 수에 합산하지 않습니다.
+- 서비스·웹/복원39대상은 최초 **38PASS/정오1FAIL**이었습니다. 검사 실행기의 SESSION_HOURS=1과 시험의2시간 이동 때문에 세션이 만료됐습니다. 제품 기본8시간으로 실패 검사만 새 소유 MySQL에서 재실행해 **1PASS/4.56초**를 확인했습니다. 제품 수정이나 전체39 재실행으로 표시하지 않고 실패·반복 수치를 합산하지 않습니다. 소유 MySQL·복원/그림자 DB·프로세스/runtime 정리를 확인했습니다.
+- 최종95 결합 솔루션 Release **0오류/0경고**, diff check 통과. 설치 참조팩용 외부 offline 설정을 사용했고 제품 csproj는 변경하지 않았습니다.
+- 작성자의49PASS/ApiClient144검사 등은 작성자 보고이며 위 독립 실행 수치와 합산하지 않습니다.
+
+### 병합 이후 담당 연결
+
+제한 문맥/지문 인증의 실제 서버·근태 확정·당일 열린 근무 재접속과 C# 전용 전달부의 코드가 alpha에 포함됐습니다. **기본 OFF·검토용 초안6테이블이며 실제 공유 서버/DB에는 적용하지 않았습니다.** 정식 migration 번호·백업/복원/공유 적용·비공개 키/프로필/provider·LoginForm/MainForm/5번 relay·정상 토큰 UI 인수·실제 Pi/두PC 검증은 후속입니다. 소유자는 활동 만료만으로 복구 문맥을 Dispose하지 않고 로그인 세대/화면 종료와 RAM 복구 수명을 구분해야 합니다.
+
+만료 후 C# 예외는 기록된 GET/원 finalize만 지원합니다. 보관 문맥의 명시 Revoke/폐기는 실제 UI 수명 조립 시 함께 검토할 후속 범위입니다. 현재 부분 지원을 운영 로그아웃 검증 완료로 확대하거나 전체24시간 활동 권한을 요구하지 않습니다.
+
+[기존 통합 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/62#issuecomment-6330262776)을 최종 판정으로 갱신하고 기존 PR/LOG에 취합했습니다. 새 회신용 MD/브랜치/PR, 포크 강제 push, 실제5000 재시작/.env·공유DB/DDL·운영 키·계정·Pi/센서 변경은 하지 않았습니다. 코드 병합으로 미합의 운영 정책을 새로 확정하지 않습니다. 아래 R62-01/02 보류 표시는 해결 전 head 검토 이력입니다.
+
 <a id="pr62-latest28-still-blocked-20261022"></a>
 ## 최신 PR62 추가 변경 확인 — R62-01 미해결·보류 유지, 2026-10-22
 
