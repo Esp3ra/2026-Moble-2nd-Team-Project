@@ -2,9 +2,9 @@
 
 ## 015 공지·채팅 첨부 참조 — 2026-10-22
 
-1번은 PR76 a6dc89c의 세 테이블 선언을 구조 변경 없이 [015_notice_chat_attachments.mysql.sql](015_notice_chat_attachments.mysql.sql)로 예약한다. PR76의 `docs/sql/notice_chat_attachments.mysql.sql`과 둘 중 한 경로만 적용한다. 최종 경로 일원화는3번과 대조 후 진행하며 기존003/005/013·014 마감 예약·schema1을 바꾸지 않는다. 번호화는 원본 병합/공유 설치/정책 승인 완료가 아니다.
+1번은 병합된 PR76 a6dc89c의 세 테이블 선언을 구조 변경 없이 [015_notice_chat_attachments.mysql.sql](015_notice_chat_attachments.mysql.sql)로 예약한다. 1번 명시 적용은015를 사용하고 PR76의 `docs/sql/notice_chat_attachments.mysql.sql`은 원 검토안으로 보존한다. 두 경로를 중복 적용하지 않는다. 기존003/005/013·014 마감 예약·schema1을 바꾸지 않으며 번호화는 공유 설치/정책 승인 완료가 아니다. 이미 제공·병합된 기능을3번에게 재구현하거나 별도 회신하라고 요청하지 않는다.
 
-`remotework.resource_attachment_schema.require_resource_attachment_schema(db, optional=False)`를 제공한다. 현재 같은 MySQL Session의 실제 연결에서 세 테이블의 정확한 열/타입/길이/null/default/signed·PK·InnoDB/collation·현재 DB의 부모 FK와 양방향 RESTRICT/NO ACTION·지원 인덱스·강제 CHECK 식을 확인한다. 세 테이블이 모두 없고 optional=True일 때만 False, 부분/잘못된 구조는503 RESOURCE_ATTACHMENT_SCHEMA_REQUIRED다. 성공 전역 cache·DDL/commit/rollback·권한 허용·모델/HTTP 등록은 없다. 3번이 기존 require_schema의 준비 검사에 연결할 제공 접점이며 이번에3번 소스를 대신 수정하지 않는다. 최종 hot-path 캐시/호출 위치는3번이 같은 배포의 현재 구조 검증과 대조한다.
+`remotework.resource_attachment_schema.require_resource_attachment_schema(db, optional=False)`를 제공한다. 현재 같은 MySQL Session의 실제 연결에서 세 테이블의 정확한 열/타입/길이/null/default/signed·PK·InnoDB/collation·현재 DB의 부모 FK와 양방향 RESTRICT/NO ACTION·지원 인덱스·강제 CHECK 식을 확인한다. 세 테이블이 모두 없고 optional=True일 때만 False, 부분/잘못된 구조는503 RESOURCE_ATTACHMENT_SCHEMA_REQUIRED다. 성공 전역 cache·DDL/commit/rollback·권한 허용·모델/HTTP 등록은 없다. 1번이 배포 전 준비 검사로 직접 사용하며3번의 runtime 함수·hot-path 캐시를 변경하거나 연결 작업을 요청하지 않는다.
 
 적용 전 부모003/005/013의 실제 타입·현재 FK/문자셋과 동일 DB를 확인하고, 기존 DB 전체·외부 파일 저장소를 비공개 백업해 독립 복원한다. 실제 공지·채팅 현재 권한 콜백/동일TX 소비·원 요청 복구/삭제·보존 경계까지3·4번과 검증한 뒤, 새 세 테이블의 완전 부재를 확인해 raw015를 한 번 명시 적용한다. 일부만 존재하면 자동 CREATE 재시도/ALTER/삭제하지 않고 원인을 대조한다. 서비스 시작/init-db에 자동 적용하지 않는다.
 
