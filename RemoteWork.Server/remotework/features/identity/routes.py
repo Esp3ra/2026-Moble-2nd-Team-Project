@@ -11,7 +11,7 @@ from flask import Blueprint, current_app, g, request
 from sqlalchemy import CheckConstraint, String, UniqueConstraint, inspect, select
 
 from ... import device_identity_contract as wire
-from ...auth import token_digest, verify_credentials
+from ...auth import token_digest, verify_credentials, authenticated_transaction, login_required
 from ...common import AppError, audit, success
 from ...db import transaction
 from ...models import AdminGuard, AuthSession, User, iso, utcnow
@@ -19,6 +19,25 @@ from ..enrollment.models import Device, Mapping
 from .models import IdentityBase, Context, Challenge, Approval, Operation
 
 bp = Blueprint("device_identity", __name__, url_prefix="/api/v1/device-identity")
+
+
+@bp.get("/workday")
+@login_required
+def read_workday():
+    # Explicit normal Bearer only; pending/revoked result contexts do not grant
+    # this read, and GET must not create a new identity Context.
+    if request.args:
+        fail(400, "IDENTITY_INVALID_INPUT")
+    if g.auth_session.channel != "api":
+        fail(403, "IDENTITY_NOT_ALLOWED")
+    with authenticated_transaction() as db:
+        storage()
+        provider = current_app.extensions["identity_workflow"]
+        reader = getattr(provider, "read_workday", None)
+        if not callable(reader):
+            fail(503, "IDENTITY_WORKFLOW_NOT_READY")
+        result = reader(db, g.user)
+    return success(result)
 
 
 def fail(status, code):

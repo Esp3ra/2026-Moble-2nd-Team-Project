@@ -65,9 +65,9 @@ class AttendanceWorkflow:
     def schema_tables(self):
         return tuple(AttendanceBase.metadata.tables.values())
 
-    def _work(self, db, user):
+    def _work(self, db, user, *, at=None):
         from .routes import now, fail
-        day = (now() + timedelta(hours=9)).date().isoformat()
+        day = ((at if at is not None else now()) + timedelta(hours=9)).date().isoformat()
         rows = list(db.scalars(select(WorkSession).where(WorkSession.user_id == user.id)
             .order_by(WorkSession.work_date).with_for_update().execution_options(populate_existing=True)))
         if any(row.ended_at is None and row.work_date != day for row in rows):
@@ -89,6 +89,20 @@ class AttendanceWorkflow:
         if row.ended_at is not None:
             fail(409, "ATTENDANCE_DAY_CLOSED")
         return row
+
+    def read_workday(self, db, user):
+        """Current locked work in caller's authenticated TX; no context writes."""
+        from .routes import now, fail
+        stamp = now()
+        day, row = self._work(db, user, at=stamp)
+        if row is None:
+            fail(409, "ATTENDANCE_NOT_STARTED")
+        if row.ended_at is not None:
+            fail(409, "ATTENDANCE_DAY_CLOSED")
+        return {"server_time": iso(stamp), "work_session_ref": row.id,
+                "work_date": day, "state": "open", "started_at": iso(row.started_at),
+                "noon_at": iso(row.noon_at) if row.noon_at is not None else None,
+                "noon_due": row.noon_at is None and (stamp + timedelta(hours=9)).hour >= 12}
 
     def current(self, db, user, purpose):
         from .routes import now, fail
