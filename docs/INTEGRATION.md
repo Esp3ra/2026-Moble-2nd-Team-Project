@@ -1,8 +1,49 @@
 # 팀 공통 서버 연결 규칙
 
+## 2026-10-21 추가: 마감 알림의 로그인 수명과 내 업무 탐색
+
+`Shell/MainForm.DeadlineAlerts.cs::ConnectDeadlineAlertsAsync`는 **실제 서버 source가 제공된 뒤**
+표시된 로그인 화면의 UI 스레드에서 한 번 호출하는 명시적 조립 접점입니다.
+factory에는 원래 `ApiClient.Session`을 전달합니다. 아직 실제 source/API가 없으므로 기본
+MainForm 시작에서는 호출하지 않으며 가짜 사건·새 endpoint·폴링 설정을 설치하지 않습니다.
+
+`Shell/LoginDeadlineNotifications.cs`는 기존 `DeadlineAlertScope`를 로그인당 하나 소유합니다.
+source와 공통 캡처 접속의 취소를 결합하고, 비동기 응답 전후 현재 접속을 검사합니다.
+원본 source/공유 ApiClient는 빌리며 Dispose하지 않습니다. 로그아웃·401·같은 계정 재로그인·
+서버 전환·owner 종료는 기존 수신/탐색을 끝냅니다. 메뉴는 기존 owner chain의 scope를 빌립니다.
+
+`TaskRequested(string taskId)`가 발생하면 MainForm이 실제 업무 화면을 활성화하고 살아 있는
+`TasksControl.CaptureOwnTaskNavigator()`를 UI 스레드에서 캡처합니다. 2번 제공부가 새
+own/전체/취소제외 목록과 해당 ID 상세를 조회합니다. 동기 이벤트 발행을 표시 성공으로
+간주하지 않으며 `LastNavigationSucceeded`는 navigator의 비동기 결과 후에만 정합니다.
+false는 미존재·조회 실패·취소·화면 변경 등을 포함하므로 권한 회수로 단정하지 않습니다.
+탐색은 알림 확인 저장·업무 상태 변경·새 권한 부여를 실행하지 않습니다.
+
+### 실제 source 연결 전에 남은 기술 계약
+
+- 기존 `IDeadlineAlertSource.RecheckAsync`의 반환값은 UI가 **전체 교체하는 snapshot**입니다.
+  단건 GET 결과 하나를 전체 snapshot으로 감싸지 않습니다. 단건 API를 채택하면 source가
+  무효화/삭제를 처리한 뒤 권위 있는 전체 현재 목록을 다시 받아야 합니다. 실패503은 빈 목록이 아닙니다.
+- W1 확인 receipt는 저장 성공 증거이며 현재 목록이 아닙니다. 성공 뒤 목록 조회가 실패해도
+  미기록/실패·새 키 POST로 바꾸지 않습니다. 4번은 source/port에 **확인 성공과 선택적 목록 갱신**을
+  분리하는 보완을 자기 범위에서 대조해야 합니다. 현재 `DeadlineConfirmation(State, Snapshot)`의
+  필수 snapshot 계약을 바꾸거나 가짜 최신 목록을 반환하는 구현은 이번 공통 변경에 없습니다.
+- 실제 기한 사건/최초 자료·현재 사건 판별은 2번과 대조합니다. 제한된 협업 연속성 reader와
+  새 업무 navigator는 이미 제공됐지만 알림 전체 사건 원본을 대신하지 않습니다. 사건/확인 DB·
+  실제 API/DTO·DDL 번호/운영 설정은 별도 합의·검증 전입니다.
+
+검증: `dotnet run --project Tests/DeadlineNavigation.Tests -c Release`는 실제 MainForm·TasksControl과
+합성 loopback HTTP/source로 큰 ID·없는 업무·503·재로그인·늦은 응답·종료를 검사합니다.
+제품 서버·MySQL·실제 알림 source/확인 저장·두 PC 시험을 뜻하지 않습니다.
+
 팀원 1은 인증, 사용자, DB 연결, 공통 응답, 공통 이력, 자원 접근 검사 도구를 제공합니다. 팀원 2~5는 자신의 테이블·API·화면을 연결하고, 실제 업무·채팅방·파일의 접근 조건을 서비스에서 적용합니다. 담당별 개발 API가 추가되어도 제출·검토·장치와 원격 환경을 포함한 전체 업무 통합 완료로 취급하지 않습니다.
 
 ## 공통 주소와 응답
+
+첨부 저장소는 `REMOTEWORK_RESULTS_STORAGE_ROOT`로 지정하는 **프로젝트 밖의 전용 폴더**여야 합니다.
+`.local/`·테스트 checkout 아래도 프로젝트 내부이므로 거절됩니다. 첨부 검사 시 pytest의
+임시 저장소 역시 프로젝트 밖에 두며, 이 조건의503을 우회하려고 제품 검사를 완화하지 않습니다.
+실제 배포는 실행 계정의 저장/정리 권한과 DB+파일 백업/복원을 함께 확인한 뒤 활성화합니다.
 
 기본 주소는 `/api/v1`입니다. UTF-8 JSON, snake_case 필드명, UTC ISO 8601 시각(`2026-10-16T03:00:00Z`)을 사용합니다. 한국 시간 표시는 각 클라이언트에서 변환합니다. 내부 DB 시각도 UTC이며 `datetime.now()` 대신 `models.utcnow()`을 사용합니다.
 

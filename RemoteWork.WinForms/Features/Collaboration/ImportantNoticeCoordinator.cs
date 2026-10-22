@@ -86,8 +86,9 @@ public sealed class ImportantNoticeCoordinator : Component
                     n.IsPinned && (n.Target == "전 직원" || n.Target == api.CurrentUser?.Department));
                 if (notice is not null)
                 {
-                    if (!owner.Enabled || owner.WindowState == FormWindowState.Minimized ||
-                        owner.OwnedForms.Any(f => f.Visible && f.Modal)) return;
+                    // Recheck after every awaited page; yielding must not mark
+                    // this notice shown, so the next poll can present it.
+                    if (!NotificationPresentation.CanPresent(owner)) return;
                     var window = new ImportantNoticeForm(notice,
                         ct => service.ConfirmNoticeAsync(notice, ct));
                     popup = window;

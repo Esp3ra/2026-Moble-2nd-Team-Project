@@ -39,6 +39,9 @@ public sealed class ApiClient : IDisposable
             => owner.SendAsync<T>(HttpMethod.Post, path, body, ct, context);
         public Task<T> PatchAsync<T>(string path, object body, CancellationToken ct = default)
             => owner.SendAsync<T>(HttpMethod.Patch, path, body, ct, context);
+        /// <summary>One explicit DELETE with this captured login; no body or automatic retry.</summary>
+        public Task<T> DeleteAsync<T>(string path, CancellationToken ct = default)
+            => owner.SendAsync<T>(HttpMethod.Delete, path, null, ct, context);
         public Task<T> PostIdempotentAsync<T>(string path, object body, string requestKey, CancellationToken ct = default)
             => owner.SendAsync<T>(HttpMethod.Post, path, body, ct, context, requestKey: ValidateRequestKey(requestKey));
         public Task<T> PatchIdempotentAsync<T>(string path, object body, string requestKey, CancellationToken ct = default)
@@ -184,6 +187,7 @@ public sealed class ApiClient : IDisposable
     public Task<T> GetAsync<T>(string path, CancellationToken ct = default) => SendAsync<T>(HttpMethod.Get, path, null, ct);
     public Task<T> PostAsync<T>(string path, object body, CancellationToken ct = default) => SendAsync<T>(HttpMethod.Post, path, body, ct);
     public Task<T> PatchAsync<T>(string path, object body, CancellationToken ct = default) => SendAsync<T>(HttpMethod.Patch, path, body, ct);
+    public Task<T> DeleteAsync<T>(string path, CancellationToken ct = default) => SendAsync<T>(HttpMethod.Delete, path, null, ct);
 
     public Task<T> PostIdempotentAsync<T>(string path, object body, string requestKey, CancellationToken ct = default)
         => SendAsync<T>(HttpMethod.Post, path, body, ct, requestKey: ValidateRequestKey(requestKey));
