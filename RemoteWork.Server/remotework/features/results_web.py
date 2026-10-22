@@ -308,6 +308,58 @@ def shared_discard(attachment_id):
     return shared_provider().discard_upload(attachment_id)
 
 
+def resource_provider():
+    shared_provider()
+    provider = current_app.extensions.get("results_resource_attachments")
+    if provider is None:
+        raise AppError(503, "RESOURCE_ATTACHMENT_ADAPTER_REQUIRED", "공지·채팅 첨부 연결이 필요합니다.")
+    return provider
+
+
+@bp.post("/data/shared/resources/<kind>/uploads/start")
+@login_required
+def resource_start(kind):
+    return resource_provider().start_upload(kind, body=form_body())
+
+
+@bp.post("/data/shared/resources/<kind>/uploads/<attachment_id>/<operation>")
+@login_required
+def resource_upload_action(kind, attachment_id, operation):
+    body = form_body()
+    provider = resource_provider()
+    if operation == "chunks":
+        return provider.write_chunk(kind, attachment_id, body=body)
+    if operation == "complete":
+        return provider.complete_upload(kind, attachment_id, body=body)
+    if operation == "discard":
+        service._fields(set(), body)
+        return provider.discard_upload(kind, attachment_id)
+    raise AppError(404, "NOT_FOUND", "첨부 처리 경로를 확인해 주세요.")
+
+
+@bp.get("/data/shared/resources/<kind>/uploads/<attachment_id>")
+@login_required
+def resource_upload_status(kind, attachment_id):
+    return resource_provider().upload_status(kind, attachment_id)
+
+
+@bp.get("/data/shared/resources/<kind>/<resource_id>/files")
+@login_required
+def resource_files(kind, resource_id):
+    return resource_provider().resource_files(kind, resource_id)
+
+
+@bp.get("/data/shared/resources/<kind>/<resource_id>/files/<attachment_id>/<operation>")
+@login_required
+def resource_download(kind, resource_id, attachment_id, operation):
+    provider = resource_provider()
+    if operation == "download":
+        return provider.download(kind, resource_id, attachment_id)
+    if operation == "chunks":
+        return provider.chunks(kind, resource_id, attachment_id)
+    raise AppError(404, "NOT_FOUND", "첨부 조회 경로를 확인해 주세요.")
+
+
 def rework_support():
     if "task_queries.rework_start" not in current_app.view_functions:
         raise AppError(503, "TASK_START_DISABLED", "기존 업무 재작업 시작 기능의 활성화가 필요합니다.")

@@ -120,6 +120,9 @@ def _read_link(db, link):
 
 
 def _source(db, item):
+    resource = current_app.extensions.get("results_resource_attachments")
+    if resource is not None and resource.is_scoped(db, item.id):
+        raise AppError(403, "FORBIDDEN", "공지·채팅 첨부는 해당 자원의 현재 권한으로 조회해야 합니다.")
     links = _links(db, item.id)
     if not links:
         if item.owner_id == g.user.id and item.expires_at > utcnow():
@@ -139,6 +142,9 @@ def _source(db, item):
 
 def upload_owner(db, attachment_id):
     item = _file(db, attachment_id)
+    resource = current_app.extensions.get("results_resource_attachments")
+    if resource is not None and resource.is_scoped(db, item.id):
+        raise AppError(403, "FORBIDDEN", "공지·채팅 전용 업로드 경로를 사용해 주세요.")
     if item.owner_id != g.user.id or _links(db, item.id):
         raise AppError(403, "FORBIDDEN", "본인 미연결 임시 파일만 처리할 수 있습니다.")
     if item.expires_at <= utcnow():
@@ -221,10 +227,16 @@ def replace_task_files(db, task_id, attachment_ids, *, expected):
     return [service._attachment_json(item) for item in files]
 
 
+def _has_references(db, attachment_id):
+    resource = current_app.extensions.get("results_resource_attachments")
+    return bool(_links(db, attachment_id) or
+                (resource is not None and resource.references(db, attachment_id)))
+
+
 def _mark_unreferenced(db, ids):
     for attachment_id in sorted(ids):
         item = db.scalar(select(SharedFile).where(SharedFile.id == attachment_id).with_for_update())
-        if item is not None and not _links(db, attachment_id):
+        if item is not None and not _has_references(db, attachment_id):
             item.state = "deleting"
             g.shared_attachment_cleanup_due = True
 
@@ -386,7 +398,7 @@ def cleanup_shared_files():
             .order_by(SharedFile.id).with_for_update()))
         ids = []
         for item in candidates:
-            if not _links(db, item.id):
+            if not _has_references(db, item.id):
                 item.state = "deleting"
                 ids.append(item.id)
     removed = 0
@@ -401,10 +413,13 @@ def cleanup_shared_files():
         with transaction() as db:
             db.scalar(select(AdminGuard).where(AdminGuard.id == 1).with_for_update())
             item = db.scalar(select(SharedFile).where(SharedFile.id == attachment_id).with_for_update())
-            if item is not None and item.state == "deleting" and not _links(db, attachment_id):
+            if item is not None and item.state == "deleting" and not _has_references(db, attachment_id):
                 for part in db.scalars(select(SharedChunk).where(SharedChunk.attachment_id == attachment_id)):
                     db.delete(part)
                 db.flush()
+                resource = current_app.extensions.get("results_resource_attachments")
+                if resource is not None:
+                    resource.remove_upload_scope(db, attachment_id)
                 db.delete(item)
                 removed += 1
     return removed
@@ -429,3 +444,6 @@ def cleanup_command():
 @bp.record_once
 def register(state):
     state.app.extensions["results_shared_attachments"] = __import__(__name__, fromlist=["bp"])
+    from . import shared_resource_attachments as resource
+    state.app.extensions["results_resource_attachments"] = resource
+    state.app.register_blueprint(resource.bp)
