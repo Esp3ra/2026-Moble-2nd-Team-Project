@@ -1,3 +1,10 @@
+<a id="pr76-owner3-provider-merged-20261022"></a>
+## 3번 최신 — PR76 자원 첨부 공급 병합
+
+[PR76](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/76#issuecomment-6336589781) heada6dc89c를 **36f1e55d**에 병합했고 실제 tree **b4aaff7d5e6fe846ef452208c77a016636863849**가 검증본과 같습니다. 공지/채팅 자원 참조·원TX/현재권한 콜백·웹 어댑터 계약을 제공했습니다. 새자원 및 기존공유·연결·웹/cold를 검증하고 소유DB/파일/프로세스/runtime 정리를 확인했습니다. [정확한 범위](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr7576-pr58-review-20261022)를 따르며 C#/브라우저·두PC 검사로 확대하지 않습니다.
+
+[제공 계약](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/36f1e55d44cd3fa2fd2c7f634fbcd0d059ce7a9d/docs/SHARED_ATTACHMENTS.md)의 실제4번 공지/방참여/숨김 등 현재권한 콜백·원 UUID/W1·감사·UI 소비,1번 정식DDL 번호/공유적용·삭제/보존정책·LAN crypto.subtle은 후속입니다. 코드 공급을 실제4번 연결 완료로 표시하지 않으며 기존task/submission 참조 보존을 새 자원에 임의 변환하지 않습니다. PR75 기준함수·작성자 운영보고와의 구분은 [공통 후속](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr7576-pr58-boundaries-20261022)으로 취합합니다.
+
 <a id="pr68-merged-20261022"></a>
 ## PR68 최종 재검토 — R68-01 해결·병합 완료, 2026-10-22
 

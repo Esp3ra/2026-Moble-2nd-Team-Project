@@ -1,3 +1,46 @@
+<a id="pr7576-pr58-review-20261022"></a>
+## PR75·76 최종 검토·병합 / PR58 회신 확인 — 2026-10-22
+
+확정 P1/P2 차단 결함 없이 사용자 지시에 따라75 Draft→Open→Merge,76 Open→Merge를 완료했습니다. REST/원격Git 실제 병합본과 검증 결합본 전체tree가 각각 같습니다. [75최종댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/75#issuecomment-6336468832)·[76최종댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/76#issuecomment-6336589781)에 통합 판정을 유지합니다.
+
+|PR|검토head/base·실제병합|실제tree|
+|---|---|---|
+|75|최초8167d59→최종`bbb1700030e0e7122e8f5d3076d53f77de61e28e`;base`652b21a20b08fd7c4e3d77332a7d219366dac779`;merge`e8945bba039186229af25b3d689f5b021cc2b15e`|`8d040a11522507c8831cb0aa51fd1dee9302bc19` (최종head는동일검증tree의alpha수신)|
+|76|head`a6dc89c91d69c7b345d34a3b72762206e1443cee`;PR등록base652b/실제mergebase e8945bba;merge`36f1e55d44cd3fa2fd2c7f634fbcd0d059ce7a9d`|`b4aaff7d5e6fe846ef452208c77a016636863849` (75포함결합과동일)|
+
+### PR75 — 명시 기준 전환·014와 기존 실제writer
+
+현재 활성관리자·원 인증/TX/DB guard에서 업무/배정을 current locking read로 확인하고 기대 버전·배정·담당자·DATE와 canonical run UUID/사유가 맞을 때만 현재 기준 사건/감사를 기록합니다. 기존head는 보존,계획변경409/고아·불일치503,전체manifest는같은TX 실패전파/rollback계약입니다. 과거최초기한 추정·업무버전 변경·자동seed/새HTTP는 없습니다.014 CREATE3는 기존두draft SQL과 주석/줄바꿈 정규화 후 정확히 같습니다.
+
+|직접검사|결과·정확한포함/fixture|
+|---|---|
+|기준전환|30 PASS/56.67초,기존journal23+신규baseline7 포함;원 관리자·정확문맥/반복·다음변경·직원거절·rollback/고아거절|
+|기존마감HTTP|21 PASS/49.47초,별도새소유MySQL·fixture가draftDDL 준비|
+|실제2번writer|32 PASS/188.13초,선택필터/감사경계record주입없음·실제제품hook.물리DDLunchanged/changed_tables없음/schema_versions=[1]|
+|DDL/빌드|014 CREATE3 정규화동등성·Release0오류/0경고.새014공유설치/복원시험으로확대하지않음|
+
+actual32는원run_mysql_check.py --suite actual을수정없이실행했고 raw002/004/006/009/013·기존draft3테이블/공통fixture를새빈DB에준비했습니다. 실제 생성/기한A→B→A/승인연장·제목/본문/첨부-only·웹준비/실행·재배정/관리자·제출/반려/재작업/재제출/승인·HTTP확인과 record/audit/receipt뒤 전체rollback·성공replay,OFF/결과전용/미연결head 자동baseline금지를검사했습니다. 기존writer/actual32는alpha652b와diff0,원본/export각744파일불변·gitclean·소유DB/native프로세스/runtime정리true입니다.75끝빈줄28/44의CR·EOF형식경고는비차단메모이며 git diff --check 전체PASS로쓰지않습니다.
+
+### PR76 — 자원첨부 공급·기존참조회귀
+
+3번 자원첨부 제공부/웹 어댑터는 실제4번의현재권한·원자원/원TX 콜백을요구합니다. 새108은실제loopbackHTTP·소유MySQL에검토SQL3테이블을준비해PK/동일DB6FK/schema1을확인했으며4번인가/소비콜백은대역입니다. 정식DDL번호/공유적용·실제4번UI/원UUID·W1/감사·보존/삭제정책·LANcrypto는이검사로완료되지않았습니다.
+
+|직접검사|결과·경계|
+|---|---|
+|새자원첨부|108 PASS,원loopbackHTTP/소유MySQL·권한/소비콜백대역·SQL3테이블|
+|기존공유|251 PASS/18.88초,105현재참조회귀포함·실제Waitressloopback/MySQL,업무소비route는fixture|
+|기존연결|150 PASS/15.66초,원Flask cookie/CSRF/IO취소·원문복귀/W1 consumer fixture/MySQL|
+|기존웹/서버|웹183·서버191 PASS/18.95초,verify_web --skip-csharp의서로다른밴드.실제브라우저/C#아님|
+|cold|PASS/2.69초,DB접속시도0/MySQL0/실제SQLite0.원sqlite://설정문자열과접속을구분해커넥터대역차단확인|
+
+76기존회귀는각원본main을1회실행했습니다. 공유/연결/웹은서로분리한3개새MySQL·포트/파일루트이며전체원본/export각747파일불변·gitclean·경고없음·DB/MySQL/native프로세스/runtime정리true입니다. 수치/포함105·반복기록을합산하지않습니다.76에서새C#솔루션/실제브라우저·두PC는실행하지않았고75Release를76신규빌드로재표시하지않습니다.
+
+### PR58 최신 회신·미실행
+
+[1번17:11:39 KST](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309878130)는PR74독립소비수신,[5번17:12:14 KST](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309485288)는연차전체서버권한/잔여일·원UUID결과복구를추가요청했습니다. 그연차분에1번후속답변은아직없습니다. [AttendanceControl](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/36f1e55d44cd3fa2fd2c7f634fbcd0d059ce7a9d/RemoteWork.WinForms/Features/Attendance/AttendanceControl.cs)·LeaveApplicationForm/LeaveDecisionForm은 [UnconnectedLeaveWorkflow](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/36f1e55d44cd3fa2fd2c7f634fbcd0d059ce7a9d/RemoteWork.WinForms/Features/Attendance/LeaveWorkflow.cs)를기본사용해실제저장하지않습니다. 기존병가/공가미차감은유지하고부여기간/휴일·주말/반차/차감·반려복원/중복/과거·연도/반려사유필수여부를새로확정하지않았습니다.
+
+75의같은5000·37→40테이블·기준4·HTTP22·독립복원1은 **작성자운영보고/이번검토미재실행**이며위소유DB검사에더하지않습니다. 이번검토/취합에서실제5000/.env·공유DB/서비스/flags·dump/복원·계정/키/장비·사용자프로젝트를변경하지않았습니다. PR74기본공통퇴근소비완료·새지문OFF·같은LAN 사설IP+PORT를보존하고실제loader/startup·4번binding·PC GUI/두PC/운영readiness와연차계약은 [후속접점](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr7576-pr58-boundaries-20261022)으로분리합니다. 기존원문/2번8문서·앵커를보존하고새공개MD/브랜치/PR은추가하지않았습니다.
+
 <a id="pr74-reviewed-merged-20261022"></a>
 ## PR74 최종 검토·실제 병합 — 기본 제품 경로 재검증
 

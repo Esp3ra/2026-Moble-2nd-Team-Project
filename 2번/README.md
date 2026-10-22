@@ -1,3 +1,10 @@
+<a id="member2-pr7576-pr58-current-20261022"></a>
+## PR75·76 병합·PR58 회신 취합 — 2번 기존 범위 보존
+
+[75](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/75#issuecomment-6336468832) **e8945bba**→[76](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/76#issuecomment-6336589781) **36f1e55d**를 검토·병합했고 두 실제 tree가 검증 결합본과 같습니다. 기존 실제2번writer 원본은 변함없으며 actual32/188.13초를 직접 재검증했습니다. 다른 직접 검사와 [중앙 검토 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr7576-pr58-review-20261022)에서 구분합니다.
+
+[기존2번 journal·이전 검사/sync 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr72-journal-connection-20261022)은 원문으로 보존하고 이번에 사용자 프로젝트를 재동기화했다고 표시하지 않습니다. [PR58 연차 추가 요청·담당별 후속](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr7576-pr58-boundaries-20261022)을 함께 취합하며 정책 새 확정/운영DB·dump복원·서버/flags·계정/장비 변경은 없습니다. 기존2번8문서/앵커를 유지하고 새공개MD/브랜치/PR을 만들지 않았습니다.
+
 <a id="member2-pr74-status-20261022"></a>
 ## PR74 병합 — 5번 기본 공통 연결 수신·2번 기존 범위 보존
 

@@ -1,3 +1,10 @@
+<a id="pr7576-owner4-next-consumption-20261022"></a>
+## 4번 최신 — 마감 기준 공급·자원 첨부 소비 접점 수신
+
+[75](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/75#issuecomment-6336468832) **e8945bba**는 현재 기준 사건/014를, [76](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/76#issuecomment-6336589781) **36f1e55d**는 공지/채팅 자원 공용첨부·웹 어댑터 계약을 공급했습니다.75의작성자5000·37→40·4baseline·HTTP22·복원1 보고는 이번 검토에서 재실행하지 않았습니다. [소유DB 직접검사/미실행](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr7576-pr58-review-20261022)을 구분합니다.
+
+마감은 최종 d1 task/event/assignment·원 operation/key/body·4필드receipt/로그인 wrapper의 **실제 binding 소비·PC GUI/두PC**가 남았습니다. 자원 첨부는 [76 계약](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/36f1e55d44cd3fa2fd2c7f634fbcd0d059ce7a9d/docs/SHARED_ATTACHMENTS.md)에 실제 공지 대상/현재 방참여·개인숨김·남은 참조를 대조하는 권한/원TX 콜백과 UUID/결과복구·감사/UI를 연결해야 합니다. 제공부108 대역 콜백을 실제4번 인가로 사용하지 않습니다. 정식DDL 번호/공유적용·삭제/보존정책과 LAN HTTP crypto.subtle 제약은 공동 후속이며 검증을 끄거나 정책을 새로 확정하지 않았습니다. [담당별 경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr7576-pr58-boundaries-20261022)를 따릅니다.
+
 <a id="member4-pr70-merged-supply-20261022"></a>
 ## 마감 제공부 최신 — PR70 병합·실제 binding 소비 후속
 
