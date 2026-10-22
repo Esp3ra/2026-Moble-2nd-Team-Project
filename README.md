@@ -1,3 +1,10 @@
+<a id="pr67-fixed-merged-status-20261022"></a>
+## PR67 수정 재검토 — R67-01 해결·alpha 병합 완료, 2026-10-22
+
+head **d9500fec6df9bc0e4797869bee92291345a5fa1f**에서 **R67-01/P2 해결**을 독립 확인했습니다. 검사 자식의 생성/Job 등록/재개 전부터 기존 공통 run_owned_client의 정리를 적용합니다. 공식 실패 주입7검사와 이전 main 경로의 독립 assign 실패 회귀에서 소유 자식 stop/wait·종료·출력 스트림 닫힘을 확인했습니다. 수정 runner의 실제 소유 MySQL/서버·Pi HTTP 검사도 **10 PASS/63.01초, exit0·소유 DB/프로세스/runtime 정리 완료**입니다. 추가 병합 차단 문제를 발견하지 못해 [alpha에 병합](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/5dcd66e291a0b12470c3347909653a64458ef70e)했습니다.
+
+실제 merge의 tree **4fafbaa04286356832a3959eddc5d536d3cef99a**가 최신 base f534b68+검토 head의 결합 tree와 정확히 같습니다. Release 빌드 0오류/0경고입니다. [최종 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/67#issuecomment-6330831748)·[상세 검토](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr67-fixed-merged-20261022)를 따르며 아래 PR67 보류 표시는 이전 head 당시 이력입니다. 센서·키/계정·준비상태는 대역이고 C# UI·실물/두PC·공유 서버 가동 검증은 후속입니다. 실제5000/.env·공유 DB/DDL·운영 키·Pi/센서는 변경하지 않았습니다.
+
 ## 최신 — 2번 등록 첨부 UI·PR52 새 기술 패치 수신, 2026-10-22
 
 [2번 현재 기록](2번/README.md)은 파일 선택·업로드·확인삭제 완료, 직접검사440/95/133·실HTTP33/DB9,3번 T3-1~5 댓글 패치의 소스 게시/소비 대기를 구분합니다. [잔여 작업과 담당별 조건](2번/공통규약.md#member2-file-ui-and-t3-reply-20261022)에 바로 진행/코드 PR 대기/추가 기술협의·공유검증을 정리했습니다. PR62 병합 원본은 보존했고 다른 담당 코드는 임의 수정하지 않았습니다.

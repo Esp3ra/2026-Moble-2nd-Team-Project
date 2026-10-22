@@ -1,3 +1,26 @@
+<a id="pr67-fixed-merged-20261022"></a>
+## PR67 수정 재검토·병합 — 실행기 실패 정리 R67-01 해결, 2026-10-22
+
+추가 열린 PR 조회에서 새 PR은 없고 PR67의 수정 head **d9500fec6df9bc0e4797869bee92291345a5fa1f**를 확인했습니다. 최신 실제 원본 alpha **f534b68933c35d9c48a613c2269eebab4d8411ab**에 고정 결합한 tree는 **4fafbaa04286356832a3959eddc5d536d3cef99a**입니다. f534는2번 C# 등록 첨부 UI·업로드·검사/문서24파일이며 서버/Pi 코드는 변경하지 않았습니다. PR67은 Tests/FingerprintIdentity.Server.Tests 아래5파일만 추가합니다.
+
+### R67-01/P2 — 해결 확인
+
+신규 runner의 자체 Popen/Job 수명 관리를 제거하고 capture_pytest가 기존 run_owned_client에 위임합니다. 기존 공통 helper는 process/job=None부터 Popen/assign/스레드 재개 이전의 finally 보호를 적용해 Job close→소유 자식 stop/wait→stdout/stderr close를 보장하며 helper 자체는 변경하지 않았습니다. timeout은 bytes/None 출력을 문자열로 정리해 timed_out/exit1로 보고하고 자동 재실행하지 않습니다.
+
+- 공식 unittest 실패/정상 **7검사 PASS**를 ResourceWarning=error로 직접 실행했습니다. assign 실패·등록 중 취소·등록 뒤 resume 실패·통신 중 취소·timeout·정상 종료·Popen 실패의 종료/회수와 스트림 닫힘을 확인했습니다.
+- 이전 main 전체 경로 assign 실패 대역을 수정본에 적용해 **spawn1/assign1/job.close1/stop1/terminate1/wait1·child_alive=False·stdout/stderr closed=True**를 독립 확인했습니다. 이 실패 주입은 실제 프로세스/DB를 만들지 않았고 정상 MySQL 결과와 분리합니다.
+- 수정 runner의 실제 소유 MySQL/두 loopback HTTP **10 PASS/63.01초, exit0·소유 DB/프로세스/runtime 정리 완료**. 실패/생략0이며 소유 MySQL 종료·DB 삭제·runtime 삭제를 확인했습니다. 이전10검사·작성자 보고·실패 주입7개를 같은 통과 수로 합산하지 않습니다.
+- 고정 export alpha9c5c07c+server95ef89d의 서버/Pi는 최신 원본f534와 각각 **835cc2ada917d87d9454ec51639d03963758cb9d / ad967ff2c6b11f2f10bd13f08ee3f9bff2f4822a**로 정확히 같습니다. prepare_source/test_server_pi도 이전 검토본과 같은 blob이며 source manifest의 commit/tree·충돌 파일 hash 범위를 전체 export hash 보장으로 확대하지 않습니다.
+- 최신 결합 솔루션 Release **0오류/0경고**, diff check 통과. 설치 참조팩용 외부 설정을 사용하고 제품 csproj는 변경하지 않았습니다. 등록 GitHub status/check-run은0건으로 CI 통과로 표시하지 않습니다.
+
+추가 차단 문제를 발견하지 못해 실제 merge **[5dcd66e291a0b12470c3347909653a64458ef70e](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/5dcd66e291a0b12470c3347909653a64458ef70e)**로 병합했습니다. fetch 후 부모가 최신base/head이며 실제 tree가 위 검토 tree와 일치함을 확인했습니다. [기존 PR67 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/67#issuecomment-6330831748)을 최종 판정으로 갱신했습니다. 아래 R67-01 미해결/미병합 표시는 이전 head 검토 이력입니다.
+
+### 적용 범위와 후속
+
+이 검사는 실제1번 identity/근태 MySQL 코드와5번 Pi runtime·비교/서명을 loopback TCP로 연결합니다. 센서·키/계정·readiness는 대역이며 실제 C# 접속/화면·정상 토큰 UI 인수·Pi/센서·Linux ACL/BOOTTIME·운영 재시작 준비·실계정/두PC는 후속입니다. 합성 회원의 소유 시험DB 근태 성공을 실제 사용자 출퇴근/운영 ACK로 쓰지 않습니다.
+
+기존 PR/LOG/통합 댓글에 취합하고 새 회신용 MD/브랜치/PR은 만들지 않았습니다. 실제5000/.env·공유DB/DDL·운영 키/계정·Pi/센서·제품 workspace 배포는 변경하지 않았습니다. 미합의 정책을 새로 확정하지 않습니다.
+
 <a id="pr66-pr67-review-20261022"></a>
 ## PR66·67 신규 검토 — 66 병합, 67 R67-01 수정 대기, 2026-10-22
 
