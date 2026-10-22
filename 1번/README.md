@@ -1,3 +1,12 @@
+<a id="pr73-common-handoff-20261022"></a>
+## 1번 공통 퇴근 결과 소유권 병합 — 2026-10-22
+
+[PR73 최종 검토](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/73#issuecomment-6335730169) 최종 head **5070911**(초기b442에 최신alpha 수신)의 일반 요청 drain·원 퇴근 결과 소유/MainForm 접점을 사용자 지시에 따라 Draft→Open→**f542902e3edfa551e33eb97ed81f4ef12eff27c3 병합**했습니다. 최신7692ce4를 보존한 실제 tree **0a6ee3ad17fb5ed1610088eb065c94957f791248**와 검토 결합본이 같습니다. [공통 소유권 규약](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/f542902e3edfa551e33eb97ed81f4ef12eff27c3/docs/DEVICE_IDENTITY_V2.md)의 명시 인계를 따릅니다.
+
+`BeginClockOutFinalizationAsync`는 verified/pending/clock_out 원 도전을 확인하고 일반 lane을 닫아 기존 요청의 취소·종료를 기다립니다. 늦은 일반401과 실제 복구401을 구분하고, 보관 소유자는 같은 원 challenge/UUID/body의 `CompleteAsync`만 제공합니다. 공통35/12시나리오·MainForm11·기존144/29·26/179/115·Release0/0과 실제 C#/원 Flask·소유MySQL2/10.87초를 확인했습니다. [선행 실행과 직접 검사·대역·정리](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr73-reviewed-merged-20261022)를 구분하며 합산하지 않습니다.
+
+5번은 verified 퇴근 이후 원 finalize 경계에서 명시 소비하고 monitor/poll stop-and-wait를 전달합니다. 실제5번 Form/Operation의 자동 교체나 기본 실행 설치를 하지 않았으며, 정상 Logout/창닫기를 퇴근으로 표시하지 않습니다. 실물·공유환경/identity 정식 DDL·키/회수·보존/복원·readiness·두PC는 후속이고 새지문OFF를 유지합니다. 2번 실제 journal hook은 [별도 최신 연결 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr72-journal-connection-20261022)을 따릅니다.
+
 <a id="pr707172-common-merged-20261022"></a>
 ## 공통 후속 — PR70·71·72 병합, 2026-10-22
 
