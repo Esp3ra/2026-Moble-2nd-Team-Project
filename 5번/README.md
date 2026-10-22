@@ -1,3 +1,14 @@
+<a id="pr74-member5-default-connected-20261022"></a>
+## 5번 최신 — 실제 기본 공통 퇴근 연결·복구 검증 완료
+
+[PR74 최종4452996](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/74#issuecomment-6336089532)을 **652b21a20b08fd7c4e3d77332a7d219366dac779**에 병합했습니다. tree **d527263428820b2b39acef5e42053331b94b5ae4**는 검증본과 같습니다. `ConnectWorkdayActivityAsync(options,...)`가 실제 병합 reader를 사용하고, prepare factory 생략 시 제품의 `PrepareWorkdayClockOutAsync`가 PR73 공통 Prepare/Complete/Finish를 연결합니다. 초기 시험용 ClockOutPeer factory/컴파일 옵션은 제거했으므로 최신 연결을 ‘소비 미제공’으로 안내하지 않습니다.
+
+verified 퇴근 후 원 근무/DATE·challenge/UUID로 UI 스레드에서 준비하고 monitor·진행 조회를 기다린 뒤 공통 drain/결과 소유권을 사용합니다. 응답유실·빌린 폼 재오픈은 원 operation/공통 소유자를 재사용하며 새 스캔·ordinary finalize로 바꾸지 않습니다. 사용자 확인·창 닫기 뒤 검증된 같은 receipt로만 Finish하며 auth/logout 추가 전송이 없습니다.
+
+최신 실제 폼51(이전26 포함)·Owner11·솔루션 Release0/0과 원 runner의 C# MainForm/reader/폼/common/relay→원 서버·Pi HTTP·소유MySQL14 PASS/65.28초를 확인했습니다.14에 기존10+정오2+퇴근2가 포함됩니다. 초기031의179/115/35·12시나리오·이전14/64.38초와 합산하지 않습니다. [정확한 DLL/소스·대역·정리](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr74-reviewed-merged-20261022)·[연결 규약](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/652b21a20b08fd7c4e3d77332a7d219366dac779/RemoteWork.WinForms/Features/Attendance/CLOCK_OUT_CONNECTION.md)을 따릅니다.
+
+기본 시작 자동 설치·장치 loader/카메라/실물 Pi·두PC·Linux 준비·공유 활성화/키·보존 정리는 후속입니다. 실제5000/.env·DB/운영 옵션·키/등록 지문/회원 매핑은 미변경이고 새지문OFF를 유지했습니다. 같은 LAN 사설IP+PORT 기준을 보존합니다. 코드 연결/시험 통과를 운영 readiness나 실물 로그인 완료로 바꾸지 않습니다.
+
 <a id="pr73-member5-consumption-20261022"></a>
 ## 5번 인계 — 공통 퇴근 결과 소유권 제공·명시 소비 대기
 

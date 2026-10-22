@@ -1,3 +1,42 @@
+<a id="pr74-reviewed-merged-20261022"></a>
+## PR74 최종 검토·실제 병합 — 기본 제품 경로 재검증
+
+[최종 통합 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/74#issuecomment-6336089532)의 고정 **4452996cba22cba9af31ab919097012c766906ba**를 검토해 **652b21a20b08fd7c4e3d77332a7d219366dac779**에 병합했습니다. 추가 확정 차단 결함을 발견하지 못했습니다. 초기031 검토 도중 작성자가 실제 기본 adapter로 바꾼445를 올려 병합을 멈추고 새 DLL/새 소유MySQL로 재검증했습니다. 초기 결과를 최신 실행으로 합산하지 않습니다.
+
+| 기준 | 고정 SHA/tree |
+|---|---|
+|최종 PR head/base|`4452996cba22cba9af31ab919097012c766906ba` / `f542902e3edfa551e33eb97ed81f4ef12eff27c3`|
+|실제 alpha merge/tree|`652b21a20b08fd7c4e3d77332a7d219366dac779` / `d527263428820b2b39acef5e42053331b94b5ae4` (최신 검증본과 완전 동일)|
+|초기 검토 head/결합 tree|`0319768b5ba1c9aa52c929992642e9609bd5eb86` / `27d15f6d902006ad088d649b6fd7b450b3a98266`|
+
+### 최신 코드·권한·비동기 연결
+
+기존6파일 수정으로 MainForm 기본 overload의 `prepareClockOut ?? PrepareWorkdayClockOutAsync`가 실제 PR73 공통 Prepare/Complete/Finish를 조립합니다. 이전 시험 ClockOutPeer factory/조건부 컴파일은 제거했습니다. 명시 근무 연결은 병합된 WorkdayStateConnection의 현재 서버 값을 projection하며 기본 startup에 자동 설치하지 않습니다.
+
+같은 로그인/근무의 verified/pending/clock_out·원 work/DATE/challenge/OriginalFinalizeId를 feature에서 대조한 뒤 UI 스레드로 factory를 호출합니다. stop callback은 monitor와 진행 중 근무 조회/poll을 차단·대기하고 공통 요청 drain으로 이어집니다. 준비 이후 정오/조회/감시 재시작을 막고, 응답 유실/빌린 폼 재오픈에도 원 operation·원 common owner를 보관해 새 스캔/일반 Session finalize로 우회하지 않습니다. 잘못된 반환 식별값/현재성·늦은 응답을 거절하고 사용자 확인·창닫기 뒤 같은 검증receipt로만 Finish합니다. 기존 정상 Logout/단순 창닫기는 자동 퇴근이 아닙니다.
+
+### 직접 검사 — 포함·선행 범위 구분
+
+| 실행 | 결과·범위 |
+|---|---|
+|최신445 C#|원 WorkdayActivity51 PASS(기존26 포함), ClockOutOwner11 PASS, 솔루션 Release0오류/0경고. ClockOutPeer 옵션 없이 실제 기본 제품 factory 경로|
+|최신445 실제 연결|원 run_check.py **14 PASS/65.28초**, exit0·failed_nodes없음. 기존10 + 실제 정오2 + 실제 공통 퇴근2가14에 포함됨|
+|초기031/27d|51·179·115·공통35/12시나리오·Owner11·Release0/0 PASS, 실제14 PASS/64.38초. 초기 기준의 별도 검사이며 최종에 누적하지 않음|
+
+최신 원 prepare_peer.py가445+실제73병합 f542를 외부에 export했고 tree **d527263428820b2b39acef5e42053331b94b5ae4**, 충돌0입니다. 원 runner/테스트를 수정하지 않고 원 C# MainForm/reader/폼/common/relay→원 Flask/AttendanceWorkflow·Pi HTTP/runtime/codec→소유MySQL8.2를 연결했습니다.14의 기존10은 정확 원문/결과 재생·미등록/다른지문·발급유실·현재 취소/회수·재시작capture fence·badMAC·출퇴근/정오 실제근태를 검사합니다.
+
+정오2는 같은 열린 근무의 noon_at/미종료·challenge1/approval2/receipt1·센서검색1·monitor start/stop1을, 퇴근2는 정상/첫 성공응답 유실 후 원 작업 복구·prepare1/검색1·finalize1또는2·auth/logout0·ended/대상AuthSession0·receipt1·challenge1/approval2를 확인합니다. 일반 auth/me는 네트워크 전 차단되고 같은 원 결과는 복구됩니다. UI/HTTP 유실·정오시각 hook은 fixture이며 제품 endpoint/시계를 추가·완화하지 않았습니다.
+
+Windows·소유 Python3.12.14/tzdata2026.5·MySQL8.2 InnoDB/RR에서 실행했습니다. 최신 DLL SHA256 **f0437f21a024e1ba83202388434df204c9a98efeb627a8d8dc2c98e21151713e**, 원본 export대상699파일/외부export700(원699+manifest)·DLL/deps/runtimeconfig/제품assembly 폴더 전후 불변·git clean입니다. MySQL1개/DB 삭제·모든 owned native process 종료·runtime 삭제 모두 true입니다. pytest65.28초/외부wrapper71.38초는 같은 실행입니다. 초기14/64.38초의 원 source/DLL/보고도 별도 보존했습니다.
+
+센서/UART/OLED·monitor·시험 회원/키/매핑/readiness·미리 열린 근무는 대역입니다. 실제 C#·서버/Pi HTTP·DB 코드를 사용했지만 실장비·두PC·공유 운영 검증이 아닙니다. 공통 테이블 ORM 생성/identity 초안DDL은 빈 소유DB에서만 수행한 원 fixture 범위로 공유DDL 적용/보존 증거가 아닙니다.
+
+### 후속·보존
+
+최신 제품은5번 기본 공통 소비를 제공했으므로 아래73의 ‘소비 대기’는 당시 이력입니다. 기본startup/실제 loader·프로필/분리키/회수·보존/복원·Linux readiness·실장비/두PC·공유 활성화는 후속입니다. 실제5000/.env·공유DB/DDL·flags·키/센서·사용자 프로젝트는 이번에 미변경이며 새지문OFF와 같은 LAN 사설IP+PORT 기준을 유지했습니다.
+
+[담당별 접점](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr74-default-consumption-20261022)·[제품 규약](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/652b21a20b08fd7c4e3d77332a7d219366dac779/RemoteWork.WinForms/Features/Attendance/CLOCK_OUT_CONNECTION.md)을 따르며 [2번 실제 journal 연결·기존32/7/21·sync 보고](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr72-journal-connection-20261022)를 원문 그대로 보존하고74 신규검사로 합산하지 않습니다. 기존2번8문서/앵커·기존 공개 문서를 보존하며 추가 회신용MD/브랜치/PR은 만들지 않았습니다.
+
 <a id="pr73-reviewed-merged-20261022"></a>
 ## PR73 최종 검토·실제 병합 — 2026-10-22
 

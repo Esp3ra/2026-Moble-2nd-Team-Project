@@ -1,3 +1,10 @@
+<a id="member2-pr74-status-20261022"></a>
+## PR74 병합 — 5번 기본 공통 연결 수신·2번 기존 범위 보존
+
+[PR74](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/74#issuecomment-6336089532) 최종4452996의 실제 기본 공통 퇴근 factory·reader 소비를 검토해 **652b21a20b08fd7c4e3d77332a7d219366dac779**에 병합했습니다. 검증/실제 tree **d527263428820b2b39acef5e42053331b94b5ae4**가 같습니다. 최신51(기존26 포함)/Owner11/Release0/0·실제 원서버/Pi HTTP/MySQL14는 [검토 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr74-reviewed-merged-20261022)으로 취합하고 초기 실행 수치와 합산하지 않습니다.
+
+2번 업무에 새 근태 조건을 추가하지 않았습니다. [별도 실제 journal 연결·32/기존7·21/기존 sync 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr72-journal-connection-20261022)과 기존2번8문서/앵커를 보존하며 이번74검사나 제품 동기화로 재표시하지 않습니다. [현재 공통/5번 제공과 운영 후속](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr74-default-consumption-20261022)을 따릅니다. 실제5000/.env·공유DB/DDL·flags·실장비·사용자 프로젝트는 이번 검토에서 미변경, 새 회신용 공개MD/브랜치/PR은 추가하지 않았습니다.
+
 <a id="member2-pr73-status-20261022"></a>
 ## PR73 병합과 병행 2번 기록 보존 — 2026-10-22
 
