@@ -120,6 +120,27 @@ C# `TaskCreationRequest`는 선택 `IReadOnlyList<string>? attachmentIds = null`
 
 WinForms는 첨부 전용 404/409를 확정 실패로 구분해 입력 단계로 돌아가되 원래 파일 ID와 본문을 유지합니다. 자동 파일 삭제·선택 제거는 없습니다. 공통 403은 원인이나 미기록 여부를 추측하지 않고 기존 접속 차단/메모리 정리 규칙을 유지하며, 401도 기존 만료 처리입니다. 원래 접속이 유효한 서버 503·결과 불확실은 기존 키/본문으로 처리 결과를 먼저 확인합니다. 권한 상실·접속 교체 뒤에는 이전 입력을 다시 사용하지 않으며 파일 자동 DELETE·새 키 자동 재등록도 없습니다. 저장 성공 확인 뒤의 후속 오류를 새 등록이나 재전송 사유로 쓰지 않습니다.
 
+<a id="task-creation-upload-transport"></a>
+## 등록용 C# 첨부 전송 — 2026-10-22
+
+`HttpTaskCreationUploadService`와 `TaskCreationUploadAttempt`는 현재 관리자 로그인에 고정된 공통 `ApiClient.Session`으로 3번의 기존 Bearer `results/shared/uploads/start`, `/{id}/chunks`, `/{id}/complete`를 소비합니다. 서버나 공통 HTTP를 변경하지 않았습니다. `PrepareFileAsync`는 최대25MiB의 파일을 읽어 이름·크기·SHA256·바이트 사본을 확정하며 HTTP를 보내지 않습니다. 이후 원본 파일이 바뀌어도 전송 내용은 바뀌지 않습니다.
+
+| 상황 | 처리 |
+|---|---|
+| 준비 완료 | `Ready`; 명시 `StartAsync`에서만 시작 |
+| 시작 응답 유실·잘못된 metadata | `StartUncertain`; ID를 모르므로 재시작·새 업로드 자동 생성 금지 |
+| ID 확인 후 청크/완료 응답 불명 | `NeedsRetry`; 명시 `RetryAsync`에서 같은 ID·마지막 확인 offset·같은 바이트 또는 완료만 재요청 |
+| 완료 metadata 검증 성공 | `CompletedFile` 제공. 아직 업무 저장·첨부 연결 성공을 뜻하지 않음 |
+| 400/404/409/413 | `Rejected`; 오류 코드 유지, 자동 재시도 없음 |
+| 401/403·접속 변경 | `Disconnected`; 이전 접속의 파일 사본·결과 무효화 |
+| 폐기 | 진행 중 전송 취소·사본 정리. 서버 DELETE를 호출하지 않음 |
+
+16KiB 청크의 base64 `+`는 기본 JSON 인코더에서 `\u002B`로 늘어나 32KiB 본문 제한을 넘을 수 있습니다. 2번 청크 DTO만 전용 converter로 내부 생성 base64를 기록하며 공통 JSON 인코더·파일명 규칙을 바꾸지 않습니다. 청크 크기를 줄이거나 서버 제한을 늘리지 않습니다.
+
+현재 서비스는 **파일 선택/삭제 UI에 주입하지 않았습니다**. 작업 도중 PR64가 병합되어 캡처된 공통 DELETE는 제공됐습니다. 이를 소비하는 임시 파일의 명시 폐기·선택 상태를 다음 단계에서 연결합니다. `Dispose`는 서버 파일 삭제나24시간 후 자동 삭제를 보장하지 않습니다. 일반수정 첨부의 같은 TX diff/감사, 웹 cookie/CSRF, `view=read`/`back_context`는 기존 T3-1~5 기술 조건을 기다립니다.
+
+[전용 검증](../Tests/TaskCreationUploads.Tests/README.md): 제어 HTTP344개, 실제 C#→TCP→임시 MySQL/파일26개와 독립 DB9개를 통과했습니다. 실제 시작·청크·완료, 등록 연결·같은 키 receipt·직원 다운로드를 확인했고 응답 유실은 실제 성공 응답 뒤 클라이언트에서 명시 주입했습니다. 공유 운영 서버·두PC·GUI·DELETE·25MiB 전체 네트워크 전송은 미실행입니다.
+
 ## 검증
 
 2026-10-21 선택 첨부 확장의 C# 제어 검사는 `dotnet run --project Tests/TaskCreation.Tests/TaskCreation.Tests.csproj -c Release`로 **133개 통과**를 직접 확인했습니다. 불변 목록·생략/빈 배열·순서·32KiB·정확한 오류 분류·결과 유실/동일 키 복구를 포함하며 실제 WinForms와 명시 HTTP 대역의 범위입니다. 실제 서버/DB·파일 바이트 검증 수치로 해석하지 않습니다.
