@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../RemoteWork.WinForms/RemoteWork.WinForms.csproj" />
+    <None Include="../../Devices/RaspberryPi/fixtures/identity_v2_peer1.json" Link="identity-v2.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

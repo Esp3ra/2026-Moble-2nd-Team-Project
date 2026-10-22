@@ -25,6 +25,8 @@ def create_app(test_config=None):
     app.config.from_mapping(DATABASE_URL=database_url, SECRET_KEY=os.getenv("SECRET_KEY", ""),
         ENABLE_TASK_QUERY_DRAFT=os.getenv("REMOTEWORK_ENABLE_TASK_QUERY_DRAFT") == "1",
         ENABLE_COMMON_WRITE_DRAFT=os.getenv("REMOTEWORK_ENABLE_COMMON_WRITE_DRAFT") == "1",
+        ENABLE_COLLABORATION_DRAFT=os.getenv("REMOTEWORK_ENABLE_COLLABORATION_DRAFT") == "1",
+        ENABLE_COLLABORATION_RESULT_READS_DRAFT=os.getenv("REMOTEWORK_ENABLE_COLLABORATION_RESULT_READS_DRAFT") == "1",
         ENABLE_DEVICE_ENROLLMENT_DRAFT=os.getenv("REMOTEWORK_ENABLE_DEVICE_ENROLLMENT_DRAFT") == "1",
         ENABLE_ENROLLMENT_DURABILITY_DRAFT=os.getenv("REMOTEWORK_ENABLE_ENROLLMENT_DURABILITY_DRAFT") == "1",
         ENABLE_ENROLLMENT_RECOVERY_DRAFT=os.getenv("REMOTEWORK_ENABLE_ENROLLMENT_RECOVERY_DRAFT") == "1",
@@ -35,11 +37,13 @@ def create_app(test_config=None):
         SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax", SESSION_REFRESH_EACH_REQUEST=False)
     if test_config:
         app.config.update(test_config)
-    # A published wire contract is not an installed authentication service.
-    # Reject accidental activation before any connection/model/route registration.
+    # Reject incomplete private/service configuration before database initialization.
     if app.config["ENABLE_DEVICE_IDENTITY_DRAFT"]:
         from .features.identity import validate_configuration
         identity_profiles = validate_configuration(app.config)
+    if ((app.config["ENABLE_COLLABORATION_DRAFT"] or app.config["ENABLE_COLLABORATION_RESULT_READS_DRAFT"])
+            and not app.config["ENABLE_COMMON_WRITE_DRAFT"]):
+        raise RuntimeError("Collaboration requires explicit common write support")
     if app.config["ENABLE_ENROLLMENT_DURABILITY_DRAFT"] and not app.config["ENABLE_DEVICE_ENROLLMENT_DRAFT"]:
         raise RuntimeError("Enrollment MySQL durability requires explicit enrollment activation")
     if app.config["ENABLE_ENROLLMENT_RECOVERY_DRAFT"] and not app.config["ENABLE_ENROLLMENT_DURABILITY_DRAFT"]:
@@ -144,6 +148,16 @@ def create_app(test_config=None):
             with db.transaction() as session:
                 removed = session.execute(delete(WriteReceipt).where(WriteReceipt.expires_at <= utcnow()))
             click.echo(f"만료된 요청 결과 정리: {removed.rowcount}건")
+
+    # The ordinary entry point uses the reviewed owner bridge and retained-result
+    # readers. Startup never creates/repairs 012 or installs a deployment ACK.
+    if app.config["ENABLE_COLLABORATION_DRAFT"] or app.config["ENABLE_COLLABORATION_RESULT_READS_DRAFT"]:
+        from .features.collaboration import install as install_collaboration, install_result_readers
+        from .features.collaboration.task_bridge import current_task_context
+        if app.config["ENABLE_COLLABORATION_DRAFT"]:
+            install_collaboration(app, task_context=current_task_context)
+        else:
+            install_result_readers(app, task_context=current_task_context, read_only=True)
 
     @app.cli.command("init-db")
     def init_db_command():

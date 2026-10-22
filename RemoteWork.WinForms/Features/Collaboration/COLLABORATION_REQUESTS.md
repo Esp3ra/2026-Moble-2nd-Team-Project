@@ -1,5 +1,21 @@
 # 협업 요청 저장·응답 — 4번 구현 및 연결 검토안
 
+## 1번 공통 조립 후속 — 2026-10-21
+
+일반 `create_app`은 `REMOTEWORK_ENABLE_COLLABORATION_DRAFT=1`에서 기존 task bridge/W1/협업 경로를 명시 등록한다.
+기본off이며 W1이 필요하다. `REMOTEWORK_ENABLE_COLLABORATION_RESULT_READS_DRAFT=1`은 쓰기off 앱의 기존 영수증 읽기만 등록한다.
+기존012의 물리 검사는 유지하며 시작 시 DDL/자동수리·업무 통합 ACK 설치는 하지 않는다. 실제 작업 폴더 반영과 실행 서버 재시작·012 적용은 구분한다.
+
+MainForm은 `REMOTEWORK_COLLABORATION_POLL_SECONDS`를 명시한 클라이언트에서 로그인당 `LoginCollaborationNotifications`/공유scope 하나를 소유한다.
+설정은1..3600초 정수이며 누락/오류면 자동 수신을 연결하지 않는다. 개발 제안10초를 팀장 승인 운영값으로 자동 채택하지 않는다.
+기존 요청 창은 owner chain에서 같은 로그인scope를 빌리고 메뉴 종료는 수신기를 폐기하지 않는다. 로그아웃·만료·owner 종료 때 정리한다.
+중요공지·협업·마감 알림/목록·모달은 공통 표시 gate에서 양방향 양보하며 await 뒤 표시 직전 다시 검사한다. 양보는 표시/확인을 소비하지 않는다.
+마감 알림의 실제 사건/현재 원본·계정 확인 API와 source는 아직 미제공이므로 가짜 source로 MainForm에 추가하지 않는다.
+
+검증: 소유MySQL의 일반시작/on/off/콜드OFF·기존협업/권한·정식012/복원·2번보수연속성/인증121PASS.
+실제 WinForms+명시HTTP/서비스대역의 협업115·공지35·마감105PASS, 공통ApiClient29시나리오144PASS. 반복합산하지 않는다.
+실서버 상태/012 적용·공유 재검증 시점은 기존 Sang1 PR1 회신의 실제 결과를 따른다. 아래 ‘MainForm 미수정’ 등의 표현은4번 최초 작성 당시 기록이다.
+
 기준: 원본 alpha 8ed25c6 / LOG ed2978e(2026-10-21), LOG/2번 공통규약 B1~B7,
 팀장 PR57 검토와1번 Sang1 PR1의14:15KST 기술 회신·PR43을 대조했다.
 직원 조회 재사용 수용을 새 협업 저장 API/DDL 승인으로 확대하지 않는다.

@@ -1,4 +1,4 @@
-"""Member 4 explicit integration. Common create_app is owned by member 1."""
+"""Member 4 contracts; member 1 normal create_app owns explicit opt-in setup."""
 
 
 def install_result_readers(app, *, task_context, read_only=True):
@@ -29,10 +29,18 @@ def install_result_readers(app, *, task_context, read_only=True):
 def install(app, *, task_context):
     """Install explicitly after common W1 setup; keep results when writes are OFF.
 
-    No invocation from normal create_app/registry or automatic schema changes.
+    Normal create_app opts in explicitly; legacy explicit factories remain safe.
+    No automatic schema changes.
     task_context(db, task_id, since_version=None) must lock current source data.
     """
+    if app._got_first_request:
+        raise RuntimeError("Install during application setup")
     enabled = app.config.get("ENABLE_COLLABORATION_DRAFT", False) is True
+    installed = app.extensions.get("collaboration_installed_context")
+    if installed is not None:
+        if enabled and installed is task_context:
+            return True  # Same explicit factory/normal entry point, not a replacement.
+        raise RuntimeError("Collaboration setup cannot replace an installed bridge/mode")
     if not enabled and not app.config.get("ENABLE_COMMON_WRITE_DRAFT"):
         return False
     install_result_readers(app, task_context=task_context, read_only=not enabled)
@@ -45,4 +53,5 @@ def install(app, *, task_context):
             authorize=authorize_create if action == "collaboration.created" else authorize_request,
             result_fields=RESULT_FIELDS)
     app.register_blueprint(bp)
+    app.extensions["collaboration_installed_context"] = task_context
     return True
