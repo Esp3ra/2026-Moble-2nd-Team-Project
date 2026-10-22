@@ -1,3 +1,11 @@
+## 최신 — PR64 병합·지문 PR62 수정 요청·63/65 수신, 2026-10-22
+
+[PR64](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/64#issuecomment-6330306907)을 서버 소유MySQL121·UI24/130/105/115/144/35·Release0/0으로 검증해 **ca781fd**로 병합했습니다. normal create_app/coldOFF 결과 읽기·로그인당 협업scope·양방향 표시 gate·captured DELETE·MainForm 명시 deadline 연결/navigator를 수신했습니다. 실제deadline source·확인 writer/사건/초기 자료와4번 receipt/snapshot 포트 보완은 후속입니다. 제안 polling10초를 운영값으로 확정하지 않았습니다.
+
+[PR62](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/62#issuecomment-6330262776)는 검토 중 계약전용c821→실제HTTP/MySQL서비스b71로 확대돼 새로 검토했고, **R62-01/P2: 다른DB의동명부모 FK도 storage검사를 통과**하는 원본HTTP200을 재현해 미병합입니다. referred_schema의현재DB 정규화·비교와 실제MySQL 정상/외부FK503 회귀를 요청했습니다. 현재actor는 별도 검사하므로 인증우회로 확대하지 않습니다. 새서비스29+웹2+실제등록dump복원1의별도32PASS와정상검사통과는 결함 해결을 대신하지 않습니다.
+
+[PR63](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/63#issuecomment-6330234285) **2eeafe9**, [PR65](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/65#issuecomment-6330376932) **18a4855**로 병합했습니다. 새65의 runtime/키loader 제공은 수신하되 Linux실파일/키설치·재시작서버재조정·실센서·pending UI/근태 finalize·정상토큰 전환은 후속입니다. [중앙 검증/제한](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr62-65-review-20261022)을 따릅니다. 작성자의37테이블/5000점검은 보고로만 수신하고 이번 직접검사·운영적용으로 합산하지 않습니다.
+
 ## 최신 — PR58 복구수정·PR60 SQL013 병합 완료, 2026-10-21
 
 [PR58](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309407344) R58-01을실제Form/launcher341·기존복구95·회원관리46/지문58과독립A→B/해제실패회귀로해결확인해 **fef4472**로병합했습니다. [PR60](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/60#issuecomment-6310090050)은기존SQL내용동일013이동·새경로239검사후 **e88da9d**로병합했습니다. [중앙검토](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr57-58-60-merged-20261021)를따릅니다.5번실물성공/1번읽기전용DB12항목은작성자보고로수신했으며이번직접검사로합산하지않습니다. 새본인인증challenge/제한로그인/단일소비API·wire는후속안으로유지하고기존등록성공을인증/출퇴근성공으로확대하지않습니다. 실제배포/서버/DB/설정·실계정재발급/장비는변경하지않았습니다.

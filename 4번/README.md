@@ -1,3 +1,9 @@
+## 최신 — PR64 공통 조립 병합과 실제 마감 source 후속, 2026-10-22
+
+[PR64](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/64#issuecomment-6330306907)을 **ca781fd**로 병합해 협업 일반 서버 시작/coldOFF 결과읽기, 로그인당scope·메뉴borrow, 중요공지/협업 await뒤양방향gate, 명시적 MainForm deadline 연결과2번 navigator 조립을 수신했습니다. 서버121·UI24/130/105/115/144/35·최종Release0/0을 직접 확인했습니다. [중앙 근거](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr62-65-review-20261022)를 따릅니다.
+
+실제 마감source는 기본 설치하지 않으며 업무의 현재사실/기한사건·초기자료·확인DB와 계정확인 원자성은 후속입니다. Recheck는 권위 있는 전체 snapshot을 제공해야 하고 최소W1 성공영수증과 선택적 목록실패를 분리하는4번 포트 보완 요청도 유지합니다. TaskRequested 발행은 실제 업무 표시 성공이 아니며 현재본인 탐색·접속수명검사를 유지합니다. 협업 polling은 명시값이 필요하고 제안10초를 채택하지 않았습니다. A1~A6/B1~B7을 새로 바꾸지 않고 실제공유환경·팝업/두PC 검증과구분합니다.
+
 ## 최신 — PR61 R61-01/02/03 해결·alpha 병합, 2026-10-21
 
 head3ae607ee를 최신alpha739c510에서 독립 재검토했습니다. 업무 보기401/403 폐기, 늦은 응답의 Apply/탐색 차단, Read성공/Recheck503의2→4→5→5분을 해결 확인했습니다. 공식 마감105·공지35·독립16·backoff2대조/폐기 polling3시나리오·Release0/0 통과 후 사용자 지시에 따라 **ad46517**로 병합했고 실제 tree가 검토본과 일치합니다. [기존 최종 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/61#issuecomment-6311013832)·[중앙 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr61-merged-20261021)을 따릅니다.

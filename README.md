@@ -1,3 +1,14 @@
+## 최신 — PR63·64·65 병합, PR62 R62-01 수정 대기, 2026-10-22
+
+| PR | 검토 결과 |
+|---|---|
+|[62](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/62#issuecomment-6330262776)|실제 서비스 추가 headb71e2e8 재검토. **R62-01/P2: FK 참조 DB 검증 누락**을 소유 MySQL/원본 HTTP로 재현해 미병합|
+|[63](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/63#issuecomment-6330234285)|Pi/C# 본인 확인 코어·HTTP 중계 검토 후 **2eeafe9** 병합|
+|[64](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/64#issuecomment-6330306907)|협업 정상 서버 시작·로그인 수신·캡처 DELETE·명시 마감 탐색 연결 검토 후 **ca781fd** 병합|
+|[65](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/65#issuecomment-6330376932)|검토 중 추가된 비공개 설정 검사·기본 차단 Pi runtime 검토 후 **18a4855** 병합|
+
+각 실제 merge tree가 검토본과 일치합니다. [직접 검사·재사용·미실행/담당 접점](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr62-65-review-20261022)을 따릅니다. 코드 병합과 실제 서버/키·DB·Pi/센서/두PC·근태·마감 source 연결은 구분하며 운영 환경을 이번에 변경하지 않았습니다. 아래 미제공/미병합 표시는 당시 이력입니다.
+
 ## 최신 — PR61 수정 3건 해결·병합 완료, 2026-10-21
 
 [PR61 최종 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/61#issuecomment-6311013832)에서 R61-01/02/03을 모두 해결 확인하고 사용자/팀장의 지시에 따라 Draft→Ready 후 **ad46517eb8666ef4fea7d1ef779ab256f2433c10**으로 alpha에 병합했습니다. 최신739c510+head3ae607ee의 공식 마감105·기존 공지35·독립16 및 backoff/폐기 polling 대조·Release0/0을 직접 확인했습니다. 실제 merge tree **e8e4a43cb91ba24bfe2ac7be75142866c069edb3**는 검토본과 전체 diff0입니다.

@@ -1,3 +1,45 @@
+<a id="pr62-65-review-20261022"></a>
+## 추가 PR62·63·64와 검토 중 신규65 — 63/64/65 병합·62 보류, 2026-10-22
+
+사용자의 추가PR 확인/검토·문제없으면병합 지시에 따라 최신alpha8444983에서62/63/64를 고정했습니다. 검토 중62가 실제서비스로 확대돼 새head를 다시 검토했고,63병합 뒤 추가된65도 포함했습니다. 새 회신용 PR/MD 없이 각 기존PR에 한 번씩 회신하고 기존 기록에 취합합니다.
+
+| PR | 고정 head | 실제 merge / 판정 | 검토/실제 merge tree |
+|---|---|---|---|
+|62|b71e2e863ec59e63fca5a21b679e330e9daebf51|R62-01/P2 수정 전 미병합|단독a67c9104deeb73116c4002e57ee1ba465f1e1a86|
+|63|4ca48dec8e8090444d7bf655e75a2c6fea1fe751|2eeafe9a7fba7f056dcf8faa7282ea610990681f|4f50d9817c751dd0574c8dce38f8ff163c14bd7f|
+|64|6ce1012203c76ed6e4ffc4a28ea4034ec6f19679|ca781fd3c248e12e97a8230a56fe78569eb75e9f|630e6fe9dbb6b8feff15896e82bff0a2a6d998d7|
+|65|b0f3eb2d3657e304832995dbdb1c42b8928e9329|18a48555d3ef995afca53ed74b4cfb8f0e1dba73|49ad064a596f27197b52339751d77a4374279fe7|
+
+63→64→65순서로expected head를 고정해 일반 merge했고 매번fetch/부모/tree를 확인했습니다.62가미병합이므로62/64의로컬검토상충돌해결을 원격제품에 게시하지 않았습니다. 포크head 수정·강제push/우회PR은없습니다. GitHub각head status/check-run은0건이어서직접검사로판단했습니다.
+
+### PR62 — R62-01/P2, 다른 DB의 동명 부모 FK를 정상으로 수용
+
+[수정 요청·재현·제한](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/62#issuecomment-6330262776)을 게시했습니다.검토도중계약전용c821에서실제서비스b71로확대돼이전107검사를전체승인으로쓰지않았습니다. `features/identity/routes.py:63~68`가FK tuple에서referred_schema를버립니다. 소유MySQL에서identity_contexts.user_id만별도소유DB의users(id)로바꿔도원본GET requests UUID는503대신200/not_recorded입니다. 정상/현재DB명시복구뒤200을대조했고서로다른schema값을inspector로확인했습니다.현재actor는별도재검사하므로인증우회로주장하지않습니다.
+
+None을현재DB로정규화해참조schema/기존컬럼순서·부모테이블/컬럼을함께검사하고같은/다른DB 동명부모의실제MySQL/HTTP 회귀를요청했습니다. 독립결함관측은통과수치에합산하지않습니다. 새서비스29+웹2+실제등록dump/새소유DB복원1의분리재검사 **32PASS/skip0**, source대조/코덱39교차·62/64시작권한분리27PASS를확인했습니다. 단일capture nonce제한은최신문서의명시범위와일치합니다. 정상토큰전환/근태finalize는미구현503입니다.
+
+최초혼합실행은212PASS/웹1FAIL/fixture5ERROR/옵트인1SKIP였습니다.검토실행기의TASK_QUERY=1로기존준비화면기대와달랐고,지문fixture가남긴FK가있는users를뒤의협업fixture가DROP하려했습니다. 제품수정없이웹기본OFF·명시소유복원·fixture분리로위32PASS와별도협업121PASS를확인했습니다.실패/반복수를합산하지않습니다. 계약전용c821기준혼합228PASS도당시근거로만보존합니다.
+
+### PR63 — Pi/C# 코어·HTTP 중계 병합
+
+[최종 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/63#issuecomment-6330234285)에따라Python **228실행/226PASS·Windows POSIX2SKIP**, C#코어 **143**,소유loopbackFlask/Pi코어HTTP **110assertions PASS**를직접확인했습니다.승인freshness·단일채취예산·원문복구·키분리·현재접속취소·센서lock·redirect/size·자기worker/process정리를검토했습니다.실제issuer/키/센서·운영서비스/UI/근태통합은후속입니다.
+
+### PR64 — 일반 서버 시작·공통 UI 조립 병합
+
+[최종 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/64#issuecomment-6330306907)에따라독립treea6989528에서실제WinForms/명시HTTP·source의마감탐색 **24**·업무탐색 **130/9시나리오**·마감 **105**·협업 **115**·ApiClient **144/29시나리오**·공지 **35PASS**입니다.별도소유MySQL8.2RR에서normalentry/coldOFF보관결과·중복설치·현재bridge/연속성·인증 **121PASS/skip0**를확인했습니다. 최신등록첨부 **25PASS**도소유raw002/004/006/009/013·실제임시파일로대조했습니다.수치를이전/작성자보고와합산하지않습니다.
+
+63+64실제merge를새export에서솔루션Release **오류0/경고0**으로빌드했습니다. 설치8.0.31참조팩·외부offline검토설정을사용하고제품csproj는무수정입니다.협업opt-in normalcreate_app/coldOFF result·로그인scope/borrowed메뉴·공지양방향gate·capturedDELETE·명시MainForm deadline접점/navigator를수신했습니다.실제deadline source/확인DB·사건/초기자료·4번성공receipt/선택적snapshot갱신은후속입니다. 제안polling10초를운영값으로확정하지않습니다.
+
+### PR65 — 비공개 설정 검사·기본 차단 runtime 병합
+
+[최종 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/65#issuecomment-6330376932)에따라전체Pi **251실행/248PASS·Linux3SKIP**,새runtime소유loopbackHTTP **110PASS**,파일/네트워크/DB/하드웨어IO금지독립import·기본차단 **16PASS**입니다.3생략은기존flock2/실제Linux파일owner·ACL·link1입니다.키분리/회수키제외·read-onlyCLI·기본factory미설치·단일RAMpool/공유UART·readiness실패후영구차단·drain을검토했습니다.
+
+C#코어143은PR63검사후제품/시험blob동일근거를재사용했고이번재실행/합산은아닙니다.65전후WinForms/서버경로diff0으로직전실제merge Release0/0근거가유지됩니다.실제비공개파일·키/회수키·LinuxBOOTTIME/ACL·Pi서비스/실센서·재시작서버재조정·두PC는미실행입니다.운영readiness는상수True/health200/시간대기로열지않습니다.
+
+### 실제 환경·소유 경계
+
+모든DB/파일검사는새소유MySQL·합성계정·임시파일/loopback대역이며SQLite를사용하지않았습니다.프로세스·DB/별도복원/그림자DB·runtime정리를확인했습니다.작성자의실제37테이블/5000검사는보고로수신해직접수치에합산하지않습니다.실제서버재시작/DB·DDL/.env/flags/ACK·키/개인profile·계정/회원mapping·센서·작업폴더동기화는이번에변경하지않았습니다.62실제코드제공/검토보류와배포·제한로그인UI·근태finalize/정상토큰전환을구분합니다.기존채택정책은유지하고아래미제공/미병합표현은당시이력입니다.
+
 <a id="pr61-merged-20261021"></a>
 ## PR61 수정본 재검토·병합 완료, 2026-10-21
 
