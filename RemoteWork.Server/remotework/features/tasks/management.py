@@ -152,19 +152,20 @@ def _update(db, task, assignment, body, now):
     today = now.replace(tzinfo=timezone.utc).astimezone(timezone(timedelta(hours=9))).date()
     if due < today:
         raise AppError(409, "TASK_DUE_DATE_IN_PAST", "새 마감일은 한국 시간 기준 오늘 또는 그 이후여야 합니다.")
-    if "attachment_ids" in body:
-        # Policy accepted. The provider currently returns only the AFTER list:
-        # no public same-TX before/diff interface or agreed audit shape exists.
-        # Never save basic fields while silently ignoring an explicit file edit.
-        raise AppError(503, "TASK_ATTACHMENT_REPLACEMENT_NOT_READY",
-                       "업무 첨부 변경의 비교·감사 연결을 준비 중입니다. 기존 첨부를 유지하는 일반 수정은 가능합니다.")
     changed = [name for name, value in (("title", body["title"]), ("description", body["description"]),
         ("start_date", start), ("due_date", due)) if getattr(task, name) != value]
+    attachment_change = {}
+    if "attachment_ids" in body:
+        from .attachment_links import replace_updated_task_files
+        attachment_change = replace_updated_task_files(db, task_id=task.task_id,
+            attachment_ids=body["attachment_ids"], expected=ExpectedVersions.from_body(body))
+        if attachment_change:
+            changed.append("attachment_ids")
     if not changed:
         _no_change()
     detail = {"changed_fields": changed, "before_start_date": task.start_date.isoformat(),
               "before_due_date": task.due_date.isoformat(), "start_date": start.isoformat(),
-              "due_date": due.isoformat()}
+              "due_date": due.isoformat(), **attachment_change}
     task.title, task.description = body["title"], body["description"]
     task.start_date, task.due_date = start, due
     return detail

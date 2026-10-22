@@ -14,6 +14,7 @@ from ...auth import authenticated_transaction, login_required
 from ...common import AppError
 from ...user_candidates import CandidateScope, list_user_candidates
 from .start_transition import TaskStartAction
+from .web_attachments import FORM_FIELDS as ATTACHMENT_FIELDS, form_selection, page_config
 
 
 START_ACTIONS = {"accept": TaskStartAction.ACCEPT, "rework-start": TaskStartAction.REWORK_START}
@@ -28,7 +29,7 @@ MANAGEMENT_ACTIONS = frozenset({"task.updated", "task.reassigned", "task.manager
 LIFECYCLE_ACTIONS = frozenset({"task.cancelled", "task.deadline_extension_requested",
     "task.deadline_extension_approved", "task.deadline_extension_rejected", "task.deadline_extension_withdrawn"})
 FORM_FIELDS = {"csrf_token", "op", "title", "description", "start_date", "due_date",
-               "assignee_id", "manager_user_ids", "q", "page"}
+               "assignee_id", "manager_user_ids", "q", "page"} | ATTACHMENT_FIELDS
 
 
 def register(state):
@@ -207,6 +208,7 @@ def new_task():
         raise AppError(400, "INVALID_INPUT", "업무 등록 동작을 확인해 주세요.")
     with authenticated_transaction(roles=("admin",)) as db:
         _authorize(db, "task.created", "new")
+        selection = form_selection()
         assignees = _candidates(db, "assignment", q=draft["q"], page=page)
         manager_choices = _candidates(db, "manager", q=draft["q"], page=page)
         assignee = None if not draft["assignee_id"] else _id(draft["assignee_id"])
@@ -215,6 +217,7 @@ def new_task():
         if op == "prepare" and request.method == "POST":
             body = {name: draft[name] for name in ("title", "description", "start_date", "due_date")}
             body.update(assignee_id=assignee, manager_user_ids=managers)
+            body.update(selection)
             try:
                 validate_creation_body(body)
                 if len(selected_assignees) != 1:
@@ -231,7 +234,9 @@ def new_task():
                 return _page(intent)
     return render_template("tasks/new.html", draft=draft, managers=managers,
         assignees=assignees, manager_choices=manager_choices, selected_assignees=selected_assignees,
-        selected_managers=selected_managers, filters=filters, page=page, error=error), (error.status if error else 200)
+        selected_managers=selected_managers, filters=filters, page=page, error=error,
+        attachment_config=page_config(attachment_ids=selection.get("attachment_ids"),
+                                     explicit="attachment_ids" in selection)), (error.status if error else 200)
 
 
 def _recover(intent, exc):

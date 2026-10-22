@@ -4,6 +4,7 @@ These checks render the actual Jinja sources with explicit display values. They
 do not stand in for browser interaction or the existing owned-MySQL web suite.
 """
 from html.parser import HTMLParser
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import urlencode
@@ -23,7 +24,7 @@ def render(name, **values):
         request_id="template-only-request"), csrf_token=lambda: "template-only-csrf",
         url_for=lambda endpoint, **query: "/" + endpoint.replace(".", "/") + (
             "?" + urlencode(query) if query else ""), filters=dict(scope="managed", status="not_started", include_cancelled="false"),
-        error=None, page=1, managers=[], selected_assignees=[], selected_managers=[],
+        error=None, page=1, managers=[], selected_assignees=[], selected_managers=[], attachment_config=None,
         assignees=dict(items=[], total=0), manager_choices=dict(items=[], total=0),
         draft=dict(title="본문 <script>bad()</script>", description="설명 & 원문", start_date="2026-10-22", due_date="2026-10-23", q="", assignee_id=""))
     defaults.update(values)
@@ -61,28 +62,64 @@ def management(action="edit"):
     ("tasks/new.html", {}, {"csrf_token", "title", "description", "start_date", "due_date", "q", "page", "assignee_id", "op"}),
     ("tasks/manage.html", management(), {"csrf_token", "draft_ticket", "title", "description", "start_date", "due_date", "op"}),
 ])
-def test_local_picker_never_becomes_a_post_field(name, values, names):
+def test_provider_absent_preserves_original_form_fields_without_file_transport(name, values, names):
     source = render(name, **values)
+    elements = Elements(source)
+    assert not elements.matching("input", type="file")
+    assert elements.names() == names
+    assert not any("task_attachments.js" in script.get("src", "") for script in elements.matching("script"))
+
+
+def attachment_config(mode="create", *, ids=None, explicit=False):
+    return dict(mode=mode, taskId=None if mode == "create" else "101", session="a" * 64,
+        ids=ids, explicit=explicit, urls=dict(start="/start", chunk="/chunks/__id__",
+            complete="/complete/__id__", discard="/discard/__id__", list=None, download=None))
+
+
+@pytest.mark.parametrize("name,values,names", [
+    ("tasks/new.html", {}, {"csrf_token", "title", "description", "start_date", "due_date", "q", "page", "assignee_id", "op"}),
+    ("tasks/manage.html", management(), {"csrf_token", "draft_ticket", "title", "description", "start_date", "due_date", "op"}),
+])
+def test_cookie_picker_exposes_only_scope_and_disabled_final_ids_as_post_fields(name, values, names):
+    config = attachment_config("edit" if "manage" in name else "create")
+    source = render(name, **values, attachment_config=config)
     elements = Elements(source)
     files = elements.matching("input", type="file")
     assert len(files) == 1
     assert "name" not in files[0]
-    assert "disabled" in files[0], "file picking remains unavailable without its local JS guard"
+    assert "disabled" in files[0], "file picking remains unavailable without its transport and session guards"
     assert "hidden" in files[0], "native empty-selection label must not contradict the retained local list"
-    choose = [attrs for attrs in elements.matching("button", type="button") if "data-file-choose" in attrs]
+    choose = [attrs for attrs in elements.matching("button", type="button") if "data-attachment-choose" in attrs]
     assert len(choose) == 1 and "disabled" in choose[0]
-    assert "name" not in choose[0] and "aria-describedby" in choose[0]
-    assert elements.names() == names
+    assert "name" not in choose[0]
+    assert elements.names() == names | {"attachment_scope", "attachment_ids"}
     assert all(form.get("enctype") != "multipart/form-data" for form in elements.matching("form"))
-    assert "attachment_ids" not in elements.names()
+    ids = elements.matching("input", name="attachment_ids", type="hidden")
+    assert len(ids) == 1 and "disabled" in ids[0] and json.loads(ids[0]["value"]) == []
+    scope = elements.matching("input", name="attachment_scope", type="hidden")
+    assert len(scope) == 1 and scope[0]["value"] == config["session"]
     assert "<script>bad()</script>" not in source
     assert "&lt;script&gt;bad()&lt;/script&gt;" in source
-    assert any("task_file_preparation.js" in script.get("src", "") and "defer" in script for script in elements.matching("script"))
+    assert any("task_attachments.js" in script.get("src", "") and "defer" in script for script in elements.matching("script"))
+
+
+@pytest.mark.parametrize("ids", [[], ["00000000-0000-0000-0000-000000000002", "00000000-0000-0000-0000-000000000001"]])
+def test_explicit_ids_round_trip_exact_order_and_empty_is_not_omission(ids):
+    source = render("tasks/_attachments.html", attachment_config=attachment_config("edit", ids=ids, explicit=True))
+    field = Elements(source).matching("input", name="attachment_ids")[0]
+    assert "disabled" not in field and json.loads(field["value"]) == ids
+
+
+def test_read_attachment_panel_has_no_file_picker_or_mutation_form_fields():
+    source = render("tasks/_attachments.html", attachment_config=attachment_config("read"))
+    elements = Elements(source)
+    assert not elements.matching("input") and not elements.names()
+    assert not any("data-attachment-upload" in item for item in elements.matching("button"))
 
 
 @pytest.mark.parametrize("action", ["reassign", "managers"])
 def test_non_edit_management_does_not_offer_attachment_preparation(action):
-    elements = Elements(render("tasks/manage.html", **management(action)))
+    elements = Elements(render("tasks/manage.html", **management(action), attachment_config=attachment_config()))
     assert not elements.matching("input", type="file")
     assert "attachment_ids" not in elements.names()
 

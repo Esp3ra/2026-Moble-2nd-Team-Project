@@ -56,6 +56,30 @@ def _list_args(scope, status, include_cancelled):
     return values
 
 
+def _results_navigation(task, scope, status, include_cancelled):
+    # Consume only the optional public member 3 provider. A managed task is
+    # opened for reading; the relationship never implies reviewer permission.
+    provider = current_app.extensions.get("results_task_web")
+    build_url = provider.get("build_url") if isinstance(provider, dict) else None
+    if not callable(build_url) or task.get("is_cancelled"):
+        return None, None
+    if scope == "own" and task["assignee_id"] != g.user.id:
+        return None, None
+    if scope == "managed" and g.user.role != "admin":
+        return None, None
+    view = "own" if scope == "own" else "read"
+    try:
+        return build_url(task["task_id"], view=view, scope=scope, status=status,
+                         include_cancelled=include_cancelled), view
+    except AppError as error:
+        # Task detail intentionally retains its own-or-managed union read.
+        # A return filter is not a scope grant. The provider rechecks the
+        # selected scope before issuing the signed, session-bound link.
+        if error.status == 403 and error.code == "FORBIDDEN":
+            return None, None
+        raise
+
+
 @bp.get("")
 @login_required
 def index():
@@ -105,12 +129,16 @@ def detail(task_id):
     if lifecycle_context is not None and "task_web.lifecycle_action" in current_app.view_functions:
         from .web_lifecycle import available_actions
         lifecycle_actions = available_actions(lifecycle_context, g.user)
+    results_url, results_view = _results_navigation(task, scope, status, include_cancelled)
+    from .web_attachments import page_config
+    attachment_config = page_config(task_id=str(task_id), mode="read") if not task.get("is_cancelled") else None
     return render_template("tasks/detail.html", task=task, status_labels=STATUS_LABELS,
                            lifecycle_context=lifecycle_context,
                            has_start="task_web.start_prepare" in current_app.view_functions,
                            management_actions=management_actions,
                            lifecycle_actions=lifecycle_actions,
-                           has_results="results_web.index" in current_app.view_functions,
+                           results_url=results_url, results_view=results_view,
+                           attachment_config=attachment_config,
                            filters=_list_args(scope, status, include_cancelled),
                            back_url=url_for("task_web.index", **_list_args(scope, status, include_cancelled)))
 

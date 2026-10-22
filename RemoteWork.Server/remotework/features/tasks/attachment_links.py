@@ -1,4 +1,4 @@
-"""Member 2 creation/cancellation consumers of the registered file provider.
+"""Member 2 task writers consuming the registered file provider.
 
 No provider/model is imported when it is disabled. Persisted task references
 must not be stranded by disabling that provider: a current locking read denies
@@ -41,6 +41,35 @@ def attach_created_task_files(db, *, task_id, attachment_ids):
                        "업무 등록 첨부를 연결할 공용 첨부 기능이 필요합니다. 담당자에게 연결 상태를 확인해 주세요.")
     replace(db, positive_bigint(str(task_id), "task_id"), attachment_ids,
             expected=ExpectedVersions(row_version=1, assignment_revision=1))
+
+
+def replace_updated_task_files(db, *, task_id, attachment_ids, expected):
+    """Compare current task references and replace once before the version changes.
+
+    Only a first mutation calls this helper. The provider owns file access and
+    reference locking; the caller owns task changes, audit, receipt and the TX.
+    The original input array is never normalized for the request fingerprint.
+    """
+    if not getattr(g, "write_transaction_active", False) or db is not get_db():
+        raise RuntimeError("Use the current authenticated_transaction for task attachment update")
+    if not isinstance(expected, ExpectedVersions):
+        raise TypeError("Use the validated original ExpectedVersions")
+    from .attachment_selection import validate_attachment_selection
+    validate_attachment_selection({"attachment_ids": attachment_ids})
+    provider = current_app.extensions.get("results_shared_attachments")
+    read = getattr(provider, "read_task_attachment_ids", None)
+    replace = getattr(provider, "replace_task_files", None)
+    if not callable(read) or not callable(replace):
+        raise AppError(503, "TASK_ATTACHMENT_REPLACEMENT_NOT_READY",
+                       "업무 첨부 변경을 연결할 공용 첨부 기능이 필요합니다. 기존 첨부를 유지하는 일반 수정은 가능합니다.")
+    task_id = positive_bigint(str(task_id) if type(task_id) is int else task_id, "task_id")
+    previous = read(db, task_id, expected=expected)
+    if set(previous) == set(attachment_ids):
+        return {}
+    replace(db, task_id, attachment_ids, expected=expected)
+    # Only IDs/counts enter the existing task.updated audit. File names, paths,
+    # content and transport metadata never become task audit fields.
+    return {"before_attachment_ids": sorted(previous), "attachment_ids": sorted(attachment_ids)}
 
 
 def release_cancelled_task_files(db, *, task_id, expected):
