@@ -1,3 +1,30 @@
+<a id="pr70-rechecked-20261022"></a>
+## PR70 수정 재검토 — 이전 P2 해결, 2026-10-22
+
+고정 head **2a505354c521c0ba23da8ed40da458ebb08affe3**, base **57a9b08c35c0c3a5b6aae6249fa97074211500d1**의11파일입니다. 기존 journal/binding·RR 수정과 추가 HTTP/확인 SQL·기동/옵션·검사·안내를 함께 검토했습니다. 현재 Draft/미병합이며 원본 alpha/실제 서버로 복사하거나 병합하지 않았습니다.
+
+**최종 검토 판정:** 이전 P2는 해결됐고 이번 범위에서 추가 병합 차단 결함은 발견하지 못했습니다. 아래 실제 검사 범위와 미확정 정책/공유 적용은 별도로 유지합니다.
+
+**이전 P2 해결:** `read_event(...,task_id=...)`는 정확한 업무 부모를 먼저 잠근 뒤 current 사건을 읽고 `read_bound_event`도 이 경로를 사용합니다. task_id 없는 기존 내부 호출은 정렬된 현재 부모 최대1000개를 잠근 뒤 current journal을 읽으며 초과는503입니다. journal→부모 순서 역전이나 오래된 consistent snapshot의 부재 추정이 없습니다. 이전 외부 재현3파일의 SHA256을 유지한 채 새 소스에 실행해 사건 조회1·binding2·키인가1을 모두 통과했습니다. binding2 중 내부 issue_key 단독1개는 원래 통과하던 대조군이며 새 해결 건수로 합산하지 않습니다.
+
+| 직접 실행 | 결과·범위 |
+|---|---|
+| 원 journal/binding |23 PASS/41.72초, 명시 소유 MySQL8.2·schema1|
+| 원2번 writer 경계 |7 PASS/18.72초, 실제 writer/W1+시험 audit adapter이며 제품hook 아님|
+| 이전 독립 재현 원문 |사건1 PASS/5.38초·binding2 PASS/6.93초·인가1 PASS/5.36초, 각 새 소유DB|
+| 새 HTTP |21 PASS/53.65초, 실제 auth/W1/원장/확인 저장·loopback TCP1건 포함. TCP건을 별도 합산하지 않음|
+| 독립 HTTP 경계 |8 PASS/17.41초, 5상태·취소·managed-only 거부·서로 다른 두 키 동시 확인|
+| 기본 OFF 기동 |12 checks PASS, route/action/reader 미등록·deadline 모듈 미import·DB 연결/DDL 시도0|
+| Release/diff |경고0·오류0, diff check 통과·검토 소스 clean|
+
+각 MySQL 실행은 **빈 소유DB에 원 fixture가 raw002/004/006/009와 해당 draft SQL만 준비**했습니다. 실제 .env·공유 DB·계정/키·운영 ACK를 사용/변경하지 않았으며 모든 소유DB/프로세스/runtime 정리를 확인했습니다. 루트 `tmp/remote_work_pr70_recheck_20261022_2a50535/`의 `rr-recheck-summary.json`, `http-review-summary.md`, `cold-off-report.json`과 각 `verification.json`을 근거로 보존했습니다. 이전 검사 수치와 합산하지 않습니다.
+
+독립8개는 제출/승인 상태409·현재취소409와 무receipt, 지정 관리자라도 현재 본인 배정이 아니면 목록[]/키·결과·confirm403, 서로 다른 두 키 동시 확인에서 확인행1·감사1·동일시각·각 W1receipt2 및 업무버전 불변을 확인했습니다. 추가 외부 검사기의 최초 모듈 검색경로 누락1수집오류·fixture 재노출 누락8setup은 외부 하네스만 교정한 뒤 통과했으며 공급 제품 실패나 성공으로 합산하지 않습니다. 근거는 같은 루트의 `http-boundary-final/retry-test_http_boundaries_independent/verification.json`입니다.
+
+**담당별 다음 경계:** 2번은 실제 생성·기한 수정·승인 연장의 원 W1 mutation에서 기록 함수를 명시 연결하고 rollback/replay를 검증해야 합니다. 4번은 새 binding/receipt·성공/불명 cache와 로그인 wrapper의 소비를 연결해야 합니다. 기존 업무 baseline·중간상태·옛 성공의 최종 정책·정식 DDL 번호/백업복원/공유 적용은 공동 협의사항입니다. 이번 코드 재검토를 그 정책의 확정이나 운영 설치 승인으로 사용하지 않습니다. 새 HTTP 기본off·3테이블 자동생성/seed 없음·지문OFF/기존 취소연장ACK 유지와 내부망 사설IP:PORT 기준을 확인했습니다. 공유 서버/두 PC·4번 C# 새 계약 소비·운영 배포는 미실행입니다.
+
+> 아래920145의 ‘수정 필요’는 이전 고정본 검토 이력입니다. 현재 수정본의 해당 P2는 위 재현으로 해결됐습니다.
+
 <a id="pr70-reviewed-20261022"></a>
 ## PR70 최신 6파일 검토 — 수정 필요, 미병합
 
