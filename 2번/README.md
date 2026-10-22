@@ -1,3 +1,9 @@
+## 최신 — PR72 병합본·2번 실제 기한 사건 연결, 2026-10-22
+
+PR70·71·72의 [실제 병합 상태](PR_검토기록.md#pr70-72-merged-owner2-connected-20261022)를 확인하고2번 생성·실제 기한 수정·연장 승인에 같은TX 사건 기록을 연결했습니다. **새 실제 MySQL32통과·기존writer7/HTTP21 재통과·Release경고0/오류0**이며, 기본OFF/결과읽기전용·실패rollback/성공replay를 확인했습니다. [변경·직접 검사·미실행](업무_구현검증.md#member2-pr72-journal-check-20261022)과 [담당별 다음 연결/협의사항](공통규약.md#member2-pr72-journal-connection-20261022)을 구분합니다. 다른 담당 제품은 수정하지 않았으며 기존8문서/앵커를 유지합니다. 아래 PR70 Draft/미병합은 과거 회차 기록입니다.
+
+alpha [7692ce4](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/7692ce41cf36e89e6f5881b61efcc7fcb05fe5e5)를 사용자 프로젝트에 동기화했고 추적728파일 일치·DOCX7파일 보존을 확인했습니다. 병행 검토 채팅의 LOG5ecdf79 기록도 보존했습니다.
+
 <a id="member2-pr707172-status-20261022"></a>
 ## PR70·71·72 병합과 2번 연결 경계 — 2026-10-22
 

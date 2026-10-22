@@ -1,3 +1,16 @@
+<a id="pr70-72-merged-owner2-connected-20261022"></a>
+## PR70·71·72 실제 병합 확인·2번 연결 — 2026-10-22
+
+| PR | 실제 병합 commit | 반영 범위 |
+|---|---|---|
+| [70](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/70) | cca5b621962a3511cab9c1ae961126197a3d4b3b | 고정2a50535의 사건/확인 저장·서버UTC/HTTP, 이전 P2 해결본 |
+| [71](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/71) |30fcb30d78fe7b26a9c57a5e394f0c4b748b8148| 현재 근무 조회/API·C# reader 제공 |
+| [72](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/72) |7135a2933ae9ae6382da28ab6dbef36acbc421ec| 근태/정오 감시·연차 화면, 종료 시 미확정 요청 보존 |
+
+GitHub 실제 merged 상태와 alpha의 연속된 merge를 대조해 위7135a29로 작업용 코드를 fast-forward했습니다. 이번에는 이미 병합된71·72를 새 전체 검토/독립 승인했다고 표시하지 않습니다. 1·5번 근무/연차를2번 업무 조건으로 추가하지 않았습니다. 아래 PR70 Draft/미병합·제품 복사 없음은 이전 재검토 당시 이력입니다.
+
+후속2번 실제 생성·기한 수정·승인연장의 journal 호출과 [직접32검사/빌드·미실행](업무_구현검증.md#member2-pr72-journal-check-20261022), [담당별 잔여](공통규약.md#member2-pr72-journal-connection-20261022)를 취합합니다. 공통/다른 담당 제품·공유 DB/운영 ACK는 수정하지 않았으며 실제4번 source·기존자료 전환/확인 정책과 공유 배포는 후속입니다.
+
 <a id="pr707172-merged-20261022"></a>
 ## PR70·71·72 최종 검토·병합 — 2026-10-22
 
