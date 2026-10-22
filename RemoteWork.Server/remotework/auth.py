@@ -51,7 +51,7 @@ def create_user(db, body):
     return user
 
 
-def authenticate(login_id, password, channel):
+def verify_credentials(login_id, password):
     # Normalize malformed credentials to a generic login failure without exposing accounts.
     if not isinstance(login_id, str) or not isinstance(password, str) or len(login_id) > 50 or len(password) > 128:
         raise AppError(401, "INVALID_CREDENTIALS", "아이디 또는 비밀번호가 올바르지 않습니다.")
@@ -75,6 +75,16 @@ def authenticate(login_id, password, channel):
         audit("auth.login_failed", "auth", "login")
         db.commit()
         raise AppError(401, "INVALID_CREDENTIALS", "아이디 또는 비밀번호가 올바르지 않습니다.")
+    return user
+
+
+def authenticate(login_id, password, channel):
+    # Block the old API/web path while the explicit identity service is enabled.
+    if current_app.config.get("ENABLE_DEVICE_IDENTITY_DRAFT"):
+        raise AppError(503, "IDENTITY_WORKFLOW_NOT_READY", "지문 본인 확인 로그인 연결이 필요합니다.")
+    user = verify_credentials(login_id, password)
+    db = get_db()
+    now = utcnow()
     token = secrets.token_urlsafe(32)
     auth_session = AuthSession(token_hash=token_digest(token), user_id=user.id, channel=channel,
                                expires_at=now + timedelta(hours=current_app.config["SESSION_HOURS"]))
@@ -87,6 +97,10 @@ def authenticate(login_id, password, channel):
 def load_identity():
     g.user = None
     g.auth_session = None
+    # Existing work sessions are not silently grandfathered into a partially
+    # connected identity deployment. Identity routes recheck their own context.
+    if current_app.config.get("ENABLE_DEVICE_IDENTITY_DRAFT"):
+        return
     if request.path.startswith("/api/"):
         authorization = request.headers.get("Authorization", "")
         token = authorization[7:] if authorization.startswith("Bearer ") else ""

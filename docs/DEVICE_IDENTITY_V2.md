@@ -1,5 +1,37 @@
 # 5번 인계: RW-ID-v2 본인인증 계약 2.0
 
+## 2026-10-22 서버 구현 후속 — 기존 아래 계약 이력보다 우선
+
+**구현됨/검토 대기:** `RemoteWork.Server/remotework/features/identity/`의 제한 로그인·challenge 발급/요청UUID 조회·현재 상태 조회·capture/result 승인·원문 complete·취소·문맥 회수 HTTP와 별도 MySQL 4테이블입니다. 기존 경로/DTO/원문 코덱을 재사용하며 Pi/C# 코드를 대신 수정하지 않습니다. 아래 10/21의 “전체 endpoint 미구현/contract-only”는 당시 기록입니다.
+
+**미구현/사용 금지 경계:** 실제 근태 저장·영수증 소비/정상 토큰 전환·암호화 토큰 재전달은 아직 연결하지 않았습니다. `finalize`는 검증된 영수증에도503 `IDENTITY_WORKFLOW_NOT_READY`입니다. `verified/workflow_state=pending`은 출근/퇴근 완료가 아닙니다. 현재5000·사용DB·운영키/장비에는 이번 코드를 적용하지 않았고 새 API 사용 가능 서버라고 안내하지 않습니다.
+
+### 설치 조건과 현재 인증
+
+기본 flag는 계속0입니다. 1만 설정하면 DB 초기화 전 거절합니다. 신뢰 서버 실행기가 `create_app`에 **제안된 Python 공급 접점** `IDENTITY_DEVICE_PROFILES`와 `IDENTITY_WORKFLOW_PROVIDER`를 명시 주입해야 합니다. 이는 새 환경변수나 HTTP 입력이 아니며 다른 담당의 구현 완료/운영 승인으로 간주하지 않습니다. 기존 등록 `ENROLLMENT_DEVICE_KEYS`도 명시 전달해야 네 identity 키와의 중복을 검사할 수 있습니다. 공개 합성키/등록키/중복키와 신뢰 실행기의 `IDENTITY_EXCLUDED_KEYS`는 거절하고 프로필을 불변 복사합니다. 파일 loader·실제 비공개 파일/ACL 검증·키 설치는 별도이며 `.env`에 키를 넣지 않습니다.
+
+provider의 제안 접점은 `current(db, actor, purpose) -> {work_date, work_session_ref}`입니다. **현재 인증 TX의 같은 SQLAlchemy db에서 실제 근태 원본을 현재 읽기**해야 하고 네트워크/센서 I/O·독립 commit을 하지 않습니다. 실제 원본을 모르면 `AppError(503, 'IDENTITY_WORKFLOW_NOT_READY', ...)`로 닫습니다. 날짜는 서버UTC+9의 KST, clock_in의 열린 근무세션은null/나머지는 실제 UUID여야 합니다. 시험의 고정 provider는 운영 연결부가 아닙니다.
+
+활성화 시 기존 비밀번호 API/웹은 정상 토큰을 발급하지 않으며 이전 일반 업무 세션도 자동 승계하지 않습니다. 정상 Bearer는 identity API 안에서만 실제 기존 AuthSession을 현재 잠금 검증해 정오/퇴근 요청 문맥에 연결합니다. IdentityPending은 별도 토큰hash/비밀번호hash 세대/300초/불투명 session_ref로 제한합니다. 이전 API·웹/UI의 실제 전환이 미완료이므로 운영 활성화하지 않습니다. 기본0에서는 기존 인증을 보존합니다.
+
+### MySQL·응답 유실·재시작
+
+`migrations/drafts/identity_v2.mysql.sql`은 **정식 번호를 예약하지 않은 검토 초안**입니다. 공통 users/admin_guard와007 원본 위에 identity_contexts/challenges/approvals/operations만 추가하며 init-db 자동 생성·전역schema1 변경·기존 테이블ALTER/자료 초기화는 없습니다. 실제 적용은 검토·비공개 전체 백업/새DB 복원·권한/같은배포 후속입니다. HTTP는 부분 컬럼/길이/nullable/PK/UNIQUE/FK/검사 제약 미준비를503으로 닫습니다. 초안 schema의 존재가 운영 보존 정책 확정은 아닙니다.
+
+- 발급UUID와 request bytes, nonce별 probe/approval bytes, 첫 result bytes/SHA·result_id/최소 receipt가 MySQL에 남습니다. 요청UUID 행은 tombstone으로 남기고 자동 삭제하지 않습니다. 원래 UUID를24시간 뒤 새 요청으로 재실행하지 않습니다.
+- 공통 AdminGuard 아래 현재 사용자/접속·장치/활성 매핑·revision/epoch·challenge·승인/결과를 재검사합니다. 같은 장치의 미만료 issued는 다른 PC/다른 문맥의 새 발급도409로 막습니다. 동일 원문 complete는 원래 결과, 다른 원문/result_id는409이며 실패6종도 종단화합니다.
+- **이번 보수적 제한:** 현재5번의 “최초 capture 승인 안 단일15초” 구현에 맞춰 capture nonce를 DB에한번 고정합니다. 같은 probe는 같은 원문/원래 기한만 돌려주고 새 capture nonce는409입니다. 아래 원계약의 capture 갱신까지 구현한 것은 아닙니다. 갱신 지원이 필요하면5번과 별도 대조하며, 새 채취/예산 연장으로 우회하지 않습니다. result scope는 별도 발급/현재 검사합니다.
+- Pi RAM 소실 뒤 기존 challenge를 새 capture로 실행하지 않습니다. 알고 있는 UUID는 같은 현재 문맥 GET→확정 상태만 표시, issued면 사용자 명시 취소 또는 서버 만료를 기다립니다. ID까지 잃으면 임의 추정 조회/새 UUID 재촬영을 하지 않고 이전 challenge의 최대60초 종료를 기다립니다. 그 뒤 새 사용자 선택으로 새 요청을 시작해도 서버의 issued 중복 차단·capture fence가 마지막 방어입니다. **health200/시간 대기만으로 runtime readiness를True로 만들라는 뜻이 아닙니다.** 장치 작업 drain과 실제 현재 문맥/서버 결과 대조는5번 runtime/1번 접속 adapter 공동 후속입니다.
+- 취소가 먼저 확정되면 늦은 matched는 성공으로 바꾸지 않습니다. 서버 프로세스 재생성 뒤에도 같은 bytes/원래 승인 기한·capture fence를 보존합니다. 재로그인 시 이전 pending과 미완료 요청을 회수합니다. 비밀번호·활성·장치/매핑 변경은 조회/complete 직전에 재검사합니다. 비협력 직접DB 수정까지 차단했다고 주장하지 않습니다.
+
+### 직접 검증과 남은 연결
+
+`tests/test_identity_service.py`는 소유 MySQL8.2 RR에서 위 raw 초안4테이블을 만들고 실제 Flask 요청·loopback TCP·합성 장치 서명으로 검사합니다. 6 outcome, 동일키/원문·다른결과, 두 스레드 중복, 취소 우선, 재생성·현재 권한/만료·DB 제약 누락·구로그인 차단을 포함합니다. 운영 키/Pi/센서·실계정·근태 저장·C#/웹 실제 로그인·두PC 검증으로 확대하지 않습니다. 구체 게시 SHA/최종 실행 수치는 기존 PR62 본문과 PR58 통합 회신에 기록합니다.
+
+**남은 담당:** 1번 실제 근태 provider/finalize·정상 토큰 안전 재전달·현재 pending/정상 접속 HTTP adapter와 LoginForm/MainForm/웹 전환,5번 게시 runtime/개인설정 loader·실제 센서 조립, 이후 공동 실제 환경 검증입니다. 5번 미게시 c6f9676은 보고 수신이며 직접 코드 검토하지 않았습니다.
+
+---
+
 작성/전달: 1번 → 5번·팀장, 2026-10-21. 상태: **실행 가능한 바이트 계약·API DTO 인계 / 서버 제품 구현·배포 전**.
 근거: [5번 기술 수용·남은 4개 접점](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309485288), [1번 앞선 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309878130).
 

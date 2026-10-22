@@ -290,9 +290,9 @@ def validate_api_input(operation, raw):
 
 def readiness():
     """Configuration-only report: no keys/config values, HTTP or DB access."""
-    return {"code": "IDENTITY_IMPLEMENTATION_REQUIRED", "contract": "RW-ID-v2",
-            "contract_available": True, "http_api_implemented": False,
-            "limited_login_implemented": False, "mysql_storage_implemented": False,
+    return {"code": "IDENTITY_WORKFLOW_NOT_READY", "contract": "RW-ID-v2",
+            "contract_available": True, "http_api_implemented": True,
+            "limited_login_implemented": True, "mysql_storage_implemented": True,
             "attendance_connected": False, "enabled": False, "ready": False}
 
 

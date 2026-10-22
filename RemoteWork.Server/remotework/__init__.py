@@ -38,8 +38,8 @@ def create_app(test_config=None):
     # A published wire contract is not an installed authentication service.
     # Reject accidental activation before any connection/model/route registration.
     if app.config["ENABLE_DEVICE_IDENTITY_DRAFT"]:
-        raise RuntimeError("IDENTITY_IMPLEMENTATION_REQUIRED: RW-ID-v2 is contract-only; "
-                           "limited login, MySQL consumption and attendance integration are not installed")
+        from .features.identity import validate_configuration
+        identity_profiles = validate_configuration(app.config)
     if app.config["ENABLE_ENROLLMENT_DURABILITY_DRAFT"] and not app.config["ENABLE_DEVICE_ENROLLMENT_DRAFT"]:
         raise RuntimeError("Enrollment MySQL durability requires explicit enrollment activation")
     if app.config["ENABLE_ENROLLMENT_RECOVERY_DRAFT"] and not app.config["ENABLE_ENROLLMENT_DURABILITY_DRAFT"]:
@@ -53,6 +53,9 @@ def create_app(test_config=None):
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=app.config["SESSION_HOURS"])
     app.config["DUMMY_HASH"] = generate_password_hash(secrets.token_urlsafe(32), method="scrypt")
     db.init_app(app)
+    if app.config["ENABLE_DEVICE_IDENTITY_DRAFT"]:
+        from .features.identity import install as install_identity
+        install_identity(app, identity_profiles)
     from .auth import load_identity
     from .api import bp as api_bp
     from .web import bp as web_bp

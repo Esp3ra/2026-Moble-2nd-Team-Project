@@ -251,7 +251,8 @@ def test_matched_response_explicitly_has_no_normal_token_or_attendance_completio
     assert "access_token" not in p and "work_session_ref" not in p
     report = wire.readiness()
     assert report["contract_available"] and not report["ready"]
-    assert not report["http_api_implemented"] and not report["mysql_storage_implemented"]
+    assert report["http_api_implemented"] and report["mysql_storage_implemented"]
+    assert not report["attendance_connected"] and not report["enabled"]
 
 
 def test_enabling_contract_without_actual_service_fails_before_database_or_routes(monkeypatch):
