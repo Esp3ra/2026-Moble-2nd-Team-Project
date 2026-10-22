@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import hashlib
+import io
 import base64
 import binascii
 import json
@@ -584,12 +585,18 @@ def _activity_item(db, task_id, event):
                     if key == "task_status": old, new = states.get(old, old), states.get(new, new)
                     changes.append(f"{label}: {old} → {new}")
             if event.action == "task.updated":
-                names = {"title": "업무명", "description": "업무 설명", "start_date": "시작일", "due_date": "마감일"}
+                names = {"title": "업무명", "description": "업무 설명", "start_date": "시작일", "due_date": "마감일",
+                         "attachment_ids": "첨부 자료"}
                 changed = details.get("changed_fields")
                 if isinstance(changed, list):
                     fields = [names[key] for key in changed if isinstance(key, str) and key in names]
                     if fields:
                         changes.append("변경 항목: " + ", ".join(fields))
+                old_files, new_files = details.get("before_attachment_ids"), details.get("attachment_ids")
+                if (isinstance(old_files, list) and isinstance(new_files, list) and
+                        all(isinstance(value, str) for value in old_files + new_files) and
+                        set(old_files) != set(new_files)):
+                    changes.append(f"첨부 자료: {len(old_files)}개 → {len(new_files)}개")
                 for key, label in (("start_date", "시작일"), ("due_date", "마감일")):
                     old, new = details.get("before_" + key), details.get(key)
                     if isinstance(old, str) and isinstance(new, str) and old != new:
@@ -815,17 +822,30 @@ def _download_root(shared):
 
 @bp.get("/attachments/<attachment_id>/download")
 @login_required
-def download(attachment_id):
+def download(attachment_id, *, reader=None):
     attachment_id = _uuid(attachment_id)
+    reader = reader or _download_file
     with authenticated_transaction() as db:
-        item, shared = _download_file(db, attachment_id)
+        item, shared = reader(db, attachment_id)
         if item.state != "ready":
             _error(404, "ATTACHMENT_NOT_FOUND", "첨부를 사용할 수 없습니다.")
-        name = item.name
+        metadata = _attachment_json(item)
     path = _download_root(shared) / attachment_id
     if not path.is_file() or path.is_symlink():
         _error(404, "ATTACHMENT_NOT_FOUND", "첨부파일을 찾을 수 없습니다.")
-    return send_file(path, as_attachment=True, download_name=name,
+    try:
+        with path.open("rb") as source:
+            content = source.read(MAX_FILE_BYTES + 1)
+    except OSError:
+        _error(404, "ATTACHMENT_NOT_FOUND", "첨부파일을 읽을 수 없습니다.")
+    if len(content) != metadata["size"] or hashlib.sha256(content).hexdigest() != metadata["sha256"]:
+        _error(409, "ATTACHMENT_CORRUPTED", "첨부파일 크기·해시를 확인해 주세요.")
+    # IO must not keep a write lock, but revocation/unlink during IO must win.
+    with authenticated_transaction() as db:
+        item, current_shared = reader(db, attachment_id)
+        if item.state != "ready" or current_shared != shared or _attachment_json(item) != metadata:
+            _error(409, "ATTACHMENT_UNAVAILABLE", "첨부 정보가 변경되었습니다.")
+    return send_file(io.BytesIO(content), as_attachment=True, download_name=metadata["name"],
                      mimetype="application/octet-stream", conditional=False, max_age=0)
 
 
@@ -997,23 +1017,36 @@ def _complete_upload(attachment_id, *, body, owner, chunks, storage):
 
 @bp.get("/attachments/<attachment_id>/chunks")
 @login_required
-def read_json_chunk(attachment_id):
+def read_json_chunk(attachment_id, *, reader=None):
     attachment_id = _uuid(attachment_id)
+    reader = reader or _download_file
+    if set(request.args) - {"offset"} or any(len(values) != 1 for _, values in request.args.lists()):
+        _error(400, "INVALID_INPUT", "다운로드 위치를 확인해 주세요.")
     raw = request.args.get("offset", "0")
-    if not raw.isascii() or not raw.isdigit() or (len(raw) > 1 and raw.startswith("0")):
+    if len(raw) > 8 or not raw.isascii() or not raw.isdigit() or (len(raw) > 1 and raw.startswith("0")):
         _error(400, "INVALID_INPUT", "다운로드 위치를 확인해 주세요.")
     offset = int(raw)
     with authenticated_transaction() as db:
-        item, shared = _download_file(db, attachment_id)
+        item, shared = reader(db, attachment_id)
         size = item.size
+        metadata = _attachment_json(item)
         if item.state != "ready" or offset > size:
             _error(400, "INVALID_INPUT", "첨부 상태·위치를 확인해 주세요.")
     path = _download_root(shared) / attachment_id
-    if path.is_symlink() or not path.is_file() or path.stat().st_size != size:
-        _error(404, "ATTACHMENT_NOT_FOUND", "첨부가 없거나 손상되었습니다.")
-    with path.open("rb") as source:
-        source.seek(offset)
-        content = source.read(min(CHUNK_BYTES, size - offset))
+    try:
+        if path.is_symlink() or not path.is_file() or path.stat().st_size != size:
+            _error(404, "ATTACHMENT_NOT_FOUND", "첨부가 없거나 손상되었습니다.")
+        with path.open("rb") as source:
+            source.seek(offset)
+            content = source.read(min(CHUNK_BYTES, size - offset))
+    except OSError:
+        _error(404, "ATTACHMENT_NOT_FOUND", "첨부파일을 읽을 수 없습니다.")
+    if len(content) != min(CHUNK_BYTES, size - offset):
+        _error(409, "ATTACHMENT_CORRUPTED", "첨부파일 조각을 확인해 주세요.")
+    with authenticated_transaction() as db:
+        item, current_shared = reader(db, attachment_id)
+        if item.state != "ready" or current_shared != shared or _attachment_json(item) != metadata:
+            _error(409, "ATTACHMENT_UNAVAILABLE", "첨부 정보가 변경되었습니다.")
     return success(dict(attachment_id=attachment_id, offset=offset,
         next_offset=offset + len(content), eof=offset + len(content) == size,
         data=base64.b64encode(content).decode("ascii")))

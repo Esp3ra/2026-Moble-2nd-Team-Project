@@ -2,6 +2,8 @@
 import hashlib
 import hmac
 import json
+from datetime import timezone
+from itsdangerous import BadData, URLSafeSerializer
 
 from flask import Blueprint, current_app, g, jsonify, redirect, render_template, request, url_for
 from sqlalchemy import select
@@ -12,6 +14,7 @@ from ..auth import authenticated_transaction, login_required
 from ..common import AppError, success
 from ..db import get_db
 from ..write_requests import issue_key, lookup_result
+from ..models import utcnow
 from . import results as service
 from .tasks.queries import list_tasks
 
@@ -19,7 +22,76 @@ bp = Blueprint("results_web", __name__, url_prefix="/results")
 
 
 def session_scope():
+    if not getattr(g, "auth_session", None) or g.auth_session.channel != "web":
+        raise AppError(401, "AUTH_REQUIRED", "현재 웹 로그인이 필요합니다.")
     return hashlib.sha256(("results-web:" + g.auth_session.token_hash).encode()).hexdigest()
+
+
+def _back_filters(scope, status, include_cancelled):
+    from .tasks.models import TASK_STATUSES
+    if scope not in ("own", "managed") or (status is not None and
+            (not isinstance(status, str) or status not in TASK_STATUSES)) or type(include_cancelled) is not bool:
+        raise AppError(400, "INVALID_INPUT", "원래 업무 조회 조건을 확인해 주세요.")
+    return dict(scope=scope, status=status, include_cancelled=include_cancelled)
+
+
+def _back_signer():
+    return URLSafeSerializer(current_app.config["SECRET_KEY"], salt="results-task-back-v1")
+
+
+def issue_task_back_context(task_id, *, scope, status=None, include_cancelled=False):
+    """Issue in the current authenticated TX; expires with this AuthSession."""
+    if not getattr(g, "write_transaction_active", False):
+        with authenticated_transaction():
+            return issue_task_back_context(task_id, scope=scope, status=status, include_cancelled=include_cancelled)
+    task_id = str(service.positive_bigint(task_id, "task_id"))
+    filters = _back_filters(scope, status, include_cancelled)
+    task, assignment, managers = service._current(get_db(), int(task_id))
+    if ((scope == "own" and assignment.assignee_id != g.user.id) or
+            (scope == "managed" and (g.user.role != "admin" or g.user.id not in managers))):
+        raise AppError(403, "FORBIDDEN", "원래 업무의 현재 조회 권한이 필요합니다.")
+    return _back_signer().dumps(dict(task_id=task_id, user_id=g.user.id, session=session_scope(),
+        expires_at=int(g.auth_session.expires_at.replace(tzinfo=timezone.utc).timestamp()), **filters))
+
+
+def validate_task_back_context(token, *, task_id):
+    if not getattr(g, "write_transaction_active", False):
+        with authenticated_transaction():
+            return validate_task_back_context(token, task_id=task_id)
+    task_id = str(service.positive_bigint(task_id, "task_id"))
+    try:
+        if not isinstance(token, str) or not 1 <= len(token) <= 4096:
+            raise ValueError()
+        data = _back_signer().loads(token)
+        if not isinstance(data, dict) or set(data) != {"task_id", "user_id", "session", "expires_at", "scope", "status", "include_cancelled"}:
+            raise ValueError()
+        if (data["task_id"] != task_id or type(data["user_id"]) is not int or data["user_id"] != g.user.id or
+                not isinstance(data["session"], str) or not hmac.compare_digest(data["session"], session_scope()) or
+                type(data["expires_at"]) is not int or
+                data["expires_at"] <= int(utcnow().replace(tzinfo=timezone.utc).timestamp()) or
+                data["expires_at"] > int(g.auth_session.expires_at.replace(tzinfo=timezone.utc).timestamp())):
+            raise ValueError()
+        return _back_filters(data["scope"], data["status"], data["include_cancelled"])
+    except (BadData, ValueError, TypeError, KeyError):
+        raise AppError(400, "INVALID_BACK_CONTEXT", "원래 업무·로그인 접속의 복귀 정보가 유효하지 않습니다.") from None
+
+
+def build_task_results_url(task_id, *, view, scope, status=None, include_cancelled=False):
+    if "task_web.detail" not in current_app.view_functions:
+        raise AppError(503, "TASK_WEB_REQUIRED", "현재 업무 웹 상세 화면 연결이 필요합니다.")
+    if view not in ("own", "read") or (scope == "managed" and view != "read"):
+        raise AppError(400, "INVALID_INPUT", "관리 업무는 읽기 전용으로 연결해 주세요.")
+    token = issue_task_back_context(task_id, scope=scope, status=status, include_cancelled=include_cancelled)
+    return url_for("results_web.index", task_id=task_id, view=view, back_context=token)
+
+
+@bp.record_once
+def register_task_web_provider(state):
+    # Consumers inspect this optional public provider, without importing models
+    # when results are OFF. It grants no task mutation or review permission.
+    state.app.extensions["results_task_web"] = dict(session_scope=session_scope,
+        build_url=build_task_results_url, issue_back_context=issue_task_back_context,
+        validate_back_context=validate_task_back_context)
 
 
 @bp.before_request
@@ -67,17 +139,49 @@ def http_error(error):
 @bp.get("")
 @login_required
 def index():
-    if (set(request.args) - {"task_id", "view"} or
+    if (set(request.args) - {"task_id", "view", "back_context"} or
             any(len(values) != 1 for _, values in request.args.lists())):
         raise AppError(400, "INVALID_INPUT", "업무 선택 정보를 확인해 주세요.")
     target = request.args.get("task_id")
     target = str(service.positive_bigint(target, "task_id")) if target is not None else ""
     view = request.args.get("view", "review" if g.user.role == "admin" else "own")
-    if view not in ("own", "review") or (view == "review" and g.user.role != "admin"):
+    if view not in ("own", "review", "read") or (view == "review" and g.user.role != "admin"):
         raise AppError(403, "FORBIDDEN", "현재 조회할 수 있는 결과물 범위를 선택해 주세요.")
-    # A navigation hint only. The data routes still enforce current ownership
-    # or reviewer rights; an arbitrary task ID never grants access.
-    return render_template("results/index.html", page_scope=session_scope(), initial_task_id=target, initial_view=view)
+    back_context = request.args.get("back_context")
+    if (view == "read" or back_context is not None) and not target:
+        raise AppError(400, "INVALID_INPUT", "읽기·복귀할 업무 번호가 필요합니다.")
+    if view == "read" or back_context is not None:
+        with authenticated_transaction() as db:
+            task, assignment, managers = service._current(db, int(target))
+            service._readable(db, task, assignment, managers)
+            if back_context is not None:
+                validate_task_back_context(back_context, task_id=target)
+    back_url = url_for("results_web.task_back", task_id=target, back_context=back_context) if back_context is not None else None
+    return render_template("results/index.html", page_scope=session_scope(), initial_task_id=target,
+                           initial_view=view, back_url=back_url)
+
+
+@bp.get("/tasks/<task_id>/back")
+@login_required
+def task_back(task_id):
+    if "task_web.detail" not in current_app.view_functions:
+        raise AppError(503, "TASK_WEB_REQUIRED", "업무 웹 상세 화면이 준비되지 않았습니다. 이미 확인한 결과물 저장 성공은 유지됩니다.")
+    if set(request.args) != {"back_context"} or len(request.args.getlist("back_context")) != 1:
+        raise AppError(400, "INVALID_BACK_CONTEXT", "원래 업무 복귀 정보를 확인해 주세요.")
+    with authenticated_transaction() as db:
+        filters = validate_task_back_context(request.args["back_context"], task_id=task_id)
+        try:
+            task, assignment, managers = service._current(db, int(task_id))
+            if assignment.assignee_id != g.user.id and not (g.user.role == "admin" and g.user.id in managers):
+                raise AppError(403, "FORBIDDEN", "현재 업무 접근 권한이 없습니다.")
+        except AppError as error:
+            if error.status not in (403, 404):
+                raise
+            raise AppError(error.status, error.code, "현재 원래 업무에 접근할 수 없습니다. 이미 확인한 결과물 저장 성공은 유지됩니다.") from None
+    values = dict(scope=filters["scope"], include_cancelled="true" if filters["include_cancelled"] else "false")
+    if filters["status"] is not None:
+        values["status"] = filters["status"]
+    return redirect(url_for("task_web.detail", task_id=int(task_id), **values))
 
 
 @bp.get("/history")
@@ -136,6 +240,72 @@ def unique_object(pairs):
 
 def invalid_constant(value):
     raise ValueError("non-standard JSON constant")
+
+
+def shared_provider():
+    provider = current_app.extensions.get("results_shared_attachments")
+    if provider is None:
+        raise AppError(503, "TASK_ATTACHMENT_PROVIDER_REQUIRED", "공용 첨부 기능의 활성화가 필요합니다.")
+    return provider
+
+
+@bp.get("/data/shared/tasks/<task_id>")
+@login_required
+def shared_task_files(task_id):
+    if request.args:
+        raise AppError(400, "INVALID_INPUT", "첨부 목록 조회 조건을 확인해 주세요.")
+    return shared_provider().task_files(task_id)
+
+
+@bp.get("/data/shared/tasks/<task_id>/files/<attachment_id>/download")
+@login_required
+def shared_download(task_id, attachment_id):
+    if request.args:
+        raise AppError(400, "INVALID_INPUT", "첨부 다운로드 조건을 확인해 주세요.")
+    return shared_provider().task_download(task_id, attachment_id)
+
+
+@bp.get("/data/shared/tasks/<task_id>/files/<attachment_id>/chunks")
+@login_required
+def shared_chunks(task_id, attachment_id):
+    return shared_provider().task_chunks(task_id, attachment_id)
+
+
+def form_body():
+    if request.files or request.args or set(request.form) != {"csrf_token", "body"} or any(len(values) != 1 for _, values in request.form.lists()):
+        raise AppError(400, "INVALID_INPUT", "화면의 입력 항목을 확인해 주세요.")
+    try:
+        body = json.loads(request.form["body"], object_pairs_hook=unique_object, parse_constant=invalid_constant)
+    except (ValueError, RecursionError):
+        raise AppError(400, "INVALID_INPUT", "중복 없는 JSON 입력을 확인해 주세요.") from None
+    if not isinstance(body, dict):
+        raise AppError(400, "INVALID_INPUT", "입력 형식을 확인해 주세요.")
+    return body
+
+
+@bp.post("/data/shared/uploads/start")
+@login_required
+def shared_start():
+    return shared_provider().start_upload(body=form_body())
+
+
+@bp.post("/data/shared/uploads/<attachment_id>/chunks")
+@login_required
+def shared_write_chunk(attachment_id):
+    return shared_provider().write_chunk(attachment_id, body=form_body())
+
+
+@bp.post("/data/shared/uploads/<attachment_id>/complete")
+@login_required
+def shared_complete(attachment_id):
+    return shared_provider().complete_upload(attachment_id, body=form_body())
+
+
+@bp.post("/data/shared/uploads/<attachment_id>/discard")
+@login_required
+def shared_discard(attachment_id):
+    service._fields(set(), form_body())
+    return shared_provider().discard_upload(attachment_id)
 
 
 def rework_support():

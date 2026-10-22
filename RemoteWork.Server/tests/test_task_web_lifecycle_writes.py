@@ -134,7 +134,7 @@ def test_lifecycle_no_ack_keeps_draft_and_issues_no_key(life, action):
     client = _client(life, action)
     before = snapshot(life)
     response = client.get(_url(life, action))
-    assert response.status_code == 200 and "기술 연결 확인 필요" in response.text
+    assert response.status_code == 200 and "현재는 실행할 수 없습니다" in response.text
     assert "disabled" in response.text
     prepared = _prepare(client, life, action, draft=_hidden(response, "draft_ticket"))
     assert prepared.status_code == 503 and "TASK_LIFECYCLE_INTEGRATION_REQUIRED" in prepared.text

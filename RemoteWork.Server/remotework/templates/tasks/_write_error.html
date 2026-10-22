@@ -1,0 +1,29 @@
+{# Task forms only. Preserve the server message and the existing recovery intent. #}
+{% if error.status == 401 %}
+{% set error_kind = 'authentication' %}{% set error_title = '로그인이 필요합니다' %}
+{% elif error.status == 403 %}
+{% set error_kind = 'permission' %}{% set error_title = '현재 권한으로 처리할 수 없습니다' %}
+{% elif error.code == 'RESULT_CHECK_REQUIRED' %}
+{% set error_kind = 'recovery' %}{% set error_title = '처리 결과를 먼저 확인해 주세요' %}
+{% elif error.code == 'IDEMPOTENCY_KEY_REUSED' %}
+{% set error_kind = 'conflict' %}{% set error_title = '기존 요청과 내용이 다릅니다' %}
+{% elif error.status == 409 %}
+{% set error_kind = 'conflict' %}{% set error_title = '현재 업무 상태를 확인해 주세요' %}
+{% elif error.status == 503 %}
+{% set error_kind = 'unavailable' %}{% set error_title = '서버 연결 확인이 필요합니다' %}
+{% elif error.status >= 500 %}
+{% set error_kind = 'server' %}{% set error_title = '서버에서 요청을 확인하지 못했습니다' %}
+{% elif error.status == 404 %}
+{% set error_kind = 'missing' %}{% set error_title = '요청한 정보를 찾을 수 없습니다' %}
+{% else %}
+{% set error_kind = 'input' %}{% set error_title = '입력을 확인해 주세요' %}
+{% endif %}
+<section class="card task-write-error" role="alert" data-error-kind="{{ error_kind }}" aria-labelledby="task-error-heading">
+<h2 id="task-error-heading">{{ error_title }}</h2>
+<p>{{ error.message }}</p>
+{% if intent is defined and intent.phase == 'recovery' %}
+{% if error.status not in (401, 403) %}<p class="task-error-next">기존 요청을 유지하고 아래의 ‘처리 결과 확인’을 이용하세요. 이 안내만으로 저장 성공이나 실패를 판단하지 않습니다.</p>
+{% else %}<p class="task-error-next">기존 요청의 저장 여부를 확인하기 전에는 새 요청을 만들지 마세요. 현재 업무 관리자에게 요청 번호와 함께 확인해 주세요.</p>{% endif %}
+{% endif %}
+<dl class="task-error-details"><dt>오류 코드</dt><dd>{{ error.code }}</dd>{% if g.request_id is defined %}<dt>요청 번호</dt><dd>{{ g.request_id }}</dd>{% endif %}</dl>
+</section>

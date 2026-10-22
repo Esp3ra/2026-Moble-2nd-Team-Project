@@ -23,7 +23,8 @@
 <section class="card" aria-labelledby="task-list-heading">
 <div class="task-list-heading"><h2 id="task-list-heading">{{ '관리 업무' if scope == 'managed' else '내 업무' }} 목록</h2><p class="muted">총 {{ items|length }}건 · 마감일 빠른 순</p></div>
 {% if items %}
-<div class="table-wrap"><table class="task-table"><thead><tr><th scope="col">업무명</th><th scope="col">담당자</th><th scope="col">상태</th><th scope="col">시작일</th><th scope="col">마감일</th></tr></thead>
+<p class="task-table-hint muted" id="task-table-hint">표가 화면보다 넓으면 좌우로 이동해 나머지 내용을 확인하세요.</p>
+<div class="table-wrap task-table-scroll" tabindex="0" role="region" aria-label="업무 목록 표" aria-describedby="task-table-hint"><table class="task-table"><thead><tr><th scope="col">업무명</th><th scope="col">담당자</th><th scope="col">상태</th><th scope="col">시작일</th><th scope="col">마감일</th></tr></thead>
 <tbody>{% for task in items %}<tr data-task-id="{{ task.task_id }}"><td class="task-title-cell"><a href="{{ url_for('task_web.detail', task_id=task.task_id, **filters) }}">{{ task.title }}</a>{% if task.get('is_cancelled') %}<span class="task-cancelled">취소됨</span>{% endif %}</td><td>{{ task.assignee_name }}</td><td><span class="task-state task-state-{{ task.task_status }}">{{ status_labels[task.task_status] }}</span></td><td><time datetime="{{ task.start_date }}">{{ task.start_date }}</time></td><td><time datetime="{{ task.due_date }}">{{ task.due_date }}</time></td></tr>{% endfor %}</tbody></table></div>
 {% else %}<p class="task-empty" role="status">조회 조건에 맞는 업무가 없습니다.</p>{% endif %}
 </section>

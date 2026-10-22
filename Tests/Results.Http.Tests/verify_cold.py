@@ -10,4 +10,6 @@ app=create_app(dict(SECRET_KEY="test-only-cold-process-"+"x"*40,DATABASE_URL="sq
 assert not any(rule.rule.startswith("/api/v1/results") for rule in app.url_map.iter_rules())
 assert not any(rule.rule.startswith("/results") for rule in app.url_map.iter_rules())
 assert not any(name.startswith("result_") for name in Base.metadata.tables)
+assert "results_task_web" not in app.extensions
+assert "remotework.features.results_web" not in sys.modules
 print("PASS cold/default-off process: no results routes or models, no DB connection or schema initialization.")

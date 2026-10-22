@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 {% block title %}{{ action_label }}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='tasks.css') }}">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='tasks.css') }}">{% if action == 'edit' %}<script src="{{ url_for('static', filename='task_file_preparation.js') }}" defer></script>{% endif %}{% endblock %}
 {% block content %}
 <div class="task-page">
 <a class="task-back" href="{{ url_for('task_web.detail', task_id=draft.target|int, **filters) }}">← 업무 상세로</a>
 <p class="eyebrow">TASK MANAGEMENT</p><h1>{{ action_label }}</h1>
 <section class="card"><h2>{{ draft.before.title }}</h2><p class="muted">이 화면을 처음 열었을 때의 업무를 기준으로 변경합니다. 후보를 검색해도 기준과 선택은 유지됩니다.</p>
 <a href="{{ source_url }}">최신 업무를 다시 불러오기 (입력한 변경 내용 초기화)</a></section>
-{% if error %}<section class="card task-write-error" role="alert"><h2>입력을 확인해 주세요</h2><p>{{ error.message }}</p><p class="muted">오류 코드: {{ error.code }}</p></section>{% endif %}
+{% if error %}{% include 'tasks/_write_error.html' %}{% endif %}
 <form class="task-create-form" method="post" action="{{ source_url }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <input type="hidden" name="draft_ticket" value="{{ draft_ticket }}">
@@ -37,6 +37,7 @@
 {% endif %}
 <p class="muted">후보 {{ choices.total }}명 · {{ page }}페이지 · 페이지당 20명</p></section>
 {% endif %}
+{% if action == 'edit' %}{% include 'tasks/_file_preparation.html' %}{% endif %}
 <section class="card"><p>변경 내용을 확인한 뒤 별도 확인 화면에서 실행합니다.</p><button type="submit" name="op" value="prepare">변경 내용 확인</button></section>
 </form>
 </div>

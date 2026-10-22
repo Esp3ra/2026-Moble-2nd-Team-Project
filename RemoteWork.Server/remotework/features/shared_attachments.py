@@ -76,10 +76,11 @@ def require_schema(db):
     current_app.extensions["shared_attachment_schema_verified"] = True
 
 
-def _guard(db):
+def _guard(db, *, schema=True):
     if not has_request_context() or not getattr(g, "write_transaction_active", False) or db is not get_db():
         raise RuntimeError("Use the caller's authenticated_transaction session; do not nest or commit here.")
-    require_schema(db)
+    if schema:
+        require_schema(db)
 
 
 def storage():
@@ -175,9 +176,8 @@ def selection(db, ids):
     return files
 
 
-def replace_task_files(db, task_id, attachment_ids, *, expected):
-    """Caller owns task versions/receipt/audit and commits this same TX."""
-    _guard(db)
+def _task_file_change(db, task_id, expected):
+    _guard(db, schema=False)
     task_id = positive_bigint(str(task_id) if type(task_id) is int else task_id, "task_id")
     task, assignment, managers = service._current(db, task_id)
     if g.user.role != "admin" or g.user.id not in managers:
@@ -186,6 +186,25 @@ def replace_task_files(db, task_id, attachment_ids, *, expected):
         raise AppError(400, "INVALID_INPUT", "현재 업무 버전·배정 정보가 필요합니다.")
     expected.check(row_version=task.row_version, assignment_revision=task.current_assignment_revision)
     ensure_not_cancelled(db, task_id)
+    require_schema(db)
+    return task_id
+
+
+def read_task_attachment_ids(db, task_id, *, expected):
+    """Current sorted IDs in the caller's authenticated TX; no commit/version write.
+
+    The caller compares sets BEFORE its one mutation/audit/version increment.
+    Keep the original request array unchanged for W1 fingerprint/recovery.
+    """
+    task_id = _task_file_change(db, task_id, expected)
+    return tuple(db.scalars(select(SharedLink.attachment_id).where(
+        SharedLink.resource_type == "task", SharedLink.resource_id == task_id)
+        .order_by(SharedLink.attachment_id).with_for_update()))
+
+
+def replace_task_files(db, task_id, attachment_ids, *, expected):
+    """Caller owns task versions/receipt/audit and commits this same TX."""
+    task_id = _task_file_change(db, task_id, expected)
     files = selection(db, attachment_ids)
     wanted = {f.id for f in files}
     current = list(db.scalars(select(SharedLink).where(SharedLink.resource_type == "task", SharedLink.resource_id == task_id)
@@ -257,10 +276,10 @@ def download_info(db, attachment_id):
 
 @bp.post("/uploads/start")
 @login_required
-def start_upload():
+def start_upload(*, body=None):
     from ..common import payload
-    body = payload()
-    if set(body) not in ({"name", "size", "sha256"}, {"name", "size", "sha256", "task_id"}):
+    body = payload() if body is None else body
+    if not isinstance(body, dict) or set(body) not in ({"name", "size", "sha256"}, {"name", "size", "sha256", "task_id"}):
         raise AppError(400, "INVALID_INPUT", "파일 정보·업무 번호를 확인해 주세요.")
     task_id = positive_bigint(body["task_id"], "task_id") if "task_id" in body else None
     name = service._valid_file_name(body["name"])
@@ -286,19 +305,20 @@ def start_upload():
 
 @bp.post("/uploads/<attachment_id>/chunks")
 @login_required
-def write_chunk(attachment_id):
-    return service._write_chunk(attachment_id, body=None, owner=upload_owner, chunks=SharedChunk, storage=storage)
+def write_chunk(attachment_id, *, body=None):
+    return service._write_chunk(attachment_id, body=body, owner=upload_owner, chunks=SharedChunk, storage=storage)
 
 
 @bp.post("/uploads/<attachment_id>/complete")
 @login_required
-def complete_upload(attachment_id):
-    return service._complete_upload(attachment_id, body=None, owner=upload_owner, chunks=SharedChunk, storage=storage)
+def complete_upload(attachment_id, *, body=None):
+    return service._complete_upload(attachment_id, body=body, owner=upload_owner, chunks=SharedChunk, storage=storage)
 
 
 @bp.delete("/uploads/<attachment_id>")
 @login_required
 def discard_upload(attachment_id):
+    attachment_id = service._uuid(attachment_id)
     with authenticated_transaction() as db:
         item = upload_owner(db, attachment_id)
         item.state = "deleting"
@@ -316,8 +336,31 @@ def task_files(task_id):
         service._readable(db, task, assignment, managers)
         ensure_not_cancelled(db, task_id)
         items = [service._attachment_json(item) for item in db.scalars(select(SharedFile).join(SharedLink)
-                 .where(SharedLink.resource_type == "task", SharedLink.resource_id == task_id).order_by(SharedFile.id))]
+                 .where(SharedLink.resource_type == "task", SharedLink.resource_id == task_id).order_by(SharedFile.id)
+                 .with_for_update().execution_options(populate_existing=True))]
     return success({"items": items})
+
+
+def _task_download_info(db, task_id, attachment_id):
+    """A surviving B/submission reference cannot grant access through task A."""
+    task_id = positive_bigint(task_id, "task_id")
+    require_schema(db)
+    task, assignment, managers = service._current(db, task_id)
+    service._readable(db, task, assignment, managers)
+    ensure_not_cancelled(db, task_id)
+    item = _file(db, attachment_id)
+    if item.state != "ready" or not any(link.resource_type == "task" and
+            link.resource_id == task_id and link.task_id == task_id for link in _links(db, item.id)):
+        raise AppError(404, "ATTACHMENT_NOT_FOUND", "해당 업무의 현재 첨부를 찾을 수 없습니다.")
+    return item, True
+
+
+def task_download(task_id, attachment_id):
+    return service.download(attachment_id, reader=lambda db, value: _task_download_info(db, task_id, value))
+
+
+def task_chunks(task_id, attachment_id):
+    return service.read_json_chunk(attachment_id, reader=lambda db, value: _task_download_info(db, task_id, value))
 
 
 @bp.get("/files/<attachment_id>/download")
