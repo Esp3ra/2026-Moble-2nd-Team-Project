@@ -1,7 +1,11 @@
+## 최신 — 4번 추가 회신 수신·2번 상태/배정 근거, 2026-10-22
+
+[기존 PR54 취합 절](공통규약.md#member2-deadline-boundary-reply-20261022)을4번14:26 회신까지 갱신했습니다. 현재facts 제공/소비완료와 실제 사건·초기자료·중간상태 협의사항을 구분하고 [이번 근거 검사](업무_구현검증.md#member2-deadline-state-evidence-check-20261022) 10건 통과와 4번 초안의 원래 키·본문 재시도 수정 항목을 기록했습니다. 기존8문서를 유지합니다.
+
 <a id="pr54-followup-and-pr69-status-20261022"></a>
 ## 최신 — PR54 1번 회신 대조·2번 경계 검사 / PR69 병합, 2026-10-22
 
-PR54의 [1번 14:06 갱신 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54#issuecomment-6305220140)을 수신했습니다. [4번](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54#issuecomment-6288083731)은11:30 회신 이후 추가 갱신이 없습니다.2번은 [기한 변경 작성부/같은TX 결합 위치](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/94a40353a1e6cf2cdff24106a07b34d1ad46b88e/docs/TASK_QUERIES.md#deadline-mutation-boundary)를 대조하고 실제 소유MySQL **17PASS**를 추가했습니다. 새 사건 저장·API·DDL은 설치하지 않았으며 [남은 1/2/4 계약](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-deadline-boundary-reply-20261022)과 [검사 범위](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md#member2-deadline-boundary-check-20261022)를 구분해 [기존 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54#issuecomment-6305519634)에 회신합니다.
+PR54의 [1번 14:06 갱신 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54#issuecomment-6305220140)을 수신했습니다. [4번](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54#issuecomment-6288083731)은 이 절 작성 당시11:30 회신 기준이었으며, 이후14:26 추가 회신은 위 최신 취합에 반영했습니다.2번은 [기한 변경 작성부/같은TX 결합 위치](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/94a40353a1e6cf2cdff24106a07b34d1ad46b88e/docs/TASK_QUERIES.md#deadline-mutation-boundary)를 대조하고 실제 소유MySQL **17PASS**를 추가했습니다. 새 사건 저장·API·DDL은 설치하지 않았으며 [남은 1/2/4 계약](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-deadline-boundary-reply-20261022)과 [검사 범위](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md#member2-deadline-boundary-check-20261022)를 구분해 [기존 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54#issuecomment-6305519634)에 회신합니다.
 
 [PR69](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/69)는 고정80af53f를 검토해 alpha **78581f21a61bd14de97a719136c2a5f067d4e1f7**에 병합했습니다. 로그인UI77·독립27·공통ApiClient144/29시나리오·연결88/pending43/연차57, 실제 서버/Pi HTTP·소유MySQL·C# **13PASS**, Release0오류/0경고입니다. [정확한 범위/병합tree/미실행](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr69-reviewed-merged-20261022)을 따릅니다. 지문OFF·공유환경/실물·정오/퇴근/연차 실제 저장은 별도입니다.
 
