@@ -1,5 +1,17 @@
 # DB 변경 기록
 
+## 015 공지·채팅 첨부 참조 — 2026-10-22
+
+1번은 병합된 PR76 a6dc89c의 세 테이블 선언을 구조 변경 없이 [015_notice_chat_attachments.mysql.sql](015_notice_chat_attachments.mysql.sql)로 예약한다. 1번 명시 적용은015를 사용하고 PR76의 `docs/sql/notice_chat_attachments.mysql.sql`은 원 검토안으로 보존한다. 두 경로를 중복 적용하지 않는다. 기존003/005/013·014 마감 예약·schema1을 바꾸지 않으며 번호화는 공유 설치/정책 승인 완료가 아니다. 이미 제공·병합된 기능을3번에게 재구현하거나 별도 회신하라고 요청하지 않는다.
+
+`remotework.resource_attachment_schema.require_resource_attachment_schema(db, optional=False)`를 제공한다. 현재 같은 MySQL Session의 실제 연결에서 세 테이블의 정확한 열/타입/길이/null/default/signed·PK·InnoDB/collation·현재 DB의 부모 FK와 양방향 RESTRICT/NO ACTION·지원 인덱스·강제 CHECK 식을 확인한다. 세 테이블이 모두 없고 optional=True일 때만 False, 부분/잘못된 구조는503 RESOURCE_ATTACHMENT_SCHEMA_REQUIRED다. 성공 전역 cache·DDL/commit/rollback·권한 허용·모델/HTTP 등록은 없다. 1번이 배포 전 준비 검사로 직접 사용하며3번의 runtime 함수·hot-path 캐시를 변경하거나 연결 작업을 요청하지 않는다.
+
+CHECK 비교는 SQL 토큰 경계와 AND/OR 괄호를 유지하며 문자열 리터럴의 원문 bytes를 보존한다. MySQL의 식별자 backtick·키워드 표기·문자열 밖 `_utf8mb4` 도입자는 처리하지만, `HEX('NOTICE')`·`HEX('not ice')`처럼 실제 제약이 다른 리터럴은 정상015와 같게 취급하지 않는다. [원본 결함 대조·회귀 실행](../../Tests/ResourceAttachmentSchema.Tests/README.md)을 확인한다.
+
+적용 전 부모003/005/013의 실제 타입·현재 FK/문자셋과 동일 DB를 확인하고, 기존 DB 전체·외부 파일 저장소를 비공개 백업해 독립 복원한다. 실제 공지·채팅 현재 권한 콜백/동일TX 소비·원 요청 복구/삭제·보존 경계까지3·4번과 검증한 뒤, 새 세 테이블의 완전 부재를 확인해 raw015를 한 번 명시 적용한다. 일부만 존재하면 자동 CREATE 재시도/ALTER/삭제하지 않고 원인을 대조한다. 서비스 시작/init-db에 자동 적용하지 않는다.
+
+문제 발생 시 해당 자원의 새 첨부 소비를 중지하고 기존 참조·업로드·파일·감사를 보존한다. 일반 task/submission 기능을 대체하거나 역할/admin만으로 우회하지 않는다. 새 참조가 생긴 뒤 테이블 DROP·덤프 덮어쓰기나 채팅 숨김→파일 삭제로 복구하지 않는다. 공지 물리 삭제의 해제/보존과 영속 요청UUID/W1·파일 원문 대조는1·3·4번 공동 후속이다. 실제 사용자 DB·서비스/설정·계정·지문·운영ACK는 이번 번호화/검사 제공으로 변경하지 않는다.
+
 ## 014 마감 사건·배정별 확인 — 2026-10-22
 
 [014_deadline_alerts.mysql.sql](014_deadline_alerts.mysql.sql)은 PR70의 두 draft SQL을 구조 변경 없이 합친 명시 적용 파일이다. 기존 draft와 중복 실행하지 않는다. 기존 schema1·업무/회원/배정·확인 보존형 FK와 `(event_id,user_id,assignment_revision)` 키를 유지한다. 앱 시작/전체 init-db로 적용하지 않는다.
