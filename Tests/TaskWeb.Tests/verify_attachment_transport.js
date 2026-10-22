@@ -97,14 +97,14 @@ function server() {
   };
   return state;
 }
-function harness({mode = "create", explicit = false, ids = null, service = server(), configPatch = {}} = {}) {
+function harness({mode = "create", explicit = false, ids = null, display = [], service = server(), configPatch = {}} = {}) {
   const panel = new Element("section"), form = new Element("form"), window = new Element("window");
   const logout = new Element("form"), nodes = {}, created = [], blobs = [], confirmations = [];
-  const config = {mode, explicit, ids, taskId: mode === "create" ? null : "1", session,
+  const config = {mode, explicit, ids, display, taskId: mode === "create" ? null : "1", session,
     urls: {start: "/results/data/shared/uploads/start", chunk: "/results/data/shared/uploads/__id__/chunks",
       complete: "/results/data/shared/uploads/__id__/complete", discard: "/results/data/shared/uploads/__id__/discard",
       list: "/results/data/shared/tasks/1", download: "/results/data/shared/tasks/1/files/__id__/chunks"}, ...configPatch};
-  for (const name of ["feedback", "list", "count", "refresh", "input", "choose", "upload", "ids"]) nodes[name] = new Element();
+  for (const name of ["feedback", "list", "count", "refresh", "input", "choose", "upload", "ids", "display"]) nodes[name] = new Element();
   nodes.choose.disabled = nodes.upload.disabled = nodes.input.disabled = nodes.refresh.disabled = true;
   const csrf = new Element("input"); csrf.value = "fixture-csrf";
   panel.dataset.config = JSON.stringify(config);
@@ -328,6 +328,113 @@ async function scenario(name, fn) { await fn(); scenarios++; console.log("PASS "
     await Promise.all(event.promises); await settle();
     check(h.blobs.length === 0 && h.rowCount() === 0, "late download response creates no object URL and revives no rows");
     check(h.nodes.feedback.textContent.includes("이전 화면"), "late completion cannot overwrite retirement guidance");
+  });
+  await scenario("completed upload display and explicit deletion survive create and edit form redisplay", async () => {
+    for (const mode of ["create", "edit"]) {
+      const service = server(), original = harness({mode, service}); await settle();
+      const filename = '<img src=x onerror="fail"> 원래 파일.txt';
+      original.choose([original.file(filename, Buffer.from("first")), original.file("두 번째.txt", Buffer.from("second"))]);
+      await original.click(original.nodes.upload);
+      check(!original.nodes.display.disabled && original.nodes.display.value.length > 0, "completed display hint accompanies explicit final IDs: " + mode);
+      const display = JSON.parse(original.nodes.display.value), ids = JSON.parse(original.nodes.ids.value);
+      check(display.mode === mode && display.task_id === (mode === "create" ? null : "1"), "display hint retains only its current mode/target: " + mode);
+      check(JSON.stringify(display.items.map(x => x.attachment_id)) === JSON.stringify(ids)
+        && display.items.every(x => x.temporary === true), "original selected order and confirmed-upload hints survive: " + mode);
+      check(display.items.every(x => Object.keys(x).sort().join(",") === "attachment_id,name,sha256,size,temporary"), "display serialization contains no bytes, cookie or request body: " + mode);
+      check(!original.form.emit("submit").defaultPrevented && !original.nodes.display.disabled, "candidate search/validation can post display hints without another upload: " + mode);
+      const calls = service.calls.length, restored = harness({mode, service, explicit: true, ids, display: display.items}); await settle();
+      check(restored.nodes.list.textContent.includes(filename) && restored.nodes.list.textContent.includes("두 번째.txt"), "original filenames render as text after redisplay: " + mode);
+      check(restored.nodes.list.textContent.includes("이전 업로드 정보 · 저장·삭제 시 재검사")
+        && !restored.nodes.list.textContent.includes("전송 완료"), "old display hint never claims current upload/link status: " + mode);
+      check(!!restored.rowButton(0, "임시 파일 삭제") && !!restored.rowButton(1, "임시 파일 삭제"), "explicit temporary-delete actions restored: " + mode);
+      check(JSON.stringify(JSON.parse(restored.nodes.ids.value)) === JSON.stringify(ids)
+        && service.calls.slice(calls).every(call => call.options.method === "GET"), "redisplay preserves exact IDs and performs no complete/upload/task mutation: " + mode);
+      restored.setConfirm(false); await restored.click(restored.rowButton(0, "임시 파일 삭제"));
+      check(service.calls.length === calls + (mode === "edit" ? 1 : 0), "cancelled restored deletion sends nothing: " + mode);
+      restored.setConfirm(true); await restored.click(restored.rowButton(0, "임시 파일 삭제"));
+      check(service.calls.at(-1).url.pathname.endsWith("/" + id1 + "/discard")
+        && JSON.stringify(service.calls.at(-1).body) === "{}", "restored delete uses original ID and existing explicit discard only: " + mode);
+      check(restored.rowCount() === 1 && restored.nodes.ids.value === JSON.stringify([id2])
+        && JSON.parse(restored.nodes.display.value).items[0].attachment_id === id2, "confirmed delete removes only its ID and display hint: " + mode);
+    }
+  });
+  await scenario("current task linkage supersedes restored temporary hints without later revival", async () => {
+    const service = server(), old = {...meta(id1, "이전 파일명.txt", Buffer.from("old")), temporary: true};
+    const current = meta(id1, "현재 업무 파일명.txt", Buffer.from("current")); service.listed = [current];
+    const h = harness({mode: "edit", explicit: true, ids: [id1], display: [old], service}); await settle();
+    check(h.nodes.list.textContent.includes(current.name) && !h.nodes.list.textContent.includes(old.name), "current task metadata replaces old filename and size");
+    check(!!h.rowButton(0, "다운로드") && !h.rowButton(0, "임시 파일 삭제")
+      && h.nodes.list.textContent.includes("현재 업무 첨부"), "currently linked file never offers temporary deletion");
+    check(JSON.parse(h.nodes.display.value).items[0].temporary === false, "current linkage clears old temporary hint in the next redisplay");
+    service.listed = []; await h.click(h.nodes.refresh);
+    check(!h.rowButton(0, "다운로드") && !h.rowButton(0, "임시 파일 삭제")
+      && !!h.rowButton(0, "업무에서 제외"), "later missing linkage cannot revive past upload deletion eligibility");
+    check(JSON.parse(h.nodes.display.value).items[0].temporary === false
+      && service.calls.every(call => call.options.method === "GET"), "current reads change display only and never mutate attachments");
+  });
+  await scenario("malformed or unrelated display hints never add IDs or grant temporary deletion", async () => {
+    const info = {...meta(id1, "보존할 표시명.txt", Buffer.from("old")), temporary: true};
+    const malformed = [{}, [null], [{...info, temporary: "true"}], [{...info, size: -1}],
+      [{...info, sha256: "bad"}], [info, info], [{...info, attachment_id: id2}],
+      [info, {...info, attachment_id: id2, size: "1"}], [{...info, injected: true}]];
+    for (const display of malformed) {
+      const h = harness({explicit: true, ids: [id1], display}); await settle();
+      check(h.nodes.ids.value === JSON.stringify([id1]) && h.rowCount() === 1
+        && h.nodes.list.textContent.includes(id1), "bad display does not replace or extend selected IDs");
+      check(!h.rowButton(0, "임시 파일 삭제") && JSON.parse(h.nodes.display.value).items.length === 0
+        && h.service.calls.length === 0, "bad/unrelated metadata is ignored without deletion privilege or requests");
+    }
+    const old = harness({explicit: true, ids: [id1]}); await settle();
+    check(!old.rowButton(0, "임시 파일 삭제") && JSON.parse(old.nodes.display.value).items.length === 0, "legacy selected ID has no invented filename or deletion eligibility");
+    const known = harness({explicit: true, ids: [id1], display: [{...info, temporary: false}]}); await settle();
+    check(known.nodes.list.textContent.includes(info.name) && !known.rowButton(0, "임시 파일 삭제"), "known previous filename alone grants no temporary deletion");
+    await known.click(known.rowButton(0, "업무에서 제외"));
+    check(known.rowCount() === 0 && known.service.calls.length === 0, "excluding a known selected ID remains local only");
+  });
+  await scenario("restored deletion still obeys live server rejection and original uncertainty rules", async () => {
+    const info = {...meta(id1, "과거 표시 파일.txt", Buffer.from("data")), temporary: true};
+    for (const failure of [{status: 401}, {status: 403}, {scope: "b".repeat(64)},
+                           {status: 409, code: "RESULTS_SESSION_CHANGED"}]) {
+      const h = harness({explicit: true, ids: [id1], display: [info]}); await settle();
+      h.service.interceptor = async () => response(null, failure);
+      await h.click(h.rowButton(0, "임시 파일 삭제"));
+      check(h.rowCount() === 0 && h.nodes.ids.disabled && h.nodes.display.disabled
+        && h.nodes.display.value === "", "current authority/session rejection clears restored display and IDs");
+      check(h.service.calls.length === 1 && h.form.emit("submit").defaultPrevented, "restored hints never bypass server rejection");
+    }
+    const rejected = harness({explicit: true, ids: [id1], display: [info]}); await settle();
+    rejected.service.interceptor = async () => response(null, {status: 409, code: "ATTACHMENT_IN_USE"});
+    await rejected.click(rejected.rowButton(0, "임시 파일 삭제"));
+    check(rejected.rowCount() === 1 && rejected.nodes.list.textContent.includes("삭제 결과 확인 필요")
+      && rejected.form.emit("submit").defaultPrevented, "a now-linked rejection never claims successful deletion or permits saving");
+    check(rejected.service.calls.length === 1 && !!rejected.rowButton(0, "선택에서만 제외"), "rejected restored deletion offers only explicit retry/local recovery");
+    const uncertain = harness({explicit: true, ids: [id1], display: [info]}); await settle();
+    uncertain.service.interceptor = async () => { throw new Error("Lost restored discard response"); };
+    await uncertain.click(uncertain.rowButton(0, "임시 파일 삭제"));
+    const before = uncertain.service.calls.length; await settle();
+    check(uncertain.service.calls.length === before && uncertain.nodes.list.textContent.includes("삭제 결과 확인 필요"), "lost restored discard is not retried automatically");
+    uncertain.service.interceptor = async () => response(null, {status: 404, code: "ATTACHMENT_NOT_FOUND"});
+    await uncertain.click(uncertain.rowButton(0, "임시 삭제 다시 확인"));
+    check(uncertain.nodes.list.textContent.includes("삭제 결과 확인 필요")
+      && uncertain.service.calls.every(call => call.url.pathname.endsWith("/" + id1 + "/discard")), "404 cannot confirm deletion or replace the original upload");
+  });
+  await scenario("retiring restored display prevents late deletion or list replies from reviving it", async () => {
+    const info = {...meta(id1, "기밀 이전 파일.txt", Buffer.from("private")), temporary: true};
+    for (const event of ["pagehide", "logout"]) {
+      const h = harness({explicit: true, ids: [id1], display: [info]}); await settle();
+      const pending = deferred(); h.service.interceptor = () => pending.promise;
+      const deletion = h.rowButton(0, "임시 파일 삭제").click(); await settle();
+      if (event === "logout") h.logout.emit("submit"); else h.window.emit("pagehide");
+      pending.resolve(response({attachment_id: id1})); await Promise.all(deletion.promises); await settle();
+      check(h.rowCount() === 0 && h.nodes.display.value === "" && h.nodes.display.disabled
+        && h.nodes.ids.value === "[]" && h.nodes.ids.disabled, "retirement clears original display hints: " + event);
+      check(h.service.calls.length === 1 && !h.nodes.feedback.textContent.includes("삭제를 확인"), "late discard response cannot claim success or restore display: " + event);
+    }
+    const service = server(), pending = deferred(); service.interceptor = () => pending.promise;
+    const edit = harness({mode: "edit", explicit: true, ids: [id1], display: [info], service}); await settle();
+    edit.window.emit("pagehide"); pending.resolve(response({items: [info]})); await settle();
+    check(edit.rowCount() === 0 && edit.nodes.display.value === "" && edit.nodes.display.disabled
+      && service.calls.length === 1, "late current-task list cannot revive retired filename or temporary action");
   });
   console.log("PASS TaskWeb attachment transport: " + checks + " checks in " + scenarios + " scenarios; actual JS with explicit DOM/HTTP doubles.");
 })().catch(error => { console.error(error.stack); process.exitCode = 1; });

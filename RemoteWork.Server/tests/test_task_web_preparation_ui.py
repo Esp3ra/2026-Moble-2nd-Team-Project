@@ -72,7 +72,7 @@ def test_provider_absent_preserves_original_form_fields_without_file_transport(n
 
 def attachment_config(mode="create", *, ids=None, explicit=False):
     return dict(mode=mode, taskId=None if mode == "create" else "101", session="a" * 64,
-        ids=ids, explicit=explicit, urls=dict(start="/start", chunk="/chunks/__id__",
+        ids=ids, explicit=explicit, display=[], urls=dict(start="/start", chunk="/chunks/__id__",
             complete="/complete/__id__", discard="/discard/__id__", list=None, download=None))
 
 
@@ -80,7 +80,7 @@ def attachment_config(mode="create", *, ids=None, explicit=False):
     ("tasks/new.html", {}, {"csrf_token", "title", "description", "start_date", "due_date", "q", "page", "assignee_id", "op"}),
     ("tasks/manage.html", management(), {"csrf_token", "draft_ticket", "title", "description", "start_date", "due_date", "op"}),
 ])
-def test_cookie_picker_exposes_only_scope_and_disabled_final_ids_as_post_fields(name, values, names):
+def test_cookie_picker_exposes_scope_disabled_final_ids_and_display_only_hint(name, values, names):
     config = attachment_config("edit" if "manage" in name else "create")
     source = render(name, **values, attachment_config=config)
     elements = Elements(source)
@@ -92,12 +92,15 @@ def test_cookie_picker_exposes_only_scope_and_disabled_final_ids_as_post_fields(
     choose = [attrs for attrs in elements.matching("button", type="button") if "data-attachment-choose" in attrs]
     assert len(choose) == 1 and "disabled" in choose[0]
     assert "name" not in choose[0]
-    assert elements.names() == names | {"attachment_scope", "attachment_ids"}
+    assert elements.names() == names | {"attachment_scope", "attachment_ids", "attachment_display"}
     assert all(form.get("enctype") != "multipart/form-data" for form in elements.matching("form"))
     ids = elements.matching("input", name="attachment_ids", type="hidden")
     assert len(ids) == 1 and "disabled" in ids[0] and json.loads(ids[0]["value"]) == []
     scope = elements.matching("input", name="attachment_scope", type="hidden")
     assert len(scope) == 1 and scope[0]["value"] == config["session"]
+    display = elements.matching("input", name="attachment_display", type="hidden")
+    assert len(display) == 1
+    assert json.loads(display[0]["value"]) == {"mode": config["mode"], "task_id": config["taskId"], "items": []}
     assert "<script>bad()</script>" not in source
     assert "&lt;script&gt;bad()&lt;/script&gt;" in source
     assert any("task_attachments.js" in script.get("src", "") and "defer" in script for script in elements.matching("script"))
@@ -108,6 +111,23 @@ def test_explicit_ids_round_trip_exact_order_and_empty_is_not_omission(ids):
     source = render("tasks/_attachments.html", attachment_config=attachment_config("edit", ids=ids, explicit=True))
     field = Elements(source).matching("input", name="attachment_ids")[0]
     assert "disabled" not in field and json.loads(field["value"]) == ids
+
+
+@pytest.mark.parametrize("mode,target", [("create", None), ("edit", "101")])
+def test_restored_display_hint_is_escaped_and_bound_to_the_original_page(mode, target):
+    attachment_id = "00000000-0000-0000-0000-000000000001"
+    item = dict(attachment_id=attachment_id, name="<svg onload=alert(1)> & 원본.txt",
+                size=23, sha256="b" * 64, temporary=True)
+    config = attachment_config(mode, ids=[attachment_id], explicit=True)
+    config["display"] = [item]
+    source = render("tasks/_attachments.html", attachment_config=config)
+    elements = Elements(source)
+    value = elements.matching("input", name="attachment_display", type="hidden")
+    assert len(value) == 1
+    assert json.loads(value[0]["value"]) == {"mode": mode, "task_id": target, "items": [item]}
+    assert "<svg onload=" not in source
+    assert not elements.matching("svg"), "a file name must not become active page markup"
+    assert json.loads(elements.matching("input", name="attachment_ids")[0]["value"]) == [attachment_id]
 
 
 def test_read_attachment_panel_has_no_file_picker_or_mutation_form_fields():

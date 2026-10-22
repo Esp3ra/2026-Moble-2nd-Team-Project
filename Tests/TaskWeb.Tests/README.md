@@ -1,3 +1,18 @@
+<a id="task-web-attachment-redisplay-checks"></a>
+## 첨부 표시 정보 재표시 — 2026-10-22
+
+등록·일반수정의 업로드→후보 검색/입력 오류→같은 선택 목록 표시에서 파일명·임시 삭제 버튼을 보존합니다. 실제 제품 JS와 기존 DOM/HTTP 대역의 새 회귀는 수정 전 실패를 확인했고, 최종 **138 checks / 16 scenarios**를 통과했습니다. 현재 연결 파일의 삭제 버튼 억제·이후 자격 미복원, 명시 삭제 취소/성공/403·409·404/응답 유실, 늦은 응답·접속 폐기, 메타정보 XSS·다른 ID·중복/잘못된 힌트·자동 POST 없음이 포함됩니다.
+
+```powershell
+node Tests/TaskWeb.Tests/verify_attachment_transport.js
+# RemoteWork.Server 작업 디렉터리에서 실행
+python -X utf8 -B -m pytest -q tests/test_task_web_attachment_display.py tests/test_task_web_preparation_ui.py
+```
+
+표시 정보 parser는 실제 Flask request context **41개**, 화면 필드는 실제 Jinja 템플릿 **28개**, 총 **69개 통과**입니다. 형식·범위·잘못된 모드/업무/접속·중복·깊은 JSON의400 처리와 메타정보/본문 분리를 검사합니다. 실제 공유 서버·브라우저 조작·두 PC와 구분하며, 별도 소유 MySQL/공개 cookie 첨부 경로의 최종 실행 수치는 최신 LOG 검증 기록에 취합합니다. 기존 본문/W1에는 선택 ID만 전달되고 표시 정보는 저장하지 않습니다. 아래 26개·이전 T3 수치는 당시 검사이며 합산하지 않습니다.
+
+기존 `--suite t3-consumers`를 별도 소유 MySQL8.2/raw002·004·006·009·013에서 실행해 **225 passed /627.21초, 실패·오류·skip0**입니다. 첨부 웹34개(기존23+추가11)와 기존 등록·일반수정·결과물 진입/복귀 회귀를 포함합니다. 검색·입력 오류의 동일 표시 복원·W1 본문/summary 미포함·scope/업무 불일치·중복 필드 차단, 실제 공개 discard의 타인/연결 파일 거부를 확인했습니다. Flask test client→원 공개 cookie 제공부→실제 MySQL/파일 저장소 검사이며 loopback TCP/브라우저 수동·공유 배포 증거가 아닙니다. 물리DDL 불변·schema1·소유 DB/프로세스/runtime 정리를 확인했습니다. 보고서는 소스 밖 `ES/tmp/remote_work_member2_web_metadata_20261022_mysql/verification.json`입니다. 위69/138 및 과거214를 이225에 합산하지 않습니다.
+
 <a id="task-web-success-identity-checks"></a>
 ## 저장 성공의 업무 식별 표시 — 2026-10-22
 

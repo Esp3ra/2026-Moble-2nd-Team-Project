@@ -3,8 +3,10 @@
 {% if attachment_config.mode != 'read' %}
 <p class="task-file-notice">파일 선택 후 ‘업로드’를 누르세요. 전송 완료된 파일은 업무 내용 확인·실행을 마쳐야 업무에 저장됩니다.</p>
 <p class="muted">최대 10개 · 파일당 25 MiB. 기존 파일의 ‘업무에서 제외’는 변경 실행 시 적용됩니다. 페이지를 떠나도 임시 파일을 자동 삭제하지 않습니다.</p>
+<p class="muted">다시 표시된 파일 정보는 이전 전송 때의 기록입니다. 저장·삭제할 때 현재 권한과 연결 상태를 다시 검사합니다.</p>
 <input type="hidden" name="attachment_scope" value="{{ attachment_config.session }}">
 <input type="hidden" name="attachment_ids" data-attachment-ids value='{{ (attachment_config.ids or [])|tojson }}' {% if not attachment_config.explicit %}disabled{% endif %}>
+<input type="hidden" name="attachment_display" data-attachment-display value='{{ {"mode": attachment_config.mode, "task_id": attachment_config.taskId, "items": attachment_config.display|default([])}|tojson }}' {% if not attachment_config.explicit %}disabled{% endif %}>
 <input type="file" multiple hidden disabled data-attachment-input>
 <div class="task-file-toolbar"><button type="button" disabled data-attachment-choose>파일 선택</button><button type="button" class="secondary" disabled data-attachment-upload>선택 파일 업로드·이어서 확인</button></div>
 <noscript><p>파일 전송에는 JavaScript가 필요합니다. 기존 첨부를 유지한 업무 입력은 가능합니다.</p></noscript>
