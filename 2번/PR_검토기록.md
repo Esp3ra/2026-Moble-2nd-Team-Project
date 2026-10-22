@@ -1,3 +1,18 @@
+<a id="pr70-reviewed-20261022"></a>
+## PR70 최신 6파일 검토 — 수정 필요, 미병합
+
+고정 head **920145ccc631b0308779b153d19bfe8095fb4b43**, base **a37a3c41bc835e8bfae393a99245b643793de3b4**입니다. 실제 사건 journal·원 배정 binding·번호 없는 SQL·두 검사 모듈·공통 안내6파일을 읽고 독립 소유 MySQL에서 검증했습니다. Draft/mergeable 상태와 기능 검증 결과를 구분합니다.
+
+**[P2] 인증의 오래된 RR snapshot으로 현재 보관 사건을 없다고 판정합니다.** [`deadline_events.py:133`](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/920145ccc631b0308779b153d19bfe8095fb4b43/RemoteWork.Server/remotework/deadline_events.py#L133)의 journal→task 사전 탐색이 일반 SELECT입니다. `load_identity()`가 만든 MySQL REPEATABLE READ snapshot 뒤 다른 guarded TX가 실제 기한 사건을 commit하면, 원 요청의 guard 획득 후 `read_current()`는 새 사건을 읽지만 `read_event(같은 UUID)`는 None을 반환합니다. 소스 무변경 실제 회귀에서 `None != DeadlineChange(...)`로 **1 FAIL /5.61초**를 재현했습니다. 권한 우회·저장 손상을 재현한 것은 아닙니다.
+
+**1번 수정 요청:** 과거 consistent snapshot을 사용하지 않고 현재 부모/사건을 판별하도록 수정해 주세요. 기존 guard→업무 부모→사건 잠금 순서를 유지해야 하므로 journal SELECT에 무조건 `FOR UPDATE`만 붙여 순서를 뒤집는 방식은 별도 대조가 필요합니다. 실제 오래된 인증 snapshot→다른 TX commit→현재 사건/보관 사건·원 배정/W1 인가의 동일성 회귀를 포함해 주세요. 2번은 다른 담당 파일을 대신 수정하지 않으며 수정/재검토 전 runtime 연결·병합하지 않습니다.
+
+같은 조건의 추가 공개 경로도 확인했습니다. `current_binding`은 새 UUID를 반환하지만 `read_bound_event`는404 `DEADLINE_EVENT_NOT_FOUND`를 반환하고, 실제 키 발급 route와 같은 `_authorize(db,target,_authorizer(action)) → issue_key` 경로도 인가 단계에서404로 실패합니다(독립1FAIL/6.78초). 내부 `issue_key`만 호출한1PASS는 원래 인가를 수행하지 않는 helper 대조이며 route 성공으로 쓰지 않습니다. 같은 원인의 파생 재현을 서로 다른 결함 세 건으로 세지 않습니다. 추가 근거는 `retry-test_deadline_binding_authorizer_rr_regression/verification.json`에 있습니다.
+
+원 공급 `test_deadline_events.py` **22 PASS/45.29초**, `test_deadline_event_writers.py` **7 PASS/20.92초**입니다. 후자는 원2번 writer와 시험 audit adapter의 결합이며 제품 hook 완료가 아닙니다. 최초 리뷰 실행은 runner가 rawDDL을 미리 만들고 원 fixture가 다시 만들면서22개 중4PASS/18setup error·writer7setup error가 났습니다. 빈 소유DB에서 원 fixture가 직접 준비하도록 runner만 교정했고 원 제품/검사는 수정하지 않았습니다. 이 setup 실패와 실제 RR 회귀 실패를 구분합니다.
+
+격리 소스/재현/보고서는 `tmp/remote_work_pr70_audit_20261022_920145/`의 고정 source와 `retry-test_deadline_events/`, `retry-test_deadline_event_writers/`, `retry-test_deadline_event_rr_regression/`에 있습니다. 모두 MySQL8.2·raw002/004/006/009와 번호 없는 journal 초안, schema1·소유 DB/프로세스/runtime 정리를 확인했습니다. SQLite·공유 서버/DB/.env·운영 ACK/설치·두 PC는 사용/변경/검증하지 않았습니다. 새 binding/wire/확인 SQL·baseline 정책은 여전히 공동 검토 제안입니다.
+
 <a id="pr69-reviewed-merged-20261022"></a>
 ## PR69 검토 — 지문 출근·로그인 연결/연차 화면, 병합 완료
 
