@@ -1,6 +1,6 @@
 # 5번 지문 본인 확인 연결부
 
-작성: 5번 / 전달 대상: 1번 로그인·출퇴근 연결 담당. 2026-10-22, 통합 기준 alpha `5dcd66e`.
+작성: 5번 / 전달 대상: 1번 로그인·출퇴근 연결 담당. 2026-10-22. 최초 기준 `5dcd66e`, 최신 원본 `dc525d0`을 결합한 구현 `3ec9d5a`에서 검증했다.
 
 ## 범위와 연결 경계
 
@@ -58,3 +58,5 @@ dotnet run --project Tests/IdentityLogin.Ui.Tests -c Release
 새 연결/view 검사는 실제 C# 캡처 접속·relay·WinForms 메시지 루프를 사용하되 서버는 합성 HttpMessageHandler, 센서는 대역이다. 요청·probe·승인·결과 원문, 응답 유실 복구, 단일 스캔, 중복 클릭, 취소 재시도/경합, 세션 교체/Dispose, 잘못된 영수증, 타임아웃/끊김과 창 닫기를 확인한다. 실제 원격 서버·MySQL·물리 센서나 로그인 성공을 확인한 것으로 간주하지 않는다. 기존 Pi loopback TCP 검사는 `Tests/FingerprintIdentity.Http.Tests/README.md`를 따른다.
 
 별도 실제 서버/MySQL와 C# 폼 연결은 `Tests/IdentityLogin.Ui.Tests/README.md`를 따른다. 그 검사는 공개 합성 계정/독립 키·가짜 UART를 사용하며 사용자의 실제 회원/센서/서버를 변경하지 않는다.
+
+최신 결합 검증: `dotnet run --project Tests/IdentityLogin.Ui.Tests -c Release` **77항목 통과**, 전체 솔루션 Release **0오류/0경고**. `3ec9d5a`/`dc525d0` 충돌0 export와 별도 hash 고정 C# DLL로 서버/MySQL·Pi HTTP **13시나리오 통과/38.83초**, 소유 DB/프로세스/runtime 정리 완료다. 앞선 다른 회차144/43/88 대역 검사와 이13개를 합산하지 않는다. 실제5000/8080·기존 회원/지문/매핑·키·설정은 이번에 변경하지 않았다.
