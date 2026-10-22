@@ -25,6 +25,8 @@ def create_app(test_config=None):
     app.config.from_mapping(DATABASE_URL=database_url, SECRET_KEY=os.getenv("SECRET_KEY", ""),
         ENABLE_TASK_QUERY_DRAFT=os.getenv("REMOTEWORK_ENABLE_TASK_QUERY_DRAFT") == "1",
         ENABLE_COMMON_WRITE_DRAFT=os.getenv("REMOTEWORK_ENABLE_COMMON_WRITE_DRAFT") == "1",
+        ENABLE_DEADLINE_ALERTS_DRAFT=os.getenv("REMOTEWORK_ENABLE_DEADLINE_ALERTS_DRAFT") == "1",
+        ENABLE_DEADLINE_RESULT_READS_DRAFT=os.getenv("REMOTEWORK_ENABLE_DEADLINE_RESULT_READS_DRAFT") == "1",
         ENABLE_COLLABORATION_DRAFT=os.getenv("REMOTEWORK_ENABLE_COLLABORATION_DRAFT") == "1",
         ENABLE_COLLABORATION_RESULT_READS_DRAFT=os.getenv("REMOTEWORK_ENABLE_COLLABORATION_RESULT_READS_DRAFT") == "1",
         ENABLE_DEVICE_ENROLLMENT_DRAFT=os.getenv("REMOTEWORK_ENABLE_DEVICE_ENROLLMENT_DRAFT") == "1",
@@ -158,6 +160,10 @@ def create_app(test_config=None):
             install_collaboration(app, task_context=current_task_context)
         else:
             install_result_readers(app, task_context=current_task_context, read_only=True)
+
+    if app.config["ENABLE_DEADLINE_ALERTS_DRAFT"] or app.config["ENABLE_DEADLINE_RESULT_READS_DRAFT"]:
+        from .deadline_http import install as install_deadline_http
+        install_deadline_http(app, writes=app.config["ENABLE_DEADLINE_ALERTS_DRAFT"])
 
     @app.cli.command("init-db")
     def init_db_command():
