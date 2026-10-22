@@ -10,6 +10,7 @@ namespace RemoteWork.WinForms.Features.Attendance
 
         protected override void Dispose(bool disposing)
         {
+            if (disposing) EndLifetime();
             if (disposing && components != null) components.Dispose();
             base.Dispose(disposing);
         }
@@ -40,6 +41,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             btnApprove = new Button();
             btnReject = new Button();
             btnClose = new Button();
+            lblStatus = new Label();
             layoutPage.SuspendLayout();
             layoutHeading.SuspendLayout();
             panelRequest.SuspendLayout();
@@ -51,10 +53,11 @@ namespace RemoteWork.WinForms.Features.Attendance
             // layoutPage
             layoutPage.ColumnCount = 1;
             layoutPage.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            layoutPage.RowCount = 4;
+            layoutPage.RowCount = 5;
             layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 48F));
             layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 250F));
             layoutPage.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 64F));
             layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 58F));
             layoutPage.Dock = DockStyle.Fill;
             layoutPage.Margin = new Padding(0);
@@ -62,7 +65,13 @@ namespace RemoteWork.WinForms.Features.Attendance
             layoutPage.Controls.Add(layoutHeading, 0, 0);
             layoutPage.Controls.Add(panelRequest, 0, 1);
             layoutPage.Controls.Add(panelDecision, 0, 2);
-            layoutPage.Controls.Add(flowActions, 0, 3);
+            layoutPage.Controls.Add(lblStatus, 0, 3);
+            layoutPage.Controls.Add(flowActions, 0, 4);
+            lblStatus.Name = "lblStatus";
+            lblStatus.Dock = DockStyle.Fill;
+            lblStatus.AutoEllipsis = true;
+            lblStatus.Padding = new Padding(0, 8, 0, 0);
+            lblStatus.Text = "검토할 신청을 선택해 주세요.";
             layoutHeading.ColumnCount = 1;
             layoutHeading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             layoutHeading.RowCount = 1;
@@ -108,7 +117,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             lblApplicant.TextAlign = ContentAlignment.MiddleLeft;
             lblApplicant.Font = new Font("맑은 고딕", 9F, FontStyle.Bold);
             lblApplicant.Name = "lblApplicant";
-            txtApplicant.Text = "이서연 · 기획팀";
+            txtApplicant.Text = "";
             txtApplicant.ReadOnly = true;
             txtApplicant.Dock = DockStyle.Fill;
             txtApplicant.BorderStyle = BorderStyle.FixedSingle;
@@ -119,7 +128,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             lblLeaveType.TextAlign = ContentAlignment.MiddleLeft;
             lblLeaveType.Font = new Font("맑은 고딕", 9F, FontStyle.Bold);
             lblLeaveType.Name = "lblLeaveType";
-            txtLeaveType.Text = "연차";
+            txtLeaveType.Text = "";
             txtLeaveType.ReadOnly = true;
             txtLeaveType.Dock = DockStyle.Fill;
             txtLeaveType.BorderStyle = BorderStyle.FixedSingle;
@@ -130,7 +139,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             lblPeriod.TextAlign = ContentAlignment.MiddleLeft;
             lblPeriod.Font = new Font("맑은 고딕", 9F, FontStyle.Bold);
             lblPeriod.Name = "lblPeriod";
-            txtPeriod.Text = "2026-10-16 ~ 2026-10-16";
+            txtPeriod.Text = "";
             txtPeriod.ReadOnly = true;
             txtPeriod.Dock = DockStyle.Fill;
             txtPeriod.BorderStyle = BorderStyle.FixedSingle;
@@ -142,7 +151,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             lblRequestReason.Padding = new Padding(0, 8, 0, 0);
             lblRequestReason.Font = new Font("맑은 고딕", 9F, FontStyle.Bold);
             lblRequestReason.Name = "lblRequestReason";
-            txtRequestReason.Text = "개인 일정";
+            txtRequestReason.Text = "";
             txtRequestReason.ReadOnly = true;
             txtRequestReason.Multiline = true;
             txtRequestReason.Dock = DockStyle.Fill;
@@ -174,6 +183,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             lblDecisionReason.Margin = new Padding(0, 0, 0, 6);
             lblDecisionReason.Name = "lblDecisionReason";
             txtDecisionReason.Multiline = true;
+            txtDecisionReason.MaxLength = 1000;
             txtDecisionReason.Dock = DockStyle.Fill;
             txtDecisionReason.BorderStyle = BorderStyle.FixedSingle;
             txtDecisionReason.ScrollBars = ScrollBars.Vertical;
@@ -196,7 +206,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             btnApprove.ForeColor = Color.White;
             btnApprove.Margin = new Padding(10, 0, 0, 0);
             btnApprove.Name = "btnApprove";
-            btnApprove.Click += new System.EventHandler(Unavailable_Click);
+            btnApprove.Click += new System.EventHandler(Approve_Click);
             btnReject.Text = "반려";
             btnReject.Size = new Size(100, 36);
             btnReject.FlatStyle = FlatStyle.Flat;
@@ -204,7 +214,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             btnReject.BackColor = Color.White;
             btnReject.Margin = new Padding(10, 0, 0, 0);
             btnReject.Name = "btnReject";
-            btnReject.Click += new System.EventHandler(Unavailable_Click);
+            btnReject.Click += new System.EventHandler(Reject_Click);
             btnClose.Text = "닫기";
             btnClose.Size = new Size(100, 36);
             btnClose.FlatStyle = FlatStyle.Flat;
@@ -266,5 +276,6 @@ namespace RemoteWork.WinForms.Features.Attendance
         private Button btnApprove;
         private Button btnReject;
         private Button btnClose;
+        private Label lblStatus;
     }
 }

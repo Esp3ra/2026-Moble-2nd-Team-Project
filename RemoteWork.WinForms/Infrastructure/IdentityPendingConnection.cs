@@ -123,7 +123,8 @@ public sealed class IdentityPendingConnection : IDisposable
     public async Task RevokeAsync(Guid originalRevokeId, CancellationToken ct = default)
     {
         var result = await SendAsync(HttpMethod.Post, "context/revoke",
-            new { client_request_id = originalRevokeId.ToString("D") }, ct).ConfigureAwait(false);
+            new { client_request_id = originalRevokeId.ToString("D") }, ct,
+            retainedResult: () => finalizeAttempts.Any(x => clock.GetUtcNow() < x.Value.RecoverUntil)).ConfigureAwait(false);
         if (result.GetProperty("state").GetString() != "revoked") throw Invalid();
         Dispose();
     }

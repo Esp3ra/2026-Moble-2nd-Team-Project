@@ -32,6 +32,7 @@ def main():
     parser.add_argument("--mysql-bin-dir", type=Path, required=True)
     parser.add_argument("--source-root", type=Path, required=True)
     parser.add_argument("--report-directory", type=Path, required=True)
+    parser.add_argument("--identity-login-client", type=Path)
     args = parser.parse_args()
     if os.name != "nt": raise RuntimeError("Windows owned-process runner required")
     source = args.source_root.resolve(strict=True)
@@ -60,12 +61,22 @@ def main():
                         ("RemoteWork.Server", "RemoteWork.Server/tests", "Devices/RaspberryPi")))
                 command = [sys.executable, "-m", "pytest", "-q", "--tb=short", "--no-header", "-p", "no:cacheprovider",
                            str(Path(__file__).with_name("test_server_pi.py"))]
+                if args.identity_login_client is not None:
+                    client = args.identity_login_client.resolve(strict=True)
+                    if client.name != "IdentityLogin.Ui.Tests.dll": raise RuntimeError("Explicit reviewed login client required")
+                    env["MEMBER5_IDENTITY_LOGIN_CLIENT"] = str(client)
+                    env["PYTHONPATH"] += os.pathsep + str(Path(__file__).parent)
+                    report["login_client_sha256"] = hashlib.sha256(client.read_bytes()).hexdigest()
+                    command.append(str(ROOT / "Tests/IdentityLogin.Ui.Tests/test_real_server.py"))
                 try:
                     result = capture_pytest(command, runtime, env)
                     stdout, stderr, code = result.stdout, result.stderr, result.returncode
                 except subprocess.TimeoutExpired as error:
                     stdout, stderr, code = captured_text(error.stdout), captured_text(error.stderr), 1
                     report["timed_out"] = True
+                if args.identity_login_client is not None and hashlib.sha256(client.read_bytes()).hexdigest() != report["login_client_sha256"]:
+                    code = 1
+                    report["login_client_changed_during_check"] = True
                 (args.report_directory / "pytest.private.txt").write_text(stdout + "\n" + stderr, encoding="utf-8")
                 summaries = re.findall(r"^.*\d+ (?:passed|failed|error).* in [0-9.]+s.*$", stdout, re.M)
                 report.update(exit=code, summary=summaries[-1] if summaries else "No completed pytest summary",

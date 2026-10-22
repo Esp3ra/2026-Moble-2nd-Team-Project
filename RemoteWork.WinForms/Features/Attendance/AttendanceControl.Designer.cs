@@ -10,6 +10,7 @@ namespace RemoteWork.WinForms.Features.Attendance
 
         protected override void Dispose(bool disposing)
         {
+            if (disposing) EndLeaveLifetime();
             if (disposing && components != null) components.Dispose();
             base.Dispose(disposing);
         }
@@ -116,7 +117,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             btnQuery.BackColor = Color.White;
             btnQuery.Margin = new Padding(0, 0, 10, 0);
             btnQuery.Name = "btnQuery";
-            btnQuery.Click += new System.EventHandler(Unavailable_Click);
+            btnQuery.Click += new System.EventHandler(QueryLeave_Click);
             btnLeaveApplicationPreview.Text = "연차 신청";
             btnLeaveApplicationPreview.Size = new Size(112, 34);
             btnLeaveApplicationPreview.FlatStyle = FlatStyle.Flat;
@@ -144,7 +145,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             lblBalance.Font = new Font("맑은 고딕", 11F, FontStyle.Bold);
             lblBalance.ForeColor = Color.FromArgb(52, 101, 224);
             lblBalance.Margin = new Padding(12, 5, 0, 0);
-            lblBalance.Text = "남은 연차 8.0일";
+            lblBalance.Text = "잔여 연차 조회 전";
             lblBalance.Name = "lblBalance";
             // layoutRecords
             layoutRecords.ColumnCount = 1;
@@ -284,6 +285,8 @@ namespace RemoteWork.WinForms.Features.Attendance
             columnLeaveType.SortMode = DataGridViewColumnSortMode.NotSortable;
             columnLeavePeriod.HeaderText = "기간";
             columnLeavePeriod.Name = "columnLeavePeriod";
+            columnLeavePeriod.MinimumWidth = 220;
+            columnLeavePeriod.FillWeight = 160F;
             columnLeavePeriod.SortMode = DataGridViewColumnSortMode.NotSortable;
             columnLeavePeriod.FillWeight = 135F;
             columnLeaveReason.HeaderText = "사유";

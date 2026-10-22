@@ -12,6 +12,10 @@
 
 ## 파일·실행 범위
 
+### 선택: 실제 C# 로그인 폼까지 연결
+
+`dotnet build Tests/IdentityLogin.Ui.Tests/IdentityLogin.Ui.Tests.csproj -c Release` 후 아래 runner 명령에 `--identity-login-client "<Tests/IdentityLogin.Ui.Tests/bin/Release/net8.0-windows/IdentityLogin.Ui.Tests.dll의 절대 경로>"`를 추가하면 C# LoginForm→지문 view→서버/Pi HTTP→실제 근태 저장/정상 접속 인수를 검사한다. matched·unregistered·실제 finalize 응답 유실 복구3개가 추가되어 기본10개와 합쳐13개 시나리오다. 계정/키·UART·readiness는 시험 대역이며 물리 장비/공유 배포가 아니다. DLL SHA256을 기록하고 검사 중 파일이 바뀌면 실패로 처리한다. [C# 검사 범위](../IdentityLogin.Ui.Tests/README.md)를 따른다.
+
 - `prepare_source.py`: 고정한 Git alpha/서버 ref를 export한다. 사용자 checkout에 미병합 서버 코드를 섞거나 `.env`를 복사하지 않는다. 새 출력 폴더만 허용한다.
 - `run_check.py`: 기존2번의 `OwnedMySQL`/Windows Job/식별·정리 도구를 **수정 없이** 재사용한다. `--no-defaults`·새 datadir·loopback 임시 포트·무작위 새DB를 소유하고 실제 datadir/port/InnoDB/RR 검증 후에만 생성/삭제/SHUTDOWN한다. 기존 MySQL 서비스에는 접속/종료하지 않는다. 격리 환경의 기본 DB URL은 즉시 제거·자기 MySQL로 교체하며 SQLite DB를 만들거나 사용하지 않는다.
 - `test_server_pi.py`: 실제 두 HTTP 서버를 띄우고 서버가 낸 request/approval을 Pi가 검증하며, Pi 원문 result를 서버가 검증·보관한다. 공개 서버 fixture는 임시 MySQL에 합성 등록/계정·매핑만 준비한다. 센서 등록/삭제를 호출하는 시험이 아니다.

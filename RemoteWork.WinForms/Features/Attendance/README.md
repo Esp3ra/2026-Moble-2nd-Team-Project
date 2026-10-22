@@ -2,7 +2,7 @@
 
 새 회원 지문 등록 전용 `FingerprintEnrollmentForm`·C# 중계/라파 비동기 작업 통신을 추가했다. 기존 `UserManagementForm` 버튼·MainForm에는 아직 연결하지 않았다. 이 기능은 기존 `/scan` 시연·출퇴근/로그인 본인확인과 구분하며 [구현/주입 접점](../../../Devices/RaspberryPi/FINGERPRINT_ENROLLMENT.md)의 마지막 후속 절을 따른다. 등록 완료는 서버 `completed` 응답 뒤에만 표시한다.
 
-`AttendanceControl`의 **활동 상태 확인** 버튼은 별도 `ActivityPresenceForm`을 엽니다. 직원·관리자 모두 자기 PC의 카메라를 직접 시작할 수 있습니다. 관리자에게 다른 직원의 카메라를 보여주는 기능은 아닙니다. 기존 출퇴근·연차 표/잔여 일수는 여전히 예시이며 조회·신청·승인 저장은 미연결입니다.
+`AttendanceControl`의 **활동 상태 확인** 버튼은 별도 `ActivityPresenceForm`을 엽니다. 직원·관리자 모두 자기 PC의 카메라를 직접 시작할 수 있습니다. 관리자에게 다른 직원의 카메라를 보여주는 기능은 아닙니다. 출퇴근 표는 예시로 표시합니다. 연차 목록과 잔여 일수의 예시 값은 제거했고, 실제 조회·신청·승인 저장은 아래 연결 전 상태로 구분합니다.
 
 현재는 모달 확인 창을 열고 직접 시작하는 로컬 점검 기능입니다. 창을 닫으면 감지도 종료됩니다. 사용자가 확정한 최종 운영 범위는 **출근부터 퇴근까지 다른 업무 화면을 사용해도 계속 확인**하는 것이며, 출퇴근 저장·백그라운드 수명 관리·C#지문 요청/회원 일치는 후속 공동 연동입니다. 지문 요청은 현재 [기존 장치 점검 도구](../../../Tools/DeviceCheck/README.md)의 수동 버튼에서만 제공합니다. 이번 PR 게시 후 해당 후속 구현은 대기합니다.
 
@@ -68,3 +68,19 @@ var page = new AttendanceControl(role, monitor);
 `dotnet run --project Tests/ActivityPresence.Tests`는 실제 WinForms 메시지 루프·대역 카메라·합성 JPEG와 실제 Python stdio 자식 프로세스로 화면, 지연, 잘못된 응답, 재시작, 종료/강제 종료를 검사합니다. 물리 카메라·공통 서버·DB는 사용하지 않습니다. Python 회귀는 `Tools/HandPresence/README.md`를 따릅니다. 실제 웹캠의 손 인식·조명·가림·USB 단절·장시간 확인은 사용자 로컬 확인과 별도입니다.
 
 30초 회귀는 가상 시각으로29/30초 경계·세 입력 각각·최근 조도 중복·고정 관찰·연결/재연결·놓친 중간 감지/오류를 검사합니다. Pi HTTP 응답 대역과 실제 로컬 loopback TCP도 사용합니다. 명시적 `dotnet run --project Tests/ActivityPresence.Tests -- --pi-check http://라파주소:8080`은 해당 장치에 GET2회를 보내 응답·관찰 시각 갱신만 확인합니다. 지문 요청이나 장치 설정 변경은 없습니다.
+
+## 지문 본인 확인 담당 연결부
+
+캡처한 1번 pending/일반 접속을 5번 relay와 연결하는 `FingerprintIdentityConnection`, 같은 요청의 수명을 관리하는 `FingerprintIdentityAttempt`, Designer 기반 `FingerprintIdentityForm`을 제공한다. 사용자 요청으로 LoginForm과 Designer 기반 `FingerprintLoginForm`도 연결했다. 지문 view의 verified는 본인 확인만이며, 별도 `ApiClient.IdentityLogin`에서 서버 출근 finalize·auth/me·원 로그인 세대 확인을 거친 뒤만 정상 토큰을 인수한다. 요청·결과·취소/원 finalize 복구와 담당자 확인 사항은 [연결 문서](IDENTITY_CONNECTION.md)를 따른다. 실제 공유 서버/키·Pi 활성화, 정오/퇴근 화면·운영 수명은 별도이며 새 기능은 OFF를 유지한다.
+
+## 연차 화면 준비 상태 (2026-10-22)
+
+`LeaveApplicationForm` / `LeaveDecisionForm` / 목록은 기존 Designer.cs·resx를 유지하여 Visual Studio 폼 디자이너와 도구상자에서 수정할 수 있다. 실제 서버 연결 전에도 입력 형식·기간과 화면 배치를 확인할 수 있다. 일반 저장소나 로컬 DB를 추가하지 않았다.
+
+- 유형은 연차·오전 반차·오후 반차·병가·공가이다. 병가·공가는 연차 잔여일 차감 제외로 안내한다. 주말/공휴일·반차 기간·실제 차감 일수·중복 신청·잔여 일수는 서버 정책과 원자적 검증이 필요하며 임의 계산하지 않는다.
+- 신청자 표시는 캡처한 실제 로그인 접속을 따른다. 서버 미연결 시 `입력 확인`만 하며 저장 완료로 표시하지 않는다. 목록은 미조회 상태의 빈 목록, 잔여 연차는 `조회 전`으로 표시한다. 예시 근태 기록도 제목에서 예시로 구분한다.
+- 관리자 검토는 지정 직원에 대한 서버의 검토 권한 표시와 pending 상태가 모두 있어야 가능하다. UI의 권한 제한은 서버 권한 검사를 대신하지 않는다. 미래 adapter는 목록부터 직원 범위를 제한하고 결정 시 지정 담당 관계를 다시 확인해야 한다. `CanReview`는 해당 접속의 담당 범위 권한이며 처리 상태와 별도다.
+- `ILeaveWorkflow`는 5번 내부 주입 접점이다. 실제 HTTP 경로·DTO·DB를 합의하거나 구현한 것이 아니다. 기본 `UnconnectedLeaveWorkflow`는 신청·조회·승인을 저장하지 않는다. 서버 adapter는 같은 캡처 접속에 묶고 상태/권한·원래 요청 UUID에 대한 멱등성과 동시 처리 검사를 구현해야 한다.
+- 접속 변경 후 늦은 응답은 무시한다. 전송을 시작한 신청·결정 내용과 UUID는 고정하고 결과가 불명확하면 같은 요청만 확인한다. 결과를 확인하지 않고 새 신청·다른 승인/반려로 전환하지 않는다.
+
+`dotnet run --project Tests/Leave.Ui.Tests -c Release`는 실제 WinForms 루프와 합성 접속/서버 대역으로 5개 유형·미연결·잘못된 기간·중복 클릭·응답 유실·영수증 불일치·담당 범위·접속 종료를 검사한다. 실제 서버/DB 신청 저장·휴가 정책 적용은 미검증이다. 실행 인자에 출력 폴더를 추가하면 신청·검토 폼을 PNG로 확인할 수 있다. 1번 서버 연동·권한/잔여일 정책 협의는 지문 연결 뒤 별도로 진행한다.
