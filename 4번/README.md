@@ -1,3 +1,10 @@
+<a id="pr7778-owner4-current-20261022"></a>
+## 4번 최신 — PR78 채팅 첨부 원선택 보존 수정 요청
+
+[78 고정 e0bfbb4a](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/78#issuecomment-6337428379)의 공지/채팅 실제 자원 콜백·첨부/웹/LAN hash·마감 binding 소비를 검토했습니다. 기본 회귀 및 실제 Edge 검사는 통과했으나 **R78-01/P2**로 미병합입니다. A/B/C 선택→A 성공·B 실패·C 미시도→B만 재시도 성공 시, 웹과Desktop이 C를 미완료 선택으로 유지하지 않아 A+B만 전송하도록 허용합니다. 원선택 전체의 미완료 항목을 완료 또는 명시 제거 때까지 보존해 주세요. 서버 저장/권한 우회 결함으로 확대하지 않습니다.
+
+[77](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/77#issuecomment-6337145116)의 물리 CHECK 검사 수정은 **38233949**에 병합했습니다. [검사/독립 재현](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr7778-reviewed-20261022)·[담당별 후속](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr7778-boundaries-20261022)에서 제공부·원제품 소비·대역·실제 브라우저 범위를 구분합니다. 공유 서버·실계정에서의 PC GUI/파일 대화상자·두PC 검증과 삭제/보존·연차 미합의는 별도이며 이번 기록으로 정책을 새로 선택하지 않았습니다.
+
 <a id="pr7576-owner4-next-consumption-20261022"></a>
 ## 4번 최신 — 마감 기준 공급·자원 첨부 소비 접점 수신
 
