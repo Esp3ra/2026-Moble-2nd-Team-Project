@@ -1,20 +1,25 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Globalization;
 using RemoteWork.WinForms.Infrastructure;
 
 namespace RemoteWork.WinForms.Features.Tasks.Attachments;
 
 /// <summary>Prepares initial-task files for member 3's existing shared-upload API.</summary>
-public sealed class HttpTaskCreationUploadService(ApiClient.Session session)
+public sealed class HttpTaskCreationUploadService(ApiClient.Session session, string? taskId = null)
 {
     public const long MaxFileBytes = 25 * 1024 * 1024;
     public bool IsCurrent => session.IsCurrent;
+    public string? TaskId => taskId;
 
     // Preparation takes a private memory snapshot. It sends no HTTP request and never
     // retains the local path. Replacing the local file cannot change a pending upload.
     public async Task<TaskCreationUploadAttempt> PrepareFileAsync(string path, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        if (taskId is not null && (!long.TryParse(taskId, NumberStyles.None, CultureInfo.InvariantCulture, out long id)
+            || id <= 0 || id.ToString(CultureInfo.InvariantCulture) != taskId))
+            throw new ArgumentException("첨부를 준비할 업무 번호를 확인해 주세요.");
         session.ThrowIfChanged();
         if (session.User.Role != "admin" || !session.User.IsActive)
             throw new ApiException("업무 등록 첨부는 로그인한 관리자만 준비할 수 있습니다.", 403, "FORBIDDEN");
@@ -40,7 +45,7 @@ public sealed class HttpTaskCreationUploadService(ApiClient.Session session)
             string hash = Convert.ToHexString(SHA256.HashData(content)).ToLowerInvariant();
             session.ThrowIfChanged();
             cancellation.Token.ThrowIfCancellationRequested();
-            var attempt = new TaskCreationUploadAttempt(session, name, content, hash);
+            var attempt = new TaskCreationUploadAttempt(session, name, content, hash, taskId);
             content = null; // The attempt owns and clears the snapshot from this point.
             return attempt;
         }

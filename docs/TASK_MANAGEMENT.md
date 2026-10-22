@@ -1,5 +1,19 @@
 # 업무 수정·재배정·관리자 변경
 
+<a id="task-management-attachments-ui"></a>
+## WinForms 일반수정 첨부 선택·전송 — 2026-10-22
+
+진행전 관리 업무의 **업무 수정 → 첨부 확인·변경**에서 현재 파일을 확인하고 새 파일을 선택·명시 업로드할 수 있습니다. 기존 파일의 **업무에서 제외**는 최종 목록만 바꾸며 별도 **입력·대상 확인 → 변경 실행** 뒤 해당 업무 참조를 해제합니다. 다른 업무/과거 제출 참조를 클라이언트가 삭제하지 않습니다. 미연결 본인 업로드만 별도 확인 후 임시 파일 DELETE를 요청합니다. 최대10개·파일당25MiB의 기존 규약을 유지합니다.
+
+- `TaskManagementRequest.Update(..., attachmentIds = null)`의 null은 필드 생략/기존 유지, 빈 목록은 전부 해제, 값은 최종 목록입니다. 정규 UUID·중복·개수를 검사하고 입력 배열을 불변 사본으로 보관하며 W1 원문 순서는 유지합니다. 재배정·관리자 변경에는 첨부를 보내지 않습니다.
+- 수정 workflow가 같은 로그인·업무의 선택을 소유하고 폼은 이를 빌립니다. 첨부 목록은 원래 업무의 context→files→context로 두 버전·현재 관리자/상태를 확인한 뒤 결합합니다. 목록 조회 실패를 빈 목록으로 바꾸지 않으며 생략한 본문 수정은 가능합니다. 미조회 상태에서는 첨부 변경을 할 수 없습니다.
+- 새 업로드에는 현재 `task_id`를 전달하고 기존 캡처 세션·명시 청크/완료/DELETE를 사용합니다. 기존 업무 파일은 upload attempt가 없어 DELETE 대상으로 선택할 수 없습니다. 전송이 끝나지 않았거나 삭제 결과가 불명확하면 입력 확인/업무 저장을 차단합니다.
+- 확인 후 선택이 바뀌면 확인을 무효화합니다. workflow는 키 발급 전 현재 최종 목록과 원래 업무·배정 버전을 다시 대조하며, 전송/삭제와 업무 쓰기를 동시에 실행하지 않습니다. 응답 불명·같은 요청 재시도·수동 확인 상태에서는 원래 ID/본문/키를 고정합니다. 결과 확인 창을 다시 열어도 원래 수정 본문을 읽기 전용으로 표시합니다.
+- 창을 닫고 다시 열면 같은 버전의 선택을 유지합니다. **최신 업무 다시 조회**로 선택을 초기화할 때는 별도 확인하며 서버 임시 파일은 삭제하지 않습니다. 다른 버전의 새 정보로 옛 첨부 선택을 조용히 옮기지 않습니다. 저장 성공·접속 종료도 메모리 정리만 하며 자동 DELETE·자동 업로드·새 키 자동 저장은 없습니다.
+- 401/403·로그인 교체·늦은 응답은 이전 선택을 다시 표시하거나 다른 접속으로 저장하지 못하게 합니다. 첨부 전용404/409는 확정 실패로 입력 단계에 돌아가지만 원래 선택은 보존합니다. 제공부/스키마 미준비503과 실제 저장 결과 불명은 기존 공통 오류/W1 결과 확인 경계를 따릅니다.
+
+구현은2번 `TaskManagementForm`/전용 Designer·`TaskManagementAttachmentsForm`/Designer·선택 모델·기존 management workflow/DTO/HTTP와 기존2번 업로드 소비부 안에 있습니다. 공통 ApiClient·3번 서버/결과물·DB·설정/운영 ACK는 변경하지 않았습니다. [선택/workflow 검사](../Tests/TaskManagementAttachments.Tests/README.md), [실제 폼/HTTP 대역 검사](../Tests/TaskManagementAttachmentUi.Tests/README.md), [실제 C#/HTTP/MySQL 검사](../Tests/TaskManagementAttachments.Http.Tests/README.md)를 구분합니다. 공유 서버·실계정/두 PC·운영 배포·다중 DPI/OS 대화상자 수동 조작은 별도입니다.
+
 2026-10-20 팀장의 [A~E 확정 정책](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-management-policy-approved-20261020) 중 A/B/C의 2번 개발 구현입니다. 기존 공통 인증·현재 관계 검사·쓰기 guard·동일 요청 키·감사·성공 결과 보관을 재사용합니다. 다른 담당 제품 코드·공통 schema version·DDL은 변경하지 않습니다.
 
 ## 실행과 화면
@@ -48,7 +62,7 @@ expected 두 필드는 `expected_row_version`, `expected_assignment_revision`입
 
 [팀장이 수용한 3번 제안](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member3-proposals-accepted-20261021)은 일반 수정의 `attachment_ids` 생략 시 기존 첨부 유지, `[]`면 전부 해제, 값이 있으면 최종 목록으로 교체입니다. 별도 삭제 배열을 만들지 않습니다. 최대 10개의 소문자 하이픈 포함 정규 UUID 문자열만 허용하며 중복·null·비문자열은 400입니다. 원문 필드 유무·배열 순서는 W1 본문에 그대로 보존합니다. 재배정·관리자 변경에는 이 필드를 허용하지 않습니다.
 
-첨부 필드를 생략한 일반 수정은 기존 첨부를 유지합니다. 명시 배열은 현재 권한·원래 버전·진행전/과거 자료·날짜 검사 뒤 공개 `read_task_attachment_ids`로 현재 집합을 읽고, 차이가 있을 때만 `replace_task_files`를 같은 인증 TX에서 업무 버전 증가 전에 호출합니다. 빈 배열은 업무 참조를 모두 해제하며 다른 업무/과거 제출 참조는 보존합니다. API와 웹은 같은 writer를 사용합니다. WinForms 일반수정 첨부 선택 UI는 아직 별도입니다.
+첨부 필드를 생략한 일반 수정은 기존 첨부를 유지합니다. 명시 배열은 현재 권한·원래 버전·진행전/과거 자료·날짜 검사 뒤 공개 `read_task_attachment_ids`로 현재 집합을 읽고, 차이가 있을 때만 `replace_task_files`를 같은 인증 TX에서 업무 버전 증가 전에 호출합니다. 빈 배열은 업무 참조를 모두 해제하며 다른 업무/과거 제출 참조는 보존합니다. API와 웹은 같은 writer를 사용합니다. WinForms 일반수정도 위 [첨부 선택 화면](#task-management-attachments-ui)에서 같은 계약을 사용합니다.
 
 첨부만 바뀌어도 `task.updated`·row_version을 각각 한 번 변경하고 assignment_revision/제출 회차는 유지합니다. 본문과 최종 첨부 집합이 모두 같으면409 `TASK_CHANGE_NOT_NEEDED`입니다. 원문 요청 배열은 정렬/중복 제거하지 않으며, 감사에만 정렬한 `before_attachment_ids`/`attachment_ids`와 `changed_fields`의 첨부 표식을 기록합니다. 파일명·경로·본문은 첨부 감사에 넣지 않습니다. 공개 reader/replace 부재는503 `TASK_ATTACHMENT_REPLACEMENT_NOT_READY`, 스키마 미준비도 제공부503이며 모든 변경/감사/receipt가 함께 rollback됩니다. 성공 receipt 재생에는 파일 검사나 재연결을 추가하지 않습니다. 다른 담당 ORM/SQL을 직접 조회하지 않습니다.
 

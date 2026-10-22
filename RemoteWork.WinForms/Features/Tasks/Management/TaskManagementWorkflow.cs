@@ -1,5 +1,6 @@
 using System.Globalization;
 using RemoteWork.WinForms.Features.Tasks.Preparation;
+using RemoteWork.WinForms.Features.Tasks.Attachments;
 
 namespace RemoteWork.WinForms.Features.Tasks.Management;
 
@@ -21,7 +22,7 @@ public sealed class TaskManagementWorkflow : IDisposable
     private readonly CancellationToken lifetimeToken;
     private readonly CancellationTokenRegistration sessionRegistration;
     private TaskManagementState state = TaskManagementState.Editing;
-    private bool disposed, disconnected, busy;
+    private bool disposed, disconnected, busy, attachmentsBusy;
     private long operation, highestSucceededVersion;
     private TaskManagementRequest? pendingRequest;
     private TaskWriteRequestKey? key;
@@ -38,8 +39,38 @@ public sealed class TaskManagementWorkflow : IDisposable
         sessionRegistration = service.SessionCancellation.Register(OnSessionChanged);
     }
 
-    internal TaskManagementWorkflow(ITaskManagementService service, TaskManagementKind kind, string taskId) : this(service)
-    { boundKind = kind; boundTaskId = taskId; }
+    internal TaskManagementWorkflow(ITaskManagementService service, TaskManagementKind kind, string taskId,
+        HttpTaskCreationUploadService? uploads = null, HttpTaskAttachmentService? attachmentReads = null) : this(service)
+    {
+        boundKind = kind; boundTaskId = taskId;
+        if (kind == TaskManagementKind.Update && uploads is not null && attachmentReads is not null)
+            Attachments = new TaskManagementAttachmentSelection(this, uploads, attachmentReads, taskId);
+    }
+
+    public TaskManagementAttachmentSelection? Attachments { get; }
+    public bool AttachmentsBusy { get { lock (gate) return attachmentsBusy; } }
+    public bool CanEditAttachments => IsCurrent && !IsBusy && !AttachmentsBusy && State == TaskManagementState.Editing;
+    internal bool TryBeginAttachmentChange()
+    {
+        if (!IsCurrent) return false;
+        lock (gate)
+        {
+            if (disposed || disconnected || busy || attachmentsBusy || state != TaskManagementState.Editing) return false;
+            attachmentsBusy = true;
+        }
+        NotifyChanged();
+        return true;
+    }
+    internal void EndAttachmentChange()
+    {
+        lock (gate) attachmentsBusy = false;
+        NotifyChanged();
+    }
+    internal void BlockAttachmentSession()
+    {
+        lock (gate) if (!disposed && !disconnected) DisconnectLocked(TaskManagementFailure.Forbidden);
+        NotifyChanged();
+    }
 
     public event EventHandler? StateChanged;
     public event EventHandler? Changed;
@@ -47,7 +78,7 @@ public sealed class TaskManagementWorkflow : IDisposable
     {
         get
         {
-            lock (gate) return new(state, busy, pendingRequest, result, failure, message,
+            lock (gate) return new(state, busy || attachmentsBusy, pendingRequest, result, failure, message,
                 !busy && state is TaskManagementState.NeedsResultCheck or TaskManagementState.RetryAllowed,
                 !busy && state == TaskManagementState.RetryAllowed);
         }
@@ -86,7 +117,7 @@ public sealed class TaskManagementWorkflow : IDisposable
         if (!IsCurrent) return false;
         lock (gate)
         {
-            if (disposed || disconnected || busy || state != TaskManagementState.Succeeded) return false;
+            if (disposed || disconnected || busy || attachmentsBusy || state != TaskManagementState.Succeeded) return false;
             operation++;
             pendingRequest = null;
             key = null;
@@ -108,12 +139,15 @@ public sealed class TaskManagementWorkflow : IDisposable
         bool started = false;
         lock (gate)
         {
-            if (disposed || disconnected || busy) return;
+            if (disposed || disconnected || busy || attachmentsBusy) return;
             if (!current) DisconnectLocked(TaskManagementFailure.AuthenticationExpired);
             else if (Allowed(kind))
             {
                 if (kind == OperationKind.Submit)
                 {
+                    if ((Attachments is not null && !Attachments.Matches(input!))
+                        || (Attachments is null && input!.AttachmentIds is not null))
+                        throw new ArgumentException("현재 업무·버전에서 준비하고 업로드를 마친 첨부 목록으로 다시 확인해 주세요.");
                     if (input!.CheckedUserId != service.UserId)
                     { DisconnectLocked(TaskManagementFailure.Forbidden); }
                     else if ((boundTaskId is not null && (boundTaskId != input.TaskId || boundKind != input.Kind))
@@ -273,7 +307,7 @@ public sealed class TaskManagementWorkflow : IDisposable
                 or TaskManagementFailure.VersionConflict or TaskManagementFailure.StateConflict or TaskManagementFailure.DataInconsistent
                 or TaskManagementFailure.VersionExhausted or TaskManagementFailure.AssignmentExhausted
                 or TaskManagementFailure.DueDateInPast or TaskManagementFailure.NoChange
-                or TaskManagementFailure.NotFound or TaskManagementFailure.NotConfigured)
+                or TaskManagementFailure.NotFound or TaskManagementFailure.NotConfigured or TaskManagementFailure.AttachmentUnavailable)
             {
                 state = TaskManagementState.Editing;
                 key = null;
@@ -326,6 +360,7 @@ public sealed class TaskManagementWorkflow : IDisposable
             DisconnectLocked(TaskManagementFailure.AuthenticationExpired);
         }
         sessionRegistration.Unregister();
+        Attachments?.Dispose();
         lifetime.Cancel();
         lifetime.Dispose();
         NotifyChanged();

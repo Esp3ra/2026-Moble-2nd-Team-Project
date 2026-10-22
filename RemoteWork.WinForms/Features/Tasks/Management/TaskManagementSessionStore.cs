@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using RemoteWork.WinForms.Features.Tasks.Preparation;
+using RemoteWork.WinForms.Features.Tasks.Attachments;
 using RemoteWork.WinForms.Infrastructure;
 
 namespace RemoteWork.WinForms.Features.Tasks.Management;
@@ -73,7 +74,9 @@ public static class TaskManagementSessionStore
                 if (disposed) return null;
                 if (!workflows.TryGetValue((kind, taskId), out var workflow))
                 {
-                    workflow = new TaskManagementWorkflow(new HttpTaskManagementService(Session), kind, taskId);
+                    workflow = new TaskManagementWorkflow(new HttpTaskManagementService(Session), kind, taskId,
+                        kind == TaskManagementKind.Update ? new HttpTaskCreationUploadService(Session, taskId) : null,
+                        kind == TaskManagementKind.Update ? new HttpTaskAttachmentService(Session) : null);
                     workflows.Add((kind, taskId), workflow);
                 }
                 return workflow;

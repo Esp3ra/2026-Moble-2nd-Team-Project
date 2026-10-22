@@ -23,6 +23,7 @@ public sealed class TaskCreationUploadAttempt : IDisposable
     private const int ChunkBytes = 16384;
     private const string UploadPath = "results/shared/uploads";
     private readonly ApiClient.Session session;
+    private readonly string? taskId;
     private readonly object gate = new();
     private readonly CancellationTokenSource lifetime = new();
     private readonly CancellationTokenRegistration sessionRegistration;
@@ -37,9 +38,10 @@ public sealed class TaskCreationUploadAttempt : IDisposable
     private int? statusCode;
     private string? errorCode;
 
-    internal TaskCreationUploadAttempt(ApiClient.Session session, string name, byte[] content, string sha256)
+    internal TaskCreationUploadAttempt(ApiClient.Session session, string name, byte[] content, string sha256, string? taskId = null)
     {
         this.session = session;
+        this.taskId = taskId;
         this.content = content;
         Name = name;
         Size = content.LongLength;
@@ -218,8 +220,10 @@ public sealed class TaskCreationUploadAttempt : IDisposable
                 cancellation.Token.ThrowIfCancellationRequested();
                 session.ThrowIfChanged();
                 dispatched = true;
+                object body = taskId is null ? new { name = Name, size = Size, sha256 = Sha256 }
+                    : new { name = Name, size = Size, sha256 = Sha256, task_id = taskId };
                 JsonElement data = await session.PostAsync<JsonElement>(UploadPath + "/start",
-                    new { name = Name, size = Size, sha256 = Sha256 }, cancellation.Token).ConfigureAwait(false);
+                    body, cancellation.Token).ConfigureAwait(false);
                 TaskAttachment started = ReadFile(data, expectedId: null);
                 if (!KeepCurrent()) return;
                 lock (gate)
@@ -279,7 +283,9 @@ public sealed class TaskCreationUploadAttempt : IDisposable
                 if (disposed || disconnected) return;
                 completedFile = file;
                 state = TaskCreationUploadState.Completed;
-                message = "첨부 업로드가 확인되었습니다. 업무 등록과 첨부 연결은 아직 수행하지 않았습니다.";
+                message = taskId is null
+                    ? "첨부 업로드가 확인되었습니다. 업무 등록과 첨부 연결은 아직 수행하지 않았습니다."
+                    : "첨부 업로드가 확인되었습니다. 업무 변경과 첨부 연결은 아직 수행하지 않았습니다.";
             }
         }
         catch (Exception error)

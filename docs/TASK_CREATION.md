@@ -76,7 +76,7 @@ REMOTEWORK_ENABLE_TASK_CREATE_DRAFT=1
 
 기존 업무 등록 옵션만으로 첨부 제공부·013 구조를 자동 준비하지 않습니다. 값이 있는 요청은 3번 results/shared 제공부의 기존 활성화 조건과 준비된 `013_shared_attachments.mysql.sql` 구조도 필요하며, 제공부가 없으면 `503 TASK_ATTACHMENT_PROVIDER_REQUIRED`입니다. 제공부의 파일 오류를 다른 성공이나 빈 첨부로 바꾸지 않습니다. 공유 DB·DDL 적용·운영 ACK를 이 연결에서 활성화하지 않습니다.
 
-C# `TaskCreationRequest`는 선택 `IReadOnlyList<string>? attachmentIds = null`을 불변 사본으로 보관합니다. null은 JSON 전송에서 생략하고, 빈 배열·원래 ID 순서는 그대로 전송·복구합니다. **WinForms 등록 화면은 아래 파일 선택·명시 업로드 UI를 연결**했습니다. 선택을 바꾸지 않으면 필드를 생략하고, 명시적으로 목록을 비우면 빈 배열을 보내며 완료된 파일 ID의 순서를 보존합니다. 업무 웹도 [공개 cookie 첨부 전송·저장](TASK_WEB.md#task-web-t3-consumers)을 연결했습니다. 수정의 최종 목록은 [동일 TX 교체와 제공부 미준비 차단](TASK_MANAGEMENT.md#task-management-attachment-selection)을 따릅니다. WinForms 일반수정의 첨부 선택 UI는 별도 후속입니다.
+C# `TaskCreationRequest`는 선택 `IReadOnlyList<string>? attachmentIds = null`을 불변 사본으로 보관합니다. null은 JSON 전송에서 생략하고, 빈 배열·원래 ID 순서는 그대로 전송·복구합니다. **WinForms 등록 화면은 아래 파일 선택·명시 업로드 UI를 연결**했습니다. 선택을 바꾸지 않으면 필드를 생략하고, 명시적으로 목록을 비우면 빈 배열을 보내며 완료된 파일 ID의 순서를 보존합니다. 업무 웹도 [공개 cookie 첨부 전송·저장](TASK_WEB.md#task-web-t3-consumers)을 연결했습니다. 수정의 최종 목록은 [동일 TX 교체와 제공부 미준비 차단](TASK_MANAGEMENT.md#task-management-attachment-selection)을 따릅니다. WinForms 일반수정도 [전용 첨부 선택 화면](TASK_MANAGEMENT.md#task-management-attachments-ui)으로 연결했습니다.
 
 성공은 공통 envelope의 HTTP 201입니다. `data`의 필수 필드는 다음과 같습니다.
 

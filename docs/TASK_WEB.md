@@ -13,7 +13,7 @@
 - 다운로드: 업무별 목록→청크→전체 크기/해시→현재 업무 참조 재확인 후 파일을 제공합니다. 다른 업무의 참조가 남아 있다는 이유로 현재 업무에서 해제된 파일을 내려받지 않습니다.401/403·접속 불일치·페이지 종료/캐시 복귀는 오래된 동작과 지연 응답을 폐기합니다. 서버는 매 요청 권한을 별도로 검사합니다.
 - HTTPS/localhost: Web Crypto의 전체 SHA256 검증이 가능한 접속에서만 파일 선택·전송·다운로드를 활성화합니다. 일반 HTTP 서버 IP의 다른 PC 접근에서는 안내와 비활성화를 유지합니다. 업무/첨부 조회와 생략한 기존 첨부 유지는 가능하며 브라우저 보안 설정을 완화하지 않습니다.
 
-[검사 명령·정확한 실행 범위](../Tests/TaskWeb.Tests/README.md#task-web-t3-consumer-checks)를 따릅니다. 실제 소유 MySQL/HTTP와 브라우저를 사용했지만 공유 DB·운영 파일 권한·HTTPS 배포·실계정/두 PC·취소/연장 ACK를 검증한 것은 아닙니다. WinForms 일반수정 첨부 선택 UI는 별도 후속입니다.
+[검사 명령·정확한 실행 범위](../Tests/TaskWeb.Tests/README.md#task-web-t3-consumer-checks)를 따릅니다. 실제 소유 MySQL/HTTP와 브라우저를 사용했지만 공유 DB·운영 파일 권한·HTTPS 배포·실계정/두 PC·취소/연장 ACK를 검증한 것은 아닙니다. WinForms 일반수정도 [첨부 선택 화면](TASK_MANAGEMENT.md#task-management-attachments-ui)으로 연결했습니다.
 
 <a id="task-web-file-preparation"></a>
 ## 등록·일반수정 파일 선택 화면 준비 — 2026-10-22

@@ -29,10 +29,7 @@ public sealed class HttpTaskManagementService(ApiClient.Session session) : ITask
         Ensure(request); ValidateKey(request, key);
         object body = request.Kind switch
         {
-            TaskManagementKind.Update => new { expected_row_version = request.ExpectedRowVersion,
-                expected_assignment_revision = request.ExpectedAssignmentRevision, title = request.Title,
-                description = request.Description, start_date = request.StartDate!.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-                due_date = request.DueDate!.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) },
+            TaskManagementKind.Update => UpdateBody(request),
             TaskManagementKind.Reassign => new { expected_row_version = request.ExpectedRowVersion,
                 expected_assignment_revision = request.ExpectedAssignmentRevision, assignee_id = request.AssigneeId!.Value },
             TaskManagementKind.ChangeManagers => new { expected_row_version = request.ExpectedRowVersion,
@@ -49,6 +46,20 @@ public sealed class HttpTaskManagementService(ApiClient.Session session) : ITask
             session.ThrowIfChanged(); return result;
         }
         catch (ApiException error) { throw Map(error); }
+    }
+    private static object UpdateBody(TaskManagementRequest request)
+    {
+        var body = new Dictionary<string, object?>
+        {
+            ["expected_row_version"] = request.ExpectedRowVersion,
+            ["expected_assignment_revision"] = request.ExpectedAssignmentRevision,
+            ["title"] = request.Title,
+            ["description"] = request.Description,
+            ["start_date"] = request.StartDate!.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            ["due_date"] = request.DueDate!.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+        };
+        if (request.AttachmentIds is not null) body["attachment_ids"] = request.AttachmentIds;
+        return body;
     }
     public async Task<TaskManagementLookup> GetResultAsync(TaskManagementRequest request, TaskWriteRequestKey key, CancellationToken ct = default)
     {
@@ -115,6 +126,7 @@ public sealed class HttpTaskManagementService(ApiClient.Session session) : ITask
     private static TaskManagementException Map(ApiException error) => new((error.StatusCode, error.Code) switch
     {
         (401, _) => TaskManagementFailure.AuthenticationExpired, (403, _) => TaskManagementFailure.Forbidden,
+        (404, "ATTACHMENT_NOT_FOUND") or (409, "ATTACHMENT_UNAVAILABLE") => TaskManagementFailure.AttachmentUnavailable,
         (404, "TASK_NOT_FOUND") => TaskManagementFailure.NotFound, (404 or 405, _) => TaskManagementFailure.NotConfigured,
         (400 or 413, _) => TaskManagementFailure.InvalidInput,
         (409, "TASK_ASSIGNMENT_CHANGED") => TaskManagementFailure.AssignmentChanged,
@@ -128,7 +140,8 @@ public sealed class HttpTaskManagementService(ApiClient.Session session) : ITask
         (409, "IDEMPOTENCY_KEY_REUSED") => TaskManagementFailure.KeyReused,
         (409, _) => TaskManagementFailure.Conflict, (410, _) => TaskManagementFailure.KeyExpired,
         (503, "WRITE_SCHEMA_REQUIRED" or "WRITE_SUPPORT_DISABLED" or "WRITE_ACTION_NOT_READY"
-            or "TASK_MANAGEMENT_DISABLED" or "TASK_RESULTS_SCHEMA_REQUIRED") => TaskManagementFailure.NotConfigured,
+            or "TASK_MANAGEMENT_DISABLED" or "TASK_RESULTS_SCHEMA_REQUIRED" or "TASK_ATTACHMENT_REPLACEMENT_NOT_READY"
+            or "SHARED_ATTACHMENT_SCHEMA_REQUIRED") => TaskManagementFailure.NotConfigured,
         (>= 200 and < 300, _) => TaskManagementFailure.InvalidResponse, _ => TaskManagementFailure.Unavailable
     }, error);
 }

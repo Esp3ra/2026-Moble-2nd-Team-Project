@@ -19,7 +19,7 @@ internal static class Program
     {
         try
         {
-            Inputs(); HttpContract(); Workflow();
+            Inputs(); HttpContract(); AttachmentContract(); Workflow();
             UiReadFenceAndLayout(args.Length == 2 && args[0] == "--layout-dir" ? Path.GetFullPath(args[1]) : null);
             Console.WriteLine($"PASS TaskManagement controlled: {checks} checks. Explicit HTTP/workflow doubles; no server or DB."); return 0;
         }
@@ -115,6 +115,82 @@ internal static class Program
         assignment_revision = request.Kind == TaskManagementKind.Reassign ? 2 : 1,
         task_status = request.ExpectedStatus == TaskDisplayStatus.InProgress ? "in_progress" : request.ExpectedStatus == TaskDisplayStatus.Returned ? "returned" : "not_started",
         updated_at = "2026-10-20T00:00:00Z" };
+    private static readonly string[] AttachmentIds =
+    ["ffffffff-ffff-4fff-8fff-ffffffffffff", "11111111-1111-4111-8111-111111111111"];
+    private static TaskManagementRequest AttachmentRequest(IReadOnlyList<string>? ids) =>
+        TaskManagementRequest.Update(Detail(TaskDisplayStatus.NotStarted), Context(TaskDisplayStatus.NotStarted), 1,
+            "Original", "Original description", Day, Day.AddDays(3), ids);
+    private static void AttachmentContract()
+    {
+        using var handler = new HttpFixture();
+        using var api = new ApiClient("http://management-attachments.invalid/", handler);
+        handler.Success(new { access_token = "fixture-private-token", token_type = "Bearer", expires_at = "2099-01-01T00:00:00Z",
+            user = new { id = 1, login_id = "fixture", display_name = "Fixture", employee_no = "TEST-1", department = "Test", role = "admin", is_active = true } });
+        api.LoginAsync("fixture", "fixture-only").GetAwaiter().GetResult();
+        var service = new HttpTaskManagementService(api.CaptureSession());
+        var mutable = AttachmentIds.ToArray();
+        var request = AttachmentRequest(mutable);
+        mutable[0] = "22222222-2222-4222-8222-222222222222";
+        Check(request.AttachmentIds!.SequenceEqual(AttachmentIds), "attachment-only edit copies IDs without sorting or retaining caller mutation");
+        try { ((IList<string>)request.AttachmentIds!)[0] = mutable[0]; throw new CheckFailure("attachment copy was mutable"); }
+        catch (NotSupportedException) { Check(true, "frozen attachment list cannot be modified"); }
+        foreach (var selection in new IReadOnlyList<string>?[] { null, Array.Empty<string>(), AttachmentIds })
+        {
+            var selected = AttachmentRequest(selection);
+            handler.Success(ResultBody(selected));
+            service.ChangeAsync(selected, Key(selected)).GetAwaiter().GetResult();
+            using var parsed = JsonDocument.Parse(handler.LastBody!);
+            bool present = parsed.RootElement.TryGetProperty("attachment_ids", out var wire);
+            Check(present == (selection is not null), "omitted and explicitly empty attachment selections remain distinct on PATCH");
+            Check(parsed.RootElement.EnumerateObject().Count() == (selection is null ? 6 : 7), "update contains only agreed optional attachment field");
+            if (selection is not null)
+                Check(wire.EnumerateArray().Select(x => x.GetString()).SequenceEqual(selection), "wire preserves final ID order and explicit empty list");
+        }
+        foreach (var kind in new[] { TaskManagementKind.Reassign, TaskManagementKind.ChangeManagers })
+            Check(Request(kind).AttachmentIds is null, "other management actions do not carry an attachment selection");
+        foreach (string[] invalid in new[]
+        {
+            new[] { "" }, new[] { (string)null! }, new[] { AttachmentIds[0], AttachmentIds[0] },
+            new[] { AttachmentIds[0].ToUpperInvariant() }, new[] { Guid.NewGuid().ToString("N") },
+            Enumerable.Range(0, 11).Select(_ => Guid.NewGuid().ToString("D")).ToArray()
+        })
+        {
+            int before = handler.Count; Invalid(() => AttachmentRequest(invalid));
+            Check(handler.Count == before, "invalid UUID selection never sends HTTP");
+        }
+        var ten = AttachmentRequest(Enumerable.Range(0, 10).Select(_ => Guid.NewGuid().ToString("D")).ToArray());
+        Check(ten.AttachmentIds?.Count == 10, "maximum ten final files are accepted without introducing a lower limit");
+        foreach (var (status, code, failure) in new[]
+        {
+            (404, "ATTACHMENT_NOT_FOUND", TaskManagementFailure.AttachmentUnavailable),
+            (409, "ATTACHMENT_UNAVAILABLE", TaskManagementFailure.AttachmentUnavailable),
+            (503, "TASK_ATTACHMENT_REPLACEMENT_NOT_READY", TaskManagementFailure.NotConfigured),
+            (503, "SHARED_ATTACHMENT_SCHEMA_REQUIRED", TaskManagementFailure.NotConfigured),
+            (503, "SERVER_ERROR", TaskManagementFailure.Unavailable),
+            (403, "FORBIDDEN", TaskManagementFailure.Forbidden)
+        })
+        {
+            handler.Error(status, code);
+            try { service.ChangeAsync(request, Key(request)).GetAwaiter().GetResult(); throw new CheckFailure("attachment error was accepted"); }
+            catch (TaskManagementException error) { Check(error.Failure == failure, "attachment/common error keeps distinct classification: " + code); }
+        }
+        handler.Success(new { request_key = new string('q', 40), expires_at = "2099-01-01T00:00:00Z" });
+        var key = service.GetRequestKeyAsync(request).GetAwaiter().GetResult();
+        handler.Error(503, "SERVER_ERROR");
+        try { service.ChangeAsync(request, key).GetAwaiter().GetResult(); throw new CheckFailure("server error was accepted"); }
+        catch (TaskManagementException error) { Check(error.Failure == TaskManagementFailure.Unavailable, "unknown attachment save is an unavailable result"); }
+        string originalBody = handler.LastBody!, originalKey = handler.LastKey!;
+        Check(handler.Remaining == 0 && request.AttachmentIds!.SequenceEqual(AttachmentIds),
+            "failed service call preserves original attachment body and performs no automatic request");
+        handler.Success(new { state = "not_recorded" });
+        Check(!service.GetResultAsync(request, key).GetAwaiter().GetResult().Recorded,
+            "explicit same-key result query returns not_recorded without changing final IDs");
+        handler.Success(ResultBody(request));
+        service.ChangeAsync(request, key).GetAwaiter().GetResult();
+        Check(handler.LastBody == originalBody && handler.LastKey == originalKey,
+            "retry sends exact original final IDs body and key, without reupload or replacement key");
+        Check(handler.Remaining == 0, "attachment flow has no unplanned HTTP calls");
+    }
     private static TaskWriteRequestKey Key(TaskManagementRequest request) => new(request.Kind switch
         { TaskManagementKind.Update => TaskWriteAction.Update, TaskManagementKind.Reassign => TaskWriteAction.Reassign, _ => TaskWriteAction.ChangeManagers }, "9", new string('k', 40), Utc.AddDays(1));
     private static TaskManagementResult Result(TaskManagementRequest request) => new("9", (long.Parse(request.ExpectedRowVersion) + 1).ToString(),
@@ -290,19 +366,24 @@ internal static class Program
     }
     private sealed class HttpFixture : HttpMessageHandler
     {
-        private readonly Queue<string> queue = new();
+        private readonly Queue<(int Status, string Json)> queue = new();
         public string? LastPath, LastBody, LastKey;
         public HttpMethod? LastMethod;
         public int Remaining => queue.Count;
+        public int Count { get; private set; }
         public void Success(object data) => Raw(JsonSerializer.Serialize(new { ok = true, data, request_id = "fixture" }));
-        public void Raw(string json) => queue.Enqueue(json);
+        public void Raw(string json) => queue.Enqueue((200, json));
+        public void Error(int status, string code) => queue.Enqueue((status,
+            JsonSerializer.Serialize(new { ok = false, error = new { code, message = "합성 오류" }, request_id = "fixture" })));
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
+            Count++;
             LastPath = request.RequestUri!.AbsolutePath; LastMethod = request.Method;
             LastBody = request.Content is null ? null : await request.Content.ReadAsStringAsync(ct);
             LastKey = request.Headers.TryGetValues("Idempotency-Key", out var values) ? values.Single() : null;
             if (queue.Count == 0) throw new CheckFailure("unexpected HTTP request");
-            return new(HttpStatusCode.OK) { Content = new StringContent(queue.Dequeue(), Encoding.UTF8, "application/json") };
+            var response = queue.Dequeue();
+            return new((HttpStatusCode)response.Status) { Content = new StringContent(response.Json, Encoding.UTF8, "application/json") };
         }
     }
 }

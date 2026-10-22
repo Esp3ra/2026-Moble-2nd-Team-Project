@@ -13,7 +13,7 @@ public sealed class TaskManagementRequest
 {
     private TaskManagementRequest(TaskManagementKind kind, TaskDetail detail, TaskWriteContext context, int userId,
         string? title = null, string? description = null, DateOnly? start = null, DateOnly? due = null,
-        int? assignee = null, IReadOnlyList<int>? managers = null)
+        int? assignee = null, IReadOnlyList<int>? managers = null, IReadOnlyList<string>? attachmentIds = null)
     {
         ArgumentNullException.ThrowIfNull(detail); ArgumentNullException.ThrowIfNull(context);
         bool allowed = kind == TaskManagementKind.ChangeManagers
@@ -28,9 +28,10 @@ public sealed class TaskManagementRequest
         ExpectedAssignmentRevision = context.AssignmentRevision; ExpectedStatus = context.Status;
         CheckedUserId = userId; Title = title; Description = description; StartDate = start; DueDate = due;
         AssigneeId = assignee; ManagerUserIds = managers ?? Array.Empty<int>();
+        AttachmentIds = attachmentIds;
     }
     public static TaskManagementRequest Update(TaskDetail detail, TaskWriteContext context, int userId,
-        string title, string description, DateOnly start, DateOnly due)
+        string title, string description, DateOnly start, DateOnly due, IReadOnlyList<string>? attachmentIds = null)
     {
         ArgumentNullException.ThrowIfNull(description);
         if (string.IsNullOrWhiteSpace(title) || title.EnumerateRunes().Count() > 200 || start.Year < 1000
@@ -38,7 +39,23 @@ public sealed class TaskManagementRequest
         var utf8 = new UTF8Encoding(false, true);
         try { utf8.GetBytes(title); utf8.GetBytes(description); }
         catch (EncoderFallbackException) { throw new ArgumentException("문자 형식을 확인해 주세요."); }
-        return new(TaskManagementKind.Update, detail, context, userId, title, description, start, due);
+        IReadOnlyList<string>? copiedIds = null;
+        if (attachmentIds is not null)
+        {
+            if (attachmentIds.Count > 10)
+                throw new ArgumentException("업무 첨부파일은 최대 10개까지 선택할 수 있습니다.", nameof(attachmentIds));
+            var copied = new List<string>();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string id in attachmentIds)
+            {
+                if (!Guid.TryParseExact(id, "D", out Guid parsed) || parsed.ToString("D") != id || !seen.Add(id))
+                    throw new ArgumentException("첨부 ID는 중복되지 않는 정규 소문자 UUID여야 합니다.", nameof(attachmentIds));
+                copied.Add(id);
+            }
+            copiedIds = copied.AsReadOnly();
+        }
+        return new(TaskManagementKind.Update, detail, context, userId, title, description, start, due,
+            attachmentIds: copiedIds);
     }
     public static TaskManagementRequest Reassign(TaskDetail detail, TaskWriteContext context, int userId, int assigneeId)
     {
@@ -65,6 +82,9 @@ public sealed class TaskManagementRequest
     public DateOnly? DueDate { get; }
     public int? AssigneeId { get; }
     public IReadOnlyList<int> ManagerUserIds { get; }
+    // Null leaves existing references unchanged; [] explicitly removes this
+    // task's references. Preserve the frozen original order for W1 replay.
+    public IReadOnlyList<string>? AttachmentIds { get; }
     internal int CheckedUserId { get; }
 }
 
@@ -75,7 +95,7 @@ public enum TaskManagementFailure
 {
     NotConfigured, AuthenticationExpired, Forbidden, NotFound, InvalidInput, AssignmentChanged,
     VersionConflict, StateConflict, DataInconsistent, VersionExhausted, AssignmentExhausted,
-    DueDateInPast, NoChange, KeyReused, KeyExpired, Conflict, Unavailable, InvalidResponse
+    DueDateInPast, NoChange, KeyReused, KeyExpired, Conflict, Unavailable, InvalidResponse, AttachmentUnavailable
 }
 public sealed class TaskManagementException(TaskManagementFailure failure, Exception? inner = null)
     : Exception(MessageFor(failure), inner)
@@ -95,6 +115,7 @@ public sealed class TaskManagementException(TaskManagementFailure failure, Excep
         TaskManagementFailure.VersionExhausted or TaskManagementFailure.AssignmentExhausted => "업무·배정 번호 상한에 도달했습니다. 관리자 점검이 필요합니다.",
         TaskManagementFailure.DueDateInPast => "새 마감일은 한국 시간 오늘 이후로 지정해 주세요.",
         TaskManagementFailure.NoChange => "현재 저장된 값과 같습니다. 변경할 내용을 다시 확인해 주세요.",
+        TaskManagementFailure.AttachmentUnavailable => "선택한 첨부파일이 없거나 전송 완료 상태가 아닙니다. 파일 목록을 다시 확인해 주세요. 기존 선택은 유지했습니다.",
         TaskManagementFailure.KeyExpired => "요청 키·결과 보관 기간이 지났습니다. 처리 내역을 확인해 주세요.",
         TaskManagementFailure.KeyReused or TaskManagementFailure.Conflict => "요청 정보가 일치하지 않습니다. 새 요청을 보내기 전에 처리 내역을 확인해 주세요.",
         _ => "업무 변경 결과를 확인할 수 없습니다. 같은 요청의 처리 결과를 먼저 확인해 주세요."
