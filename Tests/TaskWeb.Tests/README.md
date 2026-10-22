@@ -11,6 +11,8 @@
 
 새 `test_task_web_attachments.py`, `test_task_management_attachments.py`와 기존 creation 첨부·read/복귀·member3 소비·웹 등록/관리 회귀를 소유 MySQL/실제 cookie 제공부로 실행합니다. 원본013·물리 DDL/schema1 불변·소유 자원 정리를 확인하며 SQLite/운영 ACK를 사용하지 않습니다. 최종 실행 건수와 미실행은 [LOG의 최신 소비 검증](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md#member2-t3-consumers-check-20261022)을 확인합니다.
 
+최종 검증은 **기존 회귀191개 + 새 웹 첨부23개**를 두 실행으로 확인했습니다. 전체214개 첫 실행은203통과/새 첨부11실패(407.48초)였으며, 테스트 업로드 helper의 URL-encoded 전송을 실제 브라우저와 같은 `multipart/form-data`로 고친 뒤 새 첨부23개가 모두 통과했습니다(34.97초). 두 실행에 겹친12개를 합산하지 않습니다. 제품 코드는 이 수정에서 바꾸지 않았습니다. 마지막23개 실행에서 DDL 불변/schema1/소유 자원 정리를 확인했고, 첫 전체 실행은 실패 뒤 DDL 검사에 도달하지 않았으나 자원 정리는 완료했습니다. 전체214개를 한 번에 다시 실행한 결과로 표시하지 않습니다.
+
 별도 실제 브라우저에서는 합성 admin1로 선택→전송 전 차단→업로드→등록→다운로드39B/hash 일치→managed read/원래 업무 복귀→첨부만 추가1→2→전체 해제2→0을 확인했습니다.320/390/1100폭 가로 넘침이 없었으며 결과 스크린샷은 로컬 검증 산출물에 보관합니다. 공유 서버·실계정·HTTPS/두 PC·25MiB 전체 네트워크·운영 ACK는 이번 검사 범위가 아닙니다.
 
 <a id="업무-웹-읽기-전용-mysql-검사"></a>

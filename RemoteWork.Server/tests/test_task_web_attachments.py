@@ -103,7 +103,8 @@ def csrf(client):
 
 def post_shared(client, scope, path, body):
     return client.post(path, headers={"X-Results-Session": scope},
-        data={"csrf_token": csrf(client), "body": json.dumps(body, ensure_ascii=False)})
+        data={"csrf_token": csrf(client), "body": json.dumps(body, ensure_ascii=False)},
+        content_type="multipart/form-data")
 
 
 def upload(client, scope, *, task_id=None, data=b"\xfb\xef\xbe" * 6000, complete=True):
