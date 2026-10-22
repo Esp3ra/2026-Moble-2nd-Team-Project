@@ -15,7 +15,7 @@
 $identityPython = '<test-venv>\Scripts\python.exe'
 $identitySource = Join-Path $env:TEMP ('identity-source-' + [guid]::NewGuid().ToString('N'))
 $identityReport = Join-Path $env:TEMP ('identity-report-' + [guid]::NewGuid().ToString('N'))
-& $identityPython Tests/FingerprintIdentity.Server.Tests/prepare_source.py --alpha-ref 18a48555d3ef995afca53ed74b4cfb8f0e1dba73 --server-ref 28cd8d94108247ebc656be27e17a151da19795f5 --output $identitySource
+& $identityPython Tests/FingerprintIdentity.Server.Tests/prepare_source.py --alpha-ref 9c5c07c9aa6757c83a6d52a0c01cf7bcc3b85fc6 --server-ref 95ef89dfa8d9478e0cb6c3cb26282cd43c09a820 --output $identitySource
 # 처음에는 해당 검사 venv에 export의 requirements-dev.txt와 기존 Pi tzdata를 준비한다.
 & $identityPython -m pip install -r "$identitySource\RemoteWork.Server\requirements-dev.txt" -r "$identitySource\Devices\RaspberryPi\requirements-test.txt"
 & $identityPython Tests/FingerprintIdentity.Server.Tests/run_check.py --allow-disposable-mysql --mysql-bin-dir 'C:\Program Files\MySQL\MySQL Server 8.2\bin' --source-root $identitySource --report-directory $identityReport
@@ -25,7 +25,9 @@ $identityReport = Join-Path $env:TEMP ('identity-report-' + [guid]::NewGuid().To
 
 ## 고정 조합과 충돌
 
-원본 alpha18a4855(65/64 병합) + 1번 PR62 28cd8d9의 검토 조합이다. `merge-tree`는 `.env.example`·`remotework/__init__.py` 두 곳에 충돌을 낸다. export 전용 준비기는 각각 한 충돌 블록/예상한 협업 guard와 identity 검증 블록인지 확인하고 **양쪽을 보존**한다. 예상과 다르면 중단한다. 결과 hash·양쪽 SHA·검토 tree를 manifest에 기록하고 실행기가 hash를 대조한다. 이 처리를 정식 충돌 해결/원본 병합 또는1번의 동의로 기록하지 않는다. 두 담당 guard/설정을 실제 PR에서 결합하는 것은 소유자 후속이다.
+최종 게시 전 조합은 **원본 alpha9c5c07c + 1번 PR62 95ef89d**이며 `merge-tree` 충돌0이다. 1번이 원본 통합을 이미 제공했으므로 시작 설정을 다시 수정/요청하지 않는다. 양쪽 SHA·tree를 manifest에 고정한다.
+
+최초 검사 이력은 alpha18a4855(65/64 병합)+PR62 28cd8d9다. 이때 `.env.example`·`remotework/__init__.py` 두 곳에 충돌이 있었다. export 전용 준비기는 각각 한 충돌 블록/예상한 협업 guard와 identity 검증 블록인지 확인하고 **양쪽을 보존**했다. 예상과 다르면 중단한다. 결과 hash를 manifest에 기록하고 실행기가 대조한다. 이 최초 export 처리를 정식 충돌 해결/원본 병합 또는1번 동의로 기록하지 않는다. 현재 무충돌 조합과 구분한 과거 근거다.
 
 ## 확인 항목
 
@@ -41,14 +43,14 @@ $identityReport = Join-Path $env:TEMP ('identity-report-' + [guid]::NewGuid().To
 
 ## 미완료·협업 상태
 
-1번의 R62-01(외부 DB의 동명 FK를 storage 검사에서 구분하지 못함)은 별도 검토·수정 요청이며 이 정상 조합 검사가 해결 근거가 아니다. 실제 서버 배포·개인키/회수키·Linux ACL/BOOTTIME·운영 재시작 준비 상태, C# 현재 IdentityPending/정상 접속 adapter와 화면·실물 센서/두PC는 미실행이다. 이 단계는 다른 담당 제품을 수정하지 않고 독립 연결 근거를 준비하는 작업이다.
+최초28cd8d9 당시 R62-01(외부DB FK 준비 검사)과 R62-02(C# pending 만료 후 결과 복구) 수정 요청이 있었고, 게시 전 **1번447d7a5/95ef89d 수정 코드를 수신**했다. 이 정상 연결10검사는 다른DB FK 또는 C# 만료 후 복구를 직접 검사한 것이 아니며 두 요청의 재검토 완료 판정을 대신하지 않는다. 실제 서버 배포·개인키/회수키·Linux ACL/BOOTTIME·운영 재시작 준비 상태, C# 현재 IdentityPending/정상 접속 adapter의실제서버 연결·화면·실물센서/두PC는 미실행이다. 이 단계는 다른 담당 제품을 수정하지 않고 독립 연결 근거를 준비하는 작업이다.
 
 실행 결과/게시 SHA는 작업 보고와 승인 후 기존 PR58 대표 댓글에 한 번에 연결한다. 날짜 LOG는 팀장 취합 범위라 직접 게시하지 않는다. 새 코드 PR/회신은 사용자 승인 뒤 함께 보낸다.
 
 ## 직접 실행 결과 — 2026-10-22
 
-Windows / Python3.13.15 / MySQL8.2 InnoDB RR / 위 고정 alpha18a4855+서버28cd8d9 조합에서 **10 passed in 30.59s**. 소유 MySQL의 DB 삭제·프로세스 종료와 임시 runtime 폴더 삭제를 모두 확인했다. source manifest의 충돌 해결 파일 hash도 실행 전 대조했다. 이전9개 검사·다른 담당 검사와 합산하지 않는다.
+Windows / Python3.13.15 / MySQL8.2 InnoDB RR / 최종 고정 **alpha9c5c07c+서버95ef89d에서10 passed in30.76s**. 소유 MySQL의DB 삭제·프로세스 종료와임시runtime 폴더삭제를 모두 확인했다. 앞선 alpha18a4855+28cd8d9의10통과/30.59초와새결과를 합산하지 않는다. 앞선조합의충돌해결파일hash도검사했고, 최종은충돌0이다. 다른담당 검사수치를5번직접검증에더하지않는다.
 
 최초 정오 추가 실행은 테스트 helper의 기본 로그인1시간을 넘겨 서버 시계를2시간 이동해401로 실패했다. 정오 시나리오의 합성 로그인을 명시8시간으로 준비한 뒤 통과했다. 제품의 만료 검사/시간 제한은 변경하지 않았고 실패 실행은 통과 수에 넣지 않았다. source 준비기의 파일 쓰기는 LF로 고정해 Windows 줄바꿈과 manifest의 byte hash가 일치하도록 했으며, 최종 실행은 해당 hash 검사를 포함한다.
 
-이번 변경은 이 폴더의 준비기/실행기/검사/안내4파일뿐이다. 제품·타 담당 코드/설정·DB·실제 회원/센서는 변경하지 않았다. 로컬 검사 완료이며 코드 push/새PR·외부 회신/원본 병합·운영 적용은 아직 하지 않았다.
+이번 변경은 이 폴더의 준비기/실행기/검사/안내4파일뿐이다. 제품·타 담당 코드/설정·DB·실제 회원/센서는 변경하지 않았다. 사용자 승인으로 코드/검사결과·PR·1번회신을함께게시하며, 최종게시SHA/주소는코드PR본문과기존PR58대표댓글을따른다. 원본병합·운영적용은별도다.
