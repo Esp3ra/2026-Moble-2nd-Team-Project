@@ -1,6 +1,5 @@
 """Explicit test-only MySQL instance. Never connect using operator configuration."""
 import argparse
-from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -12,6 +11,19 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "Tests/TaskQueries.Http.Tests"))
 import run_mysql_http_check as owned
+
+
+def capture_pytest(command, runtime, env):
+    # This existing helper owns the child from BEFORE Popen/Job assignment.
+    # Its finally closes the Job, stops/waits the owned child and closes pipes,
+    # including when assignment or primary-thread resume raises.
+    return owned.run_owned_client(command, cwd=runtime, env=env,
+        stdin=subprocess.DEVNULL, text=True, encoding="utf-8",
+        creationflags=subprocess.CREATE_NO_WINDOW, capture_output=True, timeout=300)
+
+
+def captured_text(value):
+    return value.decode("utf-8", errors="replace") if isinstance(value, bytes) else value or ""
 
 
 def main():
@@ -48,39 +60,23 @@ def main():
                         ("RemoteWork.Server", "RemoteWork.Server/tests", "Devices/RaspberryPi")))
                 command = [sys.executable, "-m", "pytest", "-q", "--tb=short", "--no-header", "-p", "no:cacheprovider",
                            str(Path(__file__).with_name("test_server_pi.py"))]
-                with _job() as job:
-                    with owned.defer_spawn_interrupt():
-                        child = subprocess.Popen(command, cwd=runtime, env=env, stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE, stdin=subprocess.DEVNULL, text=True, encoding="utf-8",
-                            creationflags=subprocess.CREATE_NO_WINDOW | owned.CREATE_SUSPENDED)
-                        job.assign(child)
-                    try:
-                        stdout, stderr = child.communicate(timeout=300)
-                    except subprocess.TimeoutExpired:
-                        job.close()
-                        owned.stop_owned_process(child)
-                        stdout, stderr = child.communicate(timeout=10)
-                        report["timed_out"] = True
-                    finally:
-                        owned.stop_owned_process(child)
-                    (args.report_directory / "pytest.private.txt").write_text(stdout + "\n" + stderr, encoding="utf-8")
-                    summaries = re.findall(r"^.*\d+ (?:passed|failed|error).* in [0-9.]+s.*$", stdout, re.M)
-                    report.update(exit=child.returncode, summary=summaries[-1] if summaries else "No completed pytest summary",
-                                  failed_nodes=re.findall(r"^FAILED (\S+)", stdout, re.M))
-                    print(json.dumps({k: report[k] for k in ("exit", "summary", "failed_nodes")}), flush=True)
+                try:
+                    result = capture_pytest(command, runtime, env)
+                    stdout, stderr, code = result.stdout, result.stderr, result.returncode
+                except subprocess.TimeoutExpired as error:
+                    stdout, stderr, code = captured_text(error.stdout), captured_text(error.stderr), 1
+                    report["timed_out"] = True
+                (args.report_directory / "pytest.private.txt").write_text(stdout + "\n" + stderr, encoding="utf-8")
+                summaries = re.findall(r"^.*\d+ (?:passed|failed|error).* in [0-9.]+s.*$", stdout, re.M)
+                report.update(exit=code, summary=summaries[-1] if summaries else "No completed pytest summary",
+                              failed_nodes=re.findall(r"^FAILED (\S+)", stdout, re.M))
+                print(json.dumps({k: report[k] for k in ("exit", "summary", "failed_nodes")}), flush=True)
     finally:
         report["cleanup"] = dict(mysql_stopped_and_database_removed=bool(mysql and mysql.clean),
                                   runtime_removed=bool(runtime and not runtime.exists()))
         (args.report_directory / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
         print("CLEANUP: " + json.dumps(report["cleanup"]), flush=True)
     return 0 if report.get("exit") == 0 and not report.get("timed_out") and all(report["cleanup"].values()) else 1
-
-
-@contextmanager
-def _job():
-    job = owned.WindowsJob()
-    try: yield job
-    finally: job.close()
 
 
 if __name__ == "__main__":

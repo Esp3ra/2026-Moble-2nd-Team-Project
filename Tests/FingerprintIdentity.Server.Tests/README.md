@@ -1,5 +1,13 @@
 # 5번: 1번 서버와 Pi 코드의 실제 HTTP/MySQL 연결 검사
 
+## 최신 수정 — R67-01 작성자 수정·재검토 대기, 2026-10-22
+
+[팀장 R67-01/P2 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/67#issuecomment-6330831748)을 수신했다. 최초 runner는 Popen/Job 등록 뒤에 정리 try/finally가 시작되어 등록 실패 시 suspended 자식이 남을 수 있었다. 새 `capture_pytest()`가 기존 `owned.run_owned_client`에 생성부터 종료까지 위임한다. 이 helper는 child/job=None에서 시작해 Popen·등록/스레드 재개 이전부터 finally로 보호하고 Job close→소유 자식 stop/wait→stdout/stderr close를 수행한다. **공통 helper는 수정하지 않았다.** timeout은 실패 상태를 유지하며 새 자식/DB로 자동 재실행하지 않는다.
+
+`python -m unittest discover -s Tests/FingerprintIdentity.Server.Tests -p test_run_check.py`: **7 tests PASS/0.003초**. 실제 기존 helper의 Popen/Job만 대역으로 바꾸고 원 stop/wait 코드를 실행했다. 등록 실패 시 spawn1/assign1/job.close1/terminate1/wait1·child alive=False·두 출력 스트림 closed를 확인했다. 등록 중 KeyboardInterrupt, 등록 뒤 resume 실패, 통신 중 KeyboardInterrupt, timeout, 정상 종료, Popen 실패도 검사했다. 실제 프로세스/DB/HTTP를 만든 실패 주입이 아니다.
+
+수정 runner의 정상 연결은 동일 고정 source9c5c07c+95ef89d에서 **10 passed in30.28s**, exit0·새 MySQL 종료/DB 삭제·runtime 삭제 모두True다. 최신 alpha8cc0821의 서버/Pi 파일은 해당 검사 source95ef89d와 diff0이다. 대역7개와 실제 연결10개를 합친 단일 수치로 표시하지 않는다. `git diff --check`도 통과했다. 작성자 수정·게시 후 재검토 요청이며 팀장 해결 확인/원본 병합을 대신하지 않는다. 실제 서버/장비·키/설정·C# UI는 변경하지 않았다.
+
 작성자5번 / 전달 대상1번·팀장. 가짜 issuer를 쓰던 기존110검사와 별도다. **1번 실제 identity HTTP·MySQL 서비스 + 5번 실제 Pi HTTP/runtime·서명/비교 코어**를 loopback TCP로 연결한다. 가짜인 것은 센서/UART·OLED와 합성 계정/장치·시험용 준비 상태다. 실제 C# 서버 adapter/LoginForm/MainForm, Windows↔실물Pi/두PC 검사가 아니다.
 
 ## 파일·실행 범위
@@ -7,6 +15,7 @@
 - `prepare_source.py`: 고정한 Git alpha/서버 ref를 export한다. 사용자 checkout에 미병합 서버 코드를 섞거나 `.env`를 복사하지 않는다. 새 출력 폴더만 허용한다.
 - `run_check.py`: 기존2번의 `OwnedMySQL`/Windows Job/식별·정리 도구를 **수정 없이** 재사용한다. `--no-defaults`·새 datadir·loopback 임시 포트·무작위 새DB를 소유하고 실제 datadir/port/InnoDB/RR 검증 후에만 생성/삭제/SHUTDOWN한다. 기존 MySQL 서비스에는 접속/종료하지 않는다. 격리 환경의 기본 DB URL은 즉시 제거·자기 MySQL로 교체하며 SQLite DB를 만들거나 사용하지 않는다.
 - `test_server_pi.py`: 실제 두 HTTP 서버를 띄우고 서버가 낸 request/approval을 Pi가 검증하며, Pi 원문 result를 서버가 검증·보관한다. 공개 서버 fixture는 임시 MySQL에 합성 등록/계정·매핑만 준비한다. 센서 등록/삭제를 호출하는 시험이 아니다.
+- `test_run_check.py`: R67-01의 프로세스 생성/등록·취소·timeout·정상 종료 정리 회귀7개. 표준 unittest로 따로 실행하며 실제 MySQL/프로세스를 만들지 않는다.
 
 실행에는 Windows/MySQL8.2 binary와 전용 Python 검사 venv가 필요하다. **운영 서버 venv/개인 설정을 사용하지 않는다.** 외부 보고 폴더에는 안전한 `report.json`과 비공개 pytest 출력을 남기며 키·토큰·접속 URL·원문은 콘솔/커밋에 넣지 않는다.
 
@@ -53,4 +62,4 @@ Windows / Python3.13.15 / MySQL8.2 InnoDB RR / 최종 고정 **alpha9c5c07c+서�
 
 최초 정오 추가 실행은 테스트 helper의 기본 로그인1시간을 넘겨 서버 시계를2시간 이동해401로 실패했다. 정오 시나리오의 합성 로그인을 명시8시간으로 준비한 뒤 통과했다. 제품의 만료 검사/시간 제한은 변경하지 않았고 실패 실행은 통과 수에 넣지 않았다. source 준비기의 파일 쓰기는 LF로 고정해 Windows 줄바꿈과 manifest의 byte hash가 일치하도록 했으며, 최종 실행은 해당 hash 검사를 포함한다.
 
-이번 변경은 이 폴더의 준비기/실행기/검사/안내4파일뿐이다. 제품·타 담당 코드/설정·DB·실제 회원/센서는 변경하지 않았다. 사용자 승인으로 코드/검사결과·PR·1번회신을함께게시하며, 최종게시SHA/주소는코드PR본문과기존PR58대표댓글을따른다. 원본병합·운영적용은별도다.
+최초 변경은 이 폴더의4파일이었고 R67-01 정리 회귀1파일을 추가해 현재5파일이다. 제품·타 담당 코드/설정·DB·실제 회원/센서는 변경하지 않았다. 사용자 승인 범위인 기존 PR67에 수정/회귀 근거를 이어 게시하며, 최종 게시SHA/주소는 PR본문과 기존 PR58 대표 댓글을 따른다. 원본 병합·운영 적용은 별도다.
