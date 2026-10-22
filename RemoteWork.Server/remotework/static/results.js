@@ -9,6 +9,7 @@
     updated:"업무 수정", reassigned:"담당자 변경", managers_changed:"관리자 변경", cancelled:"업무 취소",
     deadline_extension_requested:"연장 신청", deadline_extension_approved:"연장 승인", deadline_extension_rejected:"연장 반려", deadline_extension_withdrawn:"연장 철회", other:"기타"};
   const scope = root.dataset.session, csrf = root.dataset.csrf;
+  const readOnly = root.dataset.view === "read";
   const controllers = new Set();
   let invalid = false, busy = false, pending = null;
   let pendingFailure = null, canReprepare = false, selectionRevision = 0;
@@ -83,7 +84,7 @@
     updateActions();
   }
   function updateActions() {
-    if (root.dataset.page !== "results") return;
+    if (root.dataset.page !== "results" || readOnly) return;
     const own = !$("view") || $("view").value === "own";
     $("submit-open").hidden = !own;
     $("rework-start").hidden = !own || task?.task_status !== "returned";
@@ -163,10 +164,11 @@
     task = null; selected = null; submissions = []; updateActions();
     $("detail").textContent = "업무를 선택해 주세요."; $("attachments").replaceChildren(); $("rounds").replaceChildren();
     const view = $("view")?.value || "own";
-    $("list-title").textContent = view === "own" ? "내 결과 제출 목록" : "결과물 검토 목록";
+    $("list-title").textContent = readOnly ? "업무 결과물 · 읽기 전용" : view === "own" ? "내 결과 제출 목록" : "결과물 검토 목록";
     try {
       show("message", "목록을 불러오고 있습니다.");
-      const data = await api(`tasks?scope=${view}`); if (serial !== generation || invalid) return;
+      const data = readOnly ? {items:[await api(`tasks/${root.dataset.taskId}`)]} : await api(`tasks?scope=${view}`);
+      if (serial !== generation || invalid) return;
       tasks = data.items; renderTasks(); show("message", tasks.length ? "업무를 선택해 주세요." : "현재 조회할 업무가 없습니다.");
       const chosen = tasks.find(t => t.task_id === wanted);
       if (chosen && (!$("status").value || chosen.task_status === $("status").value)) await choose(chosen);
@@ -238,6 +240,8 @@
   async function successWrite() {
     const id = pending.taskId; pending = null; pendingFailure = null; canReprepare = false; $("pending-panel").hidden = true;
     $("submission-dialog").close(); $("decision-dialog").close(); files = []; lock(false);
+    show("save-confirmed", "서버 저장 성공을 확인했습니다. 이후 조회 권한이 바뀌어도 이 저장 성공은 유지됩니다.");
+    $("save-confirmed").hidden = false;
     await refresh(id); if (!$("message").classList.contains("error")) show("message", "서버 저장을 확인하고 목록을 갱신했습니다.");
   }
   async function sendPending() {
@@ -295,6 +299,13 @@
   }
   function startResults() {
     $("filters").addEventListener("submit", e => { e.preventDefault(); if (!pending && !busy) refresh(); });
+    $("task-back")?.addEventListener("click", e => {
+      if (pending || busy) { e.preventDefault(); show("message", "진행 중인 요청의 처리 결과를 먼저 확인해 주세요.", true); }
+    });
+    for (const name of ["files","rounds"]) $(name+"-tab").addEventListener("click", () => {
+      for (const other of ["files","rounds"]) { $(other+"-tab").setAttribute("aria-selected",String(other === name)); $(other+"-panel").hidden = other !== name; }
+    });
+    if (readOnly) { refresh(root.dataset.taskId); return; }
     $("view")?.addEventListener("change", () => refresh(null));
     $("submit-open").addEventListener("click", openSubmission);
     $("rework-start").addEventListener("click", async () => {
@@ -334,9 +345,6 @@
     });
     for (const b of root.querySelectorAll("[data-close]")) b.addEventListener("click", () => { if (!busy) $(b.dataset.close).close(); });
     for (const dialog of root.querySelectorAll("dialog")) dialog.addEventListener("cancel", e => { if (busy) e.preventDefault(); });
-    for (const name of ["files","rounds"]) $(name+"-tab").addEventListener("click", () => {
-      for (const other of ["files","rounds"]) { $(other+"-tab").setAttribute("aria-selected",String(other === name)); $(other+"-panel").hidden = other !== name; }
-    });
     window.addEventListener("beforeunload", e => { if (pending || busy) { e.preventDefault(); e.returnValue = ""; } });
     refresh(root.dataset.taskId || null);
   }

@@ -42,15 +42,17 @@ function response(data,status=200,code=null) {
   return {status,ok:status>=200&&status<300,redirected:false,headers:{get:()=>"SESSION"},
     json:async()=>code?{ok:false,error:{code,message:code}}:{ok:true,data}};
 }
-function harness({role="admin",state="submitted",write,lookup,initialTask=""}={}) {
+function harness({role="admin",state="submitted",write,lookup,initialTask="",view="",afterSaveForbidden=false}={}) {
   const ids=new Map(),root=new Element("section");
-  root.dataset={page:"results",role,name:"TEST reviewer",session:"SESSION",csrf:"TEST-CSRF",taskId:initialTask};ids.set("results-page",root);
+  root.dataset={page:"results",role,name:"TEST reviewer",session:"SESSION",csrf:"TEST-CSRF",taskId:initialTask,view};ids.set("results-page",root);
   const names=["message","pending-panel","pending-message","lookup","retry","reprepare","filters","status","search","list-title","list-count","tasks","detail","attachments","rounds","submit-open","rework-start","approve-open","return-open","submission-dialog","submission-form","submission-task","description","upload-files","pending-files","upload-message","submit-save","decision-dialog","decision-form","decision-title","decision-task","decision-result","decision-files","reason-label","reason","decision-message","decision-save","files-tab","rounds-tab","files-panel","rounds-panel"];
   const buttons=new Set(["lookup","retry","reprepare","submit-open","rework-start","approve-open","return-open","submit-save","decision-save","files-tab","rounds-tab"]);
   for(const name of names){const el=new Element(buttons.has(name)?"button":name.endsWith("dialog")?"dialog":name.endsWith("form")||name==="filters"?"form":["reason","description"].includes(name)?"textarea":"div");ids.set(name,el);root.append(el);}
-  if(role==="admin"){const el=new Element("select");el.value="review";ids.set("view",el);root.append(el);}
+  for(const name of ["save-confirmed","task-back"]){const el=new Element(name==="task-back"?"a":"p");el.hidden=name==="save-confirmed";ids.set(name,el);root.append(el);}
+  if(role==="admin"&&view!=="read"){const el=new Element("select");el.value="review";ids.set("view",el);root.append(el);}
   for(const name of ["submission-dialog","decision-dialog"]){const b=new Element("button");b.dataset.close=name;root.append(b);}
   ids.get("pending-panel").hidden=ids.get("retry").hidden=ids.get("reprepare").hidden=true;
+  if(view==="read")for(const name of ["submit-open","rework-start","approve-open","return-open","submission-dialog","decision-dialog","upload-files"]){root.children=root.children.filter(el=>el!==ids.get(name));ids.delete(name);}
   const task={task_id:"10",title:"TEST task",assignee_name:"TEST worker",task_status:state,start_date:"2026-10-20",due_date:"2099-12-31",row_version:"1"};
   const other={...task,task_id:"11",title:"TEST other"};
   let rounds=state==="submitted"?[
@@ -64,7 +66,7 @@ function harness({role="admin",state="submitted",write,lookup,initialTask=""}={}
     const body=options.body?JSON.parse(options.body.get("body")):undefined;
     const item={endpoint,body,key:options.headers["Idempotency-Key"]};requests.push(item);
     if(paused.has(endpoint))return paused.get(endpoint).promise;
-    if(endpoint.startsWith("tasks?"))return response({items:[{...task},{...other}]});
+    if(endpoint.startsWith("tasks?"))return afterSaveForbidden&&writes?response(null,403,"FORBIDDEN"):response({items:[{...task},{...other}]});
     if(endpoint==="tasks/10"||endpoint==="tasks/11")return response({...task,task_id:endpoint.split("/")[1]});
     if(endpoint.endsWith("/submissions"))return response({items:rounds});
     if(endpoint==="tasks/10/context")return response({...context(null),title:task.title,due_date:task.due_date});
@@ -167,9 +169,25 @@ async function navigationHints() {
   check(h.ids.get("message").textContent.includes("현재 조회 범위에 없습니다"),"unavailable navigation task stays unselected");
   check(!h.requests.some(x=>x.endpoint==="tasks/999"),"navigation hint does not bypass current list scope");
 }
+async function readAndReturn() {
+  let h=harness({view:"read",initialTask:"10"});await settle();
+  check(h.ids.get("detail").textContent.includes("TEST NEW RESULT"),"read-only page displays selected actual round");
+  check(h.ids.get("list-title").textContent.includes("읽기 전용"),"read-only title shown");
+  check(!h.requests.some(r=>r.endpoint.startsWith("tasks?")||r.endpoint.startsWith("actions/")),"managed read does not request own/review list or any mutation");
+  check(!h.ids.has("approve-open")&&!h.ids.has("submit-open"),"read handler runs without write controls");
+  await h.ids.get("rounds-tab").click();check(!h.ids.get("rounds-panel").hidden,"read-only submission history tab works");
+  h=harness({role:"employee",state:"in_progress",afterSaveForbidden:true});await prepareSubmission(h);
+  check(!h.ids.get("save-confirmed").hidden&&h.ids.get("save-confirmed").textContent.includes("저장 성공"),"success stays visible when refreshed detail/list returns403");
+  check(h.ids.get("pending-panel").hidden&&h.writes===1&&h.keys===1,"after-success403 never makes a new or pending save");
+  h=harness({role:"employee",state:"in_progress",write:()=>response(null,502,"TEST_LOST")});await prepareSubmission(h);
+  let prevented=false;for(const listener of h.ids.get("task-back").listeners.click)listener({preventDefault(){prevented=true;}});
+  check(prevented,"unknown save must be resolved before explicit return");
+  check(!h.requests.some(r=>r.endpoint.includes("discard")),"unknown save never discards selected uploads");
+}
 (async()=>{
   await decisionRace("approved");await decisionRace("returned");await mismatchedContext();
   await rejectionRecovery(409,"TASK_VERSION_CONFLICT");await rejectionRecovery(400,"INVALID_INPUT");
   await ambiguousRecovery();await completedLookup();await changedReviewAfterFailure();await navigationHints();
+  await readAndReturn();
   console.log(`PASS ${checks} browser-handler checks using original results.js with explicit DOM/HTTP doubles. Not real browser/MySQL tests.`);
 })().catch(error=>{console.error(error);process.exitCode=1;});
