@@ -21,14 +21,16 @@ internal static class Program
             }
             using var login = new LoginForm(api: null, openWorkspace: accepted =>
             {
+                var acceptedSession = AppServices.Api.CaptureSession();
+                if (acceptedSession.User.Id != accepted.User.Id) throw new OperationCanceledException();
                 using var main = new MainForm(accepted.User);
                 main.Shown += async (_, _) =>
                 {
                     try
                     {
-                        if (!AppServices.Api.IsLoginCurrent(accepted)) return;
+                        if (!acceptedSession.IsCurrent) return;
                         var report = await WorkspaceConnector.ConnectAsync(main, profile);
-                        if (!main.IsDisposed && AppServices.Api.IsLoginCurrent(accepted) && report.Notices.Length != 0)
+                        if (!main.IsDisposed && acceptedSession.IsCurrent && report.Notices.Length != 0)
                             MessageBox.Show(main, string.Join("\n", report.Notices), "통합 연결 확인");
                     }
                     catch (Exception ex) when (ex is InvalidOperationException or InvalidDataException or OperationCanceledException)
