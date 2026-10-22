@@ -40,6 +40,19 @@ internal static class PreviewChecks
             var id = Guid.NewGuid();
             var first = own.SubmitAsync(draft, id, default).Result;
             Check(own.SubmitAsync(draft, id, default).Result == first, "RAM receipt repeat does not duplicate");
+            var rejectRow = managed.ListAsync(default).Result.Single(r => r.Id == first.Request.Id);
+            using var reject = new LeaveDecisionForm(reviewer.CaptureSession(), managed, rejectRow); reject.Show();
+            string rejection = "해당 날짜에 부서 일정이 있습니다.\r\n다른 날짜로 다시 신청해 주세요.";
+            Field<TextBox>(reject, "txtDecisionReason").Text = rejection;
+            Field<Button>(reject, "btnReject").PerformClick(); Wait(reject.PendingOperation);
+            var rejected = own.ListAsync(default).Result.Single(r => r.Id == rejectRow.Id);
+            Check(reject.DecisionCompleted && rejected.Status == "rejected" && rejected.DecisionReason == rejection,
+                "Reviewer reason is retained in the same employee request");
+            using var detail = new LeaveDecisionForm(employee.CaptureSession(), own, rejected, readOnly: true); detail.Show();
+            Check(Field<TextBox>(detail, "txtDecisionReason").Text == rejection && Field<TextBox>(detail, "txtDecisionReason").ReadOnly,
+                "Employee details display full rejection reason read-only");
+            if (output is not null) { Directory.CreateDirectory(output); Save(detail, Path.Combine(output, "leave-rejection-detail.png")); }
+            detail.Close(); reject.Close();
             bool refused = false;
             try { own.DecideAsync(row, "approved", "", Guid.NewGuid(), default).GetAwaiter().GetResult(); }
             catch (InvalidOperationException) { refused = true; }

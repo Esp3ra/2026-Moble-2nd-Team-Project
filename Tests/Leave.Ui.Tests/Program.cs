@@ -30,6 +30,7 @@ internal static class Program
                 ReviewGuards(); Decision("approved"); Decision("rejected"); DecisionRetry(); BadDecisionReceipt();
                 ListScope(false); ListScope(true); LateList();
                 FilteredList(false); FilteredList(true); EmptyAndFailedList(); InputSummary();
+                RejectionDetails(); RejectionScopeAndMissing(); RejectionList();
                 if (args.Length == 1) Render(args[0]);
                 Console.WriteLine($"PASS Leave UI: {checks} assertions; actual WinForms + synthetic workflow/identity; no real server, database or device.");
                 result = 0;
@@ -259,6 +260,61 @@ internal static class Program
         using var admin = Login(true);
         using var review = new LeaveDecisionForm(admin.CaptureSession(), null, Request());
         Check(Field<Label>(review, "lblCharge").Text.Contains("차감하지"), "Review displays sick/official balance policy");
+    }
+    private static void RejectionDetails()
+    {
+        using var api = Login(); var flow = new Workflow();
+        string reason = "첫 번째 반려 사유\r\n" + new string('가', 800) + "\r\n다른 날짜로 다시 신청해 주세요.";
+        var row = Request(5, false) with { Status = "rejected", DecisionReason = reason };
+        using var detail = new LeaveDecisionForm(api.CaptureSession(), flow, row, readOnly: true); detail.Show();
+        Check(Field<TextBox>(detail, "txtDecisionReason").Text == reason, "Employee sees complete multiline rejection reason");
+        Check(Field<TextBox>(detail, "txtRequestReason").Text == row.Draft.Reason, "Application reason is separate from rejection reason");
+        Check(Field<TextBox>(detail, "txtDecisionReason").ReadOnly && !Field<Button>(detail, "btnApprove").Enabled
+            && !Field<Button>(detail, "btnReject").Enabled, "Details cannot edit or review");
+        Complete(Call(detail, "DecideAsync", "approved"));
+        Check(flow.Decisions.Count == 0, "Read-only mode cannot submit decisions even with direct invocation");
+        api.ClearIdentity(); Application.DoEvents();
+        Check(!detail.Visible, "Open rejection details close when login ends");
+    }
+    private static void RejectionScopeAndMissing()
+    {
+        using var employee = Login(); using var admin = Login(true);
+        var other = Request(99, false) with { Status = "rejected", DecisionReason = "다른 직원의 검토 의견" };
+        using var wrongEmployee = new LeaveDecisionForm(employee.CaptureSession(), null, other, readOnly: true);
+        using var unassignedAdmin = new LeaveDecisionForm(admin.CaptureSession(), null, other, readOnly: true);
+        foreach (var form in new[] { wrongEmployee, unassignedAdmin })
+            Check(Field<TextBox>(form, "txtDecisionReason").Text.Length == 0
+                && Field<TextBox>(form, "txtRequestReason").Text.Length == 0, "No details outside own/assigned scope");
+        using var missing = new LeaveDecisionForm(employee.CaptureSession(), null, Request(5, false) with { Status = "rejected" }, readOnly: true);
+        Check(Field<Label>(missing, "lblStatus").Text.Contains("반려 사유가 없습니다")
+            && Field<TextBox>(missing, "txtDecisionReason").Text.Length == 0, "Missing rejection reason is explicit, not fabricated from application reason");
+    }
+    private static void RejectionList()
+    {
+        using var api = Login(); var flow = new Workflow();
+        using var panel = new AttendanceControl(PreviewRole.Employee, api.CaptureSession(), flow);
+        using var host = new Form(); host.Controls.Add(panel); host.Show(); Application.DoEvents();
+        var row = Request(5, false) with { Status = "rejected", DecisionReason = "서로 다른 사유를 확인해 주세요." };
+        var task = panel.RefreshLeaveAsync(); flow.ListCompletion.SetResult(new[] { row }); Complete(task);
+        var grid = Field<DataGridView>(panel, "gridLeaveRequests"); grid.Rows[0].Selected = true;
+        Check(grid.Rows[0].Cells["columnLeaveDecisionReason"].Value?.ToString() == row.DecisionReason, "Rejection reason reaches the employee list");
+        Check(Field<Button>(panel, "btnLeaveDetails").Enabled, "Employee can explicitly open selected details");
+        bool openedWithReason = false;
+        using var closer = new System.Windows.Forms.Timer { Interval = 20 };
+        closer.Tick += (_, _) =>
+        {
+            var form = Application.OpenForms.OfType<LeaveDecisionForm>().LastOrDefault();
+            if (form is null) return;
+            openedWithReason = Field<TextBox>(form, "txtDecisionReason").Text == row.DecisionReason
+                && Field<TextBox>(form, "txtDecisionReason").ReadOnly;
+            closer.Stop(); form.Close();
+        };
+        closer.Start(); Field<Button>(panel, "btnLeaveDetails").PerformClick(); closer.Stop();
+        Check(openedWithReason, "Actual employee details button opens full rejection reason read-only");
+        Field<ComboBox>(panel, "cmbLeaveStatus").SelectedIndex = 1;
+        Check(!Field<Button>(panel, "btnLeaveDetails").Enabled, "Filter without selected row disables details");
+        api.ClearIdentity(); Application.DoEvents();
+        Check(!Field<Button>(panel, "btnLeaveDetails").Enabled && grid.Rows.Count == 0, "Ended login cannot reopen private details");
     }
     private sealed class IdentityHandler(bool admin) : HttpMessageHandler
     {

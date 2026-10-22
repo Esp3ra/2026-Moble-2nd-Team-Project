@@ -22,6 +22,9 @@ internal sealed class PreviewStore
             new("연차", today.AddDays(3), today.AddDays(3), "화면 체험용 신청입니다."), "pending");
         rows["example-sick"] = new("example-sick", "1", 5, Employee.DisplayName, Employee.Department,
             new("병가", today.AddDays(-3), today.AddDays(-3), "병가 차감 제외 안내 확인용 예시입니다."), "approved");
+        rows["example-rejected"] = new("example-rejected", "1", 5, Employee.DisplayName, Employee.Department,
+            new("연차", today.AddDays(1), today.AddDays(1), "반려 사유 확인용 예시 신청입니다."), "rejected",
+            DecisionReason: "해당 날짜에 부서 일정이 있습니다.\r\n다른 날짜로 다시 신청해 주세요.");
         rows["not-assigned"] = new("not-assigned", "1", 99, "다른 예시 직원", "다른 체험 부서",
             new("공가", today, today, "지정되지 않은 직원은 목록과 검토에서 제외됩니다."), "pending");
     }
@@ -86,7 +89,7 @@ internal sealed class PreviewStore
             }
             if (current.Status != "pending" || current.Revision != request.Revision || current.Draft != request.Draft)
                 throw new InvalidOperationException("목록을 다시 확인해 주세요.");
-            var changed = current with { Status = decision, Revision = "2", CanReview = true };
+            var changed = current with { Status = decision, Revision = "2", CanReview = true, DecisionReason = reason };
             store.rows[current.Id] = changed with { CanReview = false };
             var receipt = new LeaveDecisionReceipt(requestId, changed);
             store.decisions.Add(requestId, (request.Id, request.Revision, decision, reason, receipt));

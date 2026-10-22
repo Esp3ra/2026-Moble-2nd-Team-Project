@@ -106,7 +106,7 @@ namespace RemoteWork.WinForms.Features.Attendance
                     lblLeaveEmpty.Text = "다시 로그인하면 내역을 확인할 수 있습니다.";
                     lblLeaveTitle.Text = "로그인이 필요합니다. 이전 신청 목록을 닫았습니다.";
                     lblBalance.Text = "잔여 연차 조회 전";
-                    btnQuery.Enabled = btnLeaveDecision.Enabled = btnLeaveApplicationPreview.Enabled = false;
+                    btnQuery.Enabled = btnLeaveDecision.Enabled = btnLeaveApplicationPreview.Enabled = btnLeaveDetails.Enabled = false;
                     cmbLeaveStatus.Enabled = false;
                 }));
             }
@@ -121,9 +121,14 @@ namespace RemoteWork.WinForms.Features.Attendance
         }
         private LeaveRequestView? SelectedLeave => gridLeaveRequests.SelectedRows.Count == 1
             ? gridLeaveRequests.SelectedRows[0].Tag as LeaveRequestView : null;
-        private void UpdateReviewButton() => btnLeaveDecision.Enabled = LeaveLive && !leaveLoading
-            && leaveWorkflow.IsConnected && LeaveInput.Administrator(leaveSession)
-            && SelectedLeave is { CanReview: true, Status: "pending" };
+        private void UpdateReviewButton()
+        {
+            btnLeaveDecision.Enabled = LeaveLive && !leaveLoading
+                && leaveWorkflow.IsConnected && LeaveInput.Administrator(leaveSession)
+                && SelectedLeave is { CanReview: true, Status: "pending" };
+            btnLeaveDetails.Enabled = LeaveLive && !leaveLoading && SelectedLeave is { } selected
+                && (LeaveInput.Administrator(leaveSession) ? selected.CanReview : selected.ApplicantId == leaveSession!.User.Id);
+        }
         private async void QueryLeave_Click(object? sender, EventArgs e)
         { PendingLeaveLoad = LoadLeaveAsync(); await PendingLeaveLoad; }
 
@@ -181,8 +186,9 @@ namespace RemoteWork.WinForms.Features.Attendance
             {
                 int index = gridLeaveRequests.Rows.Add(r.ApplicantName, r.Department, r.Draft.Type,
                     $"{r.Draft.StartDate:yyyy-MM-dd} ~ {r.Draft.EndDate:yyyy-MM-dd}", r.Draft.Reason,
-                    r.Status switch { "pending" => "검토 대기", "approved" => "승인", "rejected" => "반려", _ => "확인 필요" });
+                    r.Status switch { "pending" => "검토 대기", "approved" => "승인", "rejected" => "반려", _ => "확인 필요" }, r.DecisionReason ?? "");
                 gridLeaveRequests.Rows[index].Tag = r;
+                gridLeaveRequests.Rows[index].Cells[columnLeaveDecisionReason.Index].ToolTipText = r.DecisionReason ?? "";
             }
             gridLeaveRequests.ClearSelection(); gridLeaveRequests.CurrentCell = null;
             lblLeaveTitle.Text = (LeaveInput.Administrator(leaveSession) ? "지정된 직원의 연차 신청" : "내 연차 신청")
@@ -207,6 +213,17 @@ namespace RemoteWork.WinForms.Features.Attendance
             form.ShowDialog(this);
             if (form.DecisionCompleted && LeaveLive) { PendingLeaveLoad = LoadLeaveAsync(); }
         }
+
+        private void btnLeaveDetails_Click(object? sender, EventArgs e)
+        {
+            if (!btnLeaveDetails.Enabled || SelectedLeave is not { } selected) return;
+            using var form = new LeaveDecisionForm(leaveSession, leaveWorkflow, selected, readOnly: true);
+            if (PreviewOnly) form.Text = "화면 체험 · 실제 저장 없음 · " + form.Text;
+            form.ShowDialog(this);
+        }
+
+        private void LeaveRow_DoubleClick(object? sender, DataGridViewCellEventArgs e)
+        { if (e.RowIndex >= 0) btnLeaveDetails_Click(sender, EventArgs.Empty); }
 
         private void btnActivityPresence_Click(object? sender, EventArgs e)
         {

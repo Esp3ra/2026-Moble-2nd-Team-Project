@@ -30,6 +30,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             btnQuery = new Button();
             btnLeaveApplicationPreview = new Button();
             btnLeaveDecision = new Button();
+            btnLeaveDetails = new Button();
             btnActivityPresence = new Button();
             lblBalance = new Label();
             layoutRecords = new TableLayoutPanel();
@@ -58,6 +59,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             columnLeavePeriod = new DataGridViewTextBoxColumn();
             columnLeaveReason = new DataGridViewTextBoxColumn();
             columnLeaveStatus = new DataGridViewTextBoxColumn();
+            columnLeaveDecisionReason = new DataGridViewTextBoxColumn();
             layoutPage.SuspendLayout();
             layoutHeading.SuspendLayout();
             flowActions.SuspendLayout();
@@ -107,6 +109,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             flowActions.Controls.Add(btnQuery);
             flowActions.Controls.Add(btnLeaveApplicationPreview);
             flowActions.Controls.Add(btnLeaveDecision);
+            flowActions.Controls.Add(btnLeaveDetails);
             flowActions.Controls.Add(btnActivityPresence);
             flowActions.Controls.Add(lblBalance);
             cmbOptions.DropDownStyle = ComboBoxStyle.DropDownList;
@@ -140,6 +143,15 @@ namespace RemoteWork.WinForms.Features.Attendance
             btnLeaveDecision.Margin = new Padding(0, 0, 10, 0);
             btnLeaveDecision.Name = "btnLeaveDecision";
             btnLeaveDecision.Click += new System.EventHandler(btnLeaveDecision_Click);
+            btnLeaveDetails.Name = "btnLeaveDetails";
+            btnLeaveDetails.Text = "신청 상세";
+            btnLeaveDetails.Size = new Size(112, 34);
+            btnLeaveDetails.FlatStyle = FlatStyle.Flat;
+            btnLeaveDetails.BackColor = Color.White;
+            btnLeaveDetails.FlatAppearance.BorderColor = Color.FromArgb(213, 220, 231);
+            btnLeaveDetails.Margin = new Padding(0, 0, 10, 0);
+            btnLeaveDetails.Enabled = false;
+            btnLeaveDetails.Click += new System.EventHandler(btnLeaveDetails_Click);
             btnActivityPresence.Name = "btnActivityPresence";
             btnActivityPresence.Text = "활동 상태 확인";
             btnActivityPresence.Size = new Size(130, 34);
@@ -296,11 +308,12 @@ namespace RemoteWork.WinForms.Features.Attendance
             gridLeaveRequests.EnableHeadersVisualStyles = false;
             gridLeaveRequests.RowTemplate.Height = 38;
             gridLeaveRequests.Name = "gridLeaveRequests";
+            gridLeaveRequests.CellDoubleClick += new DataGridViewCellEventHandler(LeaveRow_DoubleClick);
             leaveHeaderStyle.BackColor = Color.FromArgb(243, 246, 251);
             leaveHeaderStyle.ForeColor = Color.FromArgb(103, 116, 135);
             leaveHeaderStyle.Font = new Font("맑은 고딕", 9F, FontStyle.Bold);
             gridLeaveRequests.ColumnHeadersDefaultCellStyle = leaveHeaderStyle;
-            gridLeaveRequests.Columns.AddRange(new DataGridViewColumn[] { columnLeaveEmployee, columnLeaveDepartment, columnLeaveType, columnLeavePeriod, columnLeaveReason, columnLeaveStatus });
+            gridLeaveRequests.Columns.AddRange(new DataGridViewColumn[] { columnLeaveEmployee, columnLeaveDepartment, columnLeaveType, columnLeavePeriod, columnLeaveReason, columnLeaveStatus, columnLeaveDecisionReason });
             columnLeaveEmployee.HeaderText = "직원";
             columnLeaveEmployee.Name = "columnLeaveEmployee";
             columnLeaveEmployee.MinimumWidth = 110;
@@ -319,7 +332,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             columnLeavePeriod.FillWeight = 160F;
             columnLeavePeriod.SortMode = DataGridViewColumnSortMode.NotSortable;
             columnLeavePeriod.FillWeight = 135F;
-            columnLeaveReason.HeaderText = "사유";
+            columnLeaveReason.HeaderText = "신청 사유";
             columnLeaveReason.Name = "columnLeaveReason";
             columnLeaveReason.MinimumWidth = 180;
             columnLeaveReason.SortMode = DataGridViewColumnSortMode.NotSortable;
@@ -329,6 +342,11 @@ namespace RemoteWork.WinForms.Features.Attendance
             columnLeaveStatus.MinimumWidth = 100;
             columnLeaveStatus.FillWeight = 70F;
             columnLeaveStatus.SortMode = DataGridViewColumnSortMode.NotSortable;
+            columnLeaveDecisionReason.Name = "columnLeaveDecisionReason";
+            columnLeaveDecisionReason.HeaderText = "검토 의견 · 반려 사유";
+            columnLeaveDecisionReason.MinimumWidth = 200;
+            columnLeaveDecisionReason.FillWeight = 150F;
+            columnLeaveDecisionReason.SortMode = DataGridViewColumnSortMode.NotSortable;
             // AttendanceControl
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
@@ -366,6 +384,7 @@ namespace RemoteWork.WinForms.Features.Attendance
         private Button btnQuery;
         private Button btnLeaveApplicationPreview;
         private Button btnLeaveDecision;
+        private Button btnLeaveDetails;
         private Button btnActivityPresence;
         private Label lblBalance;
         private TableLayoutPanel layoutRecords;
@@ -394,5 +413,6 @@ namespace RemoteWork.WinForms.Features.Attendance
         private DataGridViewTextBoxColumn columnLeavePeriod;
         private DataGridViewTextBoxColumn columnLeaveReason;
         private DataGridViewTextBoxColumn columnLeaveStatus;
+        private DataGridViewTextBoxColumn columnLeaveDecisionReason;
     }
 }

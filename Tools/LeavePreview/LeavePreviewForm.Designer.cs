@@ -30,7 +30,7 @@ namespace RemoteWork.LeavePreview
             reviewerHost.Name = "reviewerHost"; reviewerHost.Dock = DockStyle.Fill;
             AutoScaleDimensions = new SizeF(7F, 15F); AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1160, 760); MinimumSize = new Size(980, 680);
-            Font = new Font("맑은 고딕", 9F); Text = "연차 화면 체험 · 실제 저장 없음";
+            Font = new Font("맑은 고딕", 9F); Text = "연차 화면 체험 · 반려 사유 확인 · 실제 저장 없음";
             Name = "LeavePreviewForm"; StartPosition = FormStartPosition.CenterScreen;
             Controls.Add(layoutPage);
             reviewerTab.ResumeLayout(false); employeeTab.ResumeLayout(false); tabs.ResumeLayout(false); layoutPage.ResumeLayout(false); ResumeLayout(false);
