@@ -40,6 +40,7 @@ internal static partial class Program
                 {
                     await NoonAndBorrowedViews(owner); await LateAndOtherPc(owner); await ErrorsAndConcurrency(owner);
                     await EndedAndChangedWork(owner); await InvalidSource(owner); await MainOwnership(); await NormalCloseDrains();
+                    StartupProfile(); await IndependentStartup(false, false); await IndependentStartup(true, false); await IndependentStartup(false, true);
                     await ClockOutFlow(owner, false); await ClockOutFlow(owner, true); await ClockOutFailure(owner);
                     Console.WriteLine($"PASS workday activity: {checks} assertions; real C# forms/captured sessions, synthetic reader/monitor/device; no production changes.");
                 }

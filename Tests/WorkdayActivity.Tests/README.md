@@ -1,5 +1,7 @@
 # MainForm 정오·퇴근·활동 감시 연결 검사
 
+2026-10-23 후속: `Tools/ConnectedWorkspace`의 명시 실행 조립·설정 검사를 추가해 기본 검사가 **81항목**(아래 기존51 포함)이다. 실제 MainForm에서 연차/근무 각각1회 시도·한쪽 실패 격리·정책OFF 차단·동일 workflow/monitor 대여·로그인 종료를 확인한다. 서버/센서 대역 범위는 유지하며 실제 운영활성화 성공이 아니다.
+
 ```powershell
 dotnet run --project Tests/WorkdayActivity.Tests -c Release
 ```
