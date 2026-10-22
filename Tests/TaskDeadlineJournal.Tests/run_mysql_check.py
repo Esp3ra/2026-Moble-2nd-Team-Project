@@ -16,7 +16,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 TARGET = "test_task_deadline_journal_integration.py"
 SUITES = {"actual": TARGET, "legacy-writers": "test_deadline_event_writers.py",
-          "legacy-http": "test_deadline_http.py"}
+          "legacy-http": "test_deadline_http.py", "baseline": "test_deadline_events.py"}
 RAW = ("013_shared_attachments.mysql.sql", "drafts/deadline_events.mysql.sql",
        "drafts/deadline_confirmations.mysql.sql")
 spec = importlib.util.spec_from_file_location("deadline_journal_owned_helpers",
