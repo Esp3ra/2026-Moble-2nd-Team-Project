@@ -18,7 +18,16 @@ public partial class MainForm
                 var s = await reader.ReadAsync(ct);
                 return new(s.WorkSessionId, s.WorkDate, s.ServerTime, s.NoonAt, s.NoonDue);
             };
-        }, options, monitor, prepareClockOut, presentClockOut);
+        }, options, monitor, prepareClockOut ?? PrepareWorkdayClockOutAsync, presentClockOut);
+
+    private async Task<WorkdayClockOutConnection> PrepareWorkdayClockOutAsync(
+        WorkdayClockOutRequest request, Func<Task> stop, CancellationToken ct)
+    {
+        var common = await PrepareClockOutFinalizationAsync(request.WorkSessionId, request.WorkDate,
+            request.ChallengeId, request.OriginalFinalizeId, stop, ct);
+        return new(new(common.WorkSessionId, common.WorkDate, common.ChallengeId, common.OriginalFinalizeId),
+            () => common.IsCurrent, common.CompleteAsync, () => FinishConfirmedClockOut(common));
+    }
 
     /// <summary>Explicit composition only after a real server workday reader and
     /// trusted device/camera configuration have been provided. Default startup stays off.</summary>
