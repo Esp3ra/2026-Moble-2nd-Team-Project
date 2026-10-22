@@ -35,6 +35,28 @@ with authenticated_transaction() as db:
 
 실제 시험·미실행/회신은 [LOG/2번 구현·검증](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md)과 [PR54의 2번 통합 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54#issuecomment-6305519634)에 취합한다. [4번 원 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54#issuecomment-6288083731)을 기준으로 하며 실제 마감 API/DB/source·확인 저장·초기자료 전환/공유 배포·두PC 완료를 뜻하지 않는다.
 
+<a id="deadline-mutation-boundary"></a>
+## PR54 후속 — 기한 변경 작성부와 같은 TX의 결합 위치
+
+2026-10-22 [1번 14:06 갱신 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54#issuecomment-6305220140)의 **사건 저장 제안에 대한 2번 원본 대조**이다. 현재 facts 제공은 완료됐지만 사건 저장 함수·등록 hook·HTTP API/DDL은 아직 제공/확정되지 않았다. 아래는 1번이 실제 저장부를 제공할 때 결합할 위치와 필요한 실패 계약이며, 이를 자동 활성화한 구현으로 읽지 않는다.
+
+| 원본 경로/공개 실행 함수 | 실제 기한 확정과 결합 위치 |
+|---|---|
+| `tasks/management.py::execute_management(db, target=..., action="task.updated", body=..., key=...)` | `_update`가 기존 기한과 검증된 새 기한을 비교해 `changed_fields/before_due_date/due_date`를 만든다. `task.row_version` 증가와 `flush/refresh` 뒤부터 기존 `audit`·`WriteResult` 반환 전까지가 저장된 새 버전/기한을 대조할 같은 mutation 경계다. **전후 DATE가 실제로 다를 때만** 변경 근거가 된다. 본문·제목·시작일·첨부-only와 같은 기한 저장은 새 기한 변경이 아니다. |
+| `tasks/lifecycle.py::execute_lifecycle(db, ..., action="task.deadline_extension_approved", extension_id=...)` | `_mutate`가 현재 pending/원기한/신청자·관리자·버전을 검사한 뒤 승인에서만 기한을 바꾼다. 기존 `before.due_date`와 flush/refresh한 현재 기한·배정·두 버전·승인된 extension을 같은 mutation 안에서 전달할 수 있다. 요청/반려/철회/취소가 기한 변경 사건을 만들지는 않는다. |
+| `tasks/creation.py::execute_creation(db, body=..., key=...)` | 최초 ID는 task flush 뒤, 현재 배정/관리자는 뒤이은 flush 뒤에 확정된다. 현재 원본의 기한은 그 자리에서 읽을 수 있지만 기존 `task.created` 감사에는 최초 기한이 없다. **신규 생성이 최초 사건이 되는 계약과 기존 자료 baseline 전환은 별도**이며, 현재 사실 재조회로 과거 최초 기한/사건을 복원하지 않는다. |
+
+**인증·잠금·W1 순서:** 호출자가 기존 `authenticated_transaction`의 같은 `get_db()` 세션을 소유한다. 공통 guard→현재 actor→현재 auth session 이후, 기존 관리 authorizer/lifecycle의 task→현재 assignment→manager 행/정렬 사용자→필요한 extension 행 잠금을 유지한다. W1은 현재 접근 재검사→기존 receipt 조회→미기록일 때만 mutation→최소 receipt 추가→호출자 commit 순서다. 실제 저장부는 이 같은 mutation 안에서 기존 원본 잠금 뒤에 결합해야 하며 별도 session/commit·TX 중 네트워크·after-commit 저장·요청 전후 별도 GET으로 대체하지 않는다. 새 사건/현재연결/확인 행의 추가 잠금 순서는 **1번 제공부와 공통 검증 후 확정**한다.
+
+- 2번에서 전달 가능한 사실은 원 업무ID·원 action·현재 actor/assignee·assignment_revision·변경 전후 DATE/row_version·기존 mutation에서 잡은 서버 UTC와 승인 extension 식별이다. 이는 DB 내부 정수/date/datetime이며 최종 wire/UUID 필드 계약이 아니다. 사건 UUID·원 mutation 식별/중복 제약·현재 사건 연결은 1번 저장부가 명시해야 한다. 같은 TX에서 얻은 시각도 commit 완료 시각으로 주장하지 않는다.
+- **W1 replay**는 원래 mutation을 실행하지 않으므로 사건도 다시 기록하면 안 된다. 같은 key에 다른 본문은 기존409다. 사건 기록/현재연결 갱신 실패나 후속 감사·receipt/commit 실패는 원 업무 변경까지 모두 rollback하고, 예외를 삼켜 업무만 성공시키지 않는다. A→B→A는 서로 다른 실제 mutation 두 건이며 두 사건을 만들 근거가 된다. 날짜·row_version hash나 감사 PK를 사건 UUID로 대체하지 않는다.
+- 1번의 `UNIQUE(event,user,assignment_revision)` 보완안은 같은 계정 재배정 구분에 필요한 방향이다. 같은 배정에서 제출/반려·복귀한 기존 확인 유지, 옛 성공 결과의 현재 열람, 신규/기존 자료의 최초 사건과 명시 baseline 범위/시간·실행/백업은 아직 1·2·4번 대조/팀장 결정 항목이다. 이 문서가 이를 확정하거나 원본을 변경하지 않는다.
+- **다음 제공물:** 1번은 실제 같은-session 사건 기록 함수의 입력/출력·미설치/실패/중복·현재연결/잠금 계약을 기존 PR54에 한 번으로 제공하고, 4번은 불투명 사건ID+배정세대·전체 snapshot/원래 성공 receipt 소비와 중간상태 차이를 답한다. 2번은 그 제공부에 두 실제 변경 경계를 연결하고 실제 MySQL 원자성/경합을 검증한다. 알림 source/확인 writer·운영 DDL/옵션은 이 단계에서 설치하지 않는다.
+
+**이번 독립 준비/실행:** `RemoteWork.Server/tests/test_task_deadline_write_boundaries.py`를 새로 추가해 소유 MySQL8.2의 raw002/004/006/009에서 **17통과·실패/오류/skip0,36.96초**를 확인했다. 실제 creation/management/lifecycle/W1을 호출하고 시험에서만 기존 audit 경계에 `test.deadline_write_probe` 관찰 행을 같은 TX로 넣었다. A→B→A 두 변경·제목/본문/동일 기한/첨부-only 비변경·요청/반려/철회와 승인 구분·원키 replay1효과·creation/edit/approval의 probe 실패/receipt INSERT 후 실패6건 전체 rollback·실제 AdminGuard SQL 대기 뒤 최신 기한을 확인했다. 생성 감사에는 최초 기한이 없다는 근거도 유지한다.
+
+시험 probe는 **실제 사건/UUID/저장부·등록 callback이 아니며**, 첨부-only는 명시 provider 대역이다. raw013·실제 파일/1번 신규 저장부·실제 확인 writer/운영 통합 검증으로 확대하지 않는다. 시험 자원과 소유 DB/프로세스/runtime 정리를 확인했다. 재실행은 앞 절과 같은 명시 환경의 **새 전용 DB**에서 `python -X utf8 -B -m pytest -q -p no:cacheprovider RemoteWork.Server/tests/test_task_deadline_write_boundaries.py`를 사용한다. 기존52건은 이전 현재facts 검사이며 이번17건과 합산하지 않는다.
+
 <a id="captured-own-task-navigation"></a>
 ## 로그인에 고정된 내 업무 탐색 접점
 
