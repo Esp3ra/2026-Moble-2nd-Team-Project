@@ -1,5 +1,7 @@
 ## 최신 — 4번 마감 근거 회신 수신, 2026-10-22
 
+14:46 KST에 [3번 PR52](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52#issuecomment-6287667210)·[4번 PR54](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54#issuecomment-6305519634)의 기존 2번 댓글로 각각 회신했습니다. 3번에는 소비 완료·검증 자료, 4번에는 원본 근거·재시도 수정·사건/배정 키 대조를 전달했습니다. 2번의 행동별 시각 검사는 alpha641bc71에서 기존10건 재통과했으며 다른 담당 제품은 변경하지 않았습니다.
+
 [2번 기존 취합](2번/공통규약.md#member2-deadline-boundary-reply-20261022)에4번14:26 추가회신과1·2·3·4번의남은기술조건을정리했습니다. 현재facts수신·상태/배정원본검증과 실제사건/확인저장·공유운영을구분합니다. [변경·실행근거](2번/업무_구현검증.md#member2-deadline-state-evidence-check-20261022)를 확인합니다.
 
 <a id="pr54-followup-and-pr69-status-20261022"></a>
