@@ -4,7 +4,7 @@ WinForms **업무 수정 → 첨부 확인·변경**도 연결했습니다. 기�
 
 업무 웹은 [PR68 제공부를 사용하는 실제 첨부 연결](docs/TASK_WEB.md#task-web-t3-consumers)을 지원합니다. 파일 선택→명시 업로드→업무 확인·실행, 일반수정의 첨부 추가·해제, 현재 업무 첨부의 크기·해시 검증 다운로드, 미연결 임시 파일의 명시 삭제를 연결했습니다. 관리 업무는 결과물을 읽기 전용으로 열고 원래 업무·필터로 돌아옵니다. 별도 소유 MySQL·합성 계정의 브라우저에서 등록·다운로드·첨부만 수정·전체 해제를 확인했으며 공유 운영 서버 검증은 별도입니다. 파일 전송에는 HTTPS 또는 localhost 접속이 필요합니다.
 
-2번은 [현재 본인 업무 전체 사실 읽기](docs/TASK_QUERIES.md#own-deadline-current-facts)를 제공합니다. 같은 인증 TX에서 관리자도 본인 배정만 조회하고 현재 기한·5상태·취소·배정/업무 버전을 반환합니다. 전체 조회 상한 초과/불완전 자료는503이며, 기한 사건·확인 저장·서버UTC·HTTP/실제 알림 source는1·4번과 대조할 후속입니다. 새 DDL·경로·자동 활성화는 없습니다.
+2번은 [현재 본인 업무 전체 사실 읽기](docs/TASK_QUERIES.md#own-deadline-current-facts)를 제공합니다. 같은 인증 TX에서 관리자도 본인 배정만 조회하고 현재 기한·5상태·취소·배정/업무 버전을 반환합니다. 실제 제출·반려·재작업 연동과 배정·기한의 [검사 범위 및 재현 방법](Tests/TaskDeadlineEvidence.Tests/README.md)도 제공합니다. 전체 조회 상한 초과/불완전 자료는503이며, 기한 사건·확인 저장·서버UTC·HTTP/실제 알림 source는1·4번과 대조할 후속입니다. 새 DDL·경로·자동 활성화는 없습니다.
 
 2번의 [WinForms 업무 등록 첨부 화면](docs/TASK_CREATION.md#task-creation-attachment-ui)은 파일 선택·명시 업로드·미연결 임시 파일의 확인 삭제를 지원합니다. PR64의 로그인에 고정된 공통 DELETE를 사용하며, 업로드가 완료된 파일만 업무 등록에 연결합니다. 등록 결과가 불명확하면 원래 요청과 파일 목록을 고정해 결과를 먼저 확인합니다. [전송 제어440·실제 HTTP33/DB9검사](Tests/TaskCreationUploads.Tests/README.md), [실제 WinForms와 HTTP 대역95검사](Tests/TaskCreationAttachmentUi.Tests/README.md)를 통과했습니다. WinForms 일반수정도 전용 첨부 선택·전송 화면을 연결했으며 공유 운영 서버 검증은 후속입니다. 일반수정 서버와 웹 첨부는 위 연결을 사용합니다.
 

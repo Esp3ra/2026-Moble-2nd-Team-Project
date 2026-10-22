@@ -182,16 +182,40 @@ def result_evidence(env, task_id):
         return events, submissions
 
 
-def test_actual_submit_return_rework_resubmit_approve_preserves_due_and_exposes_intermediate_states(evidence):
+def test_actual_submit_return_rework_resubmit_approve_preserves_due_and_exposes_intermediate_states(evidence, monkeypatch):
     env = evidence
+    # Distinct controlled UTC instants make an accidental reaccept observable.
+    # Other tests keep the fixture's original NOW; auth/W1 clocks are unchanged.
+    clock = SimpleNamespace(now=NOW)
+    for module in (creation, management, starting, lifecycle, results):
+        monkeypatch.setattr(module, "utcnow", lambda: clock.now)
+    action_times = [NOW + timedelta(minutes=step) for step in range(1, 7)]
+    first_accepted_at = action_times[0]
     target = create(env)
     observed = [fact(env, target)]
-    start(env, target); observed.append(fact(env, target))
-    first = submit(env, target); observed.append(fact(env, target))
-    decide(env, target, first["submission_id"], "returned"); observed.append(fact(env, target))
-    start(env, target, True); observed.append(fact(env, target))
-    second = submit(env, target); observed.append(fact(env, target))
-    decide(env, target, second["submission_id"], "approved"); observed.append(fact(env, target))
+
+    def observe(expected_time):
+        with env.app.app_context():
+            db = get_db()
+            assert db.get(TaskRecord, int(target)).updated_at == expected_time
+            assert db.get(TaskAssignment, (int(target), 1)).accepted_at == first_accepted_at
+        observed.append(fact(env, target))
+
+    clock.now = action_times[0]
+    start(env, target); observe(action_times[0])
+    clock.now = action_times[1]
+    first = submit(env, target); observe(action_times[1])
+    clock.now = action_times[2]
+    decide(env, target, first["submission_id"], "returned"); observe(action_times[2])
+    returned_evidence = result_evidence(env, target)
+    clock.now = action_times[3]
+    assert clock.now != first_accepted_at
+    start(env, target, True); observe(action_times[3])
+    assert result_evidence(env, target) == returned_evidence
+    clock.now = action_times[4]
+    second = submit(env, target); observe(action_times[4])
+    clock.now = action_times[5]
+    decide(env, target, second["submission_id"], "approved"); observe(action_times[5])
     assert [row.task_status for row in observed] == ["not_started", "in_progress", "submitted", "returned", "in_progress", "submitted", "approved"]
     assert [row.row_version for row in observed] == list(range(1, 8))
     assert all(row.assignment_revision == 1 and row.assignee_id == env.ids["worker"]
@@ -206,7 +230,16 @@ def test_actual_submit_return_rework_resubmit_approve_preserves_due_and_exposes_
     assert [int(row[3]["row_version"]) for row in original if row[1] == "submission"] == [3, 4, 6, 7]
     assert "due_date" not in original[0][3]  # Real initial audit cannot reconstruct first due date.
     with env.app.app_context():
-        assert get_db().get(TaskAssignment, (int(target), 1)).accepted_at == NOW
+        db = get_db()
+        assert db.get(TaskAssignment, (int(target), 1)).accepted_at == first_accepted_at
+        assert [row.submitted_at for row in db.scalars(select(results.Submission).where(
+            results.Submission.task_id == int(target)).order_by(results.Submission.round_no))] == [action_times[1], action_times[4]]
+        assert [row.decided_at for row in db.scalars(select(results.Decision).where(
+            results.Decision.submission_id.in_([int(first["submission_id"]), int(second["submission_id"])]))
+            .order_by(results.Decision.id))] == [action_times[2], action_times[5]]
+        assert [row.occurred_at for row in db.scalars(select(results.ResultEvent).where(
+            results.ResultEvent.task_id == int(target)).order_by(results.ResultEvent.id))] == [
+                action_times[1], action_times[2], action_times[4], action_times[5]]
     before = snapshot(env)
     assert fact(env, target) == observed[-1]
     assert snapshot(env) == before  # Reading adds no synthetic event/history.

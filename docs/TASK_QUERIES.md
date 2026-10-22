@@ -198,7 +198,7 @@ WinForms 상세의 첨부 목록/저장 버튼은 기존3번 `/api/v1/results/sh
 
 기존 `검토 요청`은 미정인 별도 요청이며 새 제출 진입과 구분합니다. 제출 결과가 불명확한 채 새로고침하여 서버의 제출완료를 받으면 새 버튼이 비활성화될 수 있습니다. 이때 **결과물 메뉴 → 제출 결과 확인**으로 기존 pending 요청을 복구합니다. 새 버튼을0행/모든 상태의 pending 복구 진입으로 표시하지 않습니다.
 
-현재 MainForm은 메뉴 이동 시 이전 화면을 Dispose하고 업무 메뉴 복귀 때 새 TasksControl로 최신 GET을 수행합니다. 이 연결에서 MainForm·ResultsSaved 전역 구독·3번 폼/서버를 대신 변경하지 않았습니다. [반복 가능한 기존 제출 통합 검사](../Tests/TaskResults.Integration.Tests/README.md)는 유지합니다. 업무 수정/재배정·취소/연장 정책은 확정됐습니다. 새 lifecycle 차단의 3번 소비 코드는 병합됐으며 같은 배포/공유 환경 확인은 별도입니다. 공용 성공 이벤트 payload/구독·기한 알림의 실제 source와 일반수정 첨부 교체는 후속입니다.
+현재 MainForm은 메뉴 이동 시 이전 화면을 Dispose하고 업무 메뉴 복귀 때 새 TasksControl로 최신 GET을 수행합니다. 이 연결에서 MainForm·ResultsSaved 전역 구독·3번 폼/서버를 대신 변경하지 않았습니다. [반복 가능한 기존 제출 통합 검사](../Tests/TaskResults.Integration.Tests/README.md)는 유지합니다. 업무 수정/재배정·취소/연장 정책은 확정됐습니다. 새 lifecycle 차단의 3번 소비 코드는 병합됐으며 같은 배포/공유 환경 확인은 별도입니다. [일반수정 첨부 교체 화면](TASK_MANAGEMENT.md#task-management-attachments-ui)은 연결했고, 공용 성공 이벤트 payload/구독·기한 알림의 실제 source는 후속입니다.
 
 ### 로그인과 화면 수명
 

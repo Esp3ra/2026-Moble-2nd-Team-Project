@@ -1,6 +1,8 @@
 # 실제 2·3번 상태 경로와 2번 현재 기한 사실 대조
 
-2026-10-22 `test_task_deadline_state_evidence.py`를 소유 MySQL 8.2에서 실행해 **10개 통과, 실패·오류·skip 0, 19.72초**를 확인했습니다. 원본 raw002/004/006/009를 사용했고 물리 DDL·전역 schema1 보존, 시험 DB·MySQL 프로세스·임시 runtime 정리를 확인했습니다. 기존 현재 facts 52건이나 변경 경계 17건에 합산하지 않는 별도 실행입니다.
+2026-10-22 `test_task_deadline_state_evidence.py`의 기존 전체 흐름 한 건에 행동별 시각 대조를 보완하고, Python 3.12.14·소유 MySQL 8.2에서 **기존 10개 통과, 실패·오류·skip 0, 18.94초**를 확인했습니다. 원본 raw002/004/006/009를 사용했고 물리 DDL·전역 schema1 보존, 시험 DB·MySQL 프로세스·임시 runtime 정리를 확인했습니다. 최초 19.72초 실행, 기존 현재 facts 52건이나 변경 경계 17건과 합산하지 않습니다. 새 테스트 항목·제품 구현·DDL은 추가하지 않았습니다.
+
+재실행의 첫 시도는 pytest가 없는 로컬 Python 3.14.7 환경으로 실행해 시험 시작 전에 종료됐습니다. 제품/시험 실패로 집계하지 않으며 이 시도의 소유 DB·프로세스·runtime도 정리했습니다. 최종 통과 보고서는 소스 밖 `ES/tmp/remote_work_member2_reply_delivery_20261022/state_check_retry/verification.json`, 앞선 도구 환경 실패 보고서는 같은 상위 폴더의 `state_check/verification.json`에 보존합니다.
 
 ```powershell
 & <서버 Python> -X utf8 -B .\Tests\TaskDeadlineEvidence.Tests\run_mysql_check.py `
@@ -11,11 +13,11 @@
 
 실행기는 기존 소유권·Windows Job·정리 도구와 원본 DDL 준비 함수를 재사용합니다. 새 MySQL만 시작하고 Flask는 테스트 클라이언트로 실제 등록된 HTTP handler를 호출합니다. 별도 HTTP 서버 프로세스나 제품에 없는 시험 API를 만들지 않습니다. 임의 하위 출력·토큰·비밀번호·키·본문은 보고서에 남기지 않으며 안전한 pytest 요약과 DDL/정리 결과를 `verification.json`에 기록합니다.
 
-계정·개발용 명시 검토자 관계는 합성 자료입니다. 업무 날짜 경계를 고정하기 위해 2·3번의 업무 시각 함수는 시험에서 고정 UTC로 대체합니다. 업무 생성·수락·재배정·수정·제출·반려·재작업·재제출·승인·연장·취소는 실제 2·3번 API와 기존 W1으로 만듭니다. 취소·연장은 이 삭제 가능한 **TESTING 앱에만** 기존 `INTEGRATED_ACK`를 명시합니다. 운영 ACK·공유 DB·기존 서버·`.env`·SQLite·파일 저장소를 사용하지 않습니다. 첨부가 없는 흐름이므로 raw013과 파일 참조/전송 검증은 포함하지 않습니다.
+계정·개발용 명시 검토자 관계는 합성 자료입니다. 업무 날짜 경계를 고정하기 위해 2·3번의 업무 시각 함수는 시험에서 명시 제어 UTC로 대체합니다. 기본 fixture는 같은 시각을 사용하고, 첫 전체 흐름 시험만 수락·제출·반려·재작업·재제출·승인을 각각 1분 간격의 서로 다른 시각으로 진행합니다. 공통 인증·W1 시계는 변경하지 않습니다. 업무 생성·수락·재배정·수정·제출·반려·재작업·재제출·승인·연장·취소는 실제 2·3번 API와 기존 W1으로 만듭니다. 취소·연장은 이 삭제 가능한 **TESTING 앱에만** 기존 `INTEGRATED_ACK`를 명시합니다. 운영 ACK·공유 DB·기존 서버·`.env`·SQLite·파일 저장소를 사용하지 않습니다. 첨부가 없는 흐름이므로 raw013과 파일 참조/전송 검증은 포함하지 않습니다.
 
 | 검증한 원본 경로 | 실제 관찰한 사실 |
 |---|---|
-| 생성→수락→제출→반려→재작업→재제출→승인 | `not_started→in_progress→submitted→returned→in_progress→submitted→approved`, row_version 1→7. 기한·담당자·assignment_revision=1은 유지. 고정 시각에서 최종 accepted_at 값, 실제 제출 1·2차와 3번 ResultEvent 4건/제출 감사의 버전 3·4·6·7을 대조. 고정 시각이므로 수락시각 재기록 여부를 구별하는 검사는 아님. |
+| 생성→수락→제출→반려→재작업→재제출→승인 | `not_started→in_progress→submitted→returned→in_progress→submitted→approved`, row_version 1→7. 기한·담당자·assignment_revision=1은 유지. 각 행동 뒤 DB의 updated_at은 해당 행동시각으로 갱신되고 accepted_at은 최초 수락시각을 유지하는지 대조. 재작업시각은 최초 수락시각과 다르며 재작업 직전·직후 기존 제출/ResultEvent도 동일. 실제 제출 1·2차, 제출 2건·판단 2건·ResultEvent 4건의 행동시각과 제출 감사의 버전 3·4·6·7도 대조. |
 | 진행전 재배정 A→B→A | 현재 담당자는 다시 A가 되지만 배정 세대는 1→2→3, 업무 버전도 1→2→3. 각 과거 배정 행 보존, 이전 담당자의 own 전체 목록 제외/단건403, 재배정 감사의 전후 담당자와 새 세대 확인. 기한은 그대로. |
 | 일반수정→수락→연장 신청→승인→제출 | 일반수정은 버전2에서 A→B, 신청 버전4는 B 유지, 승인 버전5에서 B→C, 실제 제출 버전6은 C 유지. 원래 `task.updated`와 승인 감사의 전후 기한·버전 순서 대조. 신청 대기는 실제 3번 제출 준비를409로 차단하며, 제출 이후 일반수정 거절은 저장 효과가 없음. |
 | 진행중/반려완료 × 연장 대기 유무에서 취소 | 실제 취소 후 기존 업무5상태·기한·배정은 보존, row_version만 +1, `is_cancelled=true`. pending이 있으면 `cancelled`로 종결. 과거 제출·ResultEvent 보존, 실제3번 신규 제출/준비는 `TASK_CANCELLED`로 차단. 전체 facts에도 취소 사실을 포함. |
