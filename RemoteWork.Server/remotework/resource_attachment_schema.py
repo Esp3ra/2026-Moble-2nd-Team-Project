@@ -34,17 +34,65 @@ def _unavailable():
                    '공지·채팅 첨부 DB의 실제 구조·참조 조건을 확인해 주세요.')
 
 
-def _expression(value):
-    # Preserve AND/OR grouping; deleting all parentheses can hide a different
-    # CHECK. MySQL adds redundant parentheses/charset introducers in SHOW CREATE.
-    value = re.sub(r'[\s`]+', '', value.lower().replace('_utf8mb4', ''))
-    for atom, token in (("hex(resource_type)=hex('notice')", 'A'),
-                        ("hex(resource_type)=hex('chat')", 'C'),
-                        ('context_idisnotnull', 'D'), ('context_idisnull', 'B')):
-        value = value.replace(atom, token)
-    tokens = re.findall(r'[ABCD()]|and|or', value)
-    if ''.join(tokens) != value:
+def _check_tokens(value):
+    # Normalize SQL syntax only. HEX compares literal bytes, so case, spaces,
+    # backticks, introducer-like text and escapes inside quotes must survive.
+    pattern = r"\s+|`(?:``|[^`])*`|'(?:''|\\.|[^'\\])*'|[A-Za-z_][A-Za-z_0-9]*|[()=]"
+    tokens = []
+    offset = 0
+    for match in re.finditer(pattern, value):
+        if match.start() != offset:
+            return None
+        offset = match.end()
+        token = match.group()
+        if token.isspace():
+            continue
+        if token.startswith('`'):
+            token = token[1:-1].replace('``', '`').lower()
+            if token not in ('resource_type', 'context_id'):
+                return None
+        elif not token.startswith("'"):
+            token = token.lower()
+        tokens.append(token)
+    if offset != len(value):
         return None
+
+    result = []
+    for index, token in enumerate(tokens):
+        if token == '_utf8mb4':
+            # SHOW CREATE may prefix string literals with this charset. Never
+            # remove it from a string or from the middle of an identifier.
+            if index + 1 == len(tokens) or not tokens[index + 1].startswith("'"):
+                return None
+            continue
+        result.append(token)
+    return result
+
+
+def _expression(value):
+    # Preserve token boundaries and AND/OR grouping as well as literal bytes.
+    # Only the four reviewed 015 predicates are recognized; unknown SQL fails.
+    sql_tokens = _check_tokens(value)
+    if sql_tokens is None:
+        return None
+    atoms = ((('hex', '(', 'resource_type', ')', '=', 'hex', '(', "'notice'", ')'), 'A'),
+             (('hex', '(', 'resource_type', ')', '=', 'hex', '(', "'chat'", ')'), 'C'),
+             (('context_id', 'is', 'not', 'null'), 'D'),
+             (('context_id', 'is', 'null'), 'B'))
+    tokens = []
+    index = 0
+    while index < len(sql_tokens):
+        for atom, token in atoms:
+            if tuple(sql_tokens[index:index + len(atom)]) == atom:
+                tokens.append(token)
+                index += len(atom)
+                break
+        else:
+            token = sql_tokens[index]
+            if token not in ('(', ')', 'and', 'or'):
+                return None
+            tokens.append(token)
+            index += 1
     offset = 0
     def factor():
         nonlocal offset
