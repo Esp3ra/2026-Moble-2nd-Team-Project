@@ -1,3 +1,12 @@
+<a id="pr707172-common-merged-20261022"></a>
+## 공통 후속 — PR70·71·72 병합, 2026-10-22
+
+[PR70](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/70#issuecomment-6335250250)은 RR 보관 조회 P2 해결과 현재 own/원 배정·W1·새 HTTP/배정별 확인 저장을 검토해 **cca5b621**에 병합했습니다. [PR71](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/71#issuecomment-6335251016)의 일반 인증·현재 근무일 GET/캡처 C# 연결은 **30fcb30d**, [PR72](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/72#issuecomment-6335251407)는 **7135a293**입니다. 사용자 지시로70·71 Draft를 해제했고 실제 merge tree와 검토본 결합이 일치합니다. 아래 Draft/미제공/미병합 표시는 각 작성 시점 이력입니다.
+
+70의 기존23/21/7·RR1/2/1·HTTP8·cold12는 소스211파일·외부회귀 SHA 일치 확인 후 재사용한 근거이며 새 실행으로 합산하지 않습니다. 71 실제 소유 MySQL9/독립RR2·C#39,72의 실제 서버/Pi HTTP·소유MySQL·C#12와 최종 Release0/0·26/39를 확인했습니다. [전체 검사·환경 정정·미실행](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr707172-merged-20261022)을 따릅니다.
+
+2번의 원 W1 writer 명시 hook·4번 binding-aware source/receipt 소비·PR71→72 명시 projection은 후속입니다. baseline/중간상태·정식 DDL/공유 적용과 퇴근 finalize 중 일반 요청 drain/401 뒤 결과전용 수명은 별도 대조합니다. 이번 검토는 실제5000/.env·공유DB·운영 flags·장치 변경이 아니며 새 지문OFF를 유지했습니다. [담당별 범위](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr707172-merged-20261022)를 확인합니다.
+
 <a id="pr67-fixed-merged-status-20261022"></a>
 ## PR67 수정 재검토 — R67-01 해결·alpha 병합 완료, 2026-10-22
 
