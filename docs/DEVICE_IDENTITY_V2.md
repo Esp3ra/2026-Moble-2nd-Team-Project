@@ -1,5 +1,60 @@
 # 5번 인계: RW-ID-v2 본인인증 계약 2.0
 
+## 2026-10-22 추가: 재접속 후 현재 근무 조회 — 구현 제공·5번 대조 대기
+
+`GET /api/v1/device-identity/workday`를 identity blueprint에 추가했다. 새 개발
+접점이며 5번·팀장 수용/원본 병합·공유5000 적용과 구분한다. 기존 지문 flag가
+OFF이면 이 경로도404이며, 이 조회를 쓰기 위해 현재 서버의 지문을 강제 활성화하지 않는다.
+새 DDL/설정/seed는 없다.
+
+- 입력: 현재 정상 API Bearer만, query/body·사용자/근무ID 입력 없음.
+- 같은 `authenticated_transaction()`에서 현재 사용자·AuthSession/AdminGuard를 재검사하고,
+  실제 `AttendanceWorkflow`의 현재 사용자 WorkSession을 잠금 읽는다. GET은 새
+  Identity Context/근무/영수증을 만들지 않는다. 서버 UTC를 한 번 고정해 KST 근무일과
+  정오 조건에 사용한다. PC 시계/표시 사용자/지난 LoginResult로 근무를 만들지 않는다.
+- `data`의 정확한 필드: `server_time`(UTC), `work_session_ref`(정규 UUID),
+  `work_date`(KST YYYY-MM-DD), `state`(`open`), `started_at`(UTC),
+  `noon_at`(미확인 null 또는 실제 기록 UTC), `noon_due`(bool).
+- `noon_due`는 **이미 제공된 서버 조건**인 당일 열린 근무·KST12시 이상·정오 기록
+  없음이다. 다른 PC의 확인도 다음 조회에 반영한다. 늦은 첫 출근/장시간 미접속 뒤의
+  자동 팝업 일정·안내 정책을 새로 확정하지 않으며, 5번 자동 일정은 별도 연결이다.
+- 기존 `load_identity`가 열린 당일 근무 없는 정상 토큰을 허용하지 않으므로,
+  미출근/전날 미종료/다른PC 퇴근/만료·회수는 원칙적으로401이다. 비밀번호 재로그인의
+  409 사유 안내를 재사용한다. 인증 후 같은 TX 재검사 사이 상태가 달라지면
+  `ATTENDANCE_NOT_STARTED`, `ATTENDANCE_DAY_CLOSED`, `ATTENDANCE_DAY_REVIEW_REQUIRED`
+  409로 구분한다. 부분 schema503/실제 reader 미제공503을 빈 성공으로 만들지 않는다.
+- `IdentityPending`·퇴근 뒤 결과전용 문맥은 이 일반 근무 조회를 사용할 수 없다.
+  퇴근 finalize 원 UUID의 보관결과 재생 권리는 기존 전용 경로에만 유지한다.
+
+**C# 제공 접점:** `Infrastructure/WorkdayStateConnection(session).ReadAsync()`는
+캡처된 정상 `ApiClient.Session`에서 위 GET을 한 번 실행한다. 반환
+`WorkdayState(WorkSessionId,WorkDate,ServerTime,StartedAt,NoonAt,NoonDue)`의 날짜·UUID·
+UTC·기록/정오 조건을 검사하고 기존 접속 교체/만료/401 처리를 유지한다. 키·token
+노출/설치, 자동 재시도·근태 POST·일정/카메라 감시는 없다.
+5번은 이 값을 `FingerprintWorkdayOperation`의 서버 근무UUID/날짜에 전달하고,
+실제 challenge가 같은 근무/목적/날짜인지 센서 전에 다시 검사하는 기존 방어를 유지한다.
+
+### 퇴근 결과 유실·일반401: 아직 남은 공통 수명 조립
+
+서버 퇴근 commit은 해당 회원의 정상 AuthSession을 삭제한다. 그 뒤에도 같은
+원 문맥/challenge/finalize UUID의 결과 조회/재생만24시간 유지하며 새 업무 권한은 없다.
+그러나 현재 ApiClient는 어느 일반 요청의401이든 현재 로그인 세대를 폐기하고,
+5번 WorkdayOperation은 그 Session 수명에 묶여 있으므로, auth/me 또는 다른 요청의
+401이 먼저 오면 원 결과 복구 객체도 사용할 수 없다. 이번 조회 추가로 해결된 문제가 아니다.
+
+1번의 후속 구현은 **퇴근 전용 원 작업 수명과 일반 업무 요청 정리/중지·기존 in-flight
+요청 경합을 함께 소유하는 공통 조립**이다. 단순 timer 중지 또는 전역401 무시는
+해결로 인정하지 않는다. 5번 폼은 operation을 빌리고, 소유자는 같은 로그인/근무의
+원 operation/UUID를 창 밖에 보관해야 한다. 정상 receipt 전 자동 로그아웃·재로그인·
+새 operation으로 덮어쓰기 금지다. 외부 계정/서버 교체·비밀번호/권한 회수는 서버가
+현재 검사하고, 새 로그인에 옛 token/결과를 인수하지 않는다. 이 공통 조립·정오 자동
+일정/활동monitor·실물/두PC 검증 전에는 새 지문 기능을 OFF로 유지한다.
+
+검사: 서버 `tests/test_identity_workday.py`는 새 소유 MySQL/실제 출근·정오·퇴근,
+재접속/타회원 비노출·GET 무변경·schema503·자정 경계를 사용한다.
+`Tests/WorkdayState.Tests`는 실제 ApiClient/명시 HTTP 대역이다.
+기존5번 정오/퇴근179·실제HTTP/MySQL17검사와 이번 서버조회 검사를 구분한다.
+
 ## 2026-10-22 추가 기준 반영 — 근태 저장·재접속·암호화 복구 구현
 
 사용자가 **오늘 첫 출근 후 미퇴근 상태의 재로그인은 지문 없이 아이디·비밀번호로 기존 근무에 재연결**, **퇴근 후 같은 날 재출근은 보류 안내**로 정했습니다. 오늘 첫 출근/정오/퇴근은 기존 지문 기준을 유지합니다. 정상 API/웹 재로그인은 서버의 당일 실제 열린 근무만 허용하고, PC 표시나 로컬 저장으로 판단하지 않습니다. 최초 출근409 `IDENTITY_FINGERPRINT_REQUIRED`, 이미 퇴근409 `ATTENDANCE_DAY_CLOSED`를 안내합니다. 이전날 미종료는 자동 퇴근·날짜 변경 없이409 `ATTENDANCE_DAY_REVIEW_REQUIRED`로 닫습니다.
