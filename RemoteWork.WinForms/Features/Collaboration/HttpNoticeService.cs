@@ -10,6 +10,12 @@ public sealed class HttpNoticeService(ApiClient api) : INoticeService, INoticePo
         string? PopupKey);
     private sealed record NoticeResult(NoticeData Notice);
     private ApiClient.Session? popupSession;
+    private ApiClient.Session? writeSession;
+    internal ApiClient.Session AttachmentIdentity()
+    {
+        var identity = writeSession ??= api.CaptureSession();
+        identity.ThrowIfChanged(); return identity;
+    }
     private ApiClient.Session PopupIdentity()
     {
         var identity = popupSession ??= api.CaptureSession();
@@ -63,7 +69,7 @@ public sealed class HttpNoticeService(ApiClient api) : INoticeService, INoticePo
 
     public async Task<Notice> CreateNoticeAsync(CreateNoticeRequest request, CancellationToken ct = default)
     {
-        var result = await api.PostAsync<NoticeResult>("notices", request, ct);
+        var result = await AttachmentIdentity().PostAsync<NoticeResult>("notices", request, ct);
         return Map(result.Notice);
     }
 

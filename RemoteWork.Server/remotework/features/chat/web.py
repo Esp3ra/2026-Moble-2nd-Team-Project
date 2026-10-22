@@ -62,7 +62,8 @@ def form_payload():
 
 @bp.get("")
 def index():
-    return render_template("chat/index.html", chat_session=page_session())
+    from ..results_web import session_scope
+    return render_template("chat/index.html", chat_session=page_session(), attachment_session=session_scope())
 
 
 @bp.get("/data/participants")

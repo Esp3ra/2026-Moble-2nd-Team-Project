@@ -20,13 +20,41 @@ internal static class Program
         using var host = new Form { ShowInTaskbar = false, Opacity = 0 };
         host.Shown += async (_, _) =>
         {
-            try { if (args.Contains("--main")) await MainFormLive(); else if (args.Contains("--live")) await Live(host); else await Doubles(); }
+            try { if (args.Contains("--shared-read")) await SharedRead(host); else if (args.Contains("--main")) await MainFormLive(); else if (args.Contains("--live")) await Live(host); else await Doubles(); }
             catch (Exception error) { failure = error; }
             finally { host.Close(); }
         };
         Application.Run(host);
         if (failure is not null) { Console.Error.WriteLine(failure); Environment.ExitCode = 1; }
-        else Console.WriteLine($"PASS: {checks} binding-aware deadline checks ({(args.Contains("--live") || args.Contains("--main") ? "actual PR70 HTTP/MySQL + captured wrapper/scope/panel/MainForm; fixture tasks" : "explicit HTTP doubles")}).");
+        else Console.WriteLine($"PASS: {checks} binding-aware deadline checks ({(args.Contains("--shared-read") ? "deployed server read-only + captured wrapper/scope/panel; business writes 0" : args.Contains("--live") || args.Contains("--main") ? "actual PR70 HTTP/MySQL + captured wrapper/scope/panel/MainForm; fixture tasks" : "explicit HTTP doubles")}).");
+    }
+    private static async Task SharedRead(Form host)
+    {
+        using var api = new ApiClient(Environment.GetEnvironmentVariable("DEADLINE_TEST_URL")!);
+        var user = Environment.GetEnvironmentVariable("DEADLINE_SHARED_LOGIN")!;
+        var password = Environment.GetEnvironmentVariable("DEADLINE_SHARED_PASSWORD")!;
+        await api.LoginAsync(user, password);
+        try
+        {
+            var session = api.CaptureSession();
+            using var source = new HttpDeadlineAlertSource(session);
+            using var wrapper = new LoginDeadlineNotifications(host, session, source, () => _ => Task.FromResult(false));
+            using var panel = new DeadlineAlertPanel(); panel.Bind(wrapper.Scope);
+            await wrapper.StartAsync();
+            var scope = wrapper.Scope;
+            Check(scope.Snapshot is not null, "deployed snapshot validated by real source and captured owner");
+            var original = scope.Snapshot!.Items.Select(x => (x.EventToken, x.IsConfirmed)).ToArray();
+            foreach (var item in scope.Snapshot.Items)
+                Check(item.EventToken == $"d1:{item.TaskId}:{item.EventId}:{item.AssignmentRevision}", "original server binding reaches panel");
+            await scope.CheckAsync();
+            Check(scope.Snapshot!.Items.Select(x => (x.EventToken, x.IsConfirmed)).SequenceEqual(original), "manual refresh preserves actual state");
+            await api.LogoutAsync(); Check(!scope.IsCurrent, "old deployed scope ends on logout");
+            await api.LoginAsync(user, password);
+            using var restored = new HttpDeadlineAlertSource(api.CaptureSession());
+            var latest = await restored.ReadAsync(default);
+            Check(latest.Items.Select(x => (x.EventToken, x.IsConfirmed)).SequenceEqual(original), "relogin reads durable current state without confirmation writes");
+        }
+        finally { if (api.CurrentUser is not null) await api.LogoutAsync(); }
     }
     private static async Task MainFormLive()
     {

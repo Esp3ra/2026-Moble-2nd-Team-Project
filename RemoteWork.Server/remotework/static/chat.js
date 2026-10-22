@@ -1,3 +1,4 @@
+import { ResourceFiles } from "./resource_attachments.js";
 // Existing UUID chat protocol. Poll reads only; every write needs a user action.
 export function requestId(crypto = globalThis.crypto) {
   if (!crypto?.getRandomValues) throw new Error('이 브라우저에서 안전한 요청 ID를 만들 수 없습니다.');
@@ -74,9 +75,12 @@ export class ChatPage {
     this.$('content').disabled = !chosen;
     this.$('content').readOnly = !!pending;
     this.$('send-button').disabled = !chosen;
+    if (this.fileErrors?.has(this.selected)) this.$('send-button').disabled = true;
     this.$('send-button').textContent = pending ? '동일 요청 재전송' : '보내기';
     this.$('result').hidden = !pending; this.$('result').disabled = !usable;
     this.$('hide').disabled = !chosen || !!pending;
+    this.$('attach').disabled = !chosen || !!pending;
+    this.$('file-status').textContent = (this.roomFiles?.get(this.selected)||[]).map(f=>f.name).join(' · ');
     for (const id of ['create', 'filter', 'refresh']) this.$(id).disabled = !usable;
     for (const button of this.$('rooms').querySelectorAll('button')) button.disabled = !usable;
   }
@@ -124,7 +128,9 @@ export class ChatPage {
       const date = new Date(message.sent_at);
       heading.textContent = `${message.sender_name} · ${Number.isNaN(date.getTime()) ? message.sent_at : date.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false })}`;
       const text = document.createElement('p'); text.textContent = message.content;
-      item.append(heading, text); box.append(item);
+      const filesButton=document.createElement('button'), filesBox=document.createElement('div');filesButton.type='button';filesButton.textContent='첨부파일';
+      filesButton.addEventListener('click',()=>this.files.renderDownloads(filesBox,'chat',message.id));
+      item.append(heading, text, filesButton, filesBox); box.append(item);
     }
     box.dataset.signature = msgSignature; box.dataset.room = this.selected || '';
     box.scrollTop = !sameRoom || atBottom ? box.scrollHeight : top;
@@ -161,16 +167,21 @@ export class ChatPage {
   }
   sent(room, attempt) {
     if (this.pending.get(room) !== attempt) return;
-    this.pending.delete(room); this.drafts.delete(room);
+    this.pending.delete(room); this.drafts.delete(room); this.roomFiles.delete(room);
+    // A subsequent new message uploading the same file needs a new temp scope.
+    const linked=new Set(attempt.attachment_ids||[]);
+    for(const [key,file] of this.files.pending) if(linked.has(file.attachment_id))this.files.pending.delete(key);
     if (this.selected === room) this.$('content').value = '';
   }
   async send() {
-    if (!this.alive || this.busy || !this.selected) return;
+    if (!this.alive || this.busy || !this.selected || this.fileErrors?.has(this.selected)) return;
     const room = this.selected, content = this.$('content').value.trim();
     if (!content || Array.from(content).length > 2000) { this.status('메시지는 1~2,000자까지 입력해 주세요.', true); return; }
     let attempt = this.pending.get(room);
     if (!attempt) {
-      try { attempt = { message_id: requestId(), content }; }
+      try { attempt = { message_id: requestId(), content };
+        const ids=(this.roomFiles.get(room)||[]).map(f=>f.attachment_id);if(ids.length)attempt.attachment_ids=ids;
+      }
       catch (error) { this.status(error.message, true); return; }
       this.pending.set(room, attempt);
     }
@@ -256,6 +267,21 @@ export class ChatPage {
     finally { this.busy = false; this.controls(); this.refresh(); }
   }
   start() {
+    this.files = new ResourceFiles(this.root);
+    this.roomFiles = new Map();
+    this.fileErrors = new Set();
+    this.$('attach').addEventListener('click',()=>this.$('file-picker').click());
+    this.$('file-picker').addEventListener('change',async()=>{
+      if(this.busy || !this.alive || !this.selected || this.pending.has(this.selected))return;
+      const room=this.selected, selected=Array.from(this.$('file-picker').files), files=this.roomFiles.get(room)||[];
+      if(files.length+selected.length>10){this.status('최대 10개까지 첨부해 주세요.',true);return;}
+      this.roomFiles.set(room,files);this.invalidate();this.busy=true;this.controls();
+      try {
+        for(const file of selected){this.status(`${file.name} 전송 중…`);const meta=await this.files.upload('chat',room,file);if(!files.some(f=>f.attachment_id===meta.attachment_id))files.push(meta);}
+        this.fileErrors.delete(room);this.status('첨부 전송 완료. 보내기를 누르면 메시지에 연결됩니다.');
+      }catch(e){this.fileErrors.add(room);this.status(e.message+' 같은 파일을 다시 선택하면 원래 전송 상태를 확인합니다. 완료 전에는 메시지를 보낼 수 없습니다.',true);}
+      finally{this.busy=false;this.$('file-picker').value='';this.controls();this.refresh();}
+    });
     this.$('send').addEventListener('submit', event => { event.preventDefault(); this.send(); });
     this.$('content').addEventListener('keydown', event => {
       if (event.key === 'Enter' && !event.shiftKey && !event.isComposing && event.keyCode !== 229) { event.preventDefault(); this.send(); }

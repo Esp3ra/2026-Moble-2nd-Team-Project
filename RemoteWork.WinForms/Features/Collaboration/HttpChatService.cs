@@ -13,6 +13,8 @@ internal sealed class HttpChatService : IChatService
     private readonly object pendingLock = new();
     private (string Key, string Id)? pendingRoom;
     private readonly Dictionary<string, (string Content, string Id)> pendingMessages = new();
+    internal ResourceAttachmentClient Attachments => attachmentClient ??= new ResourceAttachmentClient(Identity());
+    private ResourceAttachmentClient? attachmentClient;
     public ChatParticipant CurrentUser { get; }
     internal bool IsSessionCurrent => session.IsCurrent;
 
@@ -178,23 +180,29 @@ internal sealed class HttpChatService : IChatService
         }
     }
 
-    public async Task<ChatMessage> SendMessageAsync(string roomId, string content, CancellationToken cancellationToken = default)
+    public Task<ChatMessage> SendMessageAsync(string roomId, string content, CancellationToken cancellationToken = default)
+        => SendMessageWithFilesAsync(roomId, content, Array.Empty<string>(), cancellationToken);
+
+    internal async Task<ChatMessage> SendMessageWithFilesAsync(string roomId, string content, string[] attachmentIds, CancellationToken cancellationToken = default)
     {
         RoomId(roomId);
         var identity = Identity();
         string text = content.Trim();
         if (text.Length == 0 || !ChatText.WithinLimit(text, 2000)) throw new ArgumentException("메시지는 1~2000자로 입력해 주세요.");
+        string requestContent = JsonSerializer.Serialize(new { text, attachmentIds });
         string id;
         lock (pendingLock)
         {
-            if (!pendingMessages.TryGetValue(roomId, out var pending) || pending.Content != text)
-                pendingMessages[roomId] = (text, Guid.NewGuid().ToString("D"));
+            if (pendingMessages.TryGetValue(roomId, out var old) && old.Content != requestContent)
+                throw new ApiException("이전 메시지 결과가 불명확합니다. 원래 내용·첨부로 결과를 확인해 주세요.");
+            if (!pendingMessages.TryGetValue(roomId, out var pending))
+                pendingMessages[roomId] = (requestContent, Guid.NewGuid().ToString("D"));
             id = pendingMessages[roomId].Id;
         }
         try
         {
             var response = await identity.PostAsync<MessageResultData>($"chat/rooms/{roomId}/messages",
-                new { message_id = id, content = text }, cancellationToken);
+                new { message_id = id, content = text, attachment_ids = attachmentIds }, cancellationToken);
             SameIdentity(identity);
             var message = Map(response.Message, roomId);
             if (message.Id.ToString("D") != id || message.SenderId != CurrentUser.Id || message.Content != text)
@@ -202,7 +210,7 @@ internal sealed class HttpChatService : IChatService
             lock (pendingLock) if (pendingMessages.TryGetValue(roomId, out var pending) && pending.Id == id) pendingMessages.Remove(roomId);
             return message;
         }
-        catch (ApiException ex) when (ex.StatusCode >= 400 && ex.StatusCode < 500)
+        catch (ApiException ex) when (ex.StatusCode == 400)
         {
             lock (pendingLock) if (pendingMessages.TryGetValue(roomId, out var pending) && pending.Id == id) pendingMessages.Remove(roomId);
             throw;

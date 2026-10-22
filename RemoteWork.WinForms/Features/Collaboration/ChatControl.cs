@@ -13,6 +13,11 @@ namespace RemoteWork.WinForms.Features.Collaboration
         private bool loadingRooms;
         private bool loadingMessages;
         private bool sending;
+        private readonly Dictionary<string, List<ResourceAttachment>> roomFiles = new();
+        private readonly HashSet<string> unknownSends = new();
+        private readonly HashSet<string> fileErrors = new();
+        private IReadOnlyList<ChatMessage> shownMessages = Array.Empty<ChatMessage>();
+        private readonly Button attachmentDownload = new() { Text = "첨부 다운로드", AutoSize = true, Height = 28, Margin = new Padding(0) };
         private bool creatingRoom;
         private bool deletingRoom;
         private int selectionVersion;
@@ -30,6 +35,27 @@ namespace RemoteWork.WinForms.Features.Collaboration
             if (PreviewActions.IsDesignMode(this)) return;
             ConfigureAutoReceive(autoReceive);
             InitializeDeleteMenu();
+            btnAttachFile.Click -= Unavailable_Click;
+            btnAttachFile.Click += AttachFiles_Click;
+            var fileMenu = new ContextMenuStrip(components!);
+            fileMenu.Opening += (_, e) =>
+            {
+                fileMenu.Items.Clear();
+                if (chatService is not HttpChatService http || selectedRoom is null) { e.Cancel = true; return; }
+                foreach (var message in shownMessages.Reverse())
+                {
+                    var item = new ToolStripMenuItem($"{message.SenderName}: {message.Content[..Math.Min(24, message.Content.Length)]} · 첨부파일");
+                    item.Click += (_, _) => { using var dialog = new AttachmentDownloadForm(http.Attachments, "chat", message.Id.ToString("D")); dialog.ShowDialog(FindForm()); };
+                    fileMenu.Items.Add(item);
+                }
+                e.Cancel = fileMenu.Items.Count == 0;
+            };
+            txtContent2.ContextMenuStrip = fileMenu;
+            var header = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = new Padding(0) };
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            layoutContent8.Controls.Remove(lblText4); lblText4.AutoSize = false; lblText4.Dock = DockStyle.Fill; lblText4.AutoEllipsis = true;
+            header.Controls.Add(lblText4, 0, 0); header.Controls.Add(attachmentDownload, 1, 0); layoutContent8.Controls.Add(header, 0, 0);
+            attachmentDownload.Click += (_, _) => fileMenu.Show(attachmentDownload, new Point(0, attachmentDownload.Height));
             txtContent.Clear();
             txtContent2.Clear();
             lblText4.Text = "대화방을 선택해 주세요";
@@ -115,6 +141,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             selectedRoom = gridRooms.CurrentRow?.Tag as ChatRoom;
             int version = ++selectionVersion;
             txtContent2.Clear();
+            shownMessages = Array.Empty<ChatMessage>(); attachmentDownload.Enabled = false;
             if (selectedRoom is null)
             {
                 loadingMessages = false;
@@ -158,7 +185,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
 
         private void InitializeDeleteMenu()
         {
-            var menu = new ContextMenuStrip(components);
+            var menu = new ContextMenuStrip(components!);
             var deleteItem = new ToolStripMenuItem(chatService is HttpChatService ? "내 목록에서 삭제" : "삭제");
             ChatRoom? rightClickedRoom = null;
             menu.Items.Add(deleteItem);
@@ -295,7 +322,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
 
         private async Task SendMessageAsync()
         {
-            if (selectedRoom is null || loadingRooms || loadingMessages || sending || creatingRoom || deletingRoom) return;
+            if (selectedRoom is null || loadingRooms || loadingMessages || sending || creatingRoom || deletingRoom || fileErrors.Contains(selectedRoom.Id)) return;
             if (string.IsNullOrWhiteSpace(txtContent3.Text))
             {
                 ShowStatus("메시지를 입력해 주세요.");
@@ -309,7 +336,13 @@ namespace RemoteWork.WinForms.Features.Collaboration
             UpdateInputState();
             try
             {
-                await chatService.SendMessageAsync(roomId, content, lifetime.Token);
+                if (chatService is HttpChatService http)
+                    await http.SendMessageWithFilesAsync(roomId, content,
+                        roomFiles.GetValueOrDefault(roomId, new()).Select(f => f.AttachmentId).ToArray(), lifetime.Token);
+                else await chatService.SendMessageAsync(roomId, content, lifetime.Token);
+                unknownSends.Remove(roomId);
+                if (chatService is HttpChatService sentHttp) sentHttp.Attachments.ForgetLinkedUploads(roomFiles.GetValueOrDefault(roomId, new()).Select(f => f.AttachmentId));
+                roomFiles.Remove(roomId);
                 saved = true;
                 if (IsDisposed || Disposing) return;
                 txtContent3.Clear();
@@ -325,6 +358,8 @@ namespace RemoteWork.WinForms.Features.Collaboration
                 if (!IsDisposed && !Disposing)
                     ShowStatus(saved ? $"메시지는 추가되었지만 목록 갱신에 실패했습니다. 방을 다시 선택해 주세요: {ex.Message}"
                         : $"메시지 추가 실패: {ex.Message}");
+                if (!saved && (ex is not RemoteWork.WinForms.Infrastructure.ApiException apiError || (apiError.StatusCode == 0 || apiError.StatusCode >= 500)))
+                    unknownSends.Add(roomId);
             }
             finally
             {
@@ -339,6 +374,8 @@ namespace RemoteWork.WinForms.Features.Collaboration
 
         private void RenderMessages(IReadOnlyList<ChatMessage> messages)
         {
+            shownMessages = messages;
+            attachmentDownload.Enabled = chatService is HttpChatService && shownMessages.Count > 0;
             txtContent2.Text = string.Join(Environment.NewLine + Environment.NewLine,
                 messages.Select(message => $"{message.SenderName}   {message.SentAt.ToLocalTime():yyyy.MM.dd HH:mm:ss}\r\n{message.Content}"));
             txtContent2.SelectionStart = txtContent2.TextLength;
@@ -348,9 +385,11 @@ namespace RemoteWork.WinForms.Features.Collaboration
         private void UpdateInputState()
         {
             bool canCompose = selectedRoom is not null && !loadingRooms && !loadingMessages && !sending && !creatingRoom && !deletingRoom;
-            txtContent3.Enabled = canCompose;
+            txtContent3.Enabled = canCompose && (selectedRoom is null || !unknownSends.Contains(selectedRoom.Id));
+            btnAttachFile.Enabled = canCompose && chatService is HttpChatService && (selectedRoom is null || !unknownSends.Contains(selectedRoom.Id));
+            btnAttachFile.Text = selectedRoom is not null && roomFiles.TryGetValue(selectedRoom.Id, out var files) ? $"파일 첨부 ({files.Count}/10)" : "파일 첨부";
             btnSendMessage.Enabled = canCompose && !string.IsNullOrWhiteSpace(txtContent3.Text)
-                && ChatText.WithinLimit(txtContent3.Text.Trim(), 2000);
+                && ChatText.WithinLimit(txtContent3.Text.Trim(), 2000) && (selectedRoom is null || !fileErrors.Contains(selectedRoom.Id));
             gridRooms.Enabled = cmbOptions.Enabled = !loadingRooms && !sending && !creatingRoom && !deletingRoom;
             btnCreateRoom.Enabled = !loadingRooms && !sending && !creatingRoom && !deletingRoom;
         }
@@ -359,6 +398,31 @@ namespace RemoteWork.WinForms.Features.Collaboration
         {
             string source = chatService is HttpChatService ? "서버 DB 저장" : "대화방·메시지 임시 저장";
             lblChatStatus.Text = $"{source} · 작성자: {chatService.CurrentUser.Name} | {text}";
+        }
+
+        private async void AttachFiles_Click(object? sender, EventArgs e)
+        {
+            if (selectedRoom is null || sending || chatService is not HttpChatService http || unknownSends.Contains(selectedRoom.Id)) return;
+            using var dialog = new OpenFileDialog { Multiselect = true, CheckFileExists = true, RestoreDirectory = true };
+            if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
+            string room = selectedRoom.Id;
+            var files = roomFiles.GetValueOrDefault(room, new());
+            if (files.Count + dialog.FileNames.Length > 10 || dialog.FileNames.Any(p => new FileInfo(p).Length > 26214400))
+            { ShowStatus("최대 10개 · 파일당 25MiB까지 첨부해 주세요."); return; }
+            roomFiles[room] = files;
+            sending = true; InvalidateReceive(); UpdateInputState();
+            try
+            {
+                foreach (var path in dialog.FileNames)
+                {
+                    var uploaded = await http.Attachments.UploadAsync("chat", room, path, lifetime.Token);
+                    if (!files.Any(f => f.AttachmentId == uploaded.AttachmentId)) files.Add(uploaded);
+                }
+                fileErrors.Remove(room);
+                if (!IsDisposed) ShowStatus("첨부 전송 완료. 보내기를 누르면 메시지에 연결됩니다. 받은 첨부는 대화 본문 우클릭으로 다운로드하세요.");
+            }
+            catch (Exception ex) { fileErrors.Add(room); if (!IsDisposed) ShowStatus("첨부 실패: " + ex.Message + " 같은 파일을 다시 선택하면 원래 전송 상태를 확인합니다. 첨부 완료 전에는 메시지를 보낼 수 없습니다."); }
+            finally { sending = false; if (!IsDisposed) UpdateInputState(); }
         }
 
         private void Unavailable_Click(object? sender, EventArgs e)

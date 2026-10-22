@@ -3,7 +3,7 @@
 {% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
 <script type="module" src="{{ url_for('static', filename='chat.js') }}"></script>{% endblock %}
 {% block content %}
-<section id="chat-app" data-base="{{ url_for('chat_web.rooms') }}" data-directory="{{ url_for('chat_web.directory') }}" data-session="{{ chat_session }}" data-csrf="{{ csrf_token() }}" data-user="{{ g.user.id }}">
+<section id="chat-app" data-base="{{ url_for('chat_web.rooms') }}" data-directory="{{ url_for('chat_web.directory') }}" data-session="{{ chat_session }}" data-attachment-session="{{ attachment_session }}" data-csrf="{{ csrf_token() }}" data-user="{{ g.user.id }}">
   <p class="eyebrow">WORKSPACE</p><h1>채팅</h1>
   <p class="chat-subtitle">서버 DB 저장 · 작성자: {{ g.user.display_name }} · Enter 전송 · Shift+Enter 줄바꿈</p>
   <p id="chat-status" role="status" aria-live="polite">대화방을 불러오는 중입니다.</p>
@@ -29,7 +29,7 @@
       <section class="chat-panel chat-compose"><h2><label for="chat-content">메시지 작성</label></h2>
         <form id="chat-send"><textarea id="chat-content" rows="6" maxlength="4000" disabled aria-describedby="chat-send-hint"></textarea>
           <p id="chat-send-hint" class="chat-hint">메시지는 2,000자까지 입력할 수 있습니다. 이모지는 한 글자로 계산합니다.</p>
-          <div class="chat-actions"><button type="button" class="chat-secondary" disabled title="파일 전송 API는 아직 연결되지 않았습니다.">파일 첨부</button>
+          <div class="chat-actions"><button id="chat-attach" type="button" class="chat-secondary" disabled>파일 첨부</button><input id="chat-file-picker" type="file" multiple hidden><span id="chat-file-status" role="status"></span>
             <button id="chat-send-button" type="submit" disabled>보내기</button><button id="chat-result" type="button" class="chat-secondary" hidden>전송 결과 확인</button></div>
         </form>
       </section>

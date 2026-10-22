@@ -1,4 +1,5 @@
 import uuid
+from ..collaboration_attachments import fingerprint, original_message_matches, provider
 import click
 from flask import current_app, g, request
 from sqlalchemy import inspect, select
@@ -79,6 +80,10 @@ def _page_keys():
 def register_storage(bp):
     # CLI is explicit; normal application requests never execute CREATE/ALTER.
     bp.cli_group = "chat"
+    @bp.record_once
+    def attachment_authority(state):
+        from ..collaboration_attachments import register
+        register(state.app, "chat")
 
     @bp.cli.command("init-tables")
     def init_tables():
@@ -191,14 +196,20 @@ def messages(room_id):
 def send_message(room_id, body=None):
     _ready()
     room_id = _uuid(room_id)
-    body = _body({"message_id", "content"}, body)
+    body = payload() if body is None else body
+    fields = {"message_id", "content"} | ({"attachment_ids"} if isinstance(body, dict) and "attachment_ids" in body else set())
+    body = _body(fields, body)
+    ids = body.get("attachment_ids", [])
+    if (not isinstance(ids, list) or len(ids) > 10 or any(not isinstance(i, str) for i in ids)
+            or len(set(ids)) != len(ids)):
+        raise AppError(400, "INVALID_INPUT", "중복 없는 첨부 ID를 최대 10개 전달해 주세요.")
     message_id = _uuid(body["message_id"])
     content = _text(body["content"], 2000, "메시지")
     with authenticated_transaction() as db:
         _visible_room(db, room_id, locking=True)
         message = db.scalar(select(ChatMessage).where(ChatMessage.message_id == message_id).with_for_update().execution_options(populate_existing=True))
         if message is not None:
-            if message.room_id != room_id or message.sender_id != g.user.id or message.content != content:
+            if message.room_id != room_id or message.sender_id != g.user.id or message.content != content or not original_message_matches(db, message_id, body):
                 raise AppError(409, "CHAT_REQUEST_CONFLICT", "같은 메시지 ID에 다른 내용이 전달됐습니다.")
             result, status = _message_data(message), 200
         else:
@@ -207,6 +218,9 @@ def send_message(room_id, body=None):
             db.add(message)
             db.flush()
             db.refresh(message)
-            audit("chat.message_sent", "chat_message", message_id, {"room_id": room_id})
+            if ids:
+                provider().replace_resource_files(db, "chat", message_id, ids)
+            audit("chat.message_sent", "chat_message", message_id,
+                  {"room_id": room_id, "request_hash": fingerprint(body)})
             result, status = _message_data(message), 201
     return success({"message": result}, status)

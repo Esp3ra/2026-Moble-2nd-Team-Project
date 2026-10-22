@@ -24,3 +24,8 @@ scope/panel, 정상/저장 후 응답 유실/성공 뒤 GET 실패/실제MainFor
 
 공유서버/실사용DB·운영옵션·DDL적용/backup복원·baseline·실제2번 writer hook·
 물리두PC/장시간부하는미실행이다. 이전합성콜백/2열PK 실행기는 현재 소비의 검증이 아니다.
+
+
+## 배포 서버 읽기 최종 확인
+
+`--shared-read`는 환경 변수 `DEADLINE_TEST_URL`, `DEADLINE_SHARED_LOGIN`, `DEADLINE_SHARED_PASSWORD`를 메모리로 받아 실제 서버를 조회한다. 원 source → 기존 캡처 wrapper/scope → 실제 panel, 원 binding, 재조회, 로그아웃 무효화, 재로그인을 확인한다. 업무 확인/키 발급/receipt 쓰기0이다. 계정/비밀번호를 문서나 로그에 남기지 않는다. **`--live`/`--main`은 확인 저장을 실행하므로 실제 사용자 서버에 테스트 용도로 실행하지 않는다.** 이 모드는 소유 MySQL fixture 전용이다.
