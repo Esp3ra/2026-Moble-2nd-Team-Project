@@ -31,6 +31,7 @@ public sealed class FingerprintIdentityAttempt : IDisposable, IIdentityRelayServ
     private long sequence;
     public Guid OriginalRequestId { get; } = Guid.NewGuid();
     public Guid OriginalCancelId { get; } = Guid.NewGuid();
+    public byte[]? IssuedRequest => ticket?.Request.ToArray();
     private IdentityStatus? result;
     public IdentityStatus? Result => IsCurrent ? result : null;
     public bool IsCurrent => Volatile.Read(ref disposed) == 0 && connection.IsCurrent;

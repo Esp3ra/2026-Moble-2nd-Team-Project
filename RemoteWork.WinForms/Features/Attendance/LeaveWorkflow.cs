@@ -10,7 +10,7 @@ public sealed record LeaveDraft(string Type, DateOnly StartDate, DateOnly EndDat
     public bool DeductsAnnualBalance => Type is "연차" or "반차(오전)" or "반차(오후)";
 }
 public sealed record LeaveRequestView(string Id, string Revision, int ApplicantId, string ApplicantName,
-    string Department, LeaveDraft Draft, string Status, bool CanReview = false);
+    string Department, LeaveDraft Draft, string Status, bool CanReview = false, string? DecisionReason = null);
 public sealed record LeaveSubmissionReceipt(Guid RequestId, LeaveRequestView Request);
 public sealed record LeaveDecisionReceipt(Guid RequestId, LeaveRequestView Request);
 

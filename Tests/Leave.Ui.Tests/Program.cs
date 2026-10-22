@@ -29,6 +29,10 @@ internal static class Program
                 BadReceipt(); LateSubmission(false); LateSubmission(true);
                 ReviewGuards(); Decision("approved"); Decision("rejected"); DecisionRetry(); BadDecisionReceipt();
                 ListScope(false); ListScope(true); LateList();
+                FilteredList(false); FilteredList(true); EmptyAndFailedList(); InputSummary();
+                RejectionDetails(); RejectionScopeAndMissing(); RejectionList();
+                ClosingSubmission(false); ClosingSubmission(true);
+                ClosingDecision(false); ClosingDecision(true); ClosingDecisionSessionEnded();
                 if (args.Length == 1) Render(args[0]);
                 Console.WriteLine($"PASS Leave UI: {checks} assertions; actual WinForms + synthetic workflow/identity; no real server, database or device.");
                 result = 0;
@@ -117,6 +121,71 @@ internal static class Program
         var task = Call(form, "ApplyAsync");
         flow.SubmitCompletion.SetResult(new(flow.Submissions[0].Id, Request(99))); Complete(task);
         Check(!form.SubmissionCompleted, "Other applicant receipt rejected");
+    }
+    private static void ClosingSubmission(bool recover)
+    {
+        using var api = Login(); var flow = new Workflow();
+        using var form = new LeaveApplicationForm(api.CaptureSession(), flow); form.Show(); Fill(form);
+        var pending = Call(form, "ApplyAsync"); Guid id = flow.Submissions[0].Id;
+        form.Close();
+        Check(form.Visible && !flow.LastCancellation.IsCancellationRequested, "Closing pending application preserves the in-flight request");
+        flow.SubmitCompletion.SetException(new HttpRequestException()); Complete(pending);
+        form.Close();
+        Check(form.Visible && Field<Label>(form, "lblStatus").Text.Contains("목록"), "Unknown application close warns before losing in-memory recovery");
+        Check(flow.Submissions.Count == 1, "Closing never sends a new application or cancellation");
+        if (recover)
+        {
+            flow.SubmitCompletion = new(); pending = Call(form, "ApplyAsync");
+            Check(flow.Submissions.Count == 2 && flow.Submissions[1] == flow.Submissions[0], "Recovery after closing warning keeps original application key/body");
+            form.Close(); Check(form.Visible, "Retry in-flight still prevents closing");
+            flow.SubmitCompletion.SetResult(new(id, Request())); Complete(pending);
+            form.Close(); Check(form.IsDisposed && form.SubmissionCompleted, "Confirmed application closes normally");
+        }
+        else
+        {
+            flow.SubmitCompletion = new(); pending = Call(form, "ApplyAsync");
+            flow.SubmitCompletion.SetException(new HttpRequestException()); Complete(pending);
+            form.Close(); Check(form.Visible, "Another uncertain attempt requires a fresh closing warning");
+            form.Close(); Check(form.IsDisposed && !form.SubmissionCompleted, "Explicit second close does not fabricate application success");
+            Check(flow.Submissions.All(x => x.Id == id), "Closing warning never replaces frozen application identity");
+        }
+    }
+    private static void ClosingDecision(bool recover)
+    {
+        using var api = Login(true); var flow = new Workflow();
+        using var form = new LeaveDecisionForm(api.CaptureSession(), flow, Request()); form.Show();
+        Field<TextBox>(form, "txtDecisionReason").Text = "원래 반려 의견";
+        var pending = Call(form, "DecideAsync", "rejected"); Guid id = flow.Decisions[0].Id;
+        form.Close();
+        Check(form.Visible && !flow.LastCancellation.IsCancellationRequested, "Closing pending decision preserves the in-flight request");
+        flow.DecisionCompletion.SetException(new HttpRequestException()); Complete(pending);
+        form.Close();
+        Check(form.Visible && Field<Label>(form, "lblStatus").Text.Contains("목록"), "Unknown decision close warns before losing in-memory recovery");
+        Check(flow.Decisions.Count == 1 && !Field<Button>(form, "btnApprove").Enabled, "Closing cannot send a new or opposite decision");
+        flow.DecisionCompletion = new(); pending = Call(form, "DecideAsync", "rejected");
+        Check(flow.Decisions.Count == 2 && flow.Decisions[1] == flow.Decisions[0], "Recovery after closing warning keeps decision key/revision/body");
+        if (recover)
+        {
+            form.Close(); Check(form.Visible, "Retrying decision cannot close before result");
+            flow.DecisionCompletion.SetResult(new(id, Request() with { Status = "rejected", Revision = "r2", DecisionReason = "원래 반려 의견" })); Complete(pending);
+            form.Close(); Check(form.IsDisposed && form.DecisionCompleted, "Confirmed rejection closes normally");
+        }
+        else
+        {
+            flow.DecisionCompletion.SetException(new HttpRequestException()); Complete(pending);
+            form.Close(); Check(form.Visible, "Another uncertain decision requires a fresh closing warning");
+            form.Close(); Check(form.IsDisposed && !form.DecisionCompleted, "Explicit second close does not fabricate decision success");
+        }
+    }
+    private static void ClosingDecisionSessionEnded()
+    {
+        using var api = Login(true); var flow = new Workflow();
+        using var form = new LeaveDecisionForm(api.CaptureSession(), flow, Request()); form.Show();
+        var pending = Call(form, "DecideAsync", "approved");
+        api.ClearIdentity(); Application.DoEvents();
+        Check(!form.Visible && flow.LastCancellation.IsCancellationRequested, "Ended login overrides pending-decision closing guard");
+        flow.DecisionCompletion.SetResult(new(flow.Decisions[0].Id, Request() with { Status = "approved", Revision = "r2" })); Complete(pending);
+        Check(!form.DecisionCompleted, "Late decision after forced login end cannot show success");
     }
     private static void LateSubmission(bool logout)
     {
@@ -214,6 +283,106 @@ internal static class Program
         using var image2 = new Bitmap(review.Width, review.Height); review.DrawToBitmap(image2, new Rectangle(Point.Empty, review.Size));
         image2.Save(Path.Combine(directory, "leave-review.png"));
     }
+    private static void FilteredList(bool admin)
+    {
+        using var api = Login(admin); var flow = new Workflow();
+        using var panel = new AttendanceControl(admin ? PreviewRole.Administrator : PreviewRole.Employee, api.CaptureSession(), flow) { LeaveOnly = true };
+        using var host = new Form { Size = new(1100, 700) }; host.Controls.Add(panel); host.Show(); Application.DoEvents();
+        var task = panel.RefreshLeaveAsync();
+        flow.ListCompletion.SetResult(new[] { Request(), Request() with { Id = "approved", Status = "approved" },
+            Request() with { Id = "rejected", Status = "rejected" }, Request(99, false) }); Complete(task);
+        var filter = Field<ComboBox>(panel, "cmbLeaveStatus"); var grid = Field<DataGridView>(panel, "gridLeaveRequests");
+        Check(grid.Rows.Count == 3, "All filter stays inside own/assigned scope");
+        filter.SelectedIndex = 2;
+        Check(grid.Rows.Count == 1 && ((LeaveRequestView)grid.Rows[0].Tag!).Status == "approved", "Approved local filter");
+        grid.Rows[0].Selected = true;
+        Check(!Field<Button>(panel, "btnLeaveDecision").Enabled, "Approved row cannot be reviewed again");
+        filter.SelectedIndex = 1;
+        Check(grid.Rows.Count == 1 && grid.SelectedRows.Count == 0, "Changing filter clears decision selection");
+        filter.SelectedIndex = 3;
+        Check(grid.Rows.Count == 1 && ((LeaveRequestView)grid.Rows[0].Tag!).Status == "rejected", "Rejected local filter");
+        Check(flow.ListCalls == 1, "Filter does not issue another API/workflow query");
+        api.ClearIdentity(); Application.DoEvents(); filter.SelectedIndex = 0;
+        Check(grid.Rows.Count == 0 && !filter.Enabled, "Filter cannot resurrect rows after session end");
+    }
+    private static void EmptyAndFailedList()
+    {
+        using var api = Login(); var flow = new Workflow();
+        using var panel = new AttendanceControl(PreviewRole.Employee, api.CaptureSession(), flow);
+        var first = panel.RefreshLeaveAsync(); flow.ListCompletion.SetResult(Array.Empty<LeaveRequestView>()); Complete(first);
+        Check(Field<Label>(panel, "lblLeaveEmpty").Text.Contains("없습니다"), "Empty successful list has explicit message");
+        flow.ListCompletion = new(); var second = panel.RefreshLeaveAsync();
+        flow.ListCompletion.SetException(new HttpRequestException("synthetic list error")); Complete(second);
+        Field<ComboBox>(panel, "cmbLeaveStatus").SelectedIndex = 2;
+        Check(Field<Label>(panel, "lblLeaveEmpty").Text.Contains("불러오지 못"), "Filter cannot turn failed query into empty success");
+    }
+    private static void InputSummary()
+    {
+        using var api = Login(); using var form = new LeaveApplicationForm(api.CaptureSession(), null);
+        Fill(form, "병가");
+        Check(Field<Label>(form, "lblInputSummary").Text.Contains("병가")
+            && Field<Label>(form, "lblInputSummary").Text.Contains("2026-10-21"), "Live summary reflects selected type and dates");
+        Field<DateTimePicker>(form, "dtpEndDate").Value = Day.AddDays(-1).ToDateTime(TimeOnly.MinValue);
+        Check(Field<Label>(form, "lblInputSummary").Text.Contains("종료일"), "Invalid date shown before submission");
+        using var admin = Login(true);
+        using var review = new LeaveDecisionForm(admin.CaptureSession(), null, Request());
+        Check(Field<Label>(review, "lblCharge").Text.Contains("차감하지"), "Review displays sick/official balance policy");
+    }
+    private static void RejectionDetails()
+    {
+        using var api = Login(); var flow = new Workflow();
+        string reason = "첫 번째 반려 사유\r\n" + new string('가', 800) + "\r\n다른 날짜로 다시 신청해 주세요.";
+        var row = Request(5, false) with { Status = "rejected", DecisionReason = reason };
+        using var detail = new LeaveDecisionForm(api.CaptureSession(), flow, row, readOnly: true); detail.Show();
+        Check(Field<TextBox>(detail, "txtDecisionReason").Text == reason, "Employee sees complete multiline rejection reason");
+        Check(Field<TextBox>(detail, "txtRequestReason").Text == row.Draft.Reason, "Application reason is separate from rejection reason");
+        Check(Field<TextBox>(detail, "txtDecisionReason").ReadOnly && !Field<Button>(detail, "btnApprove").Enabled
+            && !Field<Button>(detail, "btnReject").Enabled, "Details cannot edit or review");
+        Complete(Call(detail, "DecideAsync", "approved"));
+        Check(flow.Decisions.Count == 0, "Read-only mode cannot submit decisions even with direct invocation");
+        api.ClearIdentity(); Application.DoEvents();
+        Check(!detail.Visible, "Open rejection details close when login ends");
+    }
+    private static void RejectionScopeAndMissing()
+    {
+        using var employee = Login(); using var admin = Login(true);
+        var other = Request(99, false) with { Status = "rejected", DecisionReason = "다른 직원의 검토 의견" };
+        using var wrongEmployee = new LeaveDecisionForm(employee.CaptureSession(), null, other, readOnly: true);
+        using var unassignedAdmin = new LeaveDecisionForm(admin.CaptureSession(), null, other, readOnly: true);
+        foreach (var form in new[] { wrongEmployee, unassignedAdmin })
+            Check(Field<TextBox>(form, "txtDecisionReason").Text.Length == 0
+                && Field<TextBox>(form, "txtRequestReason").Text.Length == 0, "No details outside own/assigned scope");
+        using var missing = new LeaveDecisionForm(employee.CaptureSession(), null, Request(5, false) with { Status = "rejected" }, readOnly: true);
+        Check(Field<Label>(missing, "lblStatus").Text.Contains("반려 사유가 없습니다")
+            && Field<TextBox>(missing, "txtDecisionReason").Text.Length == 0, "Missing rejection reason is explicit, not fabricated from application reason");
+    }
+    private static void RejectionList()
+    {
+        using var api = Login(); var flow = new Workflow();
+        using var panel = new AttendanceControl(PreviewRole.Employee, api.CaptureSession(), flow);
+        using var host = new Form(); host.Controls.Add(panel); host.Show(); Application.DoEvents();
+        var row = Request(5, false) with { Status = "rejected", DecisionReason = "서로 다른 사유를 확인해 주세요." };
+        var task = panel.RefreshLeaveAsync(); flow.ListCompletion.SetResult(new[] { row }); Complete(task);
+        var grid = Field<DataGridView>(panel, "gridLeaveRequests"); grid.Rows[0].Selected = true;
+        Check(grid.Rows[0].Cells["columnLeaveDecisionReason"].Value?.ToString() == row.DecisionReason, "Rejection reason reaches the employee list");
+        Check(Field<Button>(panel, "btnLeaveDetails").Enabled, "Employee can explicitly open selected details");
+        bool openedWithReason = false;
+        using var closer = new System.Windows.Forms.Timer { Interval = 20 };
+        closer.Tick += (_, _) =>
+        {
+            var form = Application.OpenForms.OfType<LeaveDecisionForm>().LastOrDefault();
+            if (form is null) return;
+            openedWithReason = Field<TextBox>(form, "txtDecisionReason").Text == row.DecisionReason
+                && Field<TextBox>(form, "txtDecisionReason").ReadOnly;
+            closer.Stop(); form.Close();
+        };
+        closer.Start(); Field<Button>(panel, "btnLeaveDetails").PerformClick(); closer.Stop();
+        Check(openedWithReason, "Actual employee details button opens full rejection reason read-only");
+        Field<ComboBox>(panel, "cmbLeaveStatus").SelectedIndex = 1;
+        Check(!Field<Button>(panel, "btnLeaveDetails").Enabled, "Filter without selected row disables details");
+        api.ClearIdentity(); Application.DoEvents();
+        Check(!Field<Button>(panel, "btnLeaveDetails").Enabled && grid.Rows.Count == 0, "Ended login cannot reopen private details");
+    }
     private sealed class IdentityHandler(bool admin) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -230,10 +399,11 @@ internal static class Program
         public List<(LeaveDraft Draft, Guid Id)> Submissions = new();
         public List<(LeaveRequestView Request, string Decision, string Reason, Guid Id)> Decisions = new();
         public CancellationToken LastCancellation;
+        public int ListCalls;
         public Task<LeaveSubmissionReceipt> SubmitAsync(LeaveDraft draft, Guid requestId, CancellationToken cancellation)
         { LastCancellation = cancellation; Submissions.Add((draft, requestId)); return SubmitCompletion.Task; }
-        public Task<IReadOnlyList<LeaveRequestView>> ListAsync(CancellationToken cancellation) => ListCompletion.Task;
+        public Task<IReadOnlyList<LeaveRequestView>> ListAsync(CancellationToken cancellation) { ListCalls++; return ListCompletion.Task; }
         public Task<LeaveDecisionReceipt> DecideAsync(LeaveRequestView request, string decision, string reason, Guid requestId, CancellationToken cancellation)
-        { Decisions.Add((request, decision, reason, requestId)); return DecisionCompletion.Task; }
+        { LastCancellation = cancellation; Decisions.Add((request, decision, reason, requestId)); return DecisionCompletion.Task; }
     }
 }

@@ -9,7 +9,7 @@ namespace RemoteWork.WinForms.Features.Attendance
         private readonly ILeaveWorkflow workflow = new UnconnectedLeaveWorkflow();
         private readonly CancellationTokenSource lifetime = new();
         private CancellationTokenRegistration sessionEnding;
-        private bool busy, finished, uncertain, ended;
+        private bool busy, finished, uncertain, ended, reviewedClose;
         private Guid? requestId;
         private LeaveDraft? frozenDraft;
         public bool SubmissionCompleted { get; private set; }
@@ -27,6 +27,9 @@ namespace RemoteWork.WinForms.Features.Attendance
             dtpStartDate.Value = dtpEndDate.Value = DateTime.Today;
             cmbOptions.SelectedIndex = 0;
             cmbOptions.SelectedIndexChanged += (_, _) => UpdateChargeNotice();
+            dtpStartDate.ValueChanged += (_, _) => UpdateInputSummary();
+            dtpEndDate.ValueChanged += (_, _) => UpdateInputSummary();
+            txtLeaveReason.TextChanged += (_, _) => UpdateInputSummary();
             lblStatus.Text = this.workflow.IsConnected
                 ? "기간과 사유를 확인하고 신청해 주세요. 일수·잔여 연차는 서버에서 확인합니다."
                 : "서버 연결 전입니다. 입력 내용을 확인할 수 있으며 신청은 저장되지 않습니다.";
@@ -59,6 +62,16 @@ namespace RemoteWork.WinForms.Features.Attendance
             lblCharge.Text = Draft().DeductsAnnualBalance
                 ? "연차 잔여일 차감 대상 · 실제 차감 일수는 서버에서 계산합니다."
                 : "병가·공가는 연차 잔여일을 차감하지 않습니다.";
+            UpdateInputSummary();
+        }
+
+        private void UpdateInputSummary()
+        {
+            var draft = Draft();
+            string? error = LeaveInput.Error(draft);
+            lblInputSummary.Text = error ?? $"{draft.Type} · {draft.StartDate:yyyy-MM-dd} ~ {draft.EndDate:yyyy-MM-dd}"
+                + $" · 사유 {txtLeaveReason.Text.Length:N0}/{LeaveInput.TextLimit:N0}자";
+            lblInputSummary.ForeColor = error is null ? Color.FromArgb(69, 86, 110) : Color.FromArgb(171, 52, 52);
         }
 
         private bool Live => !ended && !IsDisposed && !Disposing && LeaveInput.Live(session);
@@ -88,6 +101,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             { lblStatus.Text = "처리 중인 신청 내용이 달라졌습니다. 이전 신청 결과부터 확인해 주세요."; return; }
             requestId ??= Guid.NewGuid();
             frozenDraft ??= draft;
+            reviewedClose = false;
             busy = true;
             SetInput(false);
             btnApplyLeave.Enabled = false;
@@ -124,6 +138,22 @@ namespace RemoteWork.WinForms.Features.Attendance
         private void ClosePreview_Click(object? sender, EventArgs e)
         {
             Close();
+        }
+
+        private void LeaveApplication_Closing(object? sender, FormClosingEventArgs e)
+        {
+            if (!Live || finished) return;
+            if (busy)
+            {
+                e.Cancel = true;
+                lblStatus.Text = "신청 처리 중입니다. 결과를 확인한 뒤 닫아주세요. 닫기는 신청 취소가 아닙니다.";
+                return;
+            }
+            if (uncertain && !reviewedClose)
+            {
+                e.Cancel = true; reviewedClose = true;
+                lblStatus.Text = "신청 결과 미확인 · 같은 신청 확인을 권장합니다.\n닫으려면 다시 닫기를 누르세요. 닫은 뒤에는 목록에서 처리 여부를 먼저 확인해 주세요.";
+            }
         }
 
     }

@@ -6,7 +6,7 @@ using RemoteWork.WinForms.Features.Attendance;
 using RemoteWork.WinForms.Infrastructure;
 using RemoteWork.WinForms.Shell;
 
-internal static class Program
+internal static partial class Program
 {
     private static int checks;
     private static string? renderFolder;
@@ -43,12 +43,14 @@ internal static class Program
             try
             {
                 if (args.Length > 0 && args[0] == "--loopback-login") await LoopbackLogin(loop, args);
+                else if (args.Length > 0 && args[0] == "--loopback-workday") await LoopbackWorkday(loop, args);
                 else
                 {
                     await TokenGate(); await Recovery(); await ChangedReceipt(); await RevokeAfterExpiry();
                     await Late(false); await Late(true); await EarlyDispose(); await InvalidResponses();
                     await LoginUi(loop, false, false); await LoginUi(loop, true, false); await LoginUi(loop, true, true);
                     await NoFallback(loop); await ClosedLogin(loop); await SameTokenGeneration(); await CloseDuringCommit(loop);
+                    await WorkdayChecks(loop);
                     Console.WriteLine($"PASS identity login UI: {checks} assertions; real WinForms/ApiClient/pending/relay with controlled HTTP/device; no live server, DB, sensor or configuration changes.");
                 }
                 code = 0;
