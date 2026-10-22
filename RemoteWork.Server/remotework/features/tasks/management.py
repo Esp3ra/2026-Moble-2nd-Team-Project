@@ -16,6 +16,7 @@ from ...models import iso, utcnow
 from ...write_contract import BIGINT_MAX, INTEGER_MAX, ExpectedVersions, lock_users, positive_integer
 from .creation import _date, _unicode_text
 from .models import TaskAssignment, TaskManager, TaskRecord
+from .attachment_selection import validate_attachment_selection
 
 
 _VERSIONS = frozenset({"expected_row_version", "expected_assignment_revision"})
@@ -53,8 +54,10 @@ def validate_management_body(action, body):
     """Validate exact values shared by API and web without changing the body."""
     if action not in _FIELDS:
         raise ValueError("Use an explicit task management action")
-    if not isinstance(body, dict) or set(body) != _FIELDS[action]:
+    allowed = (_FIELDS[action], _FIELDS[action] | {"attachment_ids"}) if action == "task.updated" else (_FIELDS[action],)
+    if not isinstance(body, dict) or set(body) not in allowed:
         raise AppError(400, "INVALID_INPUT", "업무 관리 입력 항목을 확인해 주세요.")
+    validate_attachment_selection(body)
     expected = ExpectedVersions.from_body(body)
     if action == "task.updated":
         _unicode_text(body["title"], "업무 제목")
@@ -149,6 +152,12 @@ def _update(db, task, assignment, body, now):
     today = now.replace(tzinfo=timezone.utc).astimezone(timezone(timedelta(hours=9))).date()
     if due < today:
         raise AppError(409, "TASK_DUE_DATE_IN_PAST", "새 마감일은 한국 시간 기준 오늘 또는 그 이후여야 합니다.")
+    if "attachment_ids" in body:
+        # Policy accepted. The provider currently returns only the AFTER list:
+        # no public same-TX before/diff interface or agreed audit shape exists.
+        # Never save basic fields while silently ignoring an explicit file edit.
+        raise AppError(503, "TASK_ATTACHMENT_REPLACEMENT_NOT_READY",
+                       "업무 첨부 변경의 비교·감사 연결을 준비 중입니다. 기존 첨부를 유지하는 일반 수정은 가능합니다.")
     changed = [name for name, value in (("title", body["title"]), ("description", body["description"]),
         ("start_date", start), ("due_date", due)) if getattr(task, name) != value]
     if not changed:

@@ -176,7 +176,7 @@ namespace RemoteWork.WinForms.Features.Tasks
 
         // A new login is adopted only by an explicit list refresh. Detail selection
         // and preparation continue to use the session that produced the list.
-        private void BindQuerySession()
+        private void BindQuerySession(TaskQuerySession? navigationSession = null)
         {
             if (queryService is not HttpTaskQueryService http) return;
             bool previousIsCurrent = viewSession?.Session.IsCurrent == true;
@@ -194,7 +194,9 @@ namespace RemoteWork.WinForms.Features.Tasks
             }
             if (followQueryPreparation) preparationService = null;
             creationWorkflow = null;
-            TaskQuerySession? captured = http.CaptureViewSession();
+            // External navigation borrows its original login; it must never
+            // silently capture a later account through a normal list refresh.
+            TaskQuerySession? captured = navigationSession ?? http.CaptureViewSession();
             if (captured is null) throw new TaskQueryException(TaskQueryFailure.AuthenticationExpired);
             viewSession = captured;
             if (followQueryPreparation) preparationService = captured.PreparationService;
@@ -235,9 +237,12 @@ namespace RemoteWork.WinForms.Features.Tasks
         /// Call on the WinForms UI thread.
         /// The injected boundary owns data access; this control does not authenticate or authorize.
         /// </summary>
-        public async Task RefreshAsync()
+        public async Task RefreshAsync() => await RefreshCoreAsync();
+
+        private async Task<bool> RefreshCoreAsync(TaskQuerySession? navigationSession = null,
+            string? navigationTaskId = null)
         {
-            if (initializing || queriesDisposed || PreviewActions.IsDesignMode(this)) return;
+            if (initializing || queriesDisposed || PreviewActions.IsDesignMode(this)) return false;
             lastListQuerySucceeded = false;
             // Cancel the previous UI operation before replacing its session binding.
             long generation = ++listGeneration;
@@ -254,9 +259,10 @@ namespace RemoteWork.WinForms.Features.Tasks
             bool listReceived = false;
             bool createdTaskVisible = false;
             string? createdTaskId = null;
+            bool navigated = false;
             try
             {
-                BindQuerySession();
+                BindQuerySession(navigationSession);
                 listOperation = listUiScope?.BeginOperation();
                 if (listOperation is not null)
                 {
@@ -276,7 +282,7 @@ namespace RemoteWork.WinForms.Features.Tasks
                 UpdateViewScope();
                 ITaskQueryService queries = viewSession?.QueryService ?? queryService;
                 IReadOnlyList<TaskSummary> summaries = await queries.GetTasksAsync(query, token);
-                if (!IsCurrentList(generation, token)) return;
+                if (!IsCurrentList(generation, token)) return false;
                 ArgumentNullException.ThrowIfNull(summaries);
                 listReceived = true;
                 lastListQuerySucceeded = true;
@@ -294,16 +300,23 @@ namespace RemoteWork.WinForms.Features.Tasks
                     gridTasks.CurrentCell = null;
                     if (gridTasks.Rows.Count > 0)
                     {
-                        DataGridViewRow selectedRow = gridTasks.Rows.Cast<DataGridViewRow>()
+                        DataGridViewRow? selectedRow = navigationTaskId is not null
+                            ? gridTasks.Rows.Cast<DataGridViewRow>().FirstOrDefault(row =>
+                                row.Tag is TaskSummary summary && summary.TaskId == navigationTaskId && !summary.IsCancelled)
+                            : gridTasks.Rows.Cast<DataGridViewRow>()
                             .FirstOrDefault(row => row.Tag is TaskSummary summary
                                 && string.Equals(summary.TaskId, createdTaskId, StringComparison.Ordinal))
                             ?? gridTasks.Rows.Cast<DataGridViewRow>()
                             .FirstOrDefault(row => row.Tag is TaskSummary summary
                                 && string.Equals(summary.TaskId, taskIdToRestore, StringComparison.Ordinal))
                             ?? gridTasks.Rows[0];
-                        gridTasks.CurrentCell = selectedRow.Cells[0];
-                        selectedRow.Selected = true;
-                        preferredTaskId = ((TaskSummary)selectedRow.Tag!).TaskId;
+                        if (selectedRow is not null)
+                        {
+                            gridTasks.CurrentCell = selectedRow.Cells[0];
+                            selectedRow.Selected = true;
+                            preferredTaskId = ((TaskSummary)selectedRow.Tag!).TaskId;
+                        }
+                        else preferredTaskId = null;
                     }
                 }
                 finally
@@ -312,13 +325,26 @@ namespace RemoteWork.WinForms.Features.Tasks
                 }
                 gridTasks.Enabled = true;
                 lblTaskQueryStatus.Text = $"조회된 업무 {summaries.Count}개";
-                if (summaries.Count == 0)
+                if (navigationTaskId is not null && preferredTaskId != navigationTaskId)
+                {
+                    preferredTaskId = null;
+                    ClearDetail("선택한 업무는 현재 내 업무 목록에 없습니다. 배정·취소 여부를 확인해 주세요.");
+                    lblTaskQueryStatus.Text = "업무 열기 실패 · 현재 내 업무 목록에 대상 없음";
+                }
+                else if (summaries.Count == 0)
                 {
                     preferredTaskId = null;
                     ClearDetail("조회된 업무가 없습니다.");
                 }
                 else
-                    await LoadDetailAsync(preferredTaskId!, generation);
+                {
+                    Task load = LoadDetailAsync(preferredTaskId!, generation);
+                    long requestedDetailGeneration = detailGeneration;
+                    await load;
+                    navigated = navigationTaskId is not null && IsCurrentList(generation, token)
+                        && requestedDetailGeneration == detailGeneration && HasCurrentQuerySession
+                        && PreparationDetail()?.Summary.TaskId == navigationTaskId;
+                }
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
@@ -335,7 +361,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             {
                 if (viewSession is { } captured && !captured.Session.IsCurrent)
                     InvalidateQuerySession(captured);
-                if (!IsCurrentList(generation, token)) return;
+                if (!IsCurrentList(generation, token)) return false;
                 ClearRows();
                 ClearDetail("업무 상세를 표시할 수 없습니다.");
                 lblTaskQueryStatus.Text = "목록 조회 실패 · " + FailureText(exception);
@@ -354,6 +380,7 @@ namespace RemoteWork.WinForms.Features.Tasks
                     }
                 }
             }
+            return navigated;
         }
 
         private async Task LoadDetailAsync(string taskId, long parentGeneration)
@@ -398,6 +425,12 @@ namespace RemoteWork.WinForms.Features.Tasks
                     ? "상세 조회 완료 · 목록 정보 변경 감지 · 목록을 다시 조회해 주세요."
                     : "상세 조회 완료";
                 if (listSummaryChanged) btnRetryQuery.Text = "목록 새로고침";
+                // Attachment availability is independent of the successful task read.
+                // Keep its request bound to this detail, without holding task actions
+                // or an explicit refresh behind an optional endpoint's latency.
+                detailLoading = false;
+                btnRetryQuery.Enabled = true;
+                UpdatePreparationActions();
                 await LoadTaskAttachmentsAsync(summary, parentGeneration, generation, token);
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
