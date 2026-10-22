@@ -29,6 +29,7 @@ internal static class Program
                 BadReceipt(); LateSubmission(false); LateSubmission(true);
                 ReviewGuards(); Decision("approved"); Decision("rejected"); DecisionRetry(); BadDecisionReceipt();
                 ListScope(false); ListScope(true); LateList();
+                FilteredList(false); FilteredList(true); EmptyAndFailedList(); InputSummary();
                 if (args.Length == 1) Render(args[0]);
                 Console.WriteLine($"PASS Leave UI: {checks} assertions; actual WinForms + synthetic workflow/identity; no real server, database or device.");
                 result = 0;
@@ -214,6 +215,51 @@ internal static class Program
         using var image2 = new Bitmap(review.Width, review.Height); review.DrawToBitmap(image2, new Rectangle(Point.Empty, review.Size));
         image2.Save(Path.Combine(directory, "leave-review.png"));
     }
+    private static void FilteredList(bool admin)
+    {
+        using var api = Login(admin); var flow = new Workflow();
+        using var panel = new AttendanceControl(admin ? PreviewRole.Administrator : PreviewRole.Employee, api.CaptureSession(), flow) { LeaveOnly = true };
+        using var host = new Form { Size = new(1100, 700) }; host.Controls.Add(panel); host.Show(); Application.DoEvents();
+        var task = panel.RefreshLeaveAsync();
+        flow.ListCompletion.SetResult(new[] { Request(), Request() with { Id = "approved", Status = "approved" },
+            Request() with { Id = "rejected", Status = "rejected" }, Request(99, false) }); Complete(task);
+        var filter = Field<ComboBox>(panel, "cmbLeaveStatus"); var grid = Field<DataGridView>(panel, "gridLeaveRequests");
+        Check(grid.Rows.Count == 3, "All filter stays inside own/assigned scope");
+        filter.SelectedIndex = 2;
+        Check(grid.Rows.Count == 1 && ((LeaveRequestView)grid.Rows[0].Tag!).Status == "approved", "Approved local filter");
+        grid.Rows[0].Selected = true;
+        Check(!Field<Button>(panel, "btnLeaveDecision").Enabled, "Approved row cannot be reviewed again");
+        filter.SelectedIndex = 1;
+        Check(grid.Rows.Count == 1 && grid.SelectedRows.Count == 0, "Changing filter clears decision selection");
+        filter.SelectedIndex = 3;
+        Check(grid.Rows.Count == 1 && ((LeaveRequestView)grid.Rows[0].Tag!).Status == "rejected", "Rejected local filter");
+        Check(flow.ListCalls == 1, "Filter does not issue another API/workflow query");
+        api.ClearIdentity(); Application.DoEvents(); filter.SelectedIndex = 0;
+        Check(grid.Rows.Count == 0 && !filter.Enabled, "Filter cannot resurrect rows after session end");
+    }
+    private static void EmptyAndFailedList()
+    {
+        using var api = Login(); var flow = new Workflow();
+        using var panel = new AttendanceControl(PreviewRole.Employee, api.CaptureSession(), flow);
+        var first = panel.RefreshLeaveAsync(); flow.ListCompletion.SetResult(Array.Empty<LeaveRequestView>()); Complete(first);
+        Check(Field<Label>(panel, "lblLeaveEmpty").Text.Contains("없습니다"), "Empty successful list has explicit message");
+        flow.ListCompletion = new(); var second = panel.RefreshLeaveAsync();
+        flow.ListCompletion.SetException(new HttpRequestException("synthetic list error")); Complete(second);
+        Field<ComboBox>(panel, "cmbLeaveStatus").SelectedIndex = 2;
+        Check(Field<Label>(panel, "lblLeaveEmpty").Text.Contains("불러오지 못"), "Filter cannot turn failed query into empty success");
+    }
+    private static void InputSummary()
+    {
+        using var api = Login(); using var form = new LeaveApplicationForm(api.CaptureSession(), null);
+        Fill(form, "병가");
+        Check(Field<Label>(form, "lblInputSummary").Text.Contains("병가")
+            && Field<Label>(form, "lblInputSummary").Text.Contains("2026-10-21"), "Live summary reflects selected type and dates");
+        Field<DateTimePicker>(form, "dtpEndDate").Value = Day.AddDays(-1).ToDateTime(TimeOnly.MinValue);
+        Check(Field<Label>(form, "lblInputSummary").Text.Contains("종료일"), "Invalid date shown before submission");
+        using var admin = Login(true);
+        using var review = new LeaveDecisionForm(admin.CaptureSession(), null, Request());
+        Check(Field<Label>(review, "lblCharge").Text.Contains("차감하지"), "Review displays sick/official balance policy");
+    }
     private sealed class IdentityHandler(bool admin) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -230,9 +276,10 @@ internal static class Program
         public List<(LeaveDraft Draft, Guid Id)> Submissions = new();
         public List<(LeaveRequestView Request, string Decision, string Reason, Guid Id)> Decisions = new();
         public CancellationToken LastCancellation;
+        public int ListCalls;
         public Task<LeaveSubmissionReceipt> SubmitAsync(LeaveDraft draft, Guid requestId, CancellationToken cancellation)
         { LastCancellation = cancellation; Submissions.Add((draft, requestId)); return SubmitCompletion.Task; }
-        public Task<IReadOnlyList<LeaveRequestView>> ListAsync(CancellationToken cancellation) => ListCompletion.Task;
+        public Task<IReadOnlyList<LeaveRequestView>> ListAsync(CancellationToken cancellation) { ListCalls++; return ListCompletion.Task; }
         public Task<LeaveDecisionReceipt> DecideAsync(LeaveRequestView request, string decision, string reason, Guid requestId, CancellationToken cancellation)
         { Decisions.Add((request, decision, reason, requestId)); return DecisionCompletion.Task; }
     }

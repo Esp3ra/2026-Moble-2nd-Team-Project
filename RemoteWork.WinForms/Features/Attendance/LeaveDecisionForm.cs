@@ -29,6 +29,9 @@ namespace RemoteWork.WinForms.Features.Attendance
             txtLeaveType.Text = request?.Draft.Type ?? "";
             txtPeriod.Text = request is null ? "" : $"{request.Draft.StartDate:yyyy-MM-dd} ~ {request.Draft.EndDate:yyyy-MM-dd}";
             txtRequestReason.Text = request?.Draft.Reason ?? "";
+            lblCharge.Text = request is null ? "신청 내역을 선택하면 연차 차감 여부를 확인할 수 있습니다."
+                : request.Draft.DeductsAnnualBalance ? "연차 잔여일 차감 대상 · 실제 차감 일수는 서버에서 확인합니다."
+                : "병가·공가는 연차 잔여일을 차감하지 않습니다.";
             lblStatus.Text = !LeaveInput.Administrator(this.session) ? "관리자 로그인이 필요합니다."
                 : request is null ? "지정된 직원의 신청을 목록에서 선택해 주세요."
                 : !request.CanReview ? "검토 권한이 확인된 신청만 처리할 수 있습니다."

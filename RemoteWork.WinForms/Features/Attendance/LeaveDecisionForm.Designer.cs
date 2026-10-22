@@ -42,6 +42,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             btnReject = new Button();
             btnClose = new Button();
             lblStatus = new Label();
+            lblCharge = new Label();
             layoutPage.SuspendLayout();
             layoutHeading.SuspendLayout();
             panelRequest.SuspendLayout();
@@ -53,9 +54,10 @@ namespace RemoteWork.WinForms.Features.Attendance
             // layoutPage
             layoutPage.ColumnCount = 1;
             layoutPage.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            layoutPage.RowCount = 5;
+            layoutPage.RowCount = 6;
             layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 48F));
             layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 250F));
+            layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 38F));
             layoutPage.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 64F));
             layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 58F));
@@ -64,9 +66,13 @@ namespace RemoteWork.WinForms.Features.Attendance
             layoutPage.Name = "layoutPage";
             layoutPage.Controls.Add(layoutHeading, 0, 0);
             layoutPage.Controls.Add(panelRequest, 0, 1);
-            layoutPage.Controls.Add(panelDecision, 0, 2);
-            layoutPage.Controls.Add(lblStatus, 0, 3);
-            layoutPage.Controls.Add(flowActions, 0, 4);
+            layoutPage.Controls.Add(lblCharge, 0, 2);
+            layoutPage.Controls.Add(panelDecision, 0, 3);
+            layoutPage.Controls.Add(lblStatus, 0, 4);
+            layoutPage.Controls.Add(flowActions, 0, 5);
+            lblCharge.Name = "lblCharge";
+            lblCharge.Dock = DockStyle.Fill;
+            lblCharge.TextAlign = ContentAlignment.MiddleLeft;
             lblStatus.Name = "lblStatus";
             lblStatus.Dock = DockStyle.Fill;
             lblStatus.AutoEllipsis = true;
@@ -230,8 +236,8 @@ namespace RemoteWork.WinForms.Features.Attendance
             Font = new Font("맑은 고딕", 9F);
             BackColor = Color.FromArgb(242, 245, 250);
             ForeColor = Color.FromArgb(30, 42, 61);
-            ClientSize = new Size(800, 690);
-            MinimumSize = new Size(720, 620);
+            ClientSize = new Size(800, 720);
+            MinimumSize = new Size(720, 660);
             Padding = new Padding(22);
             StartPosition = FormStartPosition.CenterParent;
             ShowInTaskbar = false;
@@ -277,5 +283,6 @@ namespace RemoteWork.WinForms.Features.Attendance
         private Button btnReject;
         private Button btnClose;
         private Label lblStatus;
+        private Label lblCharge;
     }
 }
