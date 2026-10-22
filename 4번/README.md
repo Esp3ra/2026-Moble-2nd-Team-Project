@@ -1,3 +1,8 @@
+<a id="member2-own-deadline-facts-status-20261022"></a>
+## PR54 요청 대응 — 2번 현재 본인 업무 읽기 제공, 2026-10-22
+
+2번은 [전체 현재 사실·단건 재검사 내부 함수](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/dc525d08312eb6d31c4c9e56aa6367a71103dfb9/docs/TASK_QUERIES.md#own-deadline-current-facts)를 alpha **dc525d08312eb6d31c4c9e56aa6367a71103dfb9**로 제공했습니다. 관리자도 본인 배정만,5상태·취소·기한·배정/업무 버전을 같은 인증 TX에서 읽습니다. 실제 소유 MySQL **52통과·실패/오류/skip0**, 읽기 전후 전체 DB 무변경·오래된 RR/ORM 캐시 뒤 현재 사실/인증 재검사를 확인했습니다. [제공 범위·1/2/4 합의 구분](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-own-deadline-facts-20261022)·[검사 범위](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md#member2-own-deadline-facts-check-20261022)·[기존 PR54 통합 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54#issuecomment-6305519634)에 취합합니다. 실제 알림 API/source·서버UTC·기한 사건/초기자료 전환·확인 저장은 후속입니다. 아래 과거의 최소 reader 미제공 표시는 당시 이력입니다.
+
 <a id="pr66-pr67-status-20261022"></a>
 ## 추가 PR 검토 — PR66 병합·PR67 수정 요청, 2026-10-22
 
