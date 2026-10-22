@@ -363,3 +363,89 @@ physical two-PC test. Owner2 must explicitly connect the real mutation calls
 after review. Use only an independently owned disposable MySQL, never SQLite or
 the user's server/DB. The shared5000 identity flag and lifecycle ACK remain
 unchanged by this module.
+# 2026-10-22: 1번 마감 HTTP 공급 / PR70 재검토 전·공유 적용 전
+
+아래 과거의 내부 함수만 제공/HTTP 미구현 표시는 이 구현 이전의 이력이다.
+`remotework/deadline_http.py`는 실제 Flask·인증 TX·MySQL·W1을 연결한다.
+4번의 검토 초안 제품을 복사하거나 2번 writer/4번 화면을 대신 수정하지 않는다.
+기존 PR70에서 공급하며 최종 공동 검토·번호 예약·공유 설치 완료와 구분한다.
+
+## 실제 HTTP 계약
+
+모든 요청은 기존 정상 Bearer 인증을 쓴다. 입력 ID는 기존 정규 BIGINT 문자열,
+배정 차수는 1..2147483647의 JSON 정수다. UUID 사건과 배정별 target을 구분한다.
+
+| 경로 | 요청 / 성공 data |
+|---|---|
+| `GET /api/v1/deadline-alerts` | query 없음. `{server_time,items}` 전체 본인 snapshot |
+| `GET /api/v1/deadline-alerts/{target}` | 원 binding 현재 열람 재인가 후 **전체** snapshot. 단건 목록 아님 |
+| `POST /api/v1/deadline-alerts/{target}/confirm` | `Idempotency-Key` 및 정확히 `{task_id,expected_row_version,expected_assignment_revision}`. 최소 결과 `{task_id,event_id,assignment_revision,confirmed_at}` |
+| `POST /api/v1/write-requests/keys` | 기존 `{action:"deadline_alert.confirmed",target}` → 기존201 키/만료 |
+| `POST /api/v1/write-requests/result` | 기존 헤더의 원 키 + `{action:"deadline_alert.confirmed",target}`. 기존 completed/not_recorded·보관 만료410 계약 |
+
+`target = d1:<task_id>:<event_uuid>:<assignment_revision>`이며 snapshot의 각 item이 제공한다.
+item의 정확한 필드는 `event_id,target,task_id,assignment_revision,assignee_id,title,status,
+cancelled,due_date,row_version,confirmed_at`이다. server_time/confirmed_at는 UTC,
+미확인은 confirmed_at=null, due_date는 DATE다. 서버UTC는 같은 인증 TX의 MySQL에서 읽는다.
+기존5상태/취소의 **전체 현재 사실**을 반환하고 UI는 기존 A1~A6 후보만 표시한다.
+업무마다 현재 사건이 검증되지 않으면 부분/빈 성공 대신 전체503이다.
+
+키 발급/보관 결과 조회는 현재 own + 원 배정 actor + 해당 task/event를 검사한다.
+새 확인만 현재 사건·배정·두 버전·3허용상태/취소·발생시각을 재검사한다.
+전날09 KST(전날00 UTC)부터 경과 업무까지 확인 가능하다.
+확인·감사·W1 receipt는 같은 TX이며 확인만으로 업무 버전을 올리지 않는다.
+동일 사건/계정/배정의 기존 확인은 같은 시각을 반환한다. 새 배정은 별도 확인이다.
+동일 원 key/body 재생은 최소 결과만 돌려준다. 성공 후 목록 실패는 성공 취소가 아니다.
+4번 source는 원 target/body/key와 최소 receipt의 task/event/배정을 모두 대조하고,
+성공 cache/불명 Operation/로그인 wrapper를 원 binding에 연결해야 한다.
+이 제공이 현재 string-event 전용 4번 어댑터에 이미 소비됐다는 뜻은 아니다.
+
+오류: 입력400, 인증401, 현재 own/원 actor 불일치403, 검증된 task/event 부재404,
+새 확인의 사건/배정/상태/버전 변화409 `DEADLINE_EVENT_CHANGED`,
+발생 전409 `DEADLINE_NOT_OCCURRED`, 원 키/receipt 만료410,
+사건/확인 스키마·불명/불완전503. 503을 미기록으로 바꾸지 않는다.
+기존 raw-event target의 키는 d1 target으로 변환하거나 재발급하지 않는다.
+
+## 설정·물리 저장소와 적용 순서
+
+- 기본 OFF: `REMOTEWORK_ENABLE_DEADLINE_ALERTS_DRAFT=0`.
+  1로 켜려면 기존 common W1/task query 및 MySQL이 필요하다.
+- 쓰기 OFF의 독립 기존 결과 읽기는 `REMOTEWORK_ENABLE_DEADLINE_RESULT_READS_DRAFT=1`.
+  목록/새 확인 경로는404, 새 키는503 `WRITE_ACTION_READ_ONLY`이며 결과만 현재 재인가한다.
+- SQL: `RemoteWork.Server/migrations/drafts/deadline_events.mysql.sql` 뒤
+  `deadline_confirmations.mysql.sql`. 자동 CREATE/ALTER/초기화/seed/ORM metadata 등록 없음.
+  확인 PK `(event_id,user_id,assignment_revision)`, task+event→실제 journal,
+  task+assignment→원 배정, user→계정의 보존형 FK, 계정/확인시각 index,
+  signed BIGINT/INTEGER·ascii_bin UUID·UTC DATETIME(6)이다.
+  4번의 이전 두열 PK SQL을 공유 DB에 적용하지 않는다. 아직 정식 번호/공유 설치 전이다.
+- 실제 적용 전: PR70 결함 수정 재검토 → 2번 원 생성/수정/승인연장 W1 mutate에서
+  record_change 명시 연결·전체 rollback/replay 확인 → 공동 baseline/상태·열람 범위 결정 →
+  정식 번호/DDL 승인 → 기존 DB+파일 비공개 백업 및 별도 MySQL 전체복원·물리 비교 →
+  누락 테이블만 적용/기존자료 비교 → 같은5000의 해당SHA·설정 재기동 → 역할/두PC 검증.
+  되돌릴 때는 기능 OFF/독립 결과 읽기 유지와 검증된 이전 배포를 사용하고,
+  새 확인·사건 자료를 DROP하거나 실제 DB 위에 덤프를 덮어쓰지 않는다.
+- 이번 공유5000에는 새 API/3테이블/설정·baseline을 설치하지 않았다.
+  기존 업무에 사건 head가 없으므로 플래그만 켜면 전체503일 수 있다.
+  기존37테이블/schema1은 마감3테이블 완료의 증거가 아니다.
+
+## RR 수정·직접 검사와 재현
+
+PR70 920145c의 일반 SELECT 사전 탐색은 오래된 인증 RR snapshot으로 새 사건을 놓쳤다.
+`read_event(...,task_id=정확한원업무)`는 부모 잠금 후 현재 사건을 읽도록 수정했다.
+`read_bound_event`는 이 정확 경로를 쓴다. 이전 task_id 없는 신뢰된 호출은 현재 부모들을
+ID순으로 잠근 후 사건을 current read하는 호환 경로다. 최대1000개이며 초과는503
+`DEADLINE_EVENT_TASK_REQUIRED`다. 4번은 아는 원 task_id를 전달해 이 전체 잠금 경로를 피한다.
+어느 경로도 journal부터 잠가 부모→사건 잠금 순서를 뒤집지 않는다.
+
+검사는 **빈 독립 MySQL**의 `MYSQL_TEST_URL`만 지정하고 실제 .env 사용을 차단한 환경에서
+`python -m pytest RemoteWork.Server/tests/test_deadline_events.py -q`(23),
+`.../test_deadline_http.py -q`(21), `.../test_deadline_event_writers.py -q`(기존7)를 각각 실행한다.
+기존 테스트의 소유DB 이름/localhost 안전 검사를 유지한다. 기본 raw002/004/006/009 및
+새3테이블은 검사 fixture가 그 빈 DB에만 만든다. pytest import 경로에 Server/tests와
+Server를 포함한다. 같은 DB에서 서로 다른 모듈의 raw CREATE fixture를 중복 실행하지 않는다.
+Windows 소유 MySQL helper는 `Tests/TaskQueries.Http.Tests/run_mysql_http_check.py`의
+OwnedMySQL/owned_runtime을 재사용했다. SQLite/실제DB는 사용하지 않았다.
+23에는 오래된 인증 snapshot→다른 guarded TX commit→current/retained/binding/키인가 회귀,
+21에는 실제 loopback TCP HTTP→목록/확인/W1 결과, 재로그인/배정1→3/권한회수/전체 rollback/
+동시확인/기능OFF 결과/스키마손실/입력/중복키 검사가 포함된다.
+업무 생성/기록 호출은 fixture이며 2번 제품 hook·4번 C# 새 binding·공유 두PC 검증은 별도다.
