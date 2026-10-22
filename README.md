@@ -2,6 +2,8 @@
 
 업무 웹의 [등록·일반수정 파일 선택 화면](docs/TASK_WEB.md#task-web-file-preparation)은 파일명·크기 확인과 선택 목록 정리를 지원합니다. **현재는 화면 준비 단계로 업로드·저장·서버 삭제를 수행하지 않습니다.** 선택이 남아 있으면 등록 확인·후보 검색을 막아 첨부가 저장된 것으로 오해하지 않게 안내합니다. 좁은 화면 배치와 입력·권한·충돌·서버 오류/처리 결과 확인 안내도 보완했습니다. 원본 JS 86검사·템플릿 16검사와 합성 자료의 실제 브라우저 선택/차단·320/390/1100픽셀 배치를 확인했습니다. 3번 [PR68](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/68)은 alpha에 병합됐으며 실제 웹 전송은 후속으로 연결·검증합니다.
 
+2번은 [현재 본인 업무 전체 사실 읽기](docs/TASK_QUERIES.md#own-deadline-current-facts)를 제공합니다. 같은 인증 TX에서 관리자도 본인 배정만 조회하고 현재 기한·5상태·취소·배정/업무 버전을 반환합니다. 전체 조회 상한 초과/불완전 자료는503이며, 기한 사건·확인 저장·서버UTC·HTTP/실제 알림 source는1·4번과 대조할 후속입니다. 새 DDL·경로·자동 활성화는 없습니다.
+
 2번의 [WinForms 업무 등록 첨부 화면](docs/TASK_CREATION.md#task-creation-attachment-ui)은 파일 선택·명시 업로드·미연결 임시 파일의 확인 삭제를 지원합니다. PR64의 로그인에 고정된 공통 DELETE를 사용하며, 업로드가 완료된 파일만 업무 등록에 연결합니다. 등록 결과가 불명확하면 원래 요청과 파일 목록을 고정해 결과를 먼저 확인합니다. [전송 제어440·실제 HTTP33/DB9검사](Tests/TaskCreationUploads.Tests/README.md), [실제 WinForms와 HTTP 대역95검사](Tests/TaskCreationAttachmentUi.Tests/README.md)를 통과했습니다. 일반수정 첨부 교체·웹 첨부와 공유 운영 서버 검증은 후속입니다.
 
 2번 업무 화면은 [로그인에 고정된 내 업무 탐색 콜백](docs/TASK_QUERIES.md#captured-own-task-navigation)을 제공합니다. 요청 업무를 새 내 업무 목록과 상세에서 확인하며, 대상이 없으면 다른 업무를 대신 열지 않습니다. PR64가 MainForm의 명시적 마감 탐색 연결을 제공합니다. 실제 알림 source·확인 저장과 공유 환경 검증은 후속입니다.

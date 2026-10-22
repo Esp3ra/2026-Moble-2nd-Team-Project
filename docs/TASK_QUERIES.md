@@ -1,5 +1,40 @@
 # 2번 업무 목록·상세 조회 개발 계약
 
+<a id="own-deadline-current-facts"></a>
+## PR54 후속 — 현재 본인 업무의 전체 사실 읽기
+
+`remotework.features.tasks.deadline_facts`는 1·4번이 **명시적으로 호출할 내부 읽기 제공부**이다. HTTP 경로·wire DTO·옵션/extension 자동 등록·기한 사건/확인 저장소를 추가하지 않는다. 기존 `list_tasks`/단건 lifecycle의 본인·관리 합집합을 알림 대상의 증명으로 전용하지 않는다.
+
+```python
+from remotework.auth import authenticated_transaction
+from remotework.features.tasks.deadline_facts import (
+    read_own_deadline_facts, read_own_deadline_fact,
+)
+
+with authenticated_transaction() as db:
+    facts = read_own_deadline_facts(db)  # 완전한 tuple, task_id 오름차순
+    # 동일 TX의 서버 UTC/실제 사건·확인 처리는 1·4번 계약에서 연결한다.
+    # 확인 실행 시에는 같은 확인 TX 안에서 정확한 대상 사실을 다시 읽는다.
+    # current = read_own_deadline_fact(db, original_task_id)
+```
+
+- 호출자는 기존 공통 guard/현재 계정·접속 재검사를 수행하는 `authenticated_transaction`을 소유한다. 다른 session/일반 app context/인증 TX 밖 호출은 `RuntimeError`이다. 함수는 별도 TX·commit·자료 변경·감사/receipt를 만들지 않는다.
+- 사용자 ID를 입력받지 않고 같은 TX의 `g.user`에 고정한다. **관리자도 본인에게 현재 배정된 업무만** 반환한다. 단건의 다른 사람/관리 관계만 있는 업무는403, 없는 업무는404이다.
+- 각 frozen `TaskDeadlineFact`는 `task_id`, `title`, `assignee_id`, `assignment_revision`, `row_version`, `task_status`, `due_date`, `is_cancelled`를 복사한다. 내부 ID/버전은 signed DB 정수, 기한은 Python `date`, 취소는 bool이다. HTTP 직렬화가 필요하면 1번이 기존 BIGINT 정규 문자열/INTEGER 정수 계약을 적용한다. 단건 입력은 양의 DB int 또는 정규 BIGINT 문자열이다.
+- **5상태와 취소 사실을 전부 반환**한다. 4번이 기존 A1의 진행전/진행중/반려완료·미취소 및 실제 사건/확인 상태를 소비한다. 제출완료/승인완료/취소도 현재 무효화 근거로 보존하며 여기서 날짜 창/팝업·확인 여부를 추정하지 않는다.
+- current revision outer join의 locking read로 현재 본인 후보를 잡고, 기존 lifecycle `_current(mode="own")`의 현재 업무·배정·관리자·정렬 사용자 및 취소 locking read를 재사용한다. 호출자의 공통 guard를 사용하는 변경과 직렬화되는 범위이며 직접 DB 변경/다른 잠금 규칙까지 보증하지 않는다.
+- 기본·최대 상한은 `MAX_OWN_DEADLINE_TASKS=1000`이다. `max_tasks`를 그 이하로 낮출 수 있지만 상한 초과는 **503 `TASK_DEADLINE_FACTS_LIMIT` 전체 실패**다. 페이지/조용한 잘림/부분 성공이 없다. 이는 보관·알림 운영 정책이 아닌 이 읽기 제공부의 자원 상한이며 더 큰 전체 조회 계약은 별도 대조한다.
+- 현재 배정 누락으로 본인 소유인지 알 수 없는 업무가 있거나 사실 정합성이 깨지면 **503 `TASK_DEADLINE_FACTS_INCOMPLETE`**다. 모르는 자료를 정상 빈 목록으로 바꾸지 않는다. 취소/연장009 스키마가 없거나 잘못되면 기존 `TASK_LIFECYCLE_SCHEMA_REQUIRED`503이며, 빈 목록/옵션OFF에도 이를 검사한다. 미준비를 `is_cancelled=False`로 추정하거나 DDL을 복구하지 않는다. 정상적인 본인 업무0건만 `()`이다.
+- invalid `max_tasks`는 내부 사용 오류 `ValueError`; 잘못된 단건 ID는 기존400이다. 실제 인증401·DB503은 공통 처리 경로를 유지한다.
+
+**1·2·4번 기술 대조 필요:** 실제 기한 사건 identity/현재 사건 연결, 최초/기존 자료·감사 누락의 전환 기준, 재배정/중간 제출·복귀/취소 시 수신자·사건 무효화, 같은TX 서버UTC·계정 확인/W1·OFF 결과 읽기/90일 화면과 물리 보존. 이 제공부에는 `event_id`/`due_revision`/확인 상태/서버 기준시각을 만들지 않는다. 생성 감사에 최초 `due_date`가 없고 `updated_at`은 기한 외 변경에도 갱신되므로 사건 근거로 대신하지 않는다. 일반수정/승인 연장의 보존된 전후 기한은 원본 증거로만 재사용한다.
+
+2026-10-22 새 `RemoteWork.Server/tests/test_task_deadline_facts.py`를 실제 소유 MySQL8.2의 원본002/004/006/009 DDL 위에서 실행해 **52통과·실패/오류/skip0**을 확인했다. 전체5상태/취소·관리자 own-only·읽기 전후 DB 전체 무변경·복사/불변성·2^53 초과 BIGINT·낮춘 상한2의 경계/초과·빈 목록과009 누락·orphan·잘못된 TX·오래된 RR/ORM 캐시 뒤 별도 guarded commit6건·현재 사용자/세션 무효화4건을 포함한다. DB·프로세스·임시 경로 정리를 확인했다. 시험 전용 HTTP route는 제품 경로가 아니다.
+
+재실행은 삭제 가능한 전용 MySQL의 `MYSQL_TEST_URL`과 `PYTHONPATH=RemoteWork.Server`를 명시한 환경에서 `python -X utf8 -B -m pytest -q -p no:cacheprovider RemoteWork.Server/tests/test_task_deadline_facts.py`를 사용한다. 이 fixture는 `remote_work_test_` 이름의 전용 DB에 원본 DDL/시험자료를 만들고 비우므로 공유 DB를 지정하지 않는다. 소유 MySQL 실행기는 기존 `Tests/TaskQueries.Http.Tests/run_mysql_http_check.py`의 검증/정리 경로를 재사용해 별도 audit에서 실행했다. 기존5000 서버·.env·공유 DB·운영 옵션은 변경하지 않았다.
+
+실제 시험·미실행/회신은 [LOG/2번 구현·검증](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md)과 [PR54의 2번 통합 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54#issuecomment-6305519634)에 취합한다. [4번 원 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54#issuecomment-6288083731)을 기준으로 하며 실제 마감 API/DB/source·확인 저장·초기자료 전환/공유 배포·두PC 완료를 뜻하지 않는다.
+
 <a id="captured-own-task-navigation"></a>
 ## 로그인에 고정된 내 업무 탐색 접점
 
