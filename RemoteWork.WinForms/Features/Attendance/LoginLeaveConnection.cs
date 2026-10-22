@@ -55,8 +55,8 @@ public sealed class LoginLeaveConnection : System.ComponentModel.Component
                 || preparation.WriteReady && (!preparation.SchemaReady || preparation.Pending.Length != 0))
                 throw new InvalidDataException();
         }
-        catch (Exception ex) when (ReadFailure(ex) && !linked.IsCancellationRequested && IsCurrent)
-        { return new(null, null, "연차 설정을 확인하지 못했습니다. 다시 조회해 주세요."); }
+        catch (Exception ex) when (ReadFailure(ex))
+        { Current(); return new(null, null, "연차 설정을 확인하지 못했습니다. 다시 조회해 주세요."); }
 
         LeaveBalanceState? value = null;
         try
@@ -68,8 +68,8 @@ public sealed class LoginLeaveConnection : System.ComponentModel.Component
                 || (long)value.RemainingUnits != (long)value.GrantedUnits - value.ReservedUnits - value.UsedUnits)
                 throw new InvalidDataException();
         }
-        catch (Exception ex) when (ReadFailure(ex) && !linked.IsCancellationRequested && IsCurrent)
-        { value = null; }
+        catch (Exception ex) when (ReadFailure(ex))
+        { Current(); value = null; }
         Current();
         string message = preparation.WriteReady ? "연차 신청 연결됨 · 처리 결과는 서버에서 확인합니다."
             : "신청 준비 중 · " + PendingMessage(preparation);

@@ -67,7 +67,7 @@ internal static partial class Program
         Check(Field<Label>(panel, "lblLeavePreparation").Text.Contains("종료"), "Preparation also cleared on logout");
     }
 
-    private static void LatePreparation()
+    private static void LatePreparation(bool failure)
     {
         using var api = Login(); var session = api.CaptureSession(); var flow = new Workflow();
         var pending = new TaskCompletionSource<LeavePreparationState>(); CancellationToken observed = default;
@@ -76,7 +76,9 @@ internal static partial class Program
         using var panel = new AttendanceControl(PreviewRole.Employee, session, flow);
         using var host = new Form(); host.Controls.Add(panel); host.Show(); panel.BindLeaveConnection(connection);
         flow.ListCompletion.SetResult([]); var load = panel.RefreshLeaveAsync();
-        api.ClearIdentity(); Application.DoEvents(); pending.SetResult(Ready); Complete(load);
+        api.ClearIdentity(); Application.DoEvents();
+        if (failure) pending.SetException(new HttpRequestException()); else pending.SetResult(Ready);
+        Complete(load);
         Check(observed.IsCancellationRequested && !connection.IsCurrent, "Logout cancels in-flight preparation");
         Check(Field<Label>(panel, "lblBalance").Text == "잔여 연차 조회 전", "Late readiness does not restore ended-login balance");
         Check(!Field<Button>(panel, "btnLeaveApplicationPreview").Enabled, "Late readiness cannot reenable ended login");
