@@ -1,3 +1,12 @@
+<a id="pr66-pr67-status-20261022"></a>
+## 추가 PR 검토 — PR66 병합·PR67 수정 요청, 2026-10-22
+
+**PR66** head b8825dd의 마감 알림 확인 성공/목록 재조회 분리를 검토했습니다. 공식 마감162·업무 이동24·공지35·협업115검사와 화면 수명·경합 독립19검사 PASS, Release 0오류/0경고를 확인해 [alpha에 병합](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/8cc082155561ea060e3676c346aed1d87fb8e5e9)했습니다. 실제 병합 tree **8723d2a270dd03bd15f3d8bdc4f096c25b733ab5**는 검토본과 정확히 같습니다. source가 원 사건/계정·W1 key/body의 성공을 검증한 뒤 목록 실패와 분리하는 내부 계약이며, 실제 마감 API/DB/source 설치 완료는 아닙니다.
+
+**PR67** head a4b9d58은 실제 서버·Pi HTTP/MySQL 회귀4파일 추가입니다. 독립 소유 MySQL/두 loopback HTTP 10PASS/55.61초, exit0·소유 DB/프로세스/runtime 정리를 확인했습니다. 정상 경로와 별도로 **R67-01/P2: Job 등록 실패 시 생성된 suspended 검사 자식 정리 누락**을 대역 재현해 [수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/67#issuecomment-6330831748)했습니다. 기존 PR67에 수정 후 재검토하며 현재 미병합입니다. 고정 source의 server/Pi와 합성 센서를 잇는 검사로 실물·C# UI·공유 서버 성공과 구분합니다.
+
+[상세 검토 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr66-pr67-review-20261022)에 정확한 SHA·검증 범위·후속을 취합했습니다. 실제5000/.env·공유 DB/DDL·운영 키·Pi/센서는 변경하지 않았습니다. 아래 이전 PR 상태는 각 당시의 기록입니다.
+
 <a id="pr62-merged-status-20261022"></a>
 ## PR62 최종 재검토 — 두 지적 해결·alpha 병합 완료, 2026-10-22
 
