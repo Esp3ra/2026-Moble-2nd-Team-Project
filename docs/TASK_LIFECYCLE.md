@@ -16,7 +16,7 @@ ACK 미설치에서는 확인·실행을 차단하고 강제 POST도503입니다
 
 제공부가 꺼져 있어도 저장된 공용 첨부 테이블을 확인합니다. 현재 업무 참조가 남아 있으면 취소를503으로 막아 참조를 남긴 채 취소 성공으로 처리하지 않습니다. 부분·잘못된 스키마도503이며 자동 DDL이나 공용 파일 모델 import로 복구하지 않습니다. 준비된 저장소에 현재 업무 참조가 없거나 공용 저장소 자체가 없는 기존 업무는 원래 취소 조건을 따릅니다.
 
-2026-10-21 팀장이 선택 `attachment_ids`의 의미를 수용했습니다. 등록은 생략/빈 배열이면 첨부 없음, 수정은 생략이면 유지·빈 배열이면 해당 업무 참조 해제·값이 있으면 최종 전체 목록입니다. [등록 API/C# DTO](TASK_CREATION.md#task-creation-attachment-selection)는 이미 연결됐고 일반수정은 같은 TX의 전후 목록/diff·감사 접점 제공 전 명시 첨부를503으로 차단합니다. 웹 cookie 첨부와 공유 배포 검증은 별도입니다. 최종 실행 결과는 [LOG/2번 구현·검증의 최신 회차](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md)에 기록합니다.
+2026-10-21 팀장이 선택 `attachment_ids`의 의미를 수용했습니다. 등록은 생략/빈 배열이면 첨부 없음, 수정은 생략이면 유지·빈 배열이면 해당 업무 참조 해제·값이 있으면 최종 전체 목록입니다. 2026-10-22 현재 [등록](TASK_CREATION.md#task-creation-attachment-selection)과 [일반수정](TASK_MANAGEMENT.md#task-management-attachment-selection)은 PR68의 공개 제공부를 같은 TX에서 소비하며, 전후 첨부 집합·감사·업무 버전·receipt를 함께 처리합니다. WinForms 등록/일반수정 파일 화면과 [웹 cookie 첨부 전송·결과물 진입/복귀](TASK_WEB.md#task-web-t3-consumers)도 연결했습니다. 명시 첨부 변경의503은 실제 제공부·스키마가 준비되지 않은 경우에 유지합니다. 이 연결이 취소·연장 운영 ACK나 공유 배포 검증을 완료한 것은 아닙니다. 최종 실행 결과는 [LOG/2번 구현·검증의 최신 회차](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md)에 기록합니다.
 
 ## 실행 경계
 
@@ -80,11 +80,11 @@ ACK 미설치에서는 확인·실행을 차단하고 강제 POST도503입니다
 
 ## 1·3번 제공 접점과 남은 통합
 
-1번의 [공통 쓰기/DDL·등록 대조](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-lifecycle-member1-connection)는 PR51로 코드 제공됐습니다.2번의 `register_lifecycle_actions`와 `register_lifecycle_result_readers`를 startup에서 연결하며 기존 requested callback·현재 권한과8필드 최소 결과를 재사용합니다. 결과 읽기 등록은 신규 쓰기와 분리됐고,기존 owner callback을 덮지 않습니다. 실제 배포의 옵션/정식009·공유 적용/복구 대조와3번 소비 검증은 여전히 별도입니다.
+1번의 [공통 쓰기/DDL·등록 대조](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-lifecycle-member1-connection)는 PR51로 코드 제공됐습니다.2번의 `register_lifecycle_actions`와 `register_lifecycle_result_readers`를 startup에서 연결하며 기존 requested callback·현재 권한과8필드 최소 결과를 재사용합니다. 결과 읽기 등록은 신규 쓰기와 분리됐고,기존 owner callback을 덮지 않습니다. 최신 회신의 실제006/009/013 적용·37테이블/schema1 보존·백업/격리 복구 보고는 수신했으므로 같은 미적용 요청을 반복하지 않습니다. 이는1번의 실행 보고이며2번의 새 공유 검증이 아닙니다. 같은 배포 SHA·옵션·파일 저장 권한·검토자 관계·실계정/두PC·3번 소비 경합과 통합 ACK 확인은 별도로 남습니다.
 
 3번의 [취소·연장 대기 소비 경로](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-lifecycle-member3-connection)는 PR52에 반영됐습니다.2번 helper는 `ensure_not_cancelled(db,task_id)`와 `pending_extension_facts(db,task_id,assignment_revision,lock=False)`이며3번 쓰기에서는 잠금 옵션을 소비합니다. 실제 pending 어댑터는 미준비를False로 숨기지 않습니다. 기존 `ExternalFacts`의 검토자 원본은 유지하며 취소를 pending=True로 위장하지 않습니다. 제공된 제출·판단·첨부 쓰기 연결과 같은 공용 배포에서의 활성화·동시성 증거를 구분합니다. 과거 결과물/이력/다운로드는 현재 합의된 읽기 권한으로 유지합니다.
 
-실제 공용 배포에서3번 제출/첨부와 취소·신청의 경합, 공유 DB/실계정·두PC·수동 GUI/다중DPI는 별도 확인 대상입니다.4번 [알림 A1~A6·협업 B1~B7](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member4-policy-adopted-20261021)은 진행 기준으로 채택됐으며2번의 [보수적인 버전 이력 reader](TASK_QUERIES.md#task-continuity-reader)는 알려진2번 행동의 완전한 구간만 판정합니다. 새 기한 사건 필드·공용 이벤트,3번의 웹 첨부/관리 읽기/복귀 접점과 일반수정 첨부 교체는 후속입니다. 신규 등록의 선택 첨부 API/DTO는 제공됐으며 화면 연결 범위는 [등록 안내](TASK_CREATION.md)를 따릅니다. 별도 검토 요청은 이번 확정에 포함되지 않습니다. 새 회신 MD/브랜치/추가 PR은 요구하지 않습니다.
+실제 공용 배포에서3번 제출/첨부와 취소·신청의 경합, 공유 DB/실계정·두PC·수동 GUI/다중DPI는 별도 확인 대상입니다.4번 [알림 A1~A6·협업 B1~B7](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member4-policy-adopted-20261021)은 진행 기준으로 채택됐으며2번의 [보수적인 버전 이력 reader](TASK_QUERIES.md#task-continuity-reader)는 알려진2번 행동의 완전한 구간만 판정합니다. 제출·반려 구간까지의 전체 연속성 증명은 아직 후속이며 불명은None을 유지합니다. [현재 본인 기한 사실](TASK_QUERIES.md#own-deadline-current-facts)과 [기한 변경의 같은 TX 결합 위치](TASK_QUERIES.md#deadline-mutation-boundary)는 제공했지만 실제 사건 저장·확인 writer·API/DDL·초기 자료 전환은1·2·4번 기술 대조가 남습니다. 3번의 웹 첨부/관리 읽기/명시 복귀와2번 일반수정 첨부 교체·화면은 연결됐으며 위 운영 검증과 구분합니다. 별도 검토 요청은 이번 확정에 포함되지 않습니다. 회신만을 위한 새 MD·브랜치·추가 PR은 요구하지 않습니다.
 
 ## 검증 안내
 
