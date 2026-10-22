@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Member1WorkdayClientSource)' != ''">
+    <DefineConstants>$(DefineConstants);MEMBER1_WORKDAY_DRAFT</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../../RemoteWork.WinForms/RemoteWork.WinForms.csproj" /></ItemGroup>
+  <ItemGroup Condition="'$(Member1WorkdayClientSource)' != ''">
+    <Compile Include="$(Member1WorkdayClientSource)" Link="ReviewedPeer/WorkdayStateConnection.cs" />
+  </ItemGroup>
+</Project>

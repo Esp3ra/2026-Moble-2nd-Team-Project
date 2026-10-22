@@ -40,6 +40,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             btnClose = new Button();
             lblStatus = new Label();
             lblCharge = new Label();
+            lblInputSummary = new Label();
             layoutPage.SuspendLayout();
             layoutHeading.SuspendLayout();
             panelFields.SuspendLayout();
@@ -49,9 +50,10 @@ namespace RemoteWork.WinForms.Features.Attendance
             // layoutPage
             layoutPage.ColumnCount = 1;
             layoutPage.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            layoutPage.RowCount = 5;
+            layoutPage.RowCount = 6;
             layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 48F));
             layoutPage.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
             layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 36F));
             layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 64F));
             layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 58F));
@@ -60,9 +62,14 @@ namespace RemoteWork.WinForms.Features.Attendance
             layoutPage.Name = "layoutPage";
             layoutPage.Controls.Add(layoutHeading, 0, 0);
             layoutPage.Controls.Add(panelFields, 0, 1);
-            layoutPage.Controls.Add(lblCharge, 0, 2);
-            layoutPage.Controls.Add(lblStatus, 0, 3);
-            layoutPage.Controls.Add(flowActions, 0, 4);
+            layoutPage.Controls.Add(lblInputSummary, 0, 2);
+            layoutPage.Controls.Add(lblCharge, 0, 3);
+            layoutPage.Controls.Add(lblStatus, 0, 4);
+            layoutPage.Controls.Add(flowActions, 0, 5);
+            lblInputSummary.Name = "lblInputSummary";
+            lblInputSummary.Dock = DockStyle.Fill;
+            lblInputSummary.TextAlign = ContentAlignment.MiddleLeft;
+            lblInputSummary.Text = "신청할 유형·기간·사유를 확인해 주세요.";
             lblCharge.Name = "lblCharge";
             lblCharge.Dock = DockStyle.Fill;
             lblCharge.TextAlign = ContentAlignment.MiddleLeft;
@@ -203,8 +210,8 @@ namespace RemoteWork.WinForms.Features.Attendance
             Font = new Font("맑은 고딕", 9F);
             BackColor = Color.FromArgb(242, 245, 250);
             ForeColor = Color.FromArgb(30, 42, 61);
-            ClientSize = new Size(780, 630);
-            MinimumSize = new Size(690, 560);
+            ClientSize = new Size(780, 660);
+            MinimumSize = new Size(690, 630);
             Padding = new Padding(22);
             StartPosition = FormStartPosition.CenterParent;
             ShowInTaskbar = false;
@@ -212,6 +219,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             CancelButton = btnClose;
             Text = "연차 신청";
             Name = "LeaveApplicationForm";
+            FormClosing += LeaveApplication_Closing;
             Controls.Add(layoutPage);
             flowActions.ResumeLayout(false);
             layoutFields.ResumeLayout(false);
@@ -245,5 +253,6 @@ namespace RemoteWork.WinForms.Features.Attendance
         private Button btnClose;
         private Label lblStatus;
         private Label lblCharge;
+        private Label lblInputSummary;
     }
 }
