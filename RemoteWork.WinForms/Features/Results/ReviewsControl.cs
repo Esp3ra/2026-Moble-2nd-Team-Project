@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Encodings.Web;
 using System.Numerics;
 using RemoteWork.WinForms.Features.Tasks.Queries;
 using RemoteWork.WinForms.Infrastructure;
@@ -1092,6 +1094,28 @@ namespace RemoteWork.WinForms.Features.Results
         private sealed record UploadProgress(string AttachmentId, long NextOffset);
         private sealed record FileChunk(string AttachmentId, long Offset, long NextOffset, bool Eof, string Data);
 
+        // Only internally generated base64 bypasses '+' escaping. File names,
+        // other text and the common ApiClient JSON encoder remain unchanged.
+        [JsonConverter(typeof(UploadChunkConverter))]
+        private sealed record UploadChunk(long Offset, string Data);
+
+        private sealed class UploadChunkConverter : JsonConverter<UploadChunk>
+        {
+            public UploadChunkConverter() { }
+
+            public override UploadChunk Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+                => throw new NotSupportedException();
+
+            public override void Write(Utf8JsonWriter writer, UploadChunk value, JsonSerializerOptions options)
+            {
+                writer.WriteStartObject();
+                writer.WriteNumber("offset", value.Offset);
+                writer.WriteString(JsonEncodedText.Encode("data"),
+                    JsonEncodedText.Encode(value.Data, JavaScriptEncoder.UnsafeRelaxedJsonEscaping));
+                writer.WriteEndObject();
+            }
+        }
+
         public async Task<ResultAttachment> UploadAsync(ApiClient.Session session, string path,
             string name, Stream content, CancellationToken token)
         {
@@ -1121,7 +1145,7 @@ namespace RemoteWork.WinForms.Features.Results
                 }
                 var progress = await session.PostAsync<UploadProgress>(
                     "results/uploads/" + upload.AttachmentId + "/chunks",
-                    new { offset, data = Convert.ToBase64String(buffer, 0, count) }, token);
+                    new UploadChunk(offset, Convert.ToBase64String(buffer, 0, count)), token);
                 session.ThrowIfChanged();
                 if (progress.AttachmentId != upload.AttachmentId || progress.NextOffset != offset + count)
                     throw new InvalidDataException("파일 전송 위치가 일치하지 않습니다.");

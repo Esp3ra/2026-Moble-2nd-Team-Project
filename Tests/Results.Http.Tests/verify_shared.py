@@ -90,6 +90,10 @@ def run(url, directory):
             expected=ExpectedVersions.from_body(body)
             if operation=='replace':
                 files=shared.replace_task_files(db,task_id,body['attachment_ids'],expected=expected)
+            elif operation=='read':
+                current=shared.read_task_attachment_ids(db,task_id,expected=expected)
+                check(current==tuple(sorted(body['attachment_ids'])),'public current-ID reader ignores the older authentication snapshot')
+                files=[]
             elif operation=='release':
                 shared.release_task_files(db,task_id,expected=expected);files=[]
             elif operation=='cancel':
@@ -336,6 +340,11 @@ def run(url, directory):
         with ThreadPoolExecutor(2) as pool:
             a=pool.submit(release_a);b=pool.submit(read_b);a.result();check(b.result()==b'TEST race','concurrent A release preserves B download')
         check(download('worker',race)==b'TEST race','B still reads after concurrent release')
+        old_read=upload('manager',b'TEST reader old');new_read=upload('manager',b'TEST reader new')
+        change('manager',200,[old_read])
+        delayed(old_read,
+            lambda label: change('manager',200,[new_read],operation='read',snapshot=label),
+            lambda: change('manager',200,[new_read]))
         # Existing-task uploads recheck cancellation before and after file IO.
         changing=api('worker','results/shared/uploads/start',{**meta,'name':'TEST mid-cancel','size':32768,
             'sha256':hashlib.sha256(b'x'*32768).hexdigest(),'task_id':'200'},status=201)['attachment_id']

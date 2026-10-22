@@ -63,6 +63,19 @@ public static class ResultsFunctionalCheck
         Console.WriteLine("C# stage: employee submission");
         var view=new HttpTaskQueryService(shared).CaptureViewSession()!;
         var api=new ResultsApi(view.Session,ResultsConnection.Files);
+        // A valid 16KiB chunk whose base64 contains many '+' characters must
+        // fit the existing 32KiB request limit with the real common serializer.
+        byte[] plusPattern=[0xfb,0xef,0xbe];
+        byte[] plusBytes=Enumerable.Range(0,16384).Select(i=>plusPattern[i%3]).ToArray();
+        using(var plusStream=new MemoryStream(plusBytes))
+        {
+            var uploaded=Wait(new ResultsFileTransport().UploadAsync(view.Session,
+                "results/tasks/8/uploads","TEST-plus.any",plusStream,CancellationToken.None));
+            Check(uploaded.Size==plusBytes.Length&&uploaded.Name=="TEST-plus.any",
+                "valid plus-heavy16KiB chunk completes through real common JSON and server");
+            Check(uploaded.Sha256==Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(plusBytes)).ToLowerInvariant(),
+                "plus-heavy upload retains original size/hash");
+        }
         SubmissionForm.CheckSubmit(view.Session,view.QueryService,source,1);
         var first=Wait(api.SubmissionsAsync("8",CancellationToken.None)).Single();
         Check(first.Description=="C# result 1"&&first.RoundNo=="1"&&first.Attachments.Count==1,"actual submission UI persisted");

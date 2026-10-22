@@ -66,3 +66,40 @@ python Tests/Results.Http.Tests/verify_cold.py
 같은 `python -B Tests/Results.Http.Tests/verify_shared.py`에 실제 인증 snapshot 이후/guard 이전에 요청을 멈추는 테스트 전용 스케줄러를 추가했다. 별도 원본 HTTP 요청이 B 연결 또는 같은 업무의 첨부 교체를 commit한 뒤 앞 요청을 재개한다. 일반 조회가 옛 snapshot을 유지함과 실제 helper의 현재 읽기·다운로드·rollback·최종 정리를 검사한다. 미연결 snapshot 이후 다른 요청에서 연결된 업로드를 삭제하지 못하는 검사도 포함한다.
 
 이번 직접 결과는239개(추가105, 기존134)이며 수정 전 원본은 새 B 참조의 ready 상태 검사에서 실패했다. 실행 명령·범위는 위와 같으며 상세 수정·다른 직접 검사 결과 및 미검증 항목은 [공용 첨부 계약의 R52-03 기록](../../docs/SHARED_ATTACHMENTS.md#r52-03-수정검증--2026-10-21)에 있다. 대역 UI/소유 DB 검증을 실제2번 제품 화면·공유 DB 검증으로 표시하지 않는다.
+
+
+## 2026-10-22 T3-1~5 코드 PR 검증
+
+실행 기준 alpha `5dcd66e291a0b12470c3347909653a64458ef70e`, LOG `75e6fe5002ad91547de919ab79acfd5a00bbf82b` 위의3번 변경본이다. 새 테스트와 계약은 기존 [PR52 통합 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52#issuecomment-6308742417)의 후속이며 별도 회신 문서 PR을 만들지 않는다.
+
+```powershell
+python -B Tests/Results.Http.Tests/verify_connections.py
+python -B Tests/Results.Http.Tests/verify_shared.py
+python -B Tests/Results.Http.Tests/verify_lifecycle.py
+python -B Tests/Results.Http.Tests/verify_web.py
+python -B Tests/Results.Http.Tests/verify_cold.py
+node --check RemoteWork.Server/remotework/static/results.js
+node Tests/Results.Http.Tests/verify_ui.js
+dotnet build RemoteWork.sln -c Release --nologo
+```
+
+이번 직접 결과: 새 연결 **150**, 공용 첨부 **251**(포함된105 회귀를 중복 합산하지 않음), 실제 취소/연장 **258**, 서버 **191**, cookie 웹 **183**, 실제 C# HTTP/WinForms **43**, JS 명시 DOM/HTTP 대역 **61** 통과. cold OFF는 결과물 모델·경로에 더해 `results_task_web` 제공부/모듈 미등록을 검사한다. JS 구문·변경 Python 구문·`git diff --check` 통과. Release는 설치된 참조팩을 선택하는 **외부** 오프라인 설정과 외부 출력 폴더를 사용해 오류0/경고0, 제품 csproj/설정은 수정하지 않았다.
+
+C# 추가 회귀는 정상16KiB `FB EF BE` 반복 파일이다. 수정 전 기존 `ResultsFileTransport`와 실제 공통 JSON/서버에서 요청 크기 오류를 재현했고, 전용 전송 DTO의 내부 base64만 pre-encode한 뒤 같은 파일 완료와 원래 size/hash를 확인했다. 기존 일반 파일·제출/반려/재제출/승인/다운로드43검사에 이2검사가 포함된다. 서버 한도/청크 크기를 늘리거나 공통 JSON 인코더·2번 코드를 변경하지 않았다. 재현 전 테스트 대상 업무를 잘못 선택해 상태 검사로 차단된 실행은 결함 재현/통과 수치에 포함하지 않는다.
+
+`verify_connections.py`는 새 소유 MySQL에서 실제 Flask cookie/CSRF handler와 현재 권한·원래 두 버전·W1 receipt 재생·rollback·IO 도중 담당자/참조 변경·서명 복귀/다중 탭/구로그인·읽기 전용 DOM 구조를 검사한다. `/_connections_test` 업무 소비는 명시 **테스트 fixture**이며2번 제품 writer/UI 소비 완료가 아니다. IO 도중 변경은 테스트 전용 패치로 순서를 고정하고 실제 DB commit 전후를 검증한다. `verify_ui.js`는 원본JS를 대역으로 실행하므로 실제 브라우저 검사로 표시하지 않는다.
+
+사용자/공유 DB, 실행 중 서버, 실제 계정/장비·두PC·실제 브라우저 전체 조작·운영 배포/ACK는 미실행·미변경이다.1번의006/009/013 적용 보고 수신과 이번 직접 검증을 구분한다.2번 실제업무 웹 링크/첨부 UI·일반수정 감사/버전/receipt 소비, 공유 저장소/권한·검토자 관계·같은 배포ACK는 후속이다. 별도 자동 제출·재전송·파일 삭제 정책을 추가하지 않았다.
+
+최신 결합본의 최초 병렬 실행은258검사/종료코드0 뒤 Waitress 정리 스레드에서 WinError10038 경고가 출력되어 원본 로그를 보존하고 해당 검사를 단독 재실행했다. 정리 경고를 제품 권한/저장 실패나 추가 통과 검사로 계산하지 않는다.
+
+
+### PR68 R68-01 성공 안내의 업무·처리 구분 — 2026-10-22
+
+기준 alpha `5dcd66e291a0b12470c3347909653a64458ef70e`, 수정 전 PR head `fec2364b8caf9ba8c4ac43a0052f02f3af479223`이다. [수정 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/68#issuecomment-6331304609)에 따라 기존 성공 안내에 원본 요청의 업무번호·제출/승인/반려/재작업 동작과 서버가 확인한 회차(제공된 경우)를 표시한다. 현재 선택 업무나 입력 중 회차에서 성공 정보를 추측하지 않는다. 즉시 성공 응답과 완료 receipt 조회가 같은 표시 경로를 사용한다.
+
+`node Tests/Results.Http.Tests/verify_ui.js` 직접 **83검사 통과**. 원본 JS를 명시 DOM/HTTP 대역으로 실행한다. A 성공 → 실제 B 선택·B 제출 → B 응답502·원본키 조회, 같은 업무 2차 승인 → 3차 반려 결과불명, 완료 receipt의 회차 표시, 성공 뒤 조회403 보존을 포함한다. 자동 재전송·새 키 발급·첨부 폐기는 추가하지 않았다. 수정 전 JS는 새 성공 식별 검사에서 실패했고 수정 후 통과했다. 기존61에 추가22를 포함한 총83이며 중복 합산하지 않는다. `node --check RemoteWork.Server/remotework/static/results.js`도 통과했다.
+
+제품 변경은 기존 `results.js`의 성공 표시와 서버 응답 전달에 한정한다. 실제 브라우저 조작·공유 DB·운영 서버·두PC는 이번 수정에서 미실행이다. 위 T3-1~5의 기존 전체 검증 기록을 이번에 재실행한 결과로 대체하지 않는다. 협업 회신은 기존 PR52 통합 댓글에 갱신한다.
+
+같은 수정본에서 `python -B -u Tests/Results.Http.Tests/verify_web.py`를 별도 소유 MySQL/임시 테스트 계정으로 실행해 **웹183·서버191·C# HTTP/WinForms43** 통과와 테스트 DB 정리를 확인했다. 이 검사는 실제 cookie/CSRF/HTTP·파일·receipt 경로이며 브라우저 JS 조작 검사가 아니다. 첫 sandbox 실행은 진행이 멈춰 해당 테스트 프로세스만 종료했으며 통과 수치에 포함하지 않았다. 재실행은 별도 격리 환경에서 완료했다. 사용자 DB·실행 중 서버는 변경하지 않았다. 이번 제품 수정은 JS만이므로 전체 솔루션 빌드와 연결150·공용251·lifecycle258은 재실행하지 않았고 위 최초 PR의 결과를 유지한다.

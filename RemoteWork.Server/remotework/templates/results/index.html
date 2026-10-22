@@ -1,28 +1,34 @@
 {% extends 'base.html' %}
-{% block title %}{{ '결과물 검토' if g.user.role == 'admin' else '결과물' }}{% endblock %}
+{% block title %}{{ '업무 결과물 · 읽기 전용' if initial_view == 'read' else '결과물 검토' if g.user.role == 'admin' else '결과물' }}{% endblock %}
 {% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='results.css') }}"><script src="{{ url_for('static', filename='results.js') }}" defer></script>{% endblock %}
 {% block content %}
-<section id="results-page" class="results" data-page="results" data-role="{{ g.user.role }}" data-name="{{ g.user.display_name }}" data-session="{{ page_scope }}" data-csrf="{{ csrf_token() }}" data-task-id="{{ initial_task_id }}">
+<section id="results-page" class="results" data-page="results" data-role="{{ g.user.role }}" data-name="{{ g.user.display_name }}" data-session="{{ page_scope }}" data-csrf="{{ csrf_token() }}" data-task-id="{{ initial_task_id }}" data-view="{{ initial_view }}">
   <span class="eyebrow">{{ 'ADMINISTRATION' if g.user.role == 'admin' else 'WORKSPACE' }}</span>
-  <h1>{{ '결과물 검토' if g.user.role == 'admin' else '결과물' }}</h1>
+  <h1>{{ '업무 결과물 · 읽기 전용' if initial_view == 'read' else '결과물 검토' if g.user.role == 'admin' else '결과물' }}</h1>
   <div id="message" class="muted" role="status" aria-live="polite">목록을 불러오고 있습니다.</div>
+  <p id="save-confirmed" role="status" hidden></p>
+  {% if back_url %}<p><a id="task-back" href="{{ back_url }}">원래 업무로 돌아가 최신 정보 조회</a></p>{% endif %}
+  {% if initial_view != 'read' %}
   <div id="pending-panel" class="card recovery" hidden>
     <p id="pending-message">저장 결과를 확인해 주세요.</p>
     <button id="lookup" type="button">처리 결과 확인</button>
     <button id="retry" class="outline" type="button" hidden>같은 요청 다시 전송</button>
     <button id="reprepare" class="outline" type="button" hidden>최신 정보로 다시 작성</button>
   </div>
+  {% endif %}
   <section class="card">
     <h2 id="list-title">내 결과 제출 목록</h2>
     <form id="filters" class="toolbar">
-      {% if g.user.role == 'admin' %}<label>조회 범위<select id="view"><option value="own"{% if initial_view == 'own' %} selected{% endif %}>내 결과물</option><option value="review"{% if initial_view == 'review' %} selected{% endif %}>결과물 검토</option></select></label>{% endif %}
+      {% if g.user.role == 'admin' and initial_view != 'read' %}<label>조회 범위<select id="view"><option value="own"{% if initial_view == 'own' %} selected{% endif %}>내 결과물</option><option value="review"{% if initial_view == 'review' %} selected{% endif %}>결과물 검토</option></select></label>{% endif %}
       <label>상태<select id="status"><option value="">전체 상태</option><option value="not_started">진행전</option><option value="in_progress">진행중</option><option value="submitted">제출완료</option><option value="approved">승인완료</option><option value="returned">반려완료</option></select></label>
       <label class="search">검색<input id="search" type="search" placeholder="업무 번호·업무명·담당자"></label>
       <button type="submit">조회</button>
+      {% if initial_view != 'read' %}
       <button id="submit-open" type="button" hidden disabled>결과 제출</button>
       <button id="rework-start" class="outline" type="button" hidden disabled>재작업 시작</button>
       <button id="approve-open" type="button" hidden disabled>승인</button>
       <button id="return-open" type="button" class="outline" hidden disabled>반려</button>
+      {% endif %}
     </form>
     <p id="list-count" class="muted"></p>
     <div class="table-wrap"><table><thead><tr><th>선택</th><th>업무 번호</th><th>업무명</th><th>담당자</th><th>제출 회차</th><th>상태</th><th>마감일</th></tr></thead><tbody id="tasks"></tbody></table></div>
@@ -41,6 +47,7 @@
       </div>
     </section>
   </div>
+  {% if initial_view != 'read' %}
   <dialog id="submission-dialog" aria-labelledby="submission-title">
     <form id="submission-form">
       <h2 id="submission-title">결과 제출</h2><p id="submission-task" class="pre"></p>
@@ -59,5 +66,6 @@
       <div class="dialog-actions"><button type="button" data-close="decision-dialog" class="outline">닫기</button><button id="decision-save" type="submit">승인</button></div>
     </form>
   </dialog>
+  {% endif %}
 </section>
 {% endblock %}
