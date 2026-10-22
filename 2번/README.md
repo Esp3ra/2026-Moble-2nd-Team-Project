@@ -1,3 +1,10 @@
+<a id="member2-pr7778-current-20261022"></a>
+## PR77 수정 병합·PR78 보완 대기 — 2번 기존 기록 보존
+
+[77](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/77#issuecomment-6337145116) **ef84aedd→38233949**의 R77-01 수정·독립 재검토·Draft→Open→Merge를 수신했습니다. [78](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/78#issuecomment-6337428379) **e0bfbb4a**는 R78-01/P2 채팅 부분 실패 시 원선택 전체 보존 보완 전까지 미병합입니다. [정확한 SHA/검사·작성자 보고 구분](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr7778-reviewed-20261022)·[후속 경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr7778-boundaries-20261022)를 따릅니다.
+
+동시 발행된 ef84 수정 구현/검증 기록과 이전2번 writer·마감/PR58 기록은 원문 그대로 보존했습니다. 기존2번8문서·앵커 유지, 새공개MD/브랜치/PR0이며 사용자 프로젝트 재동기화·공유DB/설정 변경은 수행하지 않았습니다.
+
 ## 최신 — PR77 R77-01 직접 수정 완료·재검토용 반영, 2026-10-22
 
 사용자가 요청한 CHECK문자열 정규화 오류를 [ef84aed](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/ef84aeddaa7e070ef88a9216c13dd0fc68eaac16)로 기존 PR77 브랜치에 푸시했습니다. [원지적/수정·표현식29/실제MySQL49/원HTTP108](PR_검토기록.md#pr77-r77-01-fixed-20261022)과 [변경파일·미실행](업무_구현검증.md#member2-pr77-fix-evidence-20261022)을 취합합니다. Draft/미병합·운영/사용자프로젝트 미변경을 유지하며 다른 제품·SQL선언·정책은 변경하지 않았습니다. 기존8문서/앵커를 보존합니다.

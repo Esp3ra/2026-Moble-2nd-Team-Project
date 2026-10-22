@@ -1,3 +1,10 @@
+<a id="pr7778-current-20261022"></a>
+## 최신 — PR77 수정 검토·병합 / PR78 첨부 부분 실패 보완 대기
+
+[PR77](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/77#issuecomment-6337145116)의 R77-01은 문자열 원문을 보존하는 토큰화 수정 **ef84aedd**로 해결됐습니다. 독립 재검토 후 사용자 지시에 따라 Draft→Open→**38233949**에 병합했고 실제 tree가 검증본과 같습니다. 기존015 공급·014 공백 정리와 물리 readiness 검사를 수신하며, 공유DB 적용·복원을 이번 검토에서 실행한 것은 아닙니다.
+
+[PR78](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/78#issuecomment-6337428379) **e0bfbb4a**는 기본 회귀·소유DB/실제 Edge 검사가 통과했으나, 채팅 A/B/C 선택 중 B 실패 후 B만 재시도하면 미시도 C가 추적에서 빠져 A+B 전송이 허용되는 **R78-01/P2**로 미병합입니다. 웹·Desktop의 원래 선택 전체를 보존하도록 보완 요청했습니다. [정확한 검사/재사용·실패/정리](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr7778-reviewed-20261022)와 [담당 후속](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr7778-boundaries-20261022)을 따릅니다. 실제5000/.env·공유DB/서비스/flags·키/장비·사용자 프로젝트는 미변경입니다.
+
 ## 최신 — PR77 R77-01 오류 수정·기존 PR 반영, 2026-10-22
 
 팀장 요청으로 CHECK문자열 bytes를 잃던 물리검사를 수정해 [ef84aed](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/ef84aeddaa7e070ef88a9216c13dd0fc68eaac16)를 기존 PR77 브랜치에 푸시했습니다. [수정/원본 음성대조·29/49/108 검사](2번/PR_검토기록.md#pr77-r77-01-fixed-20261022)·[변경파일/미실행](2번/업무_구현검증.md#member2-pr77-fix-evidence-20261022)·[담당별 경계](2번/공통규약.md#member2-pr77-fix-boundary-20261022)를 기존 취합에 기록합니다. PR은 Draft/미병합이며 실제 DB/서비스·SQL014/015선언·3번runtime/4번제품·사용자 프로젝트는 수정하지 않았습니다.

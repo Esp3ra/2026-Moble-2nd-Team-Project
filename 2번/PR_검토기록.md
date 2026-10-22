@@ -1,3 +1,49 @@
+<a id="pr7778-reviewed-20261022"></a>
+## PR77 수정 재검토·병합 / PR78 검토·R78-01 보완 요청 — 2026-10-22
+
+[77 최종 통합 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/77#issuecomment-6337145116)은 기존 검토 원문을 보존하고 수정 해결·병합 근거를 앞에 갱신했습니다. [78 통합 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/78#issuecomment-6337428379)은 아래 단일 P2로 미병합입니다. CLEAN/기본 회귀 통과를 부분 실패 시 원선택 보존의 증거로 사용하지 않습니다.
+
+|PR|고정 head/base·최종 상태|tree|
+|---|---|---|
+|77|최초`57f8c26e7261850c0431c8533407e120337e1a04`→수정`ef84aeddaa7e070ef88a9216c13dd0fc68eaac16`;base`36f1e55d44cd3fa2fd2c7f634fbcd0d059ce7a9d`;Draft→Open→merge`38233949b49ed113db2e0d7e4d60c80ee7e9d22a`|`168fa93366c38dd65e0e15522e432cacbed418eb`; 실제 병합본과 검증본 동일|
+|78|head`e0bfbb4ad86ba120e17e01d18dddf99948946f49`;base`36f1e55d44cd3fa2fd2c7f634fbcd0d059ce7a9d`;R78-01/P2 보완 대기·미병합|`e44e33d55f36f18d813ec5bce4bdee4ac3df263d`|
+
+### PR77 — R77-01 해결·직접 재검증과 이전 근거 구분
+
+기존 `_expression`은 따옴표 안까지 소문자화/공백 제거해 `HEX('NOTICE')`와 `HEX('not ice')`를 정상 `HEX('notice')`로 오판했습니다. 수정은 SQL 토큰과 literal 원문을 분리하고, 허용된 표현식의 AND/OR 의미 구조를 대조해 문자열 바이트·식별자/토큰 경계를 보존합니다. 정상015와 MySQL 재표현을 허용하고 의미가 다른 literal·우회 표현식을 거절하도록 확인했습니다.
+
+|검사 밴드|실제 근거·합산 경계|
+|---|---|
+|수정 표현식|원본29 PASS를 별도 독립 실행/정적 대조. 정상식·괄호/연산자·literal case/space/escape/introducer·비허용 토큰 거절|
+|수정 물리 checker|원본49 PASS/자식7.55초·격리wrapper24.56초, 자식/wrapper exit0·새 소유MySQL. 기존32를 포함하며, **29는 사전검사로 실행**하므로 수치를 더하지 않음. 정상015·변형 CHECK 거절/실제INSERT·정상복원/덤프의 검증 범위를 따름|
+|원 자원첨부108|최초57f8 고정본의 원108 PASS/7.41초(격리wrapper13.42초). ef84에서 원108·015/014·제공부 관련 소스 diff0을 확인해 재사용했으며 수정본 새108 실행으로 표시하지 않음|
+|최초32·독립 반례|원32 자식은 PASS/7.69초, 뒤의 외부audit SHOW DATABASES 처리 ValueError로 wrapper exit1은 별도 보존. 독립 반례10.02초에서는 정상notice INSERT1행, NOTICE/not ice는 readiness true지만 INSERT3819/0행으로 옛 결함을 재현. 이 두 반례를 수정 PASS 수에 합산하지 않음|
+
+015는 고정PR76 draft의 주석/공백 정규화 후 동일하고014는 공백-only 변경입니다. ef84의015/014와 원108 관련 소스는 최초77 대비 diff0, 전체7파일 변경 중 수정patch5파일을 대조했습니다. root rawclone clean·git diff --check PASS, 각 소유MySQL/DB/native/runtime 정리를 확인했습니다. 기존LOG의 별도 작성자29/49/108 보고는 그 출처의 증거로 보존하고 이번 독립 재검증과 합산하지 않습니다. 새77에서 C#/브라우저/두PC·공유 운영DB 검증을 수행했다고 표시하지 않습니다.
+
+### PR78 — 기본 회귀·실제 브라우저와 확정 단일 P2
+
+|직접 검사|결과·경계|
+|---|---|
+|WebChat 원 서버/MySQL|44 PASS·10 deselected/148.90초(격리wrapper163.30초), 각 새 소유MySQL. 제외된 cold/명시CLI SQLite 검사는 실행하지 않았고 SQLite접속시도0|
+|CollaborationFiles 원 공지 회귀|55 PASS·8 deselected/159.90초(wrapper172.72초), 별도 새 소유MySQL/원본 그대로 실행·SQLite접속0|
+|WebChat 실제 Edge|원18 PASS/errors0·28.22초, 실제loopback Flask/MySQL·서로 다른 새브라우저 문맥. 두물리PC 검사는 아님|
+|CollaborationFiles 실제 소비|원33 HTTP/11 C#/9 Edge PASS·pageErrors0, 별도 소유환경. 원본 C# fixture/제품과 실제 브라우저 범위를 구분|
+|마감·UI·빌드|마감 관련 원본75/166/21/4 PASS. Notices37·ChatStorage40·ChatAutoReceive32 PASS는 실제WinForms+명시HTTP대역·DB 없음. 전체Release0오류/0경고|
+|독립 경계 재현|원 chat.js 등록 handler·HTTP/최소DOM 대역으로 아래 A/B/C 유실을 확인. pureSHA256 fallback은10 입력을 Nodecrypto와 일치 확인; 실제LAN/장비 검사가 아님|
+
+**R78-01/P2 — 채팅 다중 파일 선택이 부분 실패 후 축소됩니다.** [웹 chat.js274–283](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/e0bfbb4ad86ba120e17e01d18dddf99948946f49/RemoteWork.Server/remotework/static/chat.js#L274)는 A/B/C를 차례로 업로드하다 B가 실패하면 C를 시도하지 않습니다. B만 다시 선택해 성공할 때 방 단위 fileErrors를 지워 송신을 허용하고, send177–184는 성공한 A+B ID만 전송합니다. 원 선택의 미완료 C를 완료/명시 제거까지 유지하는 구조가 없습니다. 원 handler 대역에서 `selectedInitially=[A,B,C]`, `fileStartRequests=[A,B]`, `sendEnabledAfterPartialRetry=true`, `sentAttachmentIds=[A,B]`, `unattemptedOriginalCNoLongerTracked=true`를 확인했습니다. [Desktop ChatControl409–426](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/e0bfbb4ad86ba120e17e01d18dddf99948946f49/RemoteWork.WinForms/Features/Collaboration/ChatControl.cs#L409)도 같은 원선택 보존 문제를 독립 소스 대조했습니다. 서버 저장/중복전송·권한 우회 결함으로 확대하지 않으며 웹/Desktop의 미완료 선택 집합과 명시 제거/전체완료 조건 보완을 요청했습니다. 기본18 브라우저 시나리오는 이 부분실패 재선택 경로를 포함하지 않아 PASS와 모순되지 않습니다.
+
+WebChat 최초 Edge는 OS path discovery 환경 제약으로0검사/28.50초에 중단됐으며 실패 보고를 보존했습니다. USERPROFILE/APPDATA/LOCALAPPDATA 문자열만 정상 OS 값으로 복원하고 TEMP/TMP와 명시 user-data-dir는 새 소유runtime 안에 둔 후 원18이 통과했습니다. 개인 프로필/사용자 브라우저에 연결하지 않았습니다. 성공18·자식exit0 이후 외부runtime rmtree의 일시적 PermissionError로 wrapper exit1이 남았으나 정확한 소유경로·종료프로세스·reparse없음을 확인해 뒤정리했고 cleanup-addendum에 제거true/재검사false를 기록했습니다. 최초 실패/성공/정리 보완을 덮어쓰거나 합산하지 않습니다. CollabFiles도 동일 launch환경과 후속 외부runtime 정리 문제를 별도 기록해 최종 정리true를 확인했습니다.
+
+원본 clone·archive export774파일 전후hash 불변/gitclean, 각 DB/MySQL/native/파일루트/runtime 정리 완료입니다. 원본 검사·product·테스트를 수정하지 않았습니다. WebChat 성공 근거는 `remote_work_pr78_audit47_20261022/browser-retry/browser-audit-report.json`·`browser/browser-results.json`·`cleanup-addendum.json`이며, 최상위 browser-audit-report.json은 최초0검사 실패 보고입니다. 원handler 재현은 `js-edges-report.json`, 순수hash10은 그 대역 범위입니다. stop 뒤 기존 파일명/cache 잔류 관찰은 비차단 보조 메모로만 보존하고 새 finding으로 추가하지 않았습니다.
+
+### 인계·운영/정책 미실행
+
+77 작성자의015 적용18:02·43테이블·공유DB/복원 보고는 **작성자 운영보고/이번 검토 미재실행**이며 위 소유DB 검사에 더하지 않습니다. 검사기 결함이 실제 공유015 구조가 잘못됐다는 의미는 아닙니다. PR78 본문18:06의 GET404 보고와, 그 뒤1번의18:16 같은5000에 **e0bfbb4a** 적용(PID34880·new identity OFF·ACK 없음) 보고는 시점별 수신 사실로 구분합니다. 후속 운영보고의head도 R78-01이 지적된 동일e0bf이지만, 저희가 실제5000의 현재 응답/배포/프로세스를 재검증하거나 조작한 것은 아닙니다.
+
+이번 검토/문서 취합에서 실제5000/.env·공유DDL/DB·서비스/flags·계정/키/센서·사용자 프로젝트를 변경하지 않았고 새지문OFF·같은LAN 사설IP+PORT를 유지했습니다. PR58 연차 미합의·실제loader/startup/장비·두물리PC/공유운영·삭제/보존 정책은 [후속 경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr7778-boundaries-20261022)와 기존 기록으로 보존합니다. 동시LOG ef84 수정 기록과 기존2번8문서·원문/앵커를 유지하고 새공개MD/브랜치/PR은 추가하지 않았습니다.
+
 <a id="pr77-r77-01-fixed-20261022"></a>
 ## PR77 R77-01 직접 수정·검증·기존 브랜치 반영 — 2026-10-22
 

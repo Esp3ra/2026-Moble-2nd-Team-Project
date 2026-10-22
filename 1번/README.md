@@ -1,3 +1,10 @@
+<a id="pr7778-owner1-current-20261022"></a>
+## 1번 최신 — PR77 물리 검사 수정 병합 / PR78 보완 대기
+
+[77](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/77#issuecomment-6337145116) **ef84aedd→38233949**에서 R77-01 문자열 정규화 오판을 해결하고 정상015·변형 CHECK 거절을 독립 소유MySQL에서 확인했습니다. 기존015/014 구조와 자원첨부 원108 소스는 변경하지 않았고, 실제 DB의015 적용18:02·43테이블/복원 등은 작성자 운영보고 수신 범위입니다. 이번 검토가 공유DDL 재적용/서비스 재시작 지시는 아닙니다.
+
+[78](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/78#issuecomment-6337428379)은 공지/채팅 첨부·웹/LAN hash·마감 binding 소비를 제공하지만 채팅 원선택 일부 유실 **R78-01/P2**로 미병합입니다. [중앙 검사 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr7778-reviewed-20261022)·[완료 공급/후속](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr7778-boundaries-20261022)을 따릅니다. PR58 연차 추가 계약과 계산정책은 이전 수신·미합의 기록을 유지하며 이번에 새로 확정하지 않습니다.
+
 <a id="pr7576-owner1-and-leave-20261022"></a>
 ## 1번 최신 수신 — PR75·76 공급 / PR58 연차 계약 회신 대기
 
