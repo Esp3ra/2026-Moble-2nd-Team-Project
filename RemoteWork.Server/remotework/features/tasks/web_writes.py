@@ -14,7 +14,7 @@ from ...auth import authenticated_transaction, login_required
 from ...common import AppError
 from ...user_candidates import CandidateScope, list_user_candidates
 from .start_transition import TaskStartAction
-from .web_attachments import FORM_FIELDS as ATTACHMENT_FIELDS, form_selection, page_config
+from .web_attachments import FORM_FIELDS as ATTACHMENT_FIELDS, form_display, form_selection, page_config
 
 
 START_ACTIONS = {"accept": TaskStartAction.ACCEPT, "rework-start": TaskStartAction.REWORK_START}
@@ -209,6 +209,7 @@ def new_task():
     with authenticated_transaction(roles=("admin",)) as db:
         _authorize(db, "task.created", "new")
         selection = form_selection()
+        display = form_display(selection)
         assignees = _candidates(db, "assignment", q=draft["q"], page=page)
         manager_choices = _candidates(db, "manager", q=draft["q"], page=page)
         assignee = None if not draft["assignee_id"] else _id(draft["assignee_id"])
@@ -236,7 +237,7 @@ def new_task():
         assignees=assignees, manager_choices=manager_choices, selected_assignees=selected_assignees,
         selected_managers=selected_managers, filters=filters, page=page, error=error,
         attachment_config=page_config(attachment_ids=selection.get("attachment_ids"),
-                                     explicit="attachment_ids" in selection)), (error.status if error else 200)
+            explicit="attachment_ids" in selection, display=display)), (error.status if error else 200)
 
 
 def _recover(intent, exc):
