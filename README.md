@@ -63,6 +63,8 @@ W1 공통 쓰기 지원은 [WRITE_SUPPORT](docs/WRITE_SUPPORT.md)를 따릅니�
 
 ## 5번 장치 독립 시연
 
+새 지문 본인인증의 [RW-ID-v2 연결 계약](docs/DEVICE_IDENTITY_V2.md)은 API DTO·방향별 메시지·공개 벡터와 승인/실패/재시도 기준을 제공합니다. 현재 **계약 구현 단계**이며 실제 인증 endpoint·제한 로그인·MySQL 소비·출퇴근 전환은 아직 설치되지 않았습니다. 등록 API나 일반 `/scan`을 이 인증의 성공으로 사용하지 않습니다.
+
 [장치 설치·실행·API·검증 범위](Devices/RaspberryPi/README.md)에 지문 센서·SH1106 OLED·메가 조도 송신과 systemd 자동 실행 예제를 정리했습니다. [Windows 점검 도구](Tools/DeviceCheck/README.md)는 공통 WinForms와 별도로 실행하며 조도 조회와 수동 지문 요청을 제공합니다. 실제 표시 이름 설정·센서 이벤트 CSV·장치 원본 데이터는 게시하지 않습니다.
 
 [Windows USB 웹캠 손 검출](Tools/HandPresence/README.md)은 [C# 활동 상태 확인 창](RemoteWork.WinForms/Features/Attendance/README.md)에서도 실행할 수 있습니다. 손·화면 움직임·라파 조도 변화가 모두 없는 정상 관찰이30초 이어지면 자리 비움을 표시하며, 하나라도 감지되면 다시30초부터 확인합니다. 연결 문제는 확인 필요로 구분합니다. 같은 PC의 Python이 선택 영역 미리보기·신호를 C#에 전달하며 Pi는 읽기 전용 조회만 합니다. 영상 저장·외부 전송·얼굴 식별·자동 근태 기록은 없으며 몸통 검출과 근태/회원 연결은 남아 있습니다.

@@ -15,6 +15,10 @@ dotnet run --project .\Tests\RemoteWork.ClientChecks\RemoteWork.ClientChecks.csp
 
 서버 테스트는 `RemoteWork.Server/tests/`에 있으며 실행법은 `docs/SETUP.md`를 참고하세요.
 
+## 5번 본인인증 RW-ID-v2 계약
+
+[DeviceIdentity.Contract.Tests](DeviceIdentity.Contract.Tests/README.md)는 새 방향키·바이트·fresh 승인·API 입력 DTO를 검증합니다. 실제 인증 API/제한 로그인·MySQL 단일소비·출퇴근 연결은 아직 구현 전이며, [계약·준비 상태](../docs/DEVICE_IDENTITY_V2.md)를 먼저 확인합니다.
+
 ## PR #2 인증 회귀 검증
 
 [ApiClient.Tests](ApiClient.Tests/README.md)는 실제 공통 C# 소스에 응답 제어 HTTP 처리기를 주입해 이전 접속 응답·로그아웃/재로그인·본문 형식별 401 처리를 확인합니다. 실제 HTTP·MySQL 점검과 구분해 실행합니다.
