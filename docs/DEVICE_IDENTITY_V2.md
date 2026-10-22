@@ -202,6 +202,15 @@ pending_token은 `IdentityPending` 스킴의 위 본인인증 API만 허용한�
 - noon_check: 동일 현재 정상 접속과 서버 근무일의 정오 기록 commit. data: `state=completed,workflow_receipt_id,work_session_ref,work_date`.
 - clock_out: 실제 퇴근 commit과 정상 세션 폐기를 같은 TX에 처리. data: 위4필드. 이후 해당 폐기 문맥은 해당 확정결과 조회만24시간 허용하고 새 승인/업무 호출은 금지. 그 외 철회/비밀번호 회수는 이 조회 권리도 철회한다.
 
+C# `IdentityPendingConnection`의 `ExpiresAt`/`IsCurrent`는 신규 활동의 최초5분 제한을
+유지한다. 첫 finalize 전송 직전에 RAM에 challenge/원 finalize UUID를 고정하며,
+응답 유실 뒤5분이 지나도 같은 challenge의 GET과 원 UUID finalize 재확인만 허용한다.
+최초 시도부터 최대24시간의 보수적 로컬 상한은 재전송으로 갱신하지 않고, 서버의
+현재 문맥·권한·더 짧은 보관기한/401·403·410이 우선한다. 새 발급/승인/complete나
+다른 UUID·challenge로 바꾸지 않는다. 로그인 세대/외부취소·늦은 응답 검사는 전후에
+유지한다. 소유자가 활동 만료만으로 Dispose하면 이 RAM 복구 기록도 사라지므로 실제
+화면 조립은 활동 수명과 결과 복구 수명을 구분해야 한다. 자동 UI 조립 완료는 아니다.
+
 근태 provider/키/저장·트랜잭션 접점 미설치 또는 폐기 직후 결과 조회 권한/토큰 안전 재전달이 미구현이면 finalize는503이며 성공으로 대체하지 않는다.
 수동 로그아웃/앱 종료는 문맥 폐기·장치 해제이고 자동 퇴근이 아니다. 지문 없는 관리자 예외/미등록 fallback은 만들지 않는다.
 1번이 이 서버/DB·토큰 전환을 구현하며 5번에게 전체 매핑·서버 모델 설계를 되돌려 요구하지 않는다. 출퇴근·정오 화면/근태 저장 접점은5번과 연결한다.

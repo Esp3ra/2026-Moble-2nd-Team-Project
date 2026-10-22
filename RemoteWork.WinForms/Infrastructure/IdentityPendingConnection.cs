@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Collections.Concurrent;
 
 namespace RemoteWork.WinForms.Infrastructure;
 
@@ -13,19 +14,23 @@ public sealed class IdentityPendingConnection : IDisposable
     private readonly Func<bool> current;
     private readonly CancellationTokenSource lifetime;
     private readonly CancellationToken cancellation;
+    private readonly TimeProvider clock;
+    private readonly ConcurrentDictionary<Guid, FinalizeAttempt> finalizeAttempts = new();
+    private sealed record FinalizeAttempt(Guid RequestId, DateTimeOffset RecoverUntil);
     private string? pendingToken;
     private int ended;
     public string ContextReference { get; private set; } = "";
     public DateTimeOffset ExpiresAt { get; private set; } = DateTimeOffset.MaxValue;
     public CancellationToken Cancellation => cancellation;
     public bool IsCurrent => Volatile.Read(ref ended) == 0 && !cancellation.IsCancellationRequested
-        && DateTimeOffset.UtcNow < ExpiresAt && current();
+        && clock.GetUtcNow() < ExpiresAt && current();
 
     private IdentityPendingConnection(string serverUrl, Func<bool> current, CancellationToken lifetime,
-        HttpMessageHandler? handler)
+        HttpMessageHandler? handler, TimeProvider clock)
     {
         server = ApiClient.ValidateUrl(serverUrl);
         this.current = current ?? throw new ArgumentNullException(nameof(current));
+        this.clock = clock;
         this.lifetime = CancellationTokenSource.CreateLinkedTokenSource(lifetime);
         cancellation = this.lifetime.Token;
         http = new HttpClient(handler ?? new HttpClientHandler { UseCookies = false, AllowAutoRedirect = false })
@@ -34,9 +39,11 @@ public sealed class IdentityPendingConnection : IDisposable
 
     public static async Task<IdentityPendingConnection> LoginAsync(string serverUrl, string loginId,
         string password, Guid originalRequestId, Func<bool> isCurrent, CancellationToken lifetime,
-        CancellationToken cancellationToken = default, HttpMessageHandler? handler = null)
+        CancellationToken cancellationToken = default, HttpMessageHandler? handler = null,
+        TimeProvider? timeProvider = null)
     {
-        var connection = new IdentityPendingConnection(serverUrl, isCurrent, lifetime, handler);
+        var connection = new IdentityPendingConnection(serverUrl, isCurrent, lifetime, handler,
+            timeProvider ?? TimeProvider.System);
         try
         {
             var result = await connection.SendAsync(HttpMethod.Post, "login", new
@@ -48,8 +55,8 @@ public sealed class IdentityPendingConnection : IDisposable
             var token = result.GetProperty("pending_token").GetString();
             var reference = result.GetProperty("context_ref").GetString();
             var expiry = result.GetProperty("expires_at").GetDateTimeOffset();
-            if (!Opaque(token) || !Opaque(reference) || expiry <= DateTimeOffset.UtcNow
-                || expiry > DateTimeOffset.UtcNow.AddMinutes(5).AddSeconds(2)) throw Invalid();
+            if (!Opaque(token) || !Opaque(reference) || expiry <= connection.clock.GetUtcNow()
+                || expiry > connection.clock.GetUtcNow().AddMinutes(5).AddSeconds(2)) throw Invalid();
             connection.pendingToken = token;
             connection.ContextReference = reference!;
             connection.ExpiresAt = expiry;
@@ -60,8 +67,13 @@ public sealed class IdentityPendingConnection : IDisposable
     }
 
     public void ThrowIfChanged()
+        => ThrowIfChanged(null);
+
+    private void ThrowIfChanged(Func<bool>? retainedResult)
     {
-        if (!IsCurrent) throw new OperationCanceledException("본인 확인 접속이 변경되거나 종료되었습니다.", cancellation);
+        if (Volatile.Read(ref ended) != 0 || cancellation.IsCancellationRequested || !current()
+            || (clock.GetUtcNow() >= ExpiresAt && retainedResult?.Invoke() != true))
+            throw new OperationCanceledException("본인 확인 접속이 변경되거나 종료되었습니다.", cancellation);
     }
 
     public Task<JsonElement> IssueAsync(Guid deviceId, Guid originalRequestId, CancellationToken ct = default)
@@ -70,7 +82,8 @@ public sealed class IdentityPendingConnection : IDisposable
     public Task<JsonElement> LookupRequestAsync(Guid originalRequestId, CancellationToken ct = default)
         => SendAsync(HttpMethod.Get, "requests/" + originalRequestId.ToString("D"), null, ct);
     public Task<JsonElement> GetAsync(Guid challengeId, CancellationToken ct = default)
-        => SendAsync(HttpMethod.Get, Path(challengeId), null, ct);
+        => SendAsync(HttpMethod.Get, Path(challengeId), null, ct,
+            retainedResult: () => CanRecover(challengeId));
     public async Task<string> ApproveAsync(Guid challengeId, string probeB64, CancellationToken ct = default)
     {
         Bytes(probeB64);
@@ -89,8 +102,24 @@ public sealed class IdentityPendingConnection : IDisposable
         => SendAsync(HttpMethod.Post, Path(challengeId) + "/cancel",
             new { client_request_id = originalCancelId.ToString("D") }, ct);
     public Task<JsonElement> FinalizeAsync(Guid challengeId, Guid originalFinalizeId, CancellationToken ct = default)
-        => SendAsync(HttpMethod.Post, Path(challengeId) + "/finalize",
-            new { client_request_id = originalFinalizeId.ToString("D") }, ct);
+    {
+        ct.ThrowIfCancellationRequested();
+        // Record before sending: a commit may succeed even when its response is lost.
+        // Only the same challenge + original UUID can outlive the activity window.
+        ThrowIfChanged(() => CanRecover(challengeId, originalFinalizeId));
+        var attempt = finalizeAttempts.GetOrAdd(challengeId,
+            _ => new FinalizeAttempt(originalFinalizeId, clock.GetUtcNow().AddHours(24)));
+        if (attempt.RequestId != originalFinalizeId)
+            throw new InvalidOperationException("최초 확정 요청 번호로 결과를 확인해야 합니다.");
+        return SendAsync(HttpMethod.Post, Path(challengeId) + "/finalize",
+            new { client_request_id = originalFinalizeId.ToString("D") }, ct,
+            retainedResult: () => CanRecover(challengeId, originalFinalizeId));
+    }
+
+    private bool CanRecover(Guid challengeId, Guid? requestId = null)
+        => finalizeAttempts.TryGetValue(challengeId, out var attempt)
+            && (requestId is null || attempt.RequestId == requestId)
+            && clock.GetUtcNow() < attempt.RecoverUntil;
     public async Task RevokeAsync(Guid originalRevokeId, CancellationToken ct = default)
     {
         var result = await SendAsync(HttpMethod.Post, "context/revoke",
@@ -100,9 +129,10 @@ public sealed class IdentityPendingConnection : IDisposable
     }
 
     private async Task<JsonElement> SendAsync(HttpMethod method, string path, object? body,
-        CancellationToken ct, bool pending = true, bool approval = false)
+        CancellationToken ct, bool pending = true, bool approval = false,
+        Func<bool>? retainedResult = null)
     {
-        ThrowIfChanged();
+        ThrowIfChanged(retainedResult);
         if (pending && pendingToken is null) throw new InvalidOperationException("제한 로그인이 필요합니다.");
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, cancellation);
         // Approval budget only: never changes ApiClient's shared 12-second timeout.
@@ -112,7 +142,7 @@ public sealed class IdentityPendingConnection : IDisposable
         if (body is not null) request.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
         using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, linked.Token).ConfigureAwait(false);
         linked.Token.ThrowIfCancellationRequested();
-        ThrowIfChanged();
+        ThrowIfChanged(retainedResult);
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
             End();
@@ -128,7 +158,7 @@ public sealed class IdentityPendingConnection : IDisposable
             bytes.Write(buffer, 0, length);
         }
         linked.Token.ThrowIfCancellationRequested();
-        ThrowIfChanged();
+        ThrowIfChanged(retainedResult);
         try
         {
             using var doc = JsonDocument.Parse(bytes.ToArray());
