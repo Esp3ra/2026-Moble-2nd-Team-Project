@@ -17,6 +17,7 @@ from ...write_contract import ExpectedVersions, lock_users, positive_bigint
 from .models import TaskAssignment, TaskManager, TaskRecord
 from .queries import _summary
 from .web_writes import _authorize, _binding, _form, _id, _page, _prepare
+from .web_attachments import FORM_FIELDS as ATTACHMENT_FIELDS, form_selection, page_config
 
 
 ACTIONS = {"edit": "task.updated", "reassign": "task.reassigned", "managers": "task.managers_changed"}
@@ -129,6 +130,8 @@ def _response(*, draft, fields, action, q, page, filters, error=None,
         draft_ticket=_signer().dumps(draft), fields=fields, action=action, action_label=LABELS[action],
         q=q, page=page, filters=filters, error=error, choices=choices,
         selected=selected or [], selected_managers=selected_managers or [], managers=managers or [],
+        attachment_config=page_config(task_id=draft["target"], mode="edit",
+            attachment_ids=fields.get("attachment_ids"), explicit="attachment_ids" in fields) if action == "edit" else None,
         source_url=url_for("task_web.manage", task_id=int(draft["target"]), action=action, **filters)),
         error.status if error else 200)
     response.headers["Cache-Control"] = "no-store"
@@ -147,7 +150,8 @@ def manage_task(task_id, action):
     target, write_action = str(task_id), ACTIONS[action]
     positive_bigint(target, "task_id")
     filters = _list_args(*_filters())
-    _form({"csrf_token", "draft_ticket", "op", "q", "page"} | EDITABLE[action],
+    _form({"csrf_token", "draft_ticket", "op", "q", "page"} | EDITABLE[action] |
+          (ATTACHMENT_FIELDS if action == "edit" else set()),
           repeated=("manager_user_ids",) if action == "managers" else (), query=True)
     if request.method == "GET" and request.form:
         raise AppError(400, "INVALID_INPUT", "업무 변경 조회에는 화면 입력을 전달하지 않습니다.")
@@ -178,6 +182,8 @@ def manage_task(task_id, action):
             fields = {name: request.form.get(name, "") for name in EDITABLE[action]}
             if action == "managers":
                 fields["manager_user_ids"] = [_id(value) for value in request.form.getlist("manager_user_ids")]
+            if action == "edit":
+                fields.update(form_selection())
 
         choices, selected, selected_managers, manager_ids = None, [], [], []
         if action == "reassign":

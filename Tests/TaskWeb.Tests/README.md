@@ -1,3 +1,18 @@
+<a id="task-web-t3-consumer-checks"></a>
+## 현재 PR68 실제 소비 검사 — 2026-10-22
+
+`node Tests/TaskWeb.Tests/verify_attachment_transport.js`: 원본 제품 JS와 명시 DOM/HTTP 대역 **11시나리오71검사 통과**. 실제 네트워크가 아닌 대역이며16KiB/base64·같은 ID/offset 복구·시작 불명·접속 폐기/늦은 응답·명시 삭제/불명 선택 제외·다운로드 크기/해시/현재 참조·선택 한계를 검사합니다.
+
+`RemoteWork.Server`에서 `python -m pytest -q tests/test_task_web_preparation_ui.py`: 현행 템플릿 **21개 통과**. provider ON/OFF·기존 본문/명시 IDs·오류/recovery/성공 안내를 DB 없이 렌더합니다.
+
+```powershell
+& <Python 실행파일> Tests/TaskWeb.Tests/run_mysql_check.py --allow-disposable-mysql --mysql-bin-dir 'C:/Program Files/MySQL/MySQL Server 8.2/bin' --suite t3-consumers --report-dir <소스밖의새보고서폴더>
+```
+
+새 `test_task_web_attachments.py`, `test_task_management_attachments.py`와 기존 creation 첨부·read/복귀·member3 소비·웹 등록/관리 회귀를 소유 MySQL/실제 cookie 제공부로 실행합니다. 원본013·물리 DDL/schema1 불변·소유 자원 정리를 확인하며 SQLite/운영 ACK를 사용하지 않습니다. 최종 실행 건수와 미실행은 [LOG의 최신 소비 검증](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/업무_구현검증.md#member2-t3-consumers-check-20261022)을 확인합니다.
+
+별도 실제 브라우저에서는 합성 admin1로 선택→전송 전 차단→업로드→등록→다운로드39B/hash 일치→managed read/원래 업무 복귀→첨부만 추가1→2→전체 해제2→0을 확인했습니다.320/390/1100폭 가로 넘침이 없었으며 결과 스크린샷은 로컬 검증 산출물에 보관합니다. 공유 서버·실계정·HTTPS/두 PC·25MiB 전체 네트워크·운영 ACK는 이번 검사 범위가 아닙니다.
+
 <a id="업무-웹-읽기-전용-mysql-검사"></a>
 # 업무 웹 조회·등록·수락·재작업 MySQL 검사
 
@@ -8,7 +23,7 @@
 
 `RemoteWork.Server` 폴더에서 `& <Python 실행파일> -m pytest -q tests/test_task_web_preparation_ui.py`를 실행합니다. **실제 Jinja 템플릿16검사 통과**이며 DB/계정/HTTP fixture는 사용하지 않습니다. 등록/일반수정의 이름 없는 기본 비활성·숨김 파일 input과 별도 선택 버튼, 기존 POST 필드 유지와 multipart 미사용, 재배정/관리자 변경에서 파일 선택 미표시, 오류9분류와 서버 안내/요청번호 보존·HTML escape, 결과불명 상태의 원래 ticket/결과확인·완료 성공 표시를 검사합니다. 로그인·권한/실제 DB 쓰기 성공 검사로 해석하지 않습니다.
 
-현재 웹 파일 선택은 화면 준비만 제공하고 서버 업로드/삭제·업무 첨부 저장은 연결하지 않습니다. 실제 cookie 첨부·일반수정 writer와3번 T3 제공부 통합은 별도 후속입니다. 기존 lifecycle 웹 검사의 실행불가 안내 기대문구1곳을 새 화면 문구에 맞췄으며, 해당 MySQL 회귀의 재실행 여부는 이번 최종 LOG를 따릅니다. 아래 이전 회차 수치와 합산하지 않습니다.
+아래 기록은 e9ee978의 이전 준비 화면 검증입니다. 현재 웹은 위 PR68 실제 소비 검사를 따르며 `task_file_preparation.js`는 활성 화면에서 사용하지 않습니다. 실제 cookie 첨부·일반수정 writer와3번 T3 제공부 통합 결과도 위 절을 따릅니다. 기존 lifecycle 웹 검사의 실행불가 안내 기대문구1곳을 새 화면 문구에 맞췄으며, 해당 MySQL 회귀의 재실행 여부는 이번 최종 LOG를 따릅니다. 아래 이전 회차 수치와 합산하지 않습니다.
 
 <a id="task-creation-attachment-checks"></a>
 ## 선택 첨부 등록과 기존 API·웹 회귀

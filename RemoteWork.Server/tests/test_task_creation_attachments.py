@@ -240,7 +240,7 @@ def test_new_task_reuses_readable_file_without_removing_original_task_link(files
 
 
 @pytest.mark.parametrize("explicit", ([], ["00000000-0000-0000-0000-000000000001"]))
-def test_explicit_edit_files_fail_closed_and_omission_retains_link(files_env, explicit):
+def test_explicit_edit_files_without_provider_fail_closed_and_omission_retains_link(files_env, explicit):
     env = files_env
     app, client, headers, _, _ = env
     file_id = upload(env)
@@ -253,6 +253,7 @@ def test_explicit_edit_files_fail_closed_and_omission_retains_link(files_env, ex
     issued = client.post("/api/v1/write-requests/keys", headers=headers, json={"action": "task.updated", "target": target})
     assert issued.status_code == 201
     key_headers = headers | {"Idempotency-Key": issued.json["data"]["request_key"]}
+    app.extensions.pop("results_shared_attachments")
     before = state(env)
     assert_error(client.patch("/api/v1/tasks/" + target, headers=key_headers,
         json=body | {"attachment_ids": explicit}), 503, "TASK_ATTACHMENT_REPLACEMENT_NOT_READY")

@@ -27,7 +27,7 @@
 
 | 경로·공통 action | expected 두 필드 외 입력 | 허용 상태 |
 |---|---|---|
-| `PATCH /tasks/{task_id}` · `task.updated` | `title`, `description`, `start_date`, `due_date` 및 선택 `attachment_ids`(아래 연결 차단 참조) | `not_started` |
+| `PATCH /tasks/{task_id}` · `task.updated` | `title`, `description`, `start_date`, `due_date` 및 선택 `attachment_ids`(아래 동일 TX 연결 참조) | `not_started` |
 | `POST /tasks/{task_id}/reassign` · `task.reassigned` | `assignee_id` | `not_started` |
 | `PATCH /tasks/{task_id}/managers` · `task.managers_changed` | `manager_user_ids` 정수 배열 | `not_started`, `in_progress`, `returned` |
 
@@ -44,11 +44,13 @@ expected 두 필드는 `expected_row_version`, `expected_assignment_revision`입
 <a id="task-management-attachment-selection"></a>
 ## 첨부 최종 목록 수용과 현재 차단 범위 — 2026-10-21
 
+2026-10-22 갱신: PR68의 공개 제공부를 이용해 동일 TX 교체를 연결했습니다. 아래 503 차단은 제공부나 저장소가 준비되지 않은 경우에 적용합니다.
+
 [팀장이 수용한 3번 제안](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member3-proposals-accepted-20261021)은 일반 수정의 `attachment_ids` 생략 시 기존 첨부 유지, `[]`면 전부 해제, 값이 있으면 최종 목록으로 교체입니다. 별도 삭제 배열을 만들지 않습니다. 최대 10개의 소문자 하이픈 포함 정규 UUID 문자열만 허용하며 중복·null·비문자열은 400입니다. 원문 필드 유무·배열 순서는 W1 본문에 그대로 보존합니다. 재배정·관리자 변경에는 이 필드를 허용하지 않습니다.
 
-**현재 구현은 형식 검사와 안전한 차단까지입니다.** 첨부 필드를 생략한 일반 수정은 기존 경로로 실행해 첨부를 유지합니다. `attachment_ids`를 명시하면 빈 배열도 포함해, 현재 권한·버전·상태·과거 수락/제출 자료·날짜 검사 뒤 `503 TASK_ATTACHMENT_REPLACEMENT_NOT_READY`로 차단합니다. 업무 본문을 함께 바꾸려 해도 일부만 저장하지 않으며 업무/첨부/버전·감사·성공 receipt를 만들거나 변경하지 않습니다. 앞선 권한·버전 검사가 실패하면 그 오류가 우선합니다. WinForms·웹 관리 화면의 첨부 입력도 아직 연결하지 않았습니다.
+첨부 필드를 생략한 일반 수정은 기존 첨부를 유지합니다. 명시 배열은 현재 권한·원래 버전·진행전/과거 자료·날짜 검사 뒤 공개 `read_task_attachment_ids`로 현재 집합을 읽고, 차이가 있을 때만 `replace_task_files`를 같은 인증 TX에서 업무 버전 증가 전에 호출합니다. 빈 배열은 업무 참조를 모두 해제하며 다른 업무/과거 제출 참조는 보존합니다. API와 웹은 같은 writer를 사용합니다. WinForms 일반수정 첨부 선택 UI는 아직 별도입니다.
 
-첨부만 바뀌어도 `task.updated`로 한 번 처리하고, 본문과 최종 첨부 집합이 모두 같으면 `409 TASK_CHANGE_NOT_NEEDED`로 끝내는 정책은 수용됐습니다. 이를 실행하려면 같은 트랜잭션에서 현재 첨부 목록과 변경 차이를 읽는 3번 공개 함수(T3-1), 감사 최소 필드(T3-2), 기능 off/오류 조건(T3-3)이 필요합니다. 2026-10-22 3번은 PR52 기존 댓글에 `read_task_attachment_ids`와 감사 reader의 제품 패치를 제공했습니다. 같은 TX/원래 expected·현재 locking read/ID 집합 비교·최소 감사 계약은 수용 기준에 부합합니다. 새 코드·검사 소스는 PR68로 alpha `ff32ba2`에 병합됐으며 실제 2번 연결·소비 검증이 남았습니다. 현재 `replace_task_files`의 변경 후 목록만으로 변경 전 값을 추정하거나, 3번 ORM·SQL을 직접 읽어 우회하지 않습니다. 따라서 이 정책을 실제 수정 구현 완료로 표시하지 않습니다. 신규 등록의 빈 기존 목록은 이 문제와 구분해 [실제 제공부 연결](TASK_CREATION.md#task-creation-attachment-selection)을 지원합니다.
+첨부만 바뀌어도 `task.updated`·row_version을 각각 한 번 변경하고 assignment_revision/제출 회차는 유지합니다. 본문과 최종 첨부 집합이 모두 같으면409 `TASK_CHANGE_NOT_NEEDED`입니다. 원문 요청 배열은 정렬/중복 제거하지 않으며, 감사에만 정렬한 `before_attachment_ids`/`attachment_ids`와 `changed_fields`의 첨부 표식을 기록합니다. 파일명·경로·본문은 첨부 감사에 넣지 않습니다. 공개 reader/replace 부재는503 `TASK_ATTACHMENT_REPLACEMENT_NOT_READY`, 스키마 미준비도 제공부503이며 모든 변경/감사/receipt가 함께 rollback됩니다. 성공 receipt 재생에는 파일 검사나 재연결을 추가하지 않습니다. 다른 담당 ORM/SQL을 직접 조회하지 않습니다.
 
 ## 권한·경합·결과 유실
 
@@ -62,7 +64,7 @@ expected 두 필드는 `expected_row_version`, `expected_assignment_revision`입
 
 기존 DeadlineExtensionForm은 확정 정책에 따라 진행중·반려완료의 희망일·사유를 **로컬 확인만** 합니다. 현재 기한보다 뒤이고 현재 KST 날짜 이상인지 확인하며, 마감이 지난 반려완료도 원래 상태/기한을 바꾸지 않습니다. 별도 TaskLifecycleForm/API에는 신청/철회·승인/반려·기한 저장을 구현했습니다. 현재 담당자·대기 신청 하나·다른 지정 관리자의 판단·승인일 날짜/버전은 서버가 다시 검사하며1·3번 실제 연결 확인 전 변경503입니다.
 
-취소와 연장은 [lifecycle 구현](TASK_LIFECYCLE.md)으로 모델·저장·조회/요청함·폼·취소 표시/취소 포함 조회·철회를 제공합니다. 1번의 공통 등록·009 검토 SQL과 쓰기off 후 성공 결과 읽기는PR51로 제공됐으며,PR52가 alpha `cbda025`에 병합돼3번 취소 guard·대기 연장 facts 소비 코드도 포함됐습니다. 실제 변경 허용 전 같은 배포의 스키마/옵션·수명·제출/판단/첨부 차단과 경합 검증·통합 ACK가 필요합니다. 공용 첨부는 취소 트랜잭션의 업무 참조 해제와 신규 등록의 선택 목록 연결까지 소비하며, 수정의 최종 목록 교체는 위 기술 조건을 기다립니다. PR60의 `013_shared_attachments.mysql.sql` 제공을 공유 DB 적용 완료로 보지 않습니다. 취소·연장 연결 확인 전503을 유지하며2번이3번 SubmissionGate나 검토자/결과물 모델을 대신 수정하지 않습니다. 3번 관리자 이력은 기존 업무 감사 읽기를 재사용하며 새 성공 이벤트 구독·알림·공유 환경의 완료와 구분합니다.
+취소와 연장은 [lifecycle 구현](TASK_LIFECYCLE.md)으로 모델·저장·조회/요청함·폼·취소 표시/취소 포함 조회·철회를 제공합니다. 1번의 공통 등록·009 검토 SQL과 쓰기off 후 성공 결과 읽기는PR51로 제공됐으며,PR52가 alpha `cbda025`에 병합돼3번 취소 guard·대기 연장 facts 소비 코드도 포함됐습니다. 실제 변경 허용 전 같은 배포의 스키마/옵션·수명·제출/판단/첨부 차단과 경합 검증·통합 ACK가 필요합니다. 공용 첨부는 취소 TX의 업무 참조 해제·신규 등록 연결·일반수정 최종 목록 교체를 위 공개 계약으로 소비합니다. PR60의 `013_shared_attachments.mysql.sql` 제공을 공유 DB 적용 완료로 보지 않습니다. 취소·연장 연결 확인 전503을 유지하며2번이3번 SubmissionGate나 검토자/결과물 모델을 대신 수정하지 않습니다. 3번 관리자 이력은 기존 업무 감사 읽기를 재사용하며 새 성공 이벤트 구독·알림·공유 환경의 완료와 구분합니다.
 
 ## 검증
 

@@ -20,7 +20,7 @@ REMOTEWORK_ENABLE_TASK_CREATE_DRAFT=1
 
 ## 웹 등록 연결 — 2026-10-21
 
-위 query/common/create 옵션을 명시한 서버의 `/tasks/new`에서 기존 cookie 인증·CSRF로 등록합니다. 활성 관리자만 공통 후보 서비스의 이름/부서·20명 단위 페이지를 검색하고,업무 입력과 선택을 유지할 수 있습니다. 등록자 필수 관리자·최소 공개 후보 정보·최종 활성 후보 검사는 기존 계약을 따릅니다. 현재 웹 폼은 로컬 파일 선택 화면을 제공하되 선택이 남으면 전송을 막습니다. 명시 비움 후 기존 여섯 필드 본문만 만들며, 브라우저에 Bearer를 주지 않습니다.
+위 query/common/create 옵션을 명시한 서버의 `/tasks/new`에서 기존 cookie 인증·CSRF로 등록합니다. 활성 관리자만 공통 후보 서비스의 이름/부서·20명 단위 페이지를 검색하고,업무 입력과 선택을 유지할 수 있습니다. 등록자 필수 관리자·최소 공개 후보 정보·최종 활성 후보 검사는 기존 계약을 따릅니다. 웹 폼은 공개 cookie 첨부 경로로 명시 업로드한 뒤 선택 attachment_ids를 원래 순서로 확인폼에 고정합니다. 미완료/불명 파일이 남으면 확인을 막고, 업무 저장은 별도 실행합니다. 브라우저에 Bearer를 주지 않습니다.
 
 `등록 내용 확인`은 현재 로그인에 묶인 서명 확인폼과 W1 키만 준비하며 업무를 저장하지 않습니다. 별도 실행에서 API와 같은 `execute_creation`과 단일 transaction/감사/receipt를 사용합니다. 결과 불확실 시 같은 열린 폼에서 명시적으로 결과를 확인하고,`not_recorded` 뒤에만 같은 키/본문을 다시 전송합니다. 자동 재전송·새 키 자동 발급은 없습니다. 확인폼을 닫은 뒤 복원하는 저장소는 제공하지 않으며 새 등록 확인은 별개 요청입니다. 웹 기능을 끄면 이 웹 결과 경로도 닫힙니다.
 
@@ -76,7 +76,7 @@ REMOTEWORK_ENABLE_TASK_CREATE_DRAFT=1
 
 기존 업무 등록 옵션만으로 첨부 제공부·013 구조를 자동 준비하지 않습니다. 값이 있는 요청은 3번 results/shared 제공부의 기존 활성화 조건과 준비된 `013_shared_attachments.mysql.sql` 구조도 필요하며, 제공부가 없으면 `503 TASK_ATTACHMENT_PROVIDER_REQUIRED`입니다. 제공부의 파일 오류를 다른 성공이나 빈 첨부로 바꾸지 않습니다. 공유 DB·DDL 적용·운영 ACK를 이 연결에서 활성화하지 않습니다.
 
-C# `TaskCreationRequest`는 선택 `IReadOnlyList<string>? attachmentIds = null`을 불변 사본으로 보관합니다. null은 JSON 전송에서 생략하고, 빈 배열·원래 ID 순서는 그대로 전송·복구합니다. **WinForms 등록 화면은 아래 파일 선택·명시 업로드 UI를 연결**했습니다. 선택을 바꾸지 않으면 필드를 생략하고, 명시적으로 목록을 비우면 빈 배열을 보내며 완료된 파일 ID의 순서를 보존합니다. 업무 웹은 [로컬 파일 선택 준비](TASK_WEB.md#task-web-file-preparation)를 제공하며 업로드·저장 소비는 별도 후속입니다. 수정의 최종 목록 교체는 [별도 기술 조건과 503 차단](TASK_MANAGEMENT.md#task-management-attachment-selection)을 따릅니다.
+C# `TaskCreationRequest`는 선택 `IReadOnlyList<string>? attachmentIds = null`을 불변 사본으로 보관합니다. null은 JSON 전송에서 생략하고, 빈 배열·원래 ID 순서는 그대로 전송·복구합니다. **WinForms 등록 화면은 아래 파일 선택·명시 업로드 UI를 연결**했습니다. 선택을 바꾸지 않으면 필드를 생략하고, 명시적으로 목록을 비우면 빈 배열을 보내며 완료된 파일 ID의 순서를 보존합니다. 업무 웹도 [공개 cookie 첨부 전송·저장](TASK_WEB.md#task-web-t3-consumers)을 연결했습니다. 수정의 최종 목록은 [동일 TX 교체와 제공부 미준비 차단](TASK_MANAGEMENT.md#task-management-attachment-selection)을 따릅니다. WinForms 일반수정의 첨부 선택 UI는 별도 후속입니다.
 
 성공은 공통 envelope의 HTTP 201입니다. `data`의 필수 필드는 다음과 같습니다.
 
@@ -137,7 +137,7 @@ WinForms는 첨부 전용 404/409를 확정 실패로 구분해 입력 단계로
 
 16KiB 청크의 base64 `+`는 기본 JSON 인코더에서 `\u002B`로 늘어나 32KiB 본문 제한을 넘을 수 있습니다. 2번 청크 DTO만 전용 converter로 내부 생성 base64를 기록하며 공통 JSON 인코더·파일명 규칙을 바꾸지 않습니다. 청크 크기를 줄이거나 서버 제한을 늘리지 않습니다.
 
-현재 서비스는 같은 로그인에 보관되는 등록 workflow의 첨부 선택 상태에 주입합니다. PR64의 captured `Session.DeleteAsync`는 확인된 ID의 미연결 임시 파일을 사용자가 명시적으로 삭제할 때만 호출합니다. `Dispose`와 창 닫기는 서버 파일 삭제나24시간 후 자동 삭제를 보장하지 않습니다. 일반수정 첨부의 같은 TX diff/감사, 웹 cookie/CSRF, `view=read`/`back_context`는 T3-1~5 코드 PR68이 alpha에 병합됐으며 2번의 실제 연결·검증이 남았습니다.
+현재 서비스는 같은 로그인에 보관되는 등록 workflow의 첨부 선택 상태에 주입합니다. PR64의 captured `Session.DeleteAsync`는 확인된 ID의 미연결 임시 파일을 사용자가 명시적으로 삭제할 때만 호출합니다. `Dispose`와 창 닫기는 서버 파일 삭제나24시간 후 자동 삭제를 보장하지 않습니다. 일반수정 첨부의 같은 TX diff/감사, 웹 cookie/CSRF, `view=read`/`back_context`는 T3-1~5 코드 PR68을 사용한 일반수정 writer·업무 웹 소비를 연결했습니다. 실행 조건과 공유 환경의 미검증 범위는 [업무 웹](TASK_WEB.md#task-web-t3-consumers)을 따릅니다.
 
 [전용 검증](../Tests/TaskCreationUploads.Tests/README.md): 제어 HTTP440개, 실제 C#→TCP→임시 MySQL/파일33개와 독립 DB9개를 통과했습니다. 실제 업로드·등록·receipt·직원 다운로드에 더해 삭제 응답 유실 뒤 같은 ID 재확인과 이미 연결된 파일 삭제403을 확인했습니다. 응답 유실은 실제 성공 응답 뒤 클라이언트에서 명시 주입했습니다. 공유 운영 서버·두PC·OS 파일 대화상자의 수동 조작·25MiB 전체 네트워크 전송은 미실행입니다.
 
