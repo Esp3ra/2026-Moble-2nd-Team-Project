@@ -1,3 +1,33 @@
+<a id="pr66-pr67-review-20261022"></a>
+## PR66·67 신규 검토 — 66 병합, 67 R67-01 수정 대기, 2026-10-22
+
+열린 PR 전체 조회에서 새 PR66/67을 확인했습니다. 기본 원본 alpha **a6427adf221074d27df143c02f3386b2ed073642**를 고정하고 각 head를 별도 격리 checkout에 결합해 코드·검사를 독립 대조했습니다. GitHub status/check-run은 각0건이며, CLEAN/MERGEABLE을 검사 통과로 대신하지 않았습니다.
+
+### PR66 — 마감 알림 확인 성공과 목록 재조회 분리, 병합
+
+head **b8825dd108b4194990fdac783f6854bbff092f8b**, 검토한 결합 tree **8723d2a270dd03bd15f3d8bdc4f096c25b733ab5**입니다. 성공 receipt는 정확한 사건/계정·원 W1 operation/key/body에 묶어 source가 검증한다는 내부 계약을 유지합니다. 성공 뒤 snapshot 없음/불량이면 성공을 보존하고 현재 facts/팝업·업무 이동을 비워 GET 재조회가 필요함을 표시합니다. 로그인당 정확한 사건만 기억해 재POST/불필요한 결과 조회를 막으며 재로그인/새 사건에는 승계하지 않습니다. 불명 결과·401/403·동일 source 수명·늦은 응답 경계를 대조했습니다.
+
+- 최신 결합본에서 공식 DeadlineAlerts **162PASS**, DeadlineNavigation **24PASS**, Notices **35PASS**, CollaborationRequests **115PASS**를 각각 직접 실행했습니다. 실제 WinForms/명시 source·HTTP 대역이며 실서버/DB·물리 두PC 검사가 아닙니다.
+- 별도 독립 검증: **화면 수명·경합 독립19검사 PASS**. 공식 검사와 반복 합산하지 않습니다.
+- 최종 솔루션 Release **0오류/0경고**, diff check 통과. 설치 참조팩용 외부 설정으로 실행했고 제품 csproj는 변경하지 않았습니다.
+- 추가 차단 문제를 발견하지 못해 실제 merge **[8cc082155561ea060e3676c346aed1d87fb8e5e9](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/8cc082155561ea060e3676c346aed1d87fb8e5e9)**로 병합했습니다. fetch 후 부모와 실제 tree가 검토본과 일치함을 확인했습니다.
+
+**남은 연결:** 2번의 현재 업무·실효기한·배정/상태·실제 사건/초기자료 reader,1번의 인증/TX·확인/감사/W1·최종 API/DB·OFF 결과 reader,4번 실제 source adapter·공유 저장/경합/두PC 검증은 계속 후속입니다. 이번 내부 port 보완이 endpoint/DTO/DDL·migration/새 정책 확정이나 실제 마감 알림 가동을 뜻하지 않습니다.
+
+### PR67 — 실제 서버·Pi HTTP/MySQL 검사, 수정 요청
+
+head **a4b9d58efd2c65139582aec71e63a3ae8d75cb45**, 원본a642와 결합 tree **ac88e3ab3734f8b914a0e3506837fe02ef501c93**입니다. 새4파일이며 실제 두 loopback HTTP·서버 MySQL identity/근태·Pi runtime/비교/서명을 사용하고 센서/키·계정/준비상태는 시험 대역입니다. 고정 export는 alpha9c5c07c + server95ef89d이며 현재 병합된 서버/Pi 코드와의 동일성을 대조합니다. source manifest는 고정 commit/tree·충돌 파일 hash 기록이며 전체 export hash 검증으로 확대하지 않습니다.
+
+**정상 경로의 독립 결과:** 독립 소유 MySQL/두 loopback HTTP 10PASS/55.61초, exit0·소유 DB/프로세스/runtime 정리를 확인했습니다.
+
+**R67-01/P2 확정:** 신규 `run_check.py`52~56행의 Popen(CREATE_SUSPENDED)·job.assign이57행부터의 try/finally 밖입니다. AssignProcessToJobObject 실패 때 자식이 Job에 미소속이므로 Job close로 종료되지 않으며 stop_owned_process에도 도달하지 않습니다. 독립 대역에서 spawn1/assign1/job.close1/**stop0/child_alive=True**, DB/runtime cleanup True 보고를 확인했습니다. 실패경로 재현에는 실제 자식·MySQL·서버를 생성하지 않았습니다. 기존 공통 helper의 _spawn/run_owned_client는 이 경계를 이미 보호하므로 신규 실행기 범위의 문제입니다.
+
+요청: child=None부터 생성/등록 이전의 try/finally로 종료/회수·stdout/stderr 닫기를 보장하고, assign 실패/취소/timeout·정상 완료의 회귀와 정상10검사를 유지해야 합니다. [PR67 통합 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/67#issuecomment-6330831748)에 요청했습니다. **R67-01 수정 전 미병합 유지**이며 정상 연결 검사가 이 정리 결함을 상쇄하지 않습니다.
+
+### 공통 범위
+
+기존 PR/LOG와 통합 댓글에 취합하고 새 회신용 MD/브랜치/PR은 만들지 않았습니다. 실제5000/.env·공유 DB/DDL·운영 키/계정·Pi/센서·제품 workspace 배포는 변경하지 않았습니다. 코드 병합/소유 시험 성공과 실제 운영 연결은 구분하며 미합의 정책을 대신 확정하지 않았습니다.
+
 <a id="pr62-merged-20261022"></a>
 ## PR62 최종 재검토·병합 — R62-01·R62-02 해결, 2026-10-22
 
