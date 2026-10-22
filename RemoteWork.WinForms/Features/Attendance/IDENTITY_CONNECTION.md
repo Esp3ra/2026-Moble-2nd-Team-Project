@@ -20,7 +20,7 @@
 
 두 새 폼은 Designer.cs/resx 기반이며 생성만으로 I/O를 시작하지 않는다. 기본 독립 view는 시작 버튼을 사용하고 로그인 호스트만 명시적인 autoStart를 전달한다. 대기·결과 전송·시간 초과·연결 실패·서버 기능 준비 필요·취소 미확인을 구분한다. 세션 취소/교체와 유효시간 만료를 재확인하고 이전 계정의 늦은 결과를 표시하지 않는다.
 
-기본 지문 view는 attempt를 소유한다. 로그인 view의 내부 지문 창은 `ownsAttempt:false`로 같은 attempt를 빌리므로 창을 닫았다 다시 열어도 결과를 재구성하거나 센서를 새로 읽지 않는다. connection / pending / session은 소유자가 해제하며 로그인 view는 자기 device/attempt만 해제한다. 정상 창 닫기는 장치 중지·같은 작업 취소·원 문맥 revoke를 확인한다. 확인 실패는 명시 안내 후 로컬 종료와 서버 취소를 구분한다. 출근 finalize를 이미 보낸 경우에는 닫기가 출근 취소가 아니라는 안내를 먼저 표시한다. 강제 Dispose는 로컬 정리일 뿐 원격 revoke/근태 rollback이 아니다. 새 계정으로 바뀐 뒤 이전 요청을 새 토큰으로 취소하지 않는다.
+기본 지문 view는 attempt를 소유한다. 로그인 view의 내부 지문 창은 `ownsAttempt:false`로 같은 attempt를 빌리므로 창을 닫았다 다시 열어도 결과를 재구성하거나 센서를 새로 읽지 않는다. connection / pending / session은 소유자가 해제하며 로그인 view는 자기 device/attempt만 해제한다. 정상 창 닫기는 장치 중지·같은 작업 취소·원 문맥 revoke를 확인한다. 확인 실패는 명시 안내 후 로컬 종료와 서버 취소를 구분한다. 출근 finalize 응답 확인 중에는 닫기/회수를 경쟁시키지 않고 응답 또는 시간 초과를 먼저 기다린다. 응답 불명 뒤 닫기는 출근 취소가 아니라는 안내를 먼저 표시한다. 강제 Dispose는 로컬 정리일 뿐 원격 revoke/근태 rollback이 아니다. 새 계정으로 바뀐 뒤 이전 요청을 새 토큰으로 취소하지 않는다.
 
 `ApiClient.IdentityLogin`은 일반 세대와 캡처 서버 주소, 원 로그인/finalize/revoke UUID를 보유한다. 최초5분 뒤에도 이미 시도한 같은 finalize만 기존 pending의24시간 상한 내에 재확인한다. auth/me를 아직 확인하지 못했으면 정상 접속을 설치하지 않고, 동일 결과 재생의 token/근무/영수증이 달라지면 거절한다. 명시 revoke는 같은 결과 보관 문맥에서 허용하지만 신규 활동 권한은 열지 않는다. 일반 ApiClient의 공유12초 timeout/401·세대 규약을 유지한다.
 

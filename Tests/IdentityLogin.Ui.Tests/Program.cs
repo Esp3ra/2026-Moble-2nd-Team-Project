@@ -48,7 +48,7 @@ internal static class Program
                     await TokenGate(); await Recovery(); await ChangedReceipt(); await RevokeAfterExpiry();
                     await Late(false); await Late(true); await EarlyDispose(); await InvalidResponses();
                     await LoginUi(loop, false, false); await LoginUi(loop, true, false); await LoginUi(loop, true, true);
-                    await NoFallback(loop); await ClosedLogin(loop); await SameTokenGeneration();
+                    await NoFallback(loop); await ClosedLogin(loop); await SameTokenGeneration(); await CloseDuringCommit(loop);
                     Console.WriteLine($"PASS identity login UI: {checks} assertions; real WinForms/ApiClient/pending/relay with controlled HTTP/device; no live server, DB, sensor or configuration changes.");
                 }
                 code = 0;
@@ -231,6 +231,20 @@ internal static class Program
         Check(!(bool)current.Invoke(api, new object[] { first })! && (bool)current.Invoke(api, new object[] { second })!, "Same token still has a different captured login generation");
         clear.Invoke(api, new object[] { first }); Check(api.CurrentUser?.Id == 5, "Old view cannot clear a newer identical-token login");
         clear.Invoke(api, new object[] { second }); Check(api.CurrentUser is null, "Current view clears only its own accepted login");
+    }
+    private static async Task CloseDuringCommit(Form owner)
+    {
+        using var h = new Host(); await h.Open();
+        h.Server.FinalizeGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var view = new FingerprintLoginForm(h.Scope, h.Pending, Endpoints(h.Scope.ServerUri), _ => new Device(),
+            async attempt => { await attempt.RunAsync(); return attempt.Result; })
+        { ShowInTaskbar = false, StartPosition = FormStartPosition.Manual, Location = new(-20000, -20000) };
+        view.Show(owner); Field<Button>(view, "btnStart").PerformClick();
+        await h.Server.FinalizeEntered.Task; view.Close();
+        Check(view.Visible && !Field<Button>(view, "btnClose").Enabled, "Commit cannot race with interactive close/revoke");
+        Check(h.Api.CurrentUser is null && h.Server.Revokes == 0, "No provisional login or competing revoke while committing");
+        h.Server.FinalizeGate.SetResult(true); await view.PendingOperation;
+        Check(view.CompletedLogin is not null && h.Api.CurrentUser?.Id == 5, "Confirmed commit closes successfully once response is known");
     }
     private static void Render(Form form, string name)
     {

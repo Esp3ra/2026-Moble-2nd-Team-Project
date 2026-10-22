@@ -57,7 +57,7 @@ public partial class FingerprintLoginForm : Form
     { PendingOperation = StartAsync(); await PendingOperation; }
     private async Task StartAsync()
     {
-        if (!Live || busy || CompletedLogin is not null || cmbDevice.SelectedItem is not Choice choice) return;
+        if (!Live || busy || closing || CompletedLogin is not null || cmbDevice.SelectedItem is not Choice choice) return;
         busy = true; btnStart.Enabled = false; cmbDevice.Enabled = false;
         try
         {
@@ -82,6 +82,7 @@ public partial class FingerprintLoginForm : Form
             }
             lblStatus.Text = "출근 저장·로그인 확인 중";
             lblDetail.Text = "서버의 출근 저장과 정상 로그인 접속을 확인하고 있습니다.";
+            btnClose.Enabled = false;
             var result = await login!.CompleteAsync(verifiedChallenge.Value, lifetime.Token);
             if (!Live) return;
             CompletedLogin = result;
@@ -103,7 +104,10 @@ public partial class FingerprintLoginForm : Form
         {
             busy = false;
             if (Live && CompletedLogin is null)
+            {
                 btnStart.Enabled = login!.HasFinalizeAttempt || attempt is null || attempt.Latest.CanRetry;
+                btnClose.Enabled = true;
+            }
         }
     }
     private void Close_Click(object? sender, EventArgs e) => Close();
@@ -111,6 +115,12 @@ public partial class FingerprintLoginForm : Form
     {
         if (CompletedLogin is not null || login is null || !Live || allowClose) return;
         e.Cancel = true;
+        if (busy && login.HasFinalizeAttempt)
+        {
+            lblStatus.Text = "출근 저장·로그인 확인 중";
+            lblDetail.Text = "서버에서 출근 저장을 확인 중입니다. 응답 또는 시간 초과 안내가 나온 뒤 결과를 확인하거나 닫아주세요.";
+            return;
+        }
         if (closing) return;
         closing = true; btnClose.Enabled = btnStart.Enabled = false;
         try
@@ -138,7 +148,7 @@ public partial class FingerprintLoginForm : Form
         finally
         {
             closing = false;
-            if (Live) { btnClose.Enabled = true; btnStart.Enabled = login.HasFinalizeAttempt; }
+            if (Live) { btnClose.Enabled = true; btnStart.Enabled = !busy && login.HasFinalizeAttempt; }
         }
     }
     private void ReleaseLoginView()
