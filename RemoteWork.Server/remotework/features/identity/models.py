@@ -24,6 +24,8 @@ class Context(IdentityBase):
     context_ref: Mapped[str] = mapped_column(String(86))
     password_stamp: Mapped[str] = mapped_column(String(64))
     revoked: Mapped[bool] = mapped_column(Boolean, default=False)
+    receipt_only: Mapped[bool] = mapped_column(Boolean, default=False)
+    completed_challenge_id: Mapped[str | None] = mapped_column(String(36))
     created_at: Mapped[datetime]
     expires_at: Mapped[datetime]
     lookup_until: Mapped[datetime]
@@ -53,6 +55,7 @@ class Challenge(IdentityBase):
     result_bytes: Mapped[bytes | None] = mapped_column(LargeBinary(16384))
     result_hash: Mapped[str | None] = mapped_column(String(64))
     receipt_json: Mapped[str | None] = mapped_column(Text)
+    workflow_completed: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class Approval(IdentityBase):

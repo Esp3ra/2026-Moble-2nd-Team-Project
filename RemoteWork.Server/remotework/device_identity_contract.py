@@ -293,6 +293,7 @@ def readiness():
     return {"code": "IDENTITY_WORKFLOW_NOT_READY", "contract": "RW-ID-v2",
             "contract_available": True, "http_api_implemented": True,
             "limited_login_implemented": True, "mysql_storage_implemented": True,
+            "attendance_implemented": True,
             "attendance_connected": False, "enabled": False, "ready": False}
 
 

@@ -81,7 +81,23 @@ def verify_credentials(login_id, password):
 def authenticate(login_id, password, channel):
     # Block the old API/web path while the explicit identity service is enabled.
     if current_app.config.get("ENABLE_DEVICE_IDENTITY_DRAFT"):
-        raise AppError(503, "IDENTITY_WORKFLOW_NOT_READY", "지문 본인 확인 로그인 연결이 필요합니다.")
+        provider = current_app.extensions.get("identity_workflow")
+        if not callable(getattr(provider, "resume", None)):
+            raise AppError(503, "IDENTITY_WORKFLOW_NOT_READY", "지문 본인 확인 로그인 연결이 필요합니다.")
+        from .features.identity.routes import storage
+        storage()
+        with transaction() as db:
+            guard = db.scalar(select(AdminGuard).where(AdminGuard.id == 1).with_for_update())
+            if guard is None:
+                raise AppError(503, "IDENTITY_STORAGE_NOT_READY", "근무 저장소 준비가 필요합니다.")
+            user = verify_credentials(login_id, password)
+            provider.resume(db, user)  # Actual same-day OPEN work only, never a PC flag.
+            token = secrets.token_urlsafe(32)
+            auth_session = AuthSession(token_hash=token_digest(token), user_id=user.id, channel=channel,
+                expires_at=utcnow() + timedelta(hours=current_app.config["SESSION_HOURS"]))
+            db.add(auth_session)
+            audit("auth.login", "user", user.id, {"channel": channel, "resumed_work": True}, actor_id=user.id)
+        return user, token, auth_session
     user = verify_credentials(login_id, password)
     db = get_db()
     now = utcnow()
@@ -97,10 +113,6 @@ def authenticate(login_id, password, channel):
 def load_identity():
     g.user = None
     g.auth_session = None
-    # Existing work sessions are not silently grandfathered into a partially
-    # connected identity deployment. Identity routes recheck their own context.
-    if current_app.config.get("ENABLE_DEVICE_IDENTITY_DRAFT"):
-        return
     if request.path.startswith("/api/"):
         authorization = request.headers.get("Authorization", "")
         token = authorization[7:] if authorization.startswith("Bearer ") else ""
@@ -115,6 +127,10 @@ def load_identity():
     if auth_session is None or auth_session.channel != channel or auth_session.expires_at <= utcnow():
         return
     user = db.get(User, auth_session.user_id)
+    if user and current_app.config.get("ENABLE_DEVICE_IDENTITY_DRAFT"):
+        provider = current_app.extensions.get("identity_workflow")
+        if not callable(getattr(provider, "can_resume", None)) or not provider.can_resume(db, user):
+            return
     if user and user.is_active:
         g.user, g.auth_session = user, auth_session
 

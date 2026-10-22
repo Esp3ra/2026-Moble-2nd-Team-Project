@@ -22,7 +22,16 @@ bp = Blueprint("device_identity", __name__, url_prefix="/api/v1/device-identity"
 
 
 def fail(status, code):
-    raise AppError(status, code, "본인 확인 상태 또는 준비 조건을 확인해 주세요.")
+    messages = {
+        "IDENTITY_FINGERPRINT_REQUIRED": "오늘 첫 출근은 지문 본인 확인이 필요합니다.",
+        "ATTENDANCE_DAY_CLOSED": "오늘 퇴근을 완료했습니다. 같은 날 재출근은 아직 지원하지 않습니다.",
+        "ATTENDANCE_DAY_REVIEW_REQUIRED": "이전 근무일의 미종료 기록을 담당자와 확인해 주세요.",
+        "ATTENDANCE_ALREADY_STARTED": "이미 출근했습니다. 아이디·비밀번호로 기존 근무에 다시 로그인해 주세요.",
+        "ATTENDANCE_NOON_NOT_DUE": "정오 본인 확인은 한국 시간 12시 이후에 진행할 수 있습니다.",
+        "ATTENDANCE_NOON_ALREADY_RECORDED": "오늘 정오 확인을 이미 완료했습니다.",
+        "ATTENDANCE_NOT_STARTED": "먼저 지문 확인 후 오늘 출근을 완료해 주세요.",
+    }
+    raise AppError(status, code, messages.get(code, "본인 확인 상태 또는 준비 조건을 확인해 주세요."))
 
 
 def now():
@@ -40,7 +49,11 @@ def locked(db, model, *conditions):
 def storage():
     # No DDL or repair here; a partial migration must not become usable.
     inspector = inspect(current_app.extensions["db_engine"])
-    for table in IdentityBase.metadata.tables.values():
+    tables = list(IdentityBase.metadata.tables.values())
+    extra = getattr(current_app.extensions["identity_workflow"], "schema_tables", None)
+    if callable(extra):
+        tables.extend(extra())
+    for table in tables:
         if not inspector.has_table(table.name):
             fail(503, "IDENTITY_STORAGE_NOT_READY")
         columns = {c["name"]: c for c in inspector.get_columns(table.name)}
@@ -78,7 +91,7 @@ def body(operation):
     return wire.validate_api_input(operation, request.get_data())
 
 
-def context(db, *, revoked_result_only=False):
+def context(db, *, revoked_result_only=False, receipt_result=False):
     header = request.headers.get("Authorization", "")
     if len(header) > 220:
         fail(401, "IDENTITY_CONTEXT_REQUIRED")
@@ -86,10 +99,11 @@ def context(db, *, revoked_result_only=False):
         ctx = locked(db, Context, Context.token_hash == token_digest(header[16:]))
     elif header.startswith("Bearer "):
         session_hash = token_digest(header[7:])
-        recovered = locked(db, Context, Context.auth_hash == session_hash) if revoked_result_only else None
+        recovered = locked(db, Context, Context.auth_hash == session_hash) if revoked_result_only or receipt_result else None
         # Resolve IDs with a current read; lock actor before session/context.
         sid = db.scalar(select(AuthSession.user_id).where(AuthSession.token_hash == session_hash).with_for_update())
-        if sid is None and recovered is not None and recovered.revoked:
+        if sid is None and recovered is not None and ((revoked_result_only and (recovered.revoked or recovered.receipt_only))
+                or (receipt_result and recovered.receipt_only)):
             ctx = recovered
         elif sid is None:
             fail(401, "IDENTITY_CONTEXT_REQUIRED")
@@ -109,6 +123,8 @@ def context(db, *, revoked_result_only=False):
         fail(401, "IDENTITY_CONTEXT_REQUIRED")
     if ctx is None or (ctx.revoked and not revoked_result_only) or ctx.expires_at <= now():
         fail(401, "IDENTITY_CONTEXT_REQUIRED")
+    if ctx.receipt_only and not (receipt_result or revoked_result_only):
+        fail(403, "IDENTITY_NOT_ALLOWED")
     actor = locked(db, User, User.id == ctx.user_id)
     if not actor or not actor.is_active or not hmac.compare_digest(ctx.password_stamp, stamp(actor)):
         fail(401, "IDENTITY_CONTEXT_REQUIRED")
@@ -143,6 +159,8 @@ def challenge(db, ctx, cid):
     item = locked(db, Challenge, Challenge.id == cid)
     if item is None or item.context_id != ctx.id:
         fail(404, "IDENTITY_NOT_FOUND")
+    if ctx.receipt_only and item.id != ctx.completed_challenge_id:
+        fail(403, "IDENTITY_NOT_ALLOWED")
     if item.lookup_until <= now():
         fail(410, "IDENTITY_LOOKUP_EXPIRED")
     ticket = wire.parse_json(wire.b64decode(wire.parse_json(item.request_bytes)["payload_b64"]))
@@ -188,7 +206,7 @@ def current_binding(db, ctx, actor, item, ticket):
     p, mapping = profile(db, ctx, item.device_id)
     wire.verify(item.request_bytes, kind="id_request", device_id=item.device_id,
                 key_id=p["key_id"], key=p["keys"]["id_request"])
-    state = workflow(db, ctx, actor, item.purpose)
+    state = {} if item.workflow_completed else workflow(db, ctx, actor, item.purpose)
     envelope = wire.parse_json(item.request_bytes)
     if (mapping.mapping_id != item.mapping_id or str(mapping.revision) != ticket["mapping_revision"] or mapping.slot != ticket["expected_slot"]
             or p["key_epoch"] != ticket["key_epoch"] or p["key_id"] != envelope["key_id"]
@@ -200,7 +218,7 @@ def current_binding(db, ctx, actor, item, ticket):
 def view(item):
     return dict(challenge_id=item.id, state=item.state, expires_at=iso(item.expires_at),
         identity_receipt=json.loads(item.receipt_json) if item.receipt_json else None,
-        workflow_state="pending" if item.state == "verified" else "not_started")
+        workflow_state=("completed" if item.workflow_completed else "pending") if item.state == "verified" else "not_started")
 
 
 def issued_view(item):
@@ -237,8 +255,9 @@ def login(db):
 @guarded
 def issue(db):
     data = body("issue"); ctx, actor = context(db)
+    if (ctx.token_hash is not None) != (data["purpose"] == "clock_in"):
+        fail(403, "IDENTITY_NOT_ALLOWED")
     p, mapping = profile(db, ctx, data["device_id"])
-    state = workflow(db, ctx, actor, data["purpose"])
     old = locked(db, Challenge, Challenge.context_id == ctx.id, Challenge.client_request_id == data["client_request_id"])
     if old:
         old, ticket = challenge(db, ctx, old.id)
@@ -246,6 +265,7 @@ def issue(db):
             fail(409, "IDENTITY_REQUEST_CONFLICT")
         current_binding(db, ctx, actor, old, ticket)
         return issued_view(old)
+    state = workflow(db, ctx, actor, data["purpose"])
     # Global guard + device lock serializes every cooperating issuer. Old RAM
     # cannot silently become a second scan on another login or PC.
     for active in db.scalars(select(Challenge).where(Challenge.device_id == data["device_id"], Challenge.state == "issued").with_for_update()):
@@ -271,9 +291,11 @@ def issue(db):
 @bp.get("/requests/<rid>")
 @guarded
 def lookup(db, rid):
-    wire.canonical_uuid(rid); ctx, actor = context(db)
+    wire.canonical_uuid(rid); ctx, actor = context(db, receipt_result=True)
     item = locked(db, Challenge, Challenge.context_id == ctx.id, Challenge.client_request_id == rid)
     if item is None:
+        if ctx.receipt_only:
+            fail(403, "IDENTITY_NOT_ALLOWED")
         return {"state": "not_recorded"}
     item, ticket = challenge(db, ctx, item.id)
     current_binding(db, ctx, actor, item, ticket)
@@ -283,7 +305,7 @@ def lookup(db, rid):
 @bp.get("/challenges/<cid>")
 @guarded
 def get(db, cid):
-    ctx, actor = context(db); item, ticket = challenge(db, ctx, cid)
+    ctx, actor = context(db, receipt_result=True); item, ticket = challenge(db, ctx, cid)
     current_binding(db, ctx, actor, item, ticket)
     return view(item)
 
@@ -325,7 +347,7 @@ def approve(db, cid):
 @bp.post("/challenges/<cid>/complete")
 @guarded
 def complete(db, cid):
-    data = body("complete"); ctx, actor = context(db)
+    data = body("complete"); ctx, actor = context(db, receipt_result=True)
     item, ticket = challenge(db, ctx, cid)
     p = current_binding(db, ctx, actor, item, ticket)
     raw = wire.b64decode(data["result_b64"], 16384)
@@ -402,11 +424,12 @@ def revoke(db):
 @bp.post("/challenges/<cid>/finalize")
 @guarded
 def finalize(db, cid):
-    body("finalize"); ctx, actor = context(db)
+    data = body("finalize"); ctx, actor = context(db, receipt_result=True)
     item, ticket = challenge(db, ctx, cid)
     current_binding(db, ctx, actor, item, ticket)
     if item.state != "verified":
         return error(409, "IDENTITY_TERMINAL")
-    # No fake attendance, normal token, encrypted replay or deployment ACK.
-    # The actual attendance provider/session transition remains a separate step.
-    return error(503, "IDENTITY_WORKFLOW_NOT_READY")
+    writer = getattr(current_app.extensions["identity_workflow"], "finalize", None)
+    if not callable(writer):
+        return error(503, "IDENTITY_WORKFLOW_NOT_READY")
+    return writer(db, ctx, actor, item, data["client_request_id"])

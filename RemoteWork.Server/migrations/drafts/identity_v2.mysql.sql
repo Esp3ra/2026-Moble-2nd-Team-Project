@@ -2,7 +2,7 @@
 
 -- Common users/admin_guard and enrollment 007 must already exist. Do not run init-db to install this.
 
--- New identity tables only; no ALTER/DROP/seed/schema_versions write.
+-- New identity/attendance tables only; no ALTER/DROP/seed/schema_versions write.
 
 CREATE TABLE identity_contexts (
 	id VARCHAR(36) NOT NULL,
@@ -13,6 +13,8 @@ CREATE TABLE identity_contexts (
 	context_ref VARCHAR(86) NOT NULL,
 	password_stamp VARCHAR(64) NOT NULL,
 	revoked BOOL NOT NULL,
+	receipt_only BOOL NOT NULL,
+	completed_challenge_id VARCHAR(36),
 	created_at DATETIME NOT NULL,
 	expires_at DATETIME NOT NULL,
 	lookup_until DATETIME NOT NULL,
@@ -42,6 +44,7 @@ CREATE TABLE identity_challenges (
 	result_bytes BLOB(16384),
 	result_hash VARCHAR(64),
 	receipt_json TEXT,
+	workflow_completed BOOL NOT NULL,
 	PRIMARY KEY (id),
 	CONSTRAINT uq_identity_issue_request UNIQUE (context_id, client_request_id),
 	CONSTRAINT ck_identity_state CHECK (BINARY state IN ('issued','verified','rejected','cancelled','expired','revoked')),
@@ -79,4 +82,32 @@ CREATE TABLE identity_approvals (
 	CONSTRAINT uq_identity_probe UNIQUE (challenge_id, probe_nonce),
 	CONSTRAINT ck_identity_approval_scope CHECK (BINARY scope IN ('capture','result')),
 	FOREIGN KEY(challenge_id) REFERENCES identity_challenges (id)
+)ENGINE=InnoDB CHARSET=utf8mb4 COLLATE utf8mb4_bin;
+
+CREATE TABLE identity_work_sessions (
+	id VARCHAR(36) NOT NULL,
+	user_id INTEGER NOT NULL,
+	work_date VARCHAR(10) NOT NULL,
+	started_at DATETIME NOT NULL,
+	noon_at DATETIME,
+	ended_at DATETIME,
+	PRIMARY KEY (id),
+	CONSTRAINT uq_identity_user_day UNIQUE (user_id, work_date),
+	CONSTRAINT ck_identity_work_time CHECK (ended_at IS NULL OR ended_at >= started_at),
+	FOREIGN KEY(user_id) REFERENCES users (id)
+)ENGINE=InnoDB CHARSET=utf8mb4 COLLATE utf8mb4_bin;
+
+CREATE TABLE identity_workflow_receipts (
+	challenge_id VARCHAR(36) NOT NULL,
+	context_id VARCHAR(36) NOT NULL,
+	client_request_id VARCHAR(36) NOT NULL,
+	work_session_id VARCHAR(36) NOT NULL,
+	key_id VARCHAR(64) NOT NULL,
+	ciphertext BLOB(4096) NOT NULL,
+	expires_at DATETIME NOT NULL,
+	PRIMARY KEY (challenge_id),
+	CONSTRAINT uq_identity_finalize_request UNIQUE (context_id, client_request_id),
+	FOREIGN KEY(challenge_id) REFERENCES identity_challenges (id),
+	FOREIGN KEY(context_id) REFERENCES identity_contexts (id),
+	FOREIGN KEY(work_session_id) REFERENCES identity_work_sessions (id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COLLATE utf8mb4_bin;

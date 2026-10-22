@@ -15,6 +15,7 @@ from remotework.db import get_db, transaction
 from remotework.models import AuditEvent, AuthSession, SchemaVersion, User
 from remotework.features.identity import validate_configuration
 from remotework.features.identity.models import IdentityBase, Context, Challenge, Approval
+from remotework.features.identity.attendance import AttendanceBase, AttendanceWorkflow, WorkSession, WorkflowReceipt
 from remotework.features.identity import routes
 from test_device_enrollment import env, DID, issue as enroll, result as enroll_result, complete as enroll_complete
 
@@ -52,6 +53,7 @@ def identity(env):
     try:
         yield app, app.test_client(), p, normal, env
     finally:
+        AttendanceBase.metadata.drop_all(engine)
         IdentityBase.metadata.drop_all(engine)
         engine.dispose()
 
@@ -346,3 +348,125 @@ def test_noop_workflow_is_not_synthesized(identity):
     e[0].extensions["identity_workflow"] = type("NotReady", (), {"current": lambda *_: None})()
     r = e[1].post(ROOT + "/challenges", headers=h, json=dict(device_id=DID, purpose="clock_in", client_request_id=str(uuid4())))
     assert r.status_code == 503 and r.json["error"]["code"] == "IDENTITY_WORKFLOW_NOT_READY"
+
+
+@pytest.fixture
+def working(identity):
+    e = identity
+    provider = AttendanceWorkflow(os.urandom(32), "owned-test-workflow-key")
+    cfg = e[0].config
+    cfg["IDENTITY_WORKFLOW_PROVIDER"] = provider
+    validate_configuration(cfg)
+    e[0].extensions["identity_workflow"] = provider
+    return e
+
+
+def clock_in(e):
+    h, _ = pending(e); job, _ = issue(e, h)
+    assert post(e, h, job, "complete", result(e, h, job)).status_code == 200
+    key = {"client_request_id": str(uuid4())}
+    response = post(e, h, job, "finalize", key)
+    assert response.status_code == 200, response.json
+    data = response.json["data"]
+    return h, job, key, data, {"Authorization": "Bearer " + data["access_token"]}
+
+
+def test_actual_attendance_commit_encrypted_replay_and_resume_without_fingerprint(working):
+    e = working
+    first_login = e[1].post("/api/v1/auth/login", json={"login_id": "staff1", "password": PASSWORD})
+    assert first_login.status_code == 409 and first_login.json["error"]["code"] == "IDENTITY_FINGERPRINT_REQUIRED"
+    h, job, key, data, normal = clock_in(e)
+    assert data["state"] == "completed" and data["token_type"] == "Bearer"
+    assert post(e, h, job, "finalize", key).json["data"] == data
+    assert e[1].get(ROOT + "/challenges/" + job["challenge_id"], headers=h).json["data"]["workflow_state"] == "completed"
+    assert e[1].get("/api/v1/auth/me", headers=normal).status_code == 200
+    assert e[1].post("/api/v1/auth/logout", headers=normal, json={}).status_code == 200
+    resumed = e[1].post("/api/v1/auth/login", json={"login_id": "staff1", "password": PASSWORD})
+    assert resumed.status_code == 200 and resumed.json["data"]["access_token"] != data["access_token"]
+    with e[0].app_context():
+        db = get_db()
+        assert db.scalar(select(func.count()).select_from(WorkSession)) == 1
+        receipt = db.get(WorkflowReceipt, job["challenge_id"])
+        assert data["access_token"].encode() not in receipt.ciphertext
+        assert db.scalar(select(func.count()).select_from(AuditEvent).where(AuditEvent.action == "attendance.clock_in")) == 1
+    assert e[1].post(ROOT + "/challenges", headers=h, json={"device_id": DID, "purpose": "clock_in", "client_request_id": str(uuid4())}).status_code == 403
+    assert post(e, h, job, "finalize", {"client_request_id": str(uuid4())}).status_code == 409
+
+
+def test_clock_out_is_atomic_revokes_sessions_replays_receipt_and_no_same_day_reentry(working):
+    e = working; _, _, _, _, normal = clock_in(e)
+    job, _ = issue(e, normal, purpose="clock_out")
+    assert post(e, normal, job, "complete", result(e, normal, job)).status_code == 200
+    key = {"client_request_id": str(uuid4())}
+    done = post(e, normal, job, "finalize", key)
+    assert done.status_code == 200 and "access_token" not in done.json["data"]
+    assert e[1].get("/api/v1/auth/me", headers=normal).status_code == 401
+    assert post(e, normal, job, "finalize", key).json["data"] == done.json["data"]
+    assert e[1].get(ROOT + "/challenges/" + job["challenge_id"], headers=normal).json["data"]["workflow_state"] == "completed"
+    again = e[1].post("/api/v1/auth/login", json={"login_id": "staff1", "password": PASSWORD})
+    assert again.status_code == 409 and again.json["error"]["code"] == "ATTENDANCE_DAY_CLOSED"
+    with e[0].app_context():
+        assert get_db().scalar(select(WorkSession)).ended_at is not None
+        actor = get_db().scalar(select(User).where(User.login_id == "staff1"))
+        assert get_db().scalar(select(func.count()).select_from(AuthSession).where(AuthSession.user_id == actor.id)) == 0
+        assert get_db().scalar(select(func.count()).select_from(AuthSession).where(AuthSession.user_id != actor.id)) > 0
+
+
+def test_noon_server_time_once_only_and_same_work_session(working, monkeypatch):
+    e = working
+    t = routes.now().replace(hour=1, minute=0, second=0)
+    monkeypatch.setattr(routes, "now", lambda: t)
+    _, _, _, first, normal = clock_in(e)
+    r = e[1].post(ROOT + "/challenges", headers=normal, json={"device_id": DID, "purpose": "noon_check", "client_request_id": str(uuid4())})
+    assert r.status_code == 409 and r.json["error"]["code"] == "ATTENDANCE_NOON_NOT_DUE"
+    monkeypatch.setattr(routes, "now", lambda: t + timedelta(hours=2))
+    job, _ = issue(e, normal, purpose="noon_check")
+    assert ticket(e, job)["work_session_ref"] == first["work_session_ref"]
+    assert post(e, normal, job, "complete", result(e, normal, job)).status_code == 200
+    key = {"client_request_id": str(uuid4())}
+    completed = post(e, normal, job, "finalize", key)
+    assert completed.status_code == 200 and post(e, normal, job, "finalize", key).json["data"] == completed.json["data"]
+    assert e[1].get("/api/v1/auth/me", headers=normal).status_code == 200
+    r = e[1].post(ROOT + "/challenges", headers=normal, json={"device_id": DID, "purpose": "noon_check", "client_request_id": str(uuid4())})
+    assert r.status_code == 409 and r.json["error"]["code"] == "ATTENDANCE_NOON_ALREADY_RECORDED"
+
+
+def test_finalize_rollback_does_not_leak_token_or_partial_clock_in(working):
+    e = working; h, _ = pending(e); job, _ = issue(e, h)
+    assert post(e, h, job, "complete", result(e, h, job)).status_code == 200
+    provider = e[0].extensions["identity_workflow"]
+    original = provider._cipher
+    provider._cipher = type("FailedVault", (), {"encrypt": lambda *_: (_ for _ in ()).throw(RuntimeError("synthetic rollback"))})()
+    key = {"client_request_id": str(uuid4())}
+    assert post(e, h, job, "finalize", key).status_code == 500
+    with e[0].app_context():
+        db = get_db()
+        assert db.scalar(select(func.count()).select_from(WorkSession)) == 0
+        assert db.get(WorkflowReceipt, job["challenge_id"]) is None
+        assert not db.get(Challenge, job["challenge_id"]).workflow_completed
+    provider._cipher = original
+    assert post(e, h, job, "finalize", key).status_code == 200
+
+
+def test_finalize_key_cipher_rotation_and_password_revocation_fail_closed(working):
+    e = working; h, job, key, _, _ = clock_in(e)
+    e[0].extensions["identity_workflow"] = AttendanceWorkflow(os.urandom(32), "other-epoch")
+    assert post(e, h, job, "finalize", key).status_code == 503
+    mutate(e, lambda db: setattr(db.scalar(select(User).where(User.login_id == "staff1")), "password_hash", "revoked"))
+    assert post(e, h, job, "finalize", key).status_code == 401
+
+
+def test_concurrent_finalize_one_work_session_and_one_encrypted_receipt(working):
+    e = working; h, _ = pending(e); job, _ = issue(e, h)
+    assert post(e, h, job, "complete", result(e, h, job)).status_code == 200
+    key = {"client_request_id": str(uuid4())}
+    def worker(_):
+        with e[0].test_client() as client:
+            r = client.post(ROOT + "/challenges/" + job["challenge_id"] + "/finalize", headers=h, json=key)
+            return r.status_code, r.json["data"]
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        answers = list(pool.map(worker, range(2)))
+    assert answers[0] == answers[1] and answers[0][0] == 200
+    with e[0].app_context():
+        assert get_db().scalar(select(func.count()).select_from(WorkSession)) == 1
+        assert get_db().scalar(select(func.count()).select_from(WorkflowReceipt)) == 1

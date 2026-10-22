@@ -19,6 +19,7 @@ def validate_configuration(config):
     for entry in enrollment.values():
         excluded.update((entry["request_key"], entry["result_key"]))
     excluded.update(config.get("IDENTITY_EXCLUDED_KEYS", ()))
+    excluded.add(config.get("SECRET_KEY", "").encode())
     for device_id, source in values.items():
         wire.canonical_uuid(device_id)
         p = deepcopy(source)
@@ -44,6 +45,9 @@ def validate_configuration(config):
         excluded.update(keys)
         p["keys"] = MappingProxyType(p["keys"])
         result[device_id] = MappingProxyType(p)
+    validate_workflow_keys = getattr(provider, "validate_keys", None)
+    if callable(validate_workflow_keys):
+        validate_workflow_keys(excluded)
     return MappingProxyType(result)
 
 

@@ -1,6 +1,20 @@
 # 5번 인계: RW-ID-v2 본인인증 계약 2.0
 
-## 2026-10-22 서버 구현 후속 — 기존 아래 계약 이력보다 우선
+## 2026-10-22 추가 기준 반영 — 근태 저장·재접속·암호화 복구 구현
+
+사용자가 **오늘 첫 출근 후 미퇴근 상태의 재로그인은 지문 없이 아이디·비밀번호로 기존 근무에 재연결**, **퇴근 후 같은 날 재출근은 보류 안내**로 정했습니다. 오늘 첫 출근/정오/퇴근은 기존 지문 기준을 유지합니다. 정상 API/웹 재로그인은 서버의 당일 실제 열린 근무만 허용하고, PC 표시나 로컬 저장으로 판단하지 않습니다. 최초 출근409 `IDENTITY_FINGERPRINT_REQUIRED`, 이미 퇴근409 `ATTENDANCE_DAY_CLOSED`를 안내합니다. 이전날 미종료는 자동 퇴근·날짜 변경 없이409 `ATTENDANCE_DAY_REVIEW_REQUIRED`로 닫습니다.
+
+`features/identity/attendance.py::AttendanceWorkflow(receipt_key, key_id)`가 실제 MySQL 근태 제공부입니다. 위 서버 실행기의 `IDENTITY_WORKFLOW_PROVIDER`에 **명시 주입할 수 있는 구현**이며 자동 설치/실제 운영 활성화는 아닙니다. `receipt_key`는 기존 SECRET_KEY/등록/v2방향키·공개키와 다른 비공개32byte키이고, 실제 loader/키보관·배포는 별도입니다. cryptography50.0.2의 AES-256-GCM·별도12byte nonce와 문맥/challenge AAD로 정상토큰 포함 결과를 암호화합니다. DB/감사에 평문 access_token을 남기지 않습니다. 같은 원래 finalize UUID/현재 문맥만 복구하며 키 변경/복호화 불가를503으로 닫습니다. 키는 최소 조회보관 동안 유지해야 하며 이 구현이 자동 키회전을 제공하지 않습니다.
+
+- 초안은 이제 **identity4+근무/영수증2=6테이블**입니다. 정식 DDL번호/전역schema1/기존007은 바꾸지 않았습니다. 근무(user, KST날짜) UNIQUE, challenge별 workflow receipt와 원 finalize UUID UNIQUE를 둡니다.
+- `finalize`가 현재 권한/미소비 verified·원래 challenge 기한 안에서 근무·감사·workflow 영수증을 같은 TX에 저장합니다. 첫 출근은 열린 근무와 정상 AuthSession, 정오는 같은 실제 근무의12시 이후 한 번, 퇴근은 종료 기록과 해당 회원 정상 세션 폐기를 원자 처리합니다. 다른 회원 세션은 유지합니다. 실패는 모두 rollback하며 verified만으로 완료를 표시하지 않습니다.
+- 성공 뒤 원문/원키 재생은 보관창 안에서 저장된 암호화 결과를 복구하며 새 근무·토큰을 발급하지 않습니다. 출근의 pending/퇴근의 폐기 문맥은 **해당 확정 challenge 결과 조회/동일 finalize 재생/폐기만** 허용합니다. 다른 challenge/업무 권한은 주지 않고 현재 계정·비밀번호/회수·장치/매핑도 재검사합니다. 조회 창은 원발급·문맥/결과 보관의 더 이른 상한까지 최대24시간입니다.
+- 제공부에 finalize가 없으면 이전처럼503입니다. 실제 운영에는 위 구현과 원본 근태 범위의 합의/DDL·키·클라이언트 연결이 모두 필요합니다. 관리자 정정·재출근·심야/휴일 정책은 자동 추가하지 않았습니다.
+- `Infrastructure/IdentityPendingConnection.cs`는 실제 IdentityPending 전용 HTTP 전달부입니다. RAM 토큰/같은 로그인 세대·취소·만료·정확 base64url 전달, 승인2초/기타12초와64KiB 응답 상한을 유지합니다. 일반 ApiClient에 임시 토큰을 넣거나 자동 정상로그인/재시도·재스캔하지 않습니다. 현재 LoginForm/MainForm/5번 relay를 자동 연결한 것은 아니며 정상 토큰 최종 인수/화면 연결도 후속입니다.
+
+**검증·미배포:** 실제 raw초안6테이블의 소유 MySQL/Flask 및 loopback 검사는 기존 `test_identity_service.py`, C#은 `Tests/IdentityPending.Http.Tests`를 재현합니다. 최종 실행 수치는 PR62에 구분합니다. 실제5000·37테이블·.env/키/센서와 실물/두PC는 변경·검증하지 않았습니다. 정책 반영/구현·원본 병합·운영 적용을 구분합니다. 아래 1차 게시의 “finalize 미구현/4테이블”은 b71e2e8 단계 이력입니다.
+
+## 2026-10-22 1차 서버 게시 이력 — b71e2e8
 
 **구현됨/검토 대기:** `RemoteWork.Server/remotework/features/identity/`의 제한 로그인·challenge 발급/요청UUID 조회·현재 상태 조회·capture/result 승인·원문 complete·취소·문맥 회수 HTTP와 별도 MySQL 4테이블입니다. 기존 경로/DTO/원문 코덱을 재사용하며 Pi/C# 코드를 대신 수정하지 않습니다. 아래 10/21의 “전체 endpoint 미구현/contract-only”는 당시 기록입니다.
 
