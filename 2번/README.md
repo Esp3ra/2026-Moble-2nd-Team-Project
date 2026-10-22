@@ -1,3 +1,7 @@
+## 최신 — 2번 독립 복구·성공 화면 보완, 2026-10-22
+
+1·4번 회신 대기 중 취소·연장 원사유/날짜, 재배정·관리자 변경 원래 대상, 웹 성공 업무 번호를 표시하도록 보완했습니다. [범위와 남은 연결](공통규약.md#member2-independent-recovery-ui-20261022)·[직접 검사/미실행/게시](업무_구현검증.md#member2-independent-recovery-check-20261022)를 확인합니다. 다른 담당 제품·API/DB·운영 ACK는 변경하지 않았고 기존8문서를 유지합니다.
+
 ## 최신 — 4번 추가 회신 수신·2번 상태/배정 근거, 2026-10-22
 
 14:46 KST에 [3번 PR52](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52#issuecomment-6287667210)·[4번 PR54](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54#issuecomment-6305519634)의 기존 댓글로 회신했습니다. T3 소비 완료와 코드·검증 자료, 4번 재시도 수정·기술 대조를 구분했습니다. 행동별 시각 보완은 alpha641bc71에서 기존10건 재통과했으며 새로운 제품 동작·운영 ACK는 추가하지 않았습니다.
