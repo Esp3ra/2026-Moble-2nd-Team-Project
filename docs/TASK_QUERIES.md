@@ -57,6 +57,27 @@ with authenticated_transaction() as db:
 
 시험 probe는 **실제 사건/UUID/저장부·등록 callback이 아니며**, 첨부-only는 명시 provider 대역이다. raw013·실제 파일/1번 신규 저장부·실제 확인 writer/운영 통합 검증으로 확대하지 않는다. 시험 자원과 소유 DB/프로세스/runtime 정리를 확인했다. 재실행은 앞 절과 같은 명시 환경의 **새 전용 DB**에서 `python -X utf8 -B -m pytest -q -p no:cacheprovider RemoteWork.Server/tests/test_task_deadline_write_boundaries.py`를 사용한다. 기존52건은 이전 현재facts 검사이며 이번17건과 합산하지 않는다.
 
+<a id="deadline-state-evidence"></a>
+## PR54 후속 — 상태·배정 원본과 사건 근거의 범위, 2026-10-22
+
+[4번14:26 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/54#issuecomment-6288083731)은 현재 facts의 실제 소비 완료와 다음 원본 근거 요청입니다.2번은 아래 기존 제품 경로를 대조합니다. 새 마감 사건 공급 함수·기록 hook·알림 API·확인 DB·baseline을 이 문서로 등록하지 않습니다. 담당별 다음 조건은 [기존 LOG 취합](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-deadline-boundary-reply-20261022)을 따릅니다.
+
+| 원본 변화 | 확인할 현재 사실·보존 근거 | 사건/확인 정책과 구분할 점 |
+|---|---|---|
+| 신규 등록 | tasks의 현재 기한, 최초 assignment revision1, task.created 감사 | 현재 생성 감사에는 최초 due_date가 없습니다. 현재값으로 과거 최초 사건을 복원하지 않습니다. |
+| 일반수정의 기한 변경 | task.updated의 changed_fields·before_due_date/due_date·전후 row_version | 실제 DATE 변화만 새 기한 변화의 근거입니다. A→B→A는 두 mutation이며 날짜·버전·감사PK를 사건UUID로 대신하지 않습니다. |
+| 재배정 A→B→A | task_assignments의 보존된 세대1→2→3, current_assignment_revision, task.reassigned 전후 담당자 | 같은 사용자로 돌아와도 다른 배정입니다. 기한이 같아도 옛 계정 확인을 승계하지 않습니다. 배정 세대가 마감 사건ID는 아닙니다. |
+| 수락·재작업 | task.accepted/task.rework_started 감사의 전후 상태·버전·배정, 최초 accepted_at | 수락은 진행전→진행중, 재작업은 반려완료→진행중이며 재작업은 최초 수락시각·기한을 보존합니다. 새 기한 변화로 추정하지 않습니다. |
+| 제출·판단 | 실제3번 submission/decision/ResultEvent와 submission.* 감사의 task_id·round_no·최종 row_version | 진행중→제출완료→반려완료/승인완료. ResultEvent UUID는 결과물 사건이며 마감 사건ID가 아닙니다. 전후 업무버전·기한 전체 체인을 제공하는 reader로 전용하지 않습니다. |
+| 관리자 변경 | task.managers_changed 감사·현재 manager 목록·row_version | 배정 차수/담당자·기한을 바꾸지 않습니다. 관리자 목록이나 row_version 증가만으로 재배정·새 기한 사건을 추정하지 않습니다. |
+| 연장 신청·반려·철회 | task_deadline_extensions의 원기한/희망기한·상태와 해당 감사 | pending 등은 업무5상태와 별개이며 희망기한은 실효기한이 아닙니다. 승인 전/반려/철회는 현재 기한을 바꾸지 않습니다. |
+| 연장 승인 | approved 행, 실제 task.due_date, 해당 감사의 before/after·버전 | 승인된 새 기한만 실제 변화입니다. 원본 writer TX 안의 사실이며 commit 완료 시각을 주장하지 않습니다. |
+| 업무 취소 | task_cancellations의 사유·시각·현재 is_cancelled, pending 연장의 cancelled 종결 | 여섯 번째 업무상태가 아닙니다. 기존5상태·제출/판단 자료·기한은 보존하며 현재 알림 후보 무효화와 과거 확인/receipt 보존은 구분합니다. |
+
+**입증의 한계:** 현재 facts는 현재 Task/Assignment/Cancellation을 잠금 조회할 뿐 과거 감사의 존재·완전성을 증명하지 않습니다. 자료 누락을 현재 due_date/updated_at으로 보정하거나 관리자용100건 페이지를 전체 같은TX 이력으로 사용하지 않습니다. 기존 `collaboration_continuity_reader`는3번 구간·누락·미지에서None을 유지합니다. 같은 배정의 반려→재작업 복귀에서 옛 확인을 유지할지, 검증된 구간만 지원할지 명시 baseline을 만들지는 아직 협의사항입니다.
+
+**검사 근거:** 새 [상태·배정 근거 검사](../Tests/TaskDeadlineEvidence.Tests/README.md)는 실제2번·3번 경로와 소유 MySQL을 사용해 현재 facts/원본 기록을 대조합니다. 제출/판단 제품·공통/4번 구현은 수정하지 않습니다. 기한 사건 저장·알림 확인 동작을 구현하거나 검증한 결과로 확대하지 않습니다. 정확한 실행 수치와 실패/미실행은 해당 README와 LOG 구현검증에 기록합니다. 기존52개 facts 검사·17개 변경 경계 검사와 합산하지 않습니다.
+
 <a id="captured-own-task-navigation"></a>
 ## 로그인에 고정된 내 업무 탐색 접점
 
@@ -73,7 +94,7 @@ bool opened = await navigate(taskId);
 - 호출은 **내 업무 / 전체 상태 / 취소 제외**로 명시 이동합니다. 같은 캡처 접속으로 새 own 목록을 받은 후 정확한 ID의 행만 선택하고 기존 상세 GET을 실행합니다. 목록에 대상이 없으면 선택을 비우고 안내하며 첫 행을 대신 열거나 managed 범위로 확대하지 않습니다. 기존 일반 새로고침의 필터/선택 유지 동작은 그대로입니다.
 - ID는 정규 양의 BIGINT 문자열이며 `9007199254740993`과 최댓값도 원문 문자열로 전송합니다. 잘못된 ID는 UI/HTTP를 변경하지 않고 `false`입니다. 기존 `ITaskQueryService`의 불투명 ID 규약을 변경한 것은 아닙니다.
 - `true`는 같은 접속·현재 선택의 요청 업무 상세를 표시했다는 뜻입니다. 없음·403/404/503·취소·새 탐색/필터/행 선택·접속 변경 이후의 옛 응답은 성공으로 반환하지 않습니다. 401은 기존 공통 인증 만료 처리와 함께 화면을 무효화합니다. 오류 안내는 기존 조회 분류를 재사용합니다.
-- 목록과 상세는 별도 GET입니다. 알림의 현재 본인 배정·현재 사건 재검사나 확인 저장의 원자성을 이 콜백으로 증명하지 않습니다. 작업 실행 권한은 서버가 실행 시 다시 검사합니다. 관리 업무 결과물 진입·일반수정 첨부 교체·실제 알림 source 연결은 담당별 후속입니다. MainForm의 명시 탐색 조립은 PR64에 제공됐고, 등록 첨부 연결 범위는 [등록 안내](TASK_CREATION.md)를 따릅니다.
+- 목록과 상세는 별도 GET입니다. 알림의 현재 본인 배정·현재 사건 재검사나 확인 저장의 원자성을 이 콜백으로 증명하지 않습니다. 작업 실행 권한은 서버가 실행 시 다시 검사합니다. 관리 업무의 결과물 읽기·명시 복귀는 [업무 웹](TASK_WEB.md), 일반수정 첨부 교체는 [업무 변경](TASK_MANAGEMENT.md#task-management-attachments-ui)대로 연결했습니다. 실제 알림 source와 공유 배포 검증은 후속입니다. MainForm의 명시 탐색 조립은 PR64에 제공됐고, 등록 첨부 연결 범위는 [등록 안내](TASK_CREATION.md)를 따릅니다.
 - 선택 업무의 첨부는 기존 선택 흐름을 유지합니다. 첨부 응답이 지연돼도 성공한 업무 상세와 행동은 사용할 수 있고, 첨부 준비 오류만으로 업무 상세를 지우지 않습니다. 반환 작업은 기존 상세/첨부 조회가 종료된 뒤 완료됩니다.
 
 검사 명령과 경계는 [HTTP/화면 검사 안내](../Tests/TaskQueries.Http.Tests/README.md)를 따릅니다. 실제 서버·공유 DB·알림 팝업/MainForm 조립 검증과 명시 HTTP 대역의 컨트롤 검증은 구분합니다.
@@ -87,7 +108,7 @@ bool opened = await navigate(taskId);
 
 WinForms 상세의 첨부 목록/저장 버튼은 기존3번 `/api/v1/results/shared/tasks/{task_id}`와 파일 조각 GET을 캡처된 공통 로그인 세션으로 조회합니다. 빈 목록·취소·인증 만료·권한 없음·미준비·서버/형식 오류를 구분하고, 행 선택/재로그인 뒤 늦은 응답을 버립니다. UUID/이름·25MiB·최대10개·조각 순서/종료·전체 SHA256을 검사하고, 해당 업무의 현재 파일 목록을 전송 전후와 저장 직전에 다시 조회합니다. 검증 완료된 바이트만 새 파일로 저장하며 기존 파일은 덮지 않습니다. [소비 검사](../Tests/TaskAttachments.Tests/README.md)는 대역과 실제 연동을 구분합니다.
 
-2026-10-21 팀장이 `attachment_ids` 선택 필드와 생략/빈 배열 의미를 수용했습니다. [등록 API/C# DTO와 전송 서비스](TASK_CREATION.md)는 제공됐으며, [일반수정 첨부](TASK_MANAGEMENT.md#task-management-attachment-selection)는 같은 TX의 전후 목록/diff·감사 접점 제공 전 명시 목록을503으로 차단합니다. 웹 첨부 cookie/CSRF 어댑터는 아직3번 미제공입니다. 취소 TX의 업무 첨부 참조 해제는 [lifecycle 계약](TASK_LIFECYCLE.md)을 따릅니다.
+2026-10-21 팀장이 `attachment_ids` 선택 필드와 생략/빈 배열 의미를 수용했습니다. [등록 API/C# DTO와 전송 서비스](TASK_CREATION.md)는 제공됐으며, [일반수정 첨부](TASK_MANAGEMENT.md#task-management-attachments-ui)는 PR68의 공개 현재 목록/교체 접점을 같은 TX의 전후 집합 비교·감사·W1에 연결했습니다. 제공부·스키마 미준비일 때만 명시 첨부 변경을503으로 차단합니다. 웹 cookie/CSRF 어댑터와 WinForms 등록·수정의 파일 선택/명시 전송·삭제 화면도 연결했습니다. 취소 TX의 업무 첨부 참조 해제는 [lifecycle 계약](TASK_LIFECYCLE.md)을 따릅니다.
 
 기존 QUERY+COMMON_WRITE opt-in에서 `collaboration_continuity_reader(db, task_id, since_version, current_version)`를 등록하되 기존 reader를 덮지 않습니다. 같은 현재 인증 트랜잭션/guard에서 Task·배정·AuditEvent를 현재 잠금 조회합니다. 완전한2번 단위 버전 체인과 상태/배정을 대조해 계속 진행중이면True, 완전한 체인에 중단이 증명되면False입니다. 누락·중복·미지 행동·3번 제출 구간·범위/2048행 상한·현재 버전 불일치는None입니다. 과거/현재 차수만으로 중간 제출·반려가 없었다고 추정하지 않습니다. 이 함수는 협업 현재 관계나 원업무·첨부 열람 권한을 부여하지 않으며4번 bridge의 기존 권한 검사도 유지합니다.
 
@@ -177,7 +198,7 @@ WinForms 상세의 첨부 목록/저장 버튼은 기존3번 `/api/v1/results/sh
 
 기존 `검토 요청`은 미정인 별도 요청이며 새 제출 진입과 구분합니다. 제출 결과가 불명확한 채 새로고침하여 서버의 제출완료를 받으면 새 버튼이 비활성화될 수 있습니다. 이때 **결과물 메뉴 → 제출 결과 확인**으로 기존 pending 요청을 복구합니다. 새 버튼을0행/모든 상태의 pending 복구 진입으로 표시하지 않습니다.
 
-현재 MainForm은 메뉴 이동 시 이전 화면을 Dispose하고 업무 메뉴 복귀 때 새 TasksControl로 최신 GET을 수행합니다. 이 연결에서 MainForm·ResultsSaved 전역 구독·3번 폼/서버를 대신 변경하지 않았습니다. [반복 가능한 기존 제출 통합 검사](../Tests/TaskResults.Integration.Tests/README.md)는 유지합니다. 업무 수정/재배정·취소/연장 정책은 확정됐습니다. 새 lifecycle 차단의 3번 소비 코드는 병합됐으며 같은 배포/공유 환경 확인은 별도입니다. 공용 성공 이벤트 payload/구독·기한 알림의 실제 source와 일반수정 첨부 교체는 후속입니다.
+현재 MainForm은 메뉴 이동 시 이전 화면을 Dispose하고 업무 메뉴 복귀 때 새 TasksControl로 최신 GET을 수행합니다. 이 연결에서 MainForm·ResultsSaved 전역 구독·3번 폼/서버를 대신 변경하지 않았습니다. [반복 가능한 기존 제출 통합 검사](../Tests/TaskResults.Integration.Tests/README.md)는 유지합니다. 업무 수정/재배정·취소/연장 정책은 확정됐습니다. 새 lifecycle 차단의 3번 소비 코드는 병합됐으며 같은 배포/공유 환경 확인은 별도입니다. [일반수정 첨부 교체 화면](TASK_MANAGEMENT.md#task-management-attachments-ui)은 연결했고, 공용 성공 이벤트 payload/구독·기한 알림의 실제 source는 후속입니다.
 
 ### 로그인과 화면 수명
 
@@ -187,7 +208,7 @@ WinForms 상세의 첨부 목록/저장 버튼은 기존3번 `/api/v1/results/sh
 
 새 로그인에서 `다시 조회`/F5를 누르면 목록·상세와 준비/등록 세션을 함께 캡처한다. 다른 접속의 이전 선택을 복원하지 않고 현재 역할의 본인/관리 범위를 다시 사용한다. 같은 접속에서 같은 조건으로 재조회할 때는 기존 선택 복원 규칙을 유지한다. `auth/me`의 정상 갱신 자체는 로그아웃으로 취급하지 않으며, 서버의 현재 권한 검사가 최종 기준이다. 입력 확인이나 재조회가 자동 저장/수락을 실행하지 않는다.
 
-4번 회신의 assignment_revision은 signed INTEGER/JSON 정수이며 task_id·row_version의 BIGINT 문자열과 구분합니다.2026-10-21 알림 A1~A6·협업 B1~B7 진행 기준을 채택했으며,새 due_revision/사건 식별·관계/서버 시각의 DTO와 API/DB·실제 구현은 기술 대조 대상입니다.5번 장치/근태는 업무 조회·등록·수락의 추가 조건으로 연결하지 않습니다. 수정/재배정·취소/연장 정책은 확정됐고,공용 이벤트·파일 참조·새 취소/대기 연장 사실의3번 소비 코드는 제공됐고 공유 환경의 적용·검증은 별도입니다.
+4번 회신의 assignment_revision은 signed INTEGER/JSON 정수이며 task_id·row_version의 BIGINT 문자열과 구분합니다.2026-10-21 알림 A1~A6·협업 B1~B7 진행 기준을 채택했으며,새 due_revision/사건 식별·관계/서버 시각의 DTO와 API/DB·실제 구현은 기술 대조 대상입니다.5번 장치/근태는 업무 조회·등록·수락의 추가 조건으로 연결하지 않습니다. 수정/재배정·취소/연장 정책은 확정됐고,3번의 취소/연장 대기 차단과 공용 파일 제공부,2번의 파일 참조·등록/일반수정 소비는 연결됐고 공유 환경의 적용·검증은 별도입니다. 실제 알림 사건·확인 저장 계약은 기존 업무 감사/결과물 이력과 구분합니다.
 
 목록과 상세는 서로 다른 요청 시점의 결과다. 선택한 같은 ID의 최신 상세 요약이 목록 행의 제목·담당자 표시명·상태·시작일·마감일과 다르면 최신 상세는 정상 표시하고 목록 정보 변경 안내 및 `목록 새로고침` 버튼을 제공한다. 목록 행·선택·필터를 임의로 수정하지 않는다. 버튼은 기존 목록 전체 재조회로 연결하며 동일 조건의 선택 복원 규칙을 유지한다. F5도 목록 전체 재조회다. 새 목록과 상세가 같아지면 일반 조회 완료 안내로 돌아간다. 상태 필터 목록 조회 뒤 상세 상태가 바뀐 경우도 서버 오류로 취급하지 않는다.
 
@@ -201,7 +222,7 @@ WinForms 상세의 첨부 목록/저장 버튼은 기존3번 `/api/v1/results/sh
 
 접속 변경 등 공통 클라이언트의 취소가 화면 자체 토큰 취소와 별도로 전달되면 이전 목록/상세를 비우고 조회 취소로 안내한다. 이미 교체된 조회·선택·종료의 늦은 취소는 새 화면을 바꾸지 않는다. 실제401은 기존 인증 만료 처리와 구분한다.
 
-알 수 없는 상태, 누락/NULL 필수 필드, 빈/중복 ID, 잘못된 날짜, 날짜 역전, 상세 ID 불일치는 성공 결과로 표시하지 않습니다. 목록에서 요청한 상태와 다른 항목이 있으면 전체 응답을 이용 불가로 처리하고 부분 성공·로컬 재필터링으로 숨기지 않습니다. 상세는 목록 이후 상태가 달라질 수 있으므로 이전 상태와 다르다는 이유만으로 거절하지 않습니다. 현재 상세는 [입력/대상 준비](TASK_INPUT_PREPARATION.md)와 별도 시작·관리/lifecycle 실행창에 전달합니다. 각 개발 옵션·현재 권한/상태에 따라 명시 실행을 제공하고 취소된 업무의 새 쓰기를 막습니다. 취소·연장 변경은 같은 배포의 통합 검증·ACK 확인 전503입니다. 첨부 읽기는 위 기존 shared 계약을 소비하고, 등록 첨부는 별도 확정 계약을 따릅니다. 일반수정 첨부 교체·별도 검토 요청을 임의로 연결하지 않으며 보관된 시작·관리/lifecycle 요청의 결과 확인은 선택 행 없이도 가능합니다.
+알 수 없는 상태, 누락/NULL 필수 필드, 빈/중복 ID, 잘못된 날짜, 날짜 역전, 상세 ID 불일치는 성공 결과로 표시하지 않습니다. 목록에서 요청한 상태와 다른 항목이 있으면 전체 응답을 이용 불가로 처리하고 부분 성공·로컬 재필터링으로 숨기지 않습니다. 상세는 목록 이후 상태가 달라질 수 있으므로 이전 상태와 다르다는 이유만으로 거절하지 않습니다. 현재 상세는 [입력/대상 준비](TASK_INPUT_PREPARATION.md)와 별도 시작·관리/lifecycle 실행창에 전달합니다. 각 개발 옵션·현재 권한/상태에 따라 명시 실행을 제공하고 취소된 업무의 새 쓰기를 막습니다. 취소·연장 변경은 같은 배포의 통합 검증·ACK 확인 전503입니다. 첨부 읽기는 위 기존 shared 계약을 소비하고, 등록 첨부는 별도 확정 계약을 따릅니다. 일반수정 첨부 교체는 확정된 선택 필드·공개 T3 접점으로 연결했고 별도 검토 요청은 협의사항으로 유지하며 보관된 시작·관리/lifecycle 요청의 결과 확인은 선택 행 없이도 가능합니다.
 
 ## DB와 적용 경계
 
