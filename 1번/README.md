@@ -1,3 +1,10 @@
+<a id="pr7576-owner1-and-leave-20261022"></a>
+## 1번 최신 수신 — PR75·76 공급 / PR58 연차 계약 회신 대기
+
+[75](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/75#issuecomment-6336468832) **e8945bba**의 현재 관리자·원 버전/배정/담당자/DATE·run UUID/사유를 검증하는 명시 baseline·014를 수신했습니다. 기존head 보존/고아거절·같은TX 전체rollback이며 자동seed/공개HTTP가 아닙니다. [76](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/76#issuecomment-6336589781) **36f1e55d**의 자원 첨부는 현재권한/원TX 콜백을 요구하는 제공 계약입니다.1번 정식DDL 번호·적용/백업 검토와4번 실제 소비는 별도입니다. [직접 검사·작성자 운영보고 구분](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr7576-pr58-review-20261022)을 따릅니다.
+
+PR58의 [1번17:11:39 갱신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309878130)은 PR74 독립소비 수신입니다. 이후 [5번17:12:14 연차 추가 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309485288)의 실제 서버/API·신청/본인목록/배정관리자 결정·원 요청UUID 결과복구·잔여일 원자계산 계약에는 아직 추가회신이 없습니다. [현재 제품 기본](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/36f1e55d44cd3fa2fd2c7f634fbcd0d059ce7a9d/RemoteWork.WinForms/Features/Attendance/LeaveWorkflow.cs)은 미연결이며 UI 주입접점을 서버 구현으로 표시하지 않습니다. 기존 병가/공가 미차감은 유지하고 부여기간·휴일/주말·반차·차감/반려복원·중복·과거/연도·반려사유 필수 여부는 [미확정 목록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr7576-pr58-boundaries-20261022)으로 구분합니다. 이번 문서가 새 정책 승인/운영 변경 지시는 아닙니다.
+
 <a id="pr74-common-consumed-20261022"></a>
 ## 1번 공통 수신 — 5번 기본 제품 경로의 실제 소비 완료
 

@@ -1,3 +1,12 @@
+<a id="pr58-owner5-leave-request-current-20261022"></a>
+## 5번 최신 — PR74 소비 완료 유지 / PR58 연차 추가 계약 대기
+
+PR58 [1번17:11:39](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309878130)는 PR74 독립 소비를 수신했고, [5번17:12:14](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309485288)는 연차 전체 서버권한·잔여일/원 UUID 결과복구 계약을 추가 요청했습니다. 그 새 연차 요청에1번 후속회신은 아직 없습니다. [AttendanceControl](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/36f1e55d44cd3fa2fd2c7f634fbcd0d059ce7a9d/RemoteWork.WinForms/Features/Attendance/AttendanceControl.cs)·신청/결정 폼의 기본은 [UnconnectedLeaveWorkflow](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/36f1e55d44cd3fa2fd2c7f634fbcd0d059ce7a9d/RemoteWork.WinForms/Features/Attendance/LeaveWorkflow.cs)이며 실제 신청·조회·승인을 저장하지 않습니다.
+
+필요한1번 계약은 캡처접속·본인목록/배정관리자 권한·원 요청UUID/버전·한TX 차감/잔여일/감사·응답유실 결과복구입니다. 기존 병가·공가 미차감은 유지하고 부여기간·휴일/주말·반차·차감/반려복원·중복·과거/연도·반려사유 필수 여부를 새로 확정하지 않습니다. [미확정/후속](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr7576-pr58-boundaries-20261022)으로 취합합니다.
+
+PR74 기본 공통 퇴근 factory/reader 소비 제공 상태를 유지합니다. [75](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/75#issuecomment-6336468832)/[76](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/76#issuecomment-6336589781) 병합은 새 근태조건·loader/startup/실장비·공유활성화가 아니며 새지문OFF·같은LAN 사설IP+PORT를 보존합니다. 작성자 운영보고와 이번 직접 검증은 [실행 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr7576-pr58-review-20261022)에서 구분합니다.
+
 <a id="pr74-member5-default-connected-20261022"></a>
 ## 5번 최신 — 실제 기본 공통 퇴근 연결·복구 검증 완료
 

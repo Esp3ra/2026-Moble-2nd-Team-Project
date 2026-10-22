@@ -1,3 +1,12 @@
+<a id="pr7576-pr58-current-20261022"></a>
+## 최신 — PR75·76 병합 / PR58 연차 추가 요청 수신, 2026-10-22
+
+사용자 지시에 따라 [PR75](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/75#issuecomment-6336468832)는 Draft→Open→**e8945bba**, [PR76](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/76#issuecomment-6336589781)는 Open→**36f1e55d**에 병합했습니다. 각 실제 tree가 검증 결합본과 같습니다.75는 명시 관리자TX의 현재 기준 사건·014 공급,76은 공지/채팅 자원의 공용 첨부 제공부·웹 어댑터 계약입니다.4번 실제 권한/원TX·UI 소비·정식DDL/삭제정책·LAN crypto 제약은 후속입니다.
+
+75·76의 관련 소유MySQL/회귀와75 Release0/0을 확인했습니다. 정확한 실행 밴드/포함 수치는 중앙 검토 기록에 모으며76 C#/실제브라우저·두PC는 미실행입니다.75의5000·37→40·4baseline·HTTP22·복원1은 **작성자 운영보고/이번 검토 미재실행**입니다. [정확한 SHA·검사·경고](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr7576-pr58-review-20261022)·[담당별 제공/후속](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr7576-pr58-boundaries-20261022)을 따릅니다.
+
+PR58 [1번17:11:39](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309878130)는 PR74 독립 소비 수신, [5번17:12:14](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/58#issuecomment-6309485288)는 연차 전체 서버권한·잔여일/원 결과복구 계약을 추가 요청했습니다. 그 연차 추가분에1번 후속회신은 아직 없습니다. [기본 제품](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/36f1e55d44cd3fa2fd2c7f634fbcd0d059ce7a9d/RemoteWork.WinForms/Features/Attendance/LeaveWorkflow.cs)은 UnconnectedLeaveWorkflow로 실제 저장하지 않으며 계산정책을 새로 확정하지 않았습니다. 실제5000/.env·DB/서비스/flags·키/장비·사용자 프로젝트는 이번 검토에서 미변경입니다.
+
 <a id="pr74-merged-status-20261022"></a>
 ## 최신 — PR74 기본 퇴근 연결·결과 복구 병합, 2026-10-22
 
