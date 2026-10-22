@@ -1,5 +1,15 @@
 # DB 변경 기록
 
+## 014 마감 사건·배정별 확인 — 2026-10-22
+
+[014_deadline_alerts.mysql.sql](014_deadline_alerts.mysql.sql)은 PR70의 두 draft SQL을 구조 변경 없이 합친 명시 적용 파일이다. 기존 draft와 중복 실행하지 않는다. 기존 schema1·업무/회원/배정·확인 보존형 FK와 `(event_id,user_id,assignment_revision)` 키를 유지한다. 앱 시작/전체 init-db로 적용하지 않는다.
+
+사용자는 기존 업무를 도입 시점의 현재 기준 사건으로 명시 등록하도록 승인했다. `deadline_events.establish_baseline`은 현재 인증된 활성 관리자 TX에서 원 업무 버전·배정·담당자·DATE가 검증 계획과 모두 일치할 때만 `task.deadline_baseline` 사건과 동일 TX의 전환 감사(run UUID·사유·배정·기한)를 기록한다. 과거 변경 이력을 소급하지 않고 업무 버전/배정/기한을 바꾸지 않는다. 기존 head는 보존하고 head 없는 고아 기록·계획 변경은 실패한다. 전체 계획은 한 TX로 처리하며 실패 시 전부 rollback한다. 자동 seed·공개 baseline HTTP endpoint는 없다.
+
+적용 순서: 비공개 전체 dump/설정 보존 → 독립 새 MySQL 복원·전행/DDL 대조 → 014·물리 readiness와 현재 기준 전환 리허설 → 원본 변경 여부 재검사 → 같은5000 서비스 중지 → 014 명시 CREATE·기준 전환 → 기존 두 마감 옵션만 명시 ON → 같은5000 재기동·현재 권한/목록/W1 검사. 백업 이후 변경됐으면 다시 백업·검증한다. DDL은 MySQL에서 비트랜잭션이므로 부분 실패 시 자동 재실행/삭제하지 말고 생성된 테이블을 점검한다. 기존 테이블 DROP/덤프 덮어쓰기는 복구 기본 절차가 아니다.
+
+장애 시 새 쓰기를 중지하고 두 마감 옵션을 OFF로 되돌려 같은 서버를 재기동한다. 새 사건/확인/감사는 보존한다. 기존 성공 읽기가 필요하면 결과 읽기 옵션만 ON으로 유지하되 현재 인증·원 actor/배정·TTL 검사와 저장소 readiness가 필요하다. 파일/DB 전체 덮어쓰기 복원은 별도 검토하며, 현재 자료와 새 기록을 먼저 보존한다. 새 지문 OFF·취소/연장 운영 ACK는 변경하지 않는다. 이 문서의 적용 절차와 실제 실행 결과는 구분해 회신한다.
+
 2026-10-21: 공용 첨부 추가3테이블의 검토 파일은 [013_shared_attachments.mysql.sql](013_shared_attachments.mysql.sql)로 일원화했다. 기존 `drafts/shared_attachments.mysql.sql`의 바이트는 그대로이며 검사/안내 경로만 맞췄다. 006 결과물 기반·002/004 선행과 공통 schema1을 유지한다. 012는 별도 PR57 협업용 예약이며 번호를 재사용하지 않는다. 소유 MySQL의 rawSQL/PK/FK·물리 조건·새DB 복원 검토와 실제 사용자 DB 적용은 별개다. 기존 DB의 테이블/열 대조·백업/복원과 기능 연결 검증 뒤 명시 적용하며 앱 시작/init-db에서 자동 적용·기존 테이블 ALTER/삭제·전역version13 기록을 하지 않는다. [공용 첨부 계약과 처리 경계](../../docs/SHARED_ATTACHMENTS.md)를 따른다.
 
 현재 공통 스키마 버전은 **1**입니다. 최초 테이블 생성은 `flask --app remotework init-db` 또는 `run.py --init`으로 수행합니다. 공통 모델 정의는 `remotework/models.py`입니다. `init-db/create_all`은 기존 열의 migration이나 공유 DB 적용을 대신하지 않습니다.
