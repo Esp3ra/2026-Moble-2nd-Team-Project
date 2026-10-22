@@ -30,12 +30,17 @@ def create_app(test_config=None):
         ENABLE_DEVICE_ENROLLMENT_DRAFT=os.getenv("REMOTEWORK_ENABLE_DEVICE_ENROLLMENT_DRAFT") == "1",
         ENABLE_ENROLLMENT_DURABILITY_DRAFT=os.getenv("REMOTEWORK_ENABLE_ENROLLMENT_DURABILITY_DRAFT") == "1",
         ENABLE_ENROLLMENT_RECOVERY_DRAFT=os.getenv("REMOTEWORK_ENABLE_ENROLLMENT_RECOVERY_DRAFT") == "1",
+        ENABLE_DEVICE_IDENTITY_DRAFT=os.getenv("REMOTEWORK_ENABLE_DEVICE_IDENTITY_DRAFT") == "1",
         WRITE_REQUEST_TTL_SECONDS=int(os.getenv("WRITE_REQUEST_TTL_SECONDS", "86400")),
         COMPANY_NAME=os.getenv("COMPANY_NAME", "회사명"), SESSION_HOURS=int(os.getenv("SESSION_HOURS", "8")),
         COOKIE_SECURE=os.getenv("COOKIE_SECURE", "false").lower() == "true", MAX_CONTENT_LENGTH=32 * 1024,
         SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax", SESSION_REFRESH_EACH_REQUEST=False)
     if test_config:
         app.config.update(test_config)
+    # Reject incomplete private/service configuration before database initialization.
+    if app.config["ENABLE_DEVICE_IDENTITY_DRAFT"]:
+        from .features.identity import validate_configuration
+        identity_profiles = validate_configuration(app.config)
     if ((app.config["ENABLE_COLLABORATION_DRAFT"] or app.config["ENABLE_COLLABORATION_RESULT_READS_DRAFT"])
             and not app.config["ENABLE_COMMON_WRITE_DRAFT"]):
         raise RuntimeError("Collaboration requires explicit common write support")
@@ -52,6 +57,9 @@ def create_app(test_config=None):
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=app.config["SESSION_HOURS"])
     app.config["DUMMY_HASH"] = generate_password_hash(secrets.token_urlsafe(32), method="scrypt")
     db.init_app(app)
+    if app.config["ENABLE_DEVICE_IDENTITY_DRAFT"]:
+        from .features.identity import install as install_identity
+        install_identity(app, identity_profiles)
     from .auth import load_identity
     from .api import bp as api_bp
     from .web import bp as web_bp

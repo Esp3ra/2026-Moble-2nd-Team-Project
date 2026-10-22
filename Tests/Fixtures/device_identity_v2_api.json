@@ -1,0 +1,59 @@
+{
+  "implementation_status": "contract-only; no HTTP routes installed",
+  "prefix": "/api/v1/device-identity",
+  "input_examples": {
+    "login": {
+      "login_id": "synthetic-user",
+      "password": "public-example-not-a-real-password",
+      "client_request_id": "30000000-0000-4000-8000-000000000001"
+    },
+    "issue": {
+      "device_id": "10000000-0000-4000-8000-000000000001",
+      "purpose": "clock_in",
+      "client_request_id": "30000000-0000-4000-8000-000000000001"
+    },
+    "approval": {
+      "probe_b64": "eyJ2IjoyLCJraW5kIjoiaWRfcHJvYmUiLCJkZXZpY2VfaWQiOiIxMDAwMDAwMC0wMDAwLTQwMDAtODAwMC0wMDAwMDAwMDAwMDEiLCJrZXlfaWQiOiJwdWJsaWMtaWRlbnRpdHktdmVjdG9yLWVwb2NoLTEiLCJwYXlsb2FkX2I2NCI6ImV5SmphR0ZzYkdWdVoyVmZhV1FpT2lJeU1EQXdNREF3TUMwd01EQXdMVFF3TURBdE9EQXdNQzB3TURBd01EQXdNREF3TURFaUxDSnViMjVqWlNJNklsUnJOVTlVYXpWUFZHczFUMVJyTlU5VWF6VlBWR3MxVDFSck5VOVVhelZQVkdzMVQxUnJOVTlVYXpRaUxDSnRZWEJ3YVc1blgzSmxkbWx6YVc5dUlqb2lOeUlzSW10bGVWOWxjRzlqYUNJNklqRWlMQ0owYVdOclpYUmZaR2xuWlhOMElqb2lOalkzTnpnMk5tSmlZVFExTlRJMlkyWTRZVEEyTmpjeU1EazNOakJtWldFd09XWXdOakJtWmpFM1lqRTVPVFF5TlRrNU1HVTBaakZsTmpkbFl6STRZU0lzSW5CeWIySmxYMjV2Ym1ObElqb2lWVVpDVVZWR1FsRlZSa0pSVlVaQ1VWVkdRbEZWUmtKUlZVWkNVVlZHUWxGVlJrSlJWVVpDVVZWR1FTSXNJbk5qYjNCbElqb2lZMkZ3ZEhWeVpTSjkiLCJtYWNfYjY0IjoiNjdzS3dGZjR0X1hwd2gwcnFhUklNZ1JLSkN3bXZHZ1Q2YjNOZTN5WUFvWSJ9"
+    },
+    "complete": {
+      "result_b64": "eyJ2IjoyLCJraW5kIjoiaWRfcmVzdWx0IiwiZGV2aWNlX2lkIjoiMTAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwia2V5X2lkIjoicHVibGljLWlkZW50aXR5LXZlY3Rvci1lcG9jaC0xIiwicGF5bG9hZF9iNjQiOiJleUpqYUdGc2JHVnVaMlZmYVdRaU9pSXlNREF3TURBd01DMHdNREF3TFRRd01EQXRPREF3TUMwd01EQXdNREF3TURBd01ERWlMQ0p1YjI1alpTSTZJbFJyTlU5VWF6VlBWR3MxVDFSck5VOVVhelZQVkdzMVQxUnJOVTlVYXpWUFZHczFUMVJyTlU5VWF6UWlMQ0p0WVhCd2FXNW5YM0psZG1semFXOXVJam9pTnlJc0ltdGxlVjlsY0c5amFDSTZJakVpTENKMGFXTnJaWFJmWkdsblpYTjBJam9pTmpZM056ZzJObUppWVRRMU5USTJZMlk0WVRBMk5qY3lNRGszTmpCbVpXRXdPV1l3TmpCbVpqRTNZakU1T1RReU5UazVNR1UwWmpGbE5qZGxZekk0WVNJc0luSmxjM1ZzZEY5cFpDSTZJalF3TURBd01EQXdMVEF3TURBdE5EQXdNQzA0TURBd0xUQXdNREF3TURBd01EQXdNU0lzSW05MWRHTnZiV1VpT2lKdFlYUmphR1ZrSWl3aWMyeHZkQ0k2TVRjc0ltWmhhV3gxY21WZlkyOWtaU0k2Ym5Wc2JDd2lZWEJ3Y205MllXeGZaR2xuWlhOMElqb2laV000WkdNd05qVmhOR05tWTJGaU1XTmhZVE5sWlRZMU56ZG1ZbUptTkdFNE56SmxPR0UwTkROaE5HWmlOMlZsWVRoalkyUmpOVEV5WWpBNVpXSXlPQ0o5IiwibWFjX2I2NCI6Ikl2SGR0ZGpxVjZvSElWeFRHVV84dWhvR0MwUlZyU2VjR3BpU1RHc0NVOWMifQ"
+    },
+    "cancel": {
+      "client_request_id": "30000000-0000-4000-8000-000000000001"
+    },
+    "finalize": {
+      "client_request_id": "30000000-0000-4000-8000-000000000001"
+    },
+    "revoke": {
+      "client_request_id": "30000000-0000-4000-8000-000000000001"
+    }
+  },
+  "response_examples": {
+    "unknown_request": {
+      "state": "not_recorded"
+    },
+    "issue": {
+      "challenge_id": "20000000-0000-4000-8000-000000000001",
+      "client_request_id": "30000000-0000-4000-8000-000000000001",
+      "state": "issued",
+      "expires_at": "2026-10-21T08:01:00Z",
+      "request_b64": "eyJ2IjoyLCJraW5kIjoiaWRfcmVxdWVzdCIsImRldmljZV9pZCI6IjEwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImtleV9pZCI6InB1YmxpYy1pZGVudGl0eS12ZWN0b3ItZXBvY2gtMSIsInBheWxvYWRfYjY0IjoiZXlKamFHRnNiR1Z1WjJWZmFXUWlPaUl5TURBd01EQXdNQzB3TURBd0xUUXdNREF0T0RBd01DMHdNREF3TURBd01EQXdNREVpTENKdWIyNWpaU0k2SWxSck5VOVVhelZQVkdzMVQxUnJOVTlVYXpWUFZHczFUMVJyTlU5VWF6VlBWR3MxVDFSck5VOVVhelFpTENKdFlYQndhVzVuWDNKbGRtbHphVzl1SWpvaU55SXNJbXRsZVY5bGNHOWphQ0k2SWpFaUxDSmxlSEJsWTNSbFpGOXpiRzkwSWpveE55d2ljSFZ5Y0c5elpTSTZJbU5zYjJOclgybHVJaXdpYzJWemMybHZibDl5WldZaU9pSlJNRTVFVVRCT1JGRXdUa1JSTUU1RVVUQk9SRkV3VGtSUk1FNUVVVEJPUkZFd1RrUlJNRTVFVVRCTklpd2lkMjl5YTE5elpYTnphVzl1WDNKbFppSTZiblZzYkN3aWQyOXlhMTlrWVhSbElqb2lNakF5TmkweE1DMHlNU0lzSW1semMzVmxaRjloZENJNklqSXdNall0TVRBdE1qRlVNRGc2TURBNk1EQmFJaXdpWlhod2FYSmxjMTloZENJNklqSXdNall0TVRBdE1qRlVNRGc2TURFNk1EQmFJbjAiLCJtYWNfYjY0IjoiVjdwOHgwV0huaS1yYkFNNURPX2NRTmRyN0Y4TFN0dFc2ZVZoRHR6ZEd5TSJ9"
+    },
+    "complete_matched": {
+      "challenge_id": "20000000-0000-4000-8000-000000000001",
+      "state": "verified",
+      "workflow_state": "pending",
+      "identity_receipt": {
+        "receipt_id": "60000000-0000-4000-8000-000000000001",
+        "purpose": "clock_in",
+        "verified_at": "2026-10-21T08:00:15Z"
+      }
+    },
+    "complete_no_match": {
+      "challenge_id": "20000000-0000-4000-8000-000000000001",
+      "state": "rejected",
+      "workflow_state": "not_started",
+      "identity_receipt": null
+    }
+  }
+}
