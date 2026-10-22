@@ -1,5 +1,7 @@
 # 지문 출근·로그인 조립 검사
 
+2026-10-22 후속: `Workday.cs`/실제 서버 모드4개를 추가했다. 아래77/13은 PR69 당시 결과이며, 현재 기본 명령은 정오·퇴근 검사를 함께 실행한다. [연결 경계](../../RemoteWork.WinForms/Features/Attendance/WORKDAY_IDENTITY.md)를 따른다. 서버 runner의 현재 선택 모듈은 기존10 + 로그인3 + 정오/퇴근4 = **17 pytest 시나리오**다. 실제 실행 결과는 후속 검증 기록과 구분한다.
+
 ```powershell
 dotnet run --project Tests/IdentityLogin.Ui.Tests -c Release
 # 선택: 합성 화면 PNG
