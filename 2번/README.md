@@ -1,3 +1,7 @@
+## 최신 — PR77 R77-01 직접 수정 완료·재검토용 반영, 2026-10-22
+
+사용자가 요청한 CHECK문자열 정규화 오류를 [ef84aed](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/ef84aeddaa7e070ef88a9216c13dd0fc68eaac16)로 기존 PR77 브랜치에 푸시했습니다. [원지적/수정·표현식29/실제MySQL49/원HTTP108](PR_검토기록.md#pr77-r77-01-fixed-20261022)과 [변경파일·미실행](업무_구현검증.md#member2-pr77-fix-evidence-20261022)을 취합합니다. Draft/미병합·운영/사용자프로젝트 미변경을 유지하며 다른 제품·SQL선언·정책은 변경하지 않았습니다. 기존8문서/앵커를 보존합니다.
+
 <a id="member2-pr7576-pr58-current-20261022"></a>
 ## PR75·76 병합·PR58 회신 취합 — 2번 기존 범위 보존
 

@@ -1,3 +1,21 @@
+<a id="pr77-r77-01-fixed-20261022"></a>
+## PR77 R77-01 직접 수정·검증·기존 브랜치 반영 — 2026-10-22
+
+사용자의 PR77 오류 수정 요청으로 [R77-01/P2 지적](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/77#issuecomment-6337145116)을 직접 수정했습니다. 원 head57f8c26에서 [ef84aeddaa7e070ef88a9216c13dd0fc68eaac16](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/ef84aeddaa7e070ef88a9216c13dd0fc68eaac16)로 포크의 기존 `codex/resource-attachment-readiness` 브랜치에 일반 push했고 GitHub PR head의 일치를 확인했습니다. PR base36f1e55d·전체7파일이며 **Draft/OPEN·미병합을 유지**합니다. 본문과 원 검토의57f8c26·32건은 원 제출/검토 당시 근거이며 아래 수정본과 구분합니다.
+
+`_check_tokens`가 문자열 리터럴의 bytes·토큰 경계를 보존하고 SQL 키워드·허용된 식별자·리터럴 밖 charset 도입자만 정규화합니다. 정확한015 원자식만 기존 AND/OR 괄호 AST로 매핑해 `HEX('NOTICE')`·`HEX('not ice')` 등을 정상으로 오인하지 않습니다. 미지원/미종결 구문은 거절합니다. SQL014/015 선언·3번 runtime·제품 권한/기능 등록은 수정하지 않았습니다.
+
+| 이번 직접 확인 | 결과·범위 |
+|---|---|
+| 표현식 회귀 |29 PASS, DB 없이 정상015·MySQL 표기/괄호 수용과 리터럴 대소문자/공백/backtick/introducer/escape·잘못된 토큰/묶음 거절. 원57 parser에 같은 검사 실행 시NOTICE에서 실패하는 음성대조 확인|
+| 실제 물리 검사 |49 PASS, 고정PR76 peer·소유MySQL8.2. 기존32 포함; 8개리터럴변형503, 정상notice/null INSERT성공과NOTICE/not ice의MySQL3819·0행, 정상복원/덤프→새소유DB복원·DDL/전행/readiness 유지|
+| 기존 자원첨부 |108 PASS, 원 verify_resource_attachments.py 무수정 실행·실제loopbackHTTP/소유MySQL/파일.4번 권한/소비콜백은시험대역이며 실제4번소비완료로 확대하지 않음|
+| 정적·문서 |변경Python2파일AST·diffcheck·문서109/링크1529오류0. 제품/회귀/설명5파일만수정, SQL014/015·3번provider·원108시험은원57blob과동일|
+
+표현식29는 전체49 실행의 사전 검사에도 포함되므로 합산하지 않습니다. 기존32/과거108과 반복 실행도 합산하지 않습니다. 정확 실행시간은 별도 계측하지 않아 추정하지 않습니다. 소유 MySQL/DB/native프로세스/runtime 정리 확인, 운영5000/.env·공유DB/DDL·서비스/ACK·계정·키/장비·사용자 프로젝트는 미변경입니다. C#/수동브라우저·두PC·실제4번UI/운영적용은 이번 미실행입니다. 1번의015실제적용/복원 보고는 수신 상태를 유지하며 이번 수정본의 직접 운영 검증으로 쓰지 않습니다.
+
+[변경파일·로컬 근거](업무_구현검증.md#member2-pr77-fix-evidence-20261022)와 [기술 경계](공통규약.md#member2-pr77-fix-boundary-20261022)를 기존 기록에 취합합니다. 이번 범위의 수정은 완료했으며 별도 병합/정책승인·추가 회신용MD/PR·외부댓글은 만들지 않았습니다.
+
 <a id="pr7576-pr58-review-20261022"></a>
 ## PR75·76 최종 검토·병합 / PR58 회신 확인 — 2026-10-22
 

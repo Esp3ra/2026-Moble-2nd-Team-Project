@@ -1,3 +1,7 @@
+## 최신 — PR77 R77-01 오류 수정·기존 PR 반영, 2026-10-22
+
+팀장 요청으로 CHECK문자열 bytes를 잃던 물리검사를 수정해 [ef84aed](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/ef84aeddaa7e070ef88a9216c13dd0fc68eaac16)를 기존 PR77 브랜치에 푸시했습니다. [수정/원본 음성대조·29/49/108 검사](2번/PR_검토기록.md#pr77-r77-01-fixed-20261022)·[변경파일/미실행](2번/업무_구현검증.md#member2-pr77-fix-evidence-20261022)·[담당별 경계](2번/공통규약.md#member2-pr77-fix-boundary-20261022)를 기존 취합에 기록합니다. PR은 Draft/미병합이며 실제 DB/서비스·SQL014/015선언·3번runtime/4번제품·사용자 프로젝트는 수정하지 않았습니다.
+
 <a id="pr7576-pr58-current-20261022"></a>
 ## 최신 — PR75·76 병합 / PR58 연차 추가 요청 수신, 2026-10-22
 
