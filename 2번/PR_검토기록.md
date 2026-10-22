@@ -1,3 +1,20 @@
+<a id="pr69-reviewed-merged-20261022"></a>
+## PR69 검토 — 지문 출근·로그인 연결/연차 화면, 병합 완료
+
+head **80af53fff0705e73e0c186ccec060a06091c4424**, base **cb2114113a7a7dea8709bc15376ce9e4d4d917fd**의35파일을 독립 검토해 추가 병합 차단 문제를 발견하지 못했습니다. [alpha 병합](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/78581f21a61bd14de97a719136c2a5f067d4e1f7)의 실제tree **fe3c3842f3f9688ebabb3b4bf166423e252deb99**가 검증본과 정확히 같습니다. [최종 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/69#issuecomment-6333291195)을 대표 근거로 유지합니다.
+
+정확한409/IDENTITY_FINGERPRINT_REQUIRED만 제한 로그인으로 전환하고, 원 finalize UUID/receipt·provisional auth/me를 확인한 뒤 원 로그인 세대에서 정상토큰을 인수합니다. verified만으로 업무를 열지 않습니다. 같은 UUID 복구·구로그인/같은문자열다른세대·취소/닫기·동시Complete와queuedRevoke를 대조했고, 연차 기본 미연결 화면은 저장 성공으로 표시하지 않습니다.
+
+| 이번 직접 검사 | 결과/범위 |
+|---|---|
+| 공식 로그인 UI |77PASS, 실제 C# 폼/ApiClient·명시 HTTP/센서 대역|
+| 독립 로그인/공통 회귀 |복구·취소·동시27PASS; 기존ApiClient144PASS/29시나리오. 별도 실행 수치|
+| 신규 연결·연차/기존pending |Connection88·Leave57·IdentityPending43PASS, 각각 명시 대역/실제 C#|
+| 실제 서버/Pi HTTP·MySQL·C# |13PASS/61.69초, exit0. source export249파일·고정DLL SHA 일치, 소유DB/프로세스/runtime 정리true|
+| Release/diff |제품 참조 포함 오류0·경고0, diff check통과|
+
+최초 긴중첩 임시경로 실행은 MySQL3913/연쇄1050 setup오류로 실패했고 별도 보존했습니다. **소스/DLL/fixture 변경 없이** 짧은 새 소유TEMP에서13PASS를 확인했으며 실패 시도·공식/독립/이전 수치는 합산하지 않습니다. UART/OLED·센서·계정/키/readiness는 대역입니다. 실제5000/.env·공유DB/DDL·운영옵션·장비는 미변경이며 **새 지문OFF 유지**, 실물/두PC·운영 AttendanceWorkflow·정오/퇴근/활동 감시와 연차 실제 HTTP/정책/저장·검토는 후속입니다.1번 보고의 공유서버 갱신을 이번69 실제 배포로 확대하지 않습니다.
+
 <a id="pr68-merged-20261022"></a>
 ## PR68 최종 재검토 — R68-01 해결·병합 완료, 2026-10-22
 
