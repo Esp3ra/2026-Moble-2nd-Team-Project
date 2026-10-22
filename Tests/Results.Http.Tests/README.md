@@ -70,7 +70,7 @@ python Tests/Results.Http.Tests/verify_cold.py
 
 ## 2026-10-22 T3-1~5 코드 PR 검증
 
-실행 기준 alpha `f534b68933c35d9c48a613c2269eebab4d8411ab`, LOG `a8b6ab451b4dbcb19a4a0baeba55f26738adb846` 위의3번 변경본이다. 새 테스트와 계약은 기존 [PR52 통합 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52#issuecomment-6308742417)의 후속이며 별도 회신 문서 PR을 만들지 않는다.
+실행 기준 alpha `5dcd66e291a0b12470c3347909653a64458ef70e`, LOG `75e6fe5002ad91547de919ab79acfd5a00bbf82b` 위의3번 변경본이다. 새 테스트와 계약은 기존 [PR52 통합 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/52#issuecomment-6308742417)의 후속이며 별도 회신 문서 PR을 만들지 않는다.
 
 ```powershell
 python -B Tests/Results.Http.Tests/verify_connections.py
