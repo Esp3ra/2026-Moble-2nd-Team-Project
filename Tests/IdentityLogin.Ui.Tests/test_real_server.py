@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
@@ -59,7 +59,7 @@ def test_actual_workday_forms_to_server_and_pi(working, monkeypatch, purpose, mo
     assert dll.name == "IdentityLogin.Ui.Tests.dll"
     # Explicit owned fixture represents a previously committed open shift, not
     # a proposed production reader or a replacement for first clock-in coverage.
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     if (now + timedelta(hours=9)).hour < 12:
         now = now.replace(hour=3, minute=5, second=0, microsecond=0)
     monkeypatch.setattr(routes, "now", lambda: now)
