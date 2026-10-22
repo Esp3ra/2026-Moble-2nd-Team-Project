@@ -30,7 +30,7 @@
 
 ## 계약과 검증 범위
 
-조회 API·전체 목록 정책·명시적 상태 매핑·DB 모델·남은 연결은 [업무 조회 계약](../../../../docs/TASK_QUERIES.md), 공통 규약은 [INTEGRATION](../../../../docs/INTEGRATION.md)을 따른다. 기존1번 기술 수용과 팀장 확정 A~E를 적용했고 PR51의 실제009·공통 성공 결과 읽기도 제공됐다.3번 취소/pending 소비·공용 첨부 제공부는 PR52로 제공됐다. 일반수정 첨부 교체·웹 첨부/복귀 접점, 공용 이벤트·같은 공유 배포의 경합 통합은 후속이다.2026-10-21 알림 A1~A6·협업 B1~B7도 진행 기준으로 채택됐으나 새 DTO/endpoint·관계/기한 사건 정보는 기술 대조가 필요하다. 협업 수락만으로 own/managed·파일 권한을 확장하지 않는다. [002 DDL·검증/복구안](../../../../RemoteWork.Server/migrations/002_task_queries.md)의 공유 적용은 별도이며 공통 버전1·기본 off를 유지한다. 기술 회신이나 격리 환경 검증을 공유 DB·두 PC·제출 통합 완료로 표시하지 않는다.
+조회 API·전체 목록 정책·명시적 상태 매핑·DB 모델·남은 연결은 [업무 조회 계약](../../../../docs/TASK_QUERIES.md), 공통 규약은 [INTEGRATION](../../../../docs/INTEGRATION.md)을 따른다. 기존1번 기술 수용과 팀장 확정 A~E를 적용했고 PR51의 실제009·공통 성공 결과 읽기도 제공됐다.3번 취소/pending 소비·공용 첨부 제공부는 PR52로 제공됐다. PR68 제공부를 이용한 [일반수정 첨부 교체](../../../../docs/TASK_MANAGEMENT.md#task-management-attachments-ui)와 [웹 첨부·결과물 진입/복귀](../../../../docs/TASK_WEB.md#task-web-t3-consumers)는 연결했다. 공용 이벤트·같은 공유 배포의 경합 통합은 후속이다.2026-10-21 알림 A1~A6·협업 B1~B7도 진행 기준으로 채택됐으나 새 DTO/endpoint·관계/기한 사건 정보는 기술 대조가 필요하다. 협업 수락만으로 own/managed·파일 권한을 확장하지 않는다. [002 DDL·검증/복구안](../../../../RemoteWork.Server/migrations/002_task_queries.md)의 공유 적용은 별도이며 공통 버전1·기본 off를 유지한다. 기술 회신이나 격리 환경 검증을 공유 DB·두 PC·제출 통합 완료로 표시하지 않는다.
 
 - [기존 TaskQueries.Tests](../../../../Tests/TaskQueries.Tests/README.md): 실제 WinForms 컨트롤과 명시적 테스트 대역.
 - [TaskQueries.Http.Tests](../../../../Tests/TaskQueries.Http.Tests/README.md): 공통 HTTP 어댑터 및 명시적 격리 서버를 사용하는 opt-in 실제 HTTP 검증.

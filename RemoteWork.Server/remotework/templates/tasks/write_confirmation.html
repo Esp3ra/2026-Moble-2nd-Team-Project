@@ -6,10 +6,13 @@
 <a class="task-back" href="{{ back_url }}">← 업무 목록으로</a>
 <p class="eyebrow">TASK ACTION</p><h1>{{ action_label }} 확인</h1>
 {% if completed %}
+{% set completed_task_id = completed.task_id|default(none) %}
 <section class="card" role="status"><h2>처리 결과가 확인되었습니다</h2>
 <p>{{ action_label }} 요청이 저장되었습니다. 현재 업무 내용과 상태는 다시 조회해 확인하세요.</p>
+<dl class="task-info"><dt>처리 동작</dt><dd>{{ action_label }}</dd>{% if completed_task_id %}<dt>업무 번호</dt><dd>#{{ completed_task_id }}</dd>{% endif %}</dl>
+{% if not completed_task_id %}<p>저장은 완료됐지만 응답에서 업무 번호를 확인하지 못했습니다. 업무 목록에서 처리한 업무를 확인해 주세요.</p>{% endif %}
 {% if self_removed %}<p>본인을 업무 관리자에서 제외했습니다. 저장은 완료됐으며 이후 조회 권한은 현재 배정과 관리자 관계를 따릅니다.</p>{% endif %}
-{% if can_open_detail %}<p><a class="task-action-link" href="{{ url_for('task_web.detail', task_id=completed.task_id, **intent.filters) }}">현재 업무 상태 다시 조회</a></p>{% endif %}</section>
+{% if can_open_detail and completed_task_id %}<p><a class="task-action-link" href="{{ url_for('task_web.detail', task_id=completed_task_id, **intent.filters) }}">현재 업무 상태 다시 조회</a></p>{% endif %}</section>
 {% else %}
 {% if error %}{% include 'tasks/_write_error.html' %}{% endif %}
 {% if not_recorded %}<section class="card" role="status"><h2>저장된 처리 결과가 없습니다</h2>{% if can_execute %}<p>다시 전송하려면 아래 버튼을 누르세요. 확인한 내용 그대로 같은 요청을 전송합니다.</p>{% else %}<p>현재 서버에서는 이 요청을 다시 실행할 수 없습니다. 기존 요청을 보관하고 현재 관리자에게 연결 상태를 확인해 주세요.</p>{% endif %}</section>{% endif %}
