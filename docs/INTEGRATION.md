@@ -1,5 +1,13 @@
 # 팀 공통 서버 연결 규칙
 
+## 2026-10-22 현재 마감 연결·명시 기준 전환
+
+PR70의 실제 HTTP/배정별 확인은 원본에 병합됐고 2번7692ce4의 생성·실제 기한 수정·승인 연장이 같은 원 W1 TX에서 실제 journal을 호출한다. source/wrapper의 소비와 공유 설치는 별도 상태다. 최종 wire는 아래 기존 HTTP 절의 `d1:task:event:assignment`이며 UUID 사건 자체와 확인 대상을 구분한다.
+
+사용자는 기존 업무의 현재 기준 사건을 명시 등록하도록 승인했다. [014의 적용·복구 절차](../RemoteWork.Server/migrations/README.md#014-마감-사건배정별-확인--2026-10-22)를 따른다. 공개 내부 함수 `deadline_events.establish_baseline(db, *, task_id, expected_row_version, expected_assignment_revision, expected_assignee_id, expected_due_date, run_id, reason) -> DeadlineChange`는 현재 인증된 활성 관리자와 같은 TX가 필요하다. 기대 버전/배정/담당자/DATE가 다르면409 DEADLINE_BASELINE_CHANGED, 고아 기록/원본 불일치는503이며, 기존 정상 head는 읽기만 한다. 새 기준 사건은 source_action `task.deadline_baseline`/before_due_date=None이고 과거 최초 기한을 뜻하지 않는다. 같은 TX에 전환 UUID·이유·현재 배정과 기한 감사를 기록한다. 전체 검증 계획의 한 TX 실패는 전체 rollback해야 한다. 계정·검토자·업무 원본/버전은 바꾸지 않는다. 호출자 인가·네트워크/DDL/백업을 대신하지 않으며 자동 startup 실행이나 새 HTTP를 설치하지 않는다.
+
+4번은 최종 target과 원 operation/key/body·4필드 receipt를 그대로 소비하고 현재 MainForm 로그인 수명에 연결한다. 1번은 DB·동일 TX·배포를 검토한다. 공지/채팅 첨부 확장은 현 task/submission 전용 파일 참조의 재사용 범위 밖이다. 3번의 자원별 공개 파일 서비스 설계와 4번 현재 공지 대상/방 참여·개인숨김 권한 콜백을 먼저 대조하며 INT 공지와 UUID 방/메시지를 기존 BIGINT task FK에 넣지 않는다. 다른 자원 참조가 남으면 물리 삭제하지 않고 본인 채팅 숨김을 공동 파일 삭제로 취급하지 않는다. 새 DTO/DDL 번호/다운로드 보존 정책은 이 문단으로 확정하지 않는다. 웹 LAN 직접 HTTP의 SHA256 secure-context 제약도 별도 공동 대조이며 검증을 끄지 않는다.
+
 ## 2026-10-21 추가: 마감 알림의 로그인 수명과 내 업무 탐색
 
 `Shell/MainForm.DeadlineAlerts.cs::ConnectDeadlineAlertsAsync`는 **실제 서버 source가 제공된 뒤**

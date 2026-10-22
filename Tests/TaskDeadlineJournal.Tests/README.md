@@ -1,5 +1,7 @@
 # 2번 실제 업무 변경·기한 사건 연결 검증
 
+1번 명시 현재 기준 전환 회귀는 같은 명령에 `--suite baseline`을 추가한다. 실제 MySQL에서 원 journal 23건과 기준 전환 7건을 검사한다. 활성 관리자·정확 버전/배정/담당자/DATE, 재실행 시 원 head 보존, 다음 실제 기한 변경, 직원 거절, 전체 rollback·고아 기록 거절을 포함한다. 이는 공유 자료의 승인/설정·운영 적용 자체를 대신하지 않는다. 014는 기존 draft 두 파일과 같은 테이블 정의이며 중복 적용하지 않는다.
+
 ```powershell
 & <검증용 Python> Tests/TaskDeadlineJournal.Tests/run_mysql_check.py --allow-disposable-mysql --mysql-bin-dir 'C:/Program Files/MySQL/MySQL Server 8.2/bin' --report-dir <소스 밖 새 보고 폴더>
 ```

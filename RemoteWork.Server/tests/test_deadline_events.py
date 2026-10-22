@@ -74,6 +74,67 @@ def rows(env):
         return list(db.execute(select(port.journal))), list(db.execute(select(port.heads)))
 
 
+def baseline(env, db, **changes):
+    row = task(db, env)
+    values = dict(task_id=row.task_id, expected_row_version=row.row_version,
+        expected_assignment_revision=row.current_assignment_revision,
+        expected_assignee_id=env.ids['staff1'], expected_due_date=row.due_date,
+        run_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', reason='Explicit introduction baseline')
+    values.update(changes)
+    return port.establish_baseline(db, **values)
+
+
+def test_baseline_exact_context_then_real_change_and_replay(env):
+    env.task_id = add_task(env)
+    with guarded(env, 'admin1') as db:
+        first = baseline(env, db)
+        again = baseline(env, db)
+        assert first == again
+        assert first.source_action == 'task.deadline_baseline'
+        assert first.before_due_date is None and first.source_row_version == 7
+        second = change(env, db)
+        assert second.event_order == 2 and second.before_due_date == first.due_date
+        assert baseline(env, db) == second
+    assert len(rows(env)[0]) == 2
+
+
+@pytest.mark.parametrize('changes', [dict(expected_row_version=8),
+    dict(expected_assignment_revision=2), dict(expected_assignee_id=2147483647),
+    dict(expected_due_date=date(2030, 1, 1))])
+def test_baseline_changed_manifest_rejected_without_writes(env, changes):
+    env.task_id = add_task(env)
+    with pytest.raises(AppError) as caught:
+        with guarded(env, 'admin1') as db:
+            baseline(env, db, **changes)
+    assert caught.value.code == 'DEADLINE_BASELINE_CHANGED'
+    assert rows(env) == ([], [])
+
+
+def test_baseline_employee_rejected_and_admin_failure_rolls_back(env):
+    env.task_id = add_task(env)
+    with pytest.raises(AppError) as caught:
+        with guarded(env) as db:
+            baseline(env, db)
+    assert caught.value.status == 403
+    with pytest.raises(RuntimeError):
+        with guarded(env, 'admin1') as db:
+            baseline(env, db)
+            raise RuntimeError('downstream manifest failure')
+    assert rows(env) == ([], [])
+
+
+def test_baseline_orphan_is_not_repaired(env):
+    env.task_id = add_task(env)
+    with guarded(env, 'admin1') as db:
+        baseline(env, db)
+        db.execute(port.heads.delete())
+    with pytest.raises(AppError) as caught:
+        with guarded(env, 'admin1') as db:
+            baseline(env, db)
+    assert caught.value.code == 'DEADLINE_EVENT_SOURCE_MISMATCH'
+    assert len(rows(env)[0]) == 1 and rows(env)[1] == []
+
+
 def test_create_change_back_are_distinct_ordered_original_records(env):
     first = create(env)
     with guarded(env) as db:

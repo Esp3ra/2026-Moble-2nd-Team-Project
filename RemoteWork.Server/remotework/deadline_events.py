@@ -10,9 +10,10 @@ import uuid
 from flask import g
 from sqlalchemy import BigInteger, Date, DateTime, Integer, String, column, inspect, select, table, text
 
-from .common import AppError
+from .common import AppError, audit
 from .db import get_db
 from .features.tasks.models import TaskRecord
+from .features.tasks.models import TaskAssignment
 
 
 journal = table("deadline_event_journal_draft",
@@ -197,4 +198,53 @@ def record_change(db, *, task_id, source_row_version, source_action, before_due_
         db.execute(heads.insert().values(task_id=task_id, event_id=value.event_id))
     else:
         db.execute(heads.update().where(heads.c.task_id == task_id).values(event_id=value.event_id))
+    return value
+
+
+def establish_baseline(db, *, task_id, expected_row_version, expected_assignment_revision,
+                       expected_assignee_id, expected_due_date, run_id, reason):
+    """Explicit operator transition, never history reconstruction or startup seed.
+
+    Caller owns the authenticated admin TX and rolls back the entire manifest on
+    any failure. A headless task with orphan journal rows is never repaired here.
+    Repeating the exact baseline is read-only; later real changes are preserved.
+    """
+    guard(db)
+    if g.user.role != 'admin' or not g.user.is_active:
+        raise AppError(403, 'FORBIDDEN', '활성 관리자만 기준 전환을 실행할 수 있습니다.')
+    if (type(expected_row_version) is not int or not 1 <= expected_row_version <= 9223372036854775807
+            or type(expected_assignment_revision) is not int or not 1 <= expected_assignment_revision <= 2147483647
+            or type(expected_assignee_id) is not int or not 1 <= expected_assignee_id <= 2147483647
+            or type(expected_due_date) is not date or expected_due_date.year < 1000
+            or not isinstance(reason, str) or not 1 <= len(reason.strip()) <= 200):
+        raise ValueError('Exact reviewed task context and a reason required')
+    if not isinstance(run_id, str) or str(uuid.UUID(run_id)) != run_id:
+        raise ValueError('Canonical transition run UUID required')
+    task = _task(db, task_id)
+    assignment = db.scalar(select(TaskAssignment).where(TaskAssignment.task_id == task_id,
+        TaskAssignment.revision == task.current_assignment_revision).with_for_update()
+        .execution_options(populate_existing=True))
+    if (task.row_version != expected_row_version or task.due_date != expected_due_date
+            or task.current_assignment_revision != expected_assignment_revision
+            or assignment is None or assignment.assignee_id != expected_assignee_id):
+        raise AppError(409, 'DEADLINE_BASELINE_CHANGED', '업무가 변경되어 기준 전환 계획을 다시 확인해야 합니다.')
+    storage(db)
+    old_id = db.scalar(select(heads.c.event_id).where(heads.c.task_id == task_id).with_for_update())
+    if old_id is not None:
+        current = read_current(db, task_id=task_id)
+        if current.source_row_version > task.row_version:
+            unavailable('DEADLINE_EVENT_SOURCE_MISMATCH')
+        return current  # Never overwrite an existing authoritative head.
+    orphan = db.execute(select(journal.c.event_id).where(journal.c.task_id == task_id)
+                        .with_for_update()).first()
+    if orphan is not None:
+        unavailable('DEADLINE_EVENT_SOURCE_MISMATCH')
+    value = DeadlineChange(str(uuid.uuid4()), task_id, 1, task.row_version,
+        'task.deadline_baseline', None, task.due_date,
+        db.scalar(text('SELECT UTC_TIMESTAMP(6)')), g.user.id)
+    db.execute(journal.insert().values(**value.__dict__))
+    db.execute(heads.insert().values(task_id=task_id, event_id=value.event_id))
+    audit('task.deadline_baseline', 'task', task_id, dict(run_id=run_id, reason=reason.strip(),
+        source_row_version=str(task.row_version), assignment_revision=assignment.revision,
+        assignee_id=assignment.assignee_id, due_date=task.due_date.isoformat(), event_id=value.event_id))
     return value
