@@ -11,7 +11,7 @@ from remotework.features.identity import routes
 from remotework.features.identity.attendance import WorkSession
 from remotework.features.identity.models import Context
 from test_identity_service import (identity, working, env, clock_in, pending, issue,
-    post, result, mutate, ROOT, DID)
+    post, result, mutate, probe, ROOT, DID)
 
 
 @pytest.fixture(autouse=True)
@@ -47,13 +47,84 @@ def test_noon_due_uses_server_kst_and_records_other_pc_completion(working, monke
     stamp = routes.now().replace(hour=1,minute=0,second=0)
     monkeypatch.setattr(routes,'now',lambda:stamp)
     _,_,_,_,normal = clock_in(e)
-    monkeypatch.setattr(routes,'now',lambda:stamp+timedelta(hours=2))
+    monkeypatch.setattr(routes,'now',lambda:stamp+timedelta(hours=1))
     assert e[1].get(ROOT+'/workday',headers=normal).json['data']['noon_due'] is True
     job,_=issue(e,normal,purpose='noon_check')
     assert post(e,normal,job,'complete',result(e,normal,job)).status_code==200
     assert post(e,normal,job,'finalize',{'client_request_id':str(uuid4())}).status_code==200
     data=e[1].get(ROOT+'/workday',headers=normal).json['data']
-    assert data['noon_due'] is False and data['noon_at'] == routes.iso(stamp+timedelta(hours=2))
+    assert data['noon_due'] is False and data['noon_at'] == routes.iso(stamp+timedelta(hours=1))
+
+
+@pytest.mark.parametrize("utc_hour,minute,second,due", [(1,59,59,False),(2,0,0,True),(2,59,59,True),(3,0,0,False)])
+def test_afternoon_new_challenge_and_workday_share_window(working, monkeypatch, utc_hour, minute, second, due):
+    e=working
+    morning=routes.now().replace(hour=1,minute=0,second=0)
+    monkeypatch.setattr(routes,'now',lambda:morning)
+    _,_,_,_,normal=clock_in(e)
+    stamp=morning.replace(hour=utc_hour,minute=minute,second=second)
+    monkeypatch.setattr(routes,'now',lambda:stamp)
+    assert e[1].get(ROOT+'/workday',headers=normal).json['data']['noon_due'] is due
+    response=e[1].post(ROOT+'/challenges',headers=normal,json=dict(device_id=DID,purpose='noon_check',client_request_id=str(uuid4())))
+    assert response.status_code == (200 if due else 409), response.json
+    if not due:
+        assert response.json['error']['code']=='ATTENDANCE_NOON_NOT_DUE'
+
+
+@pytest.mark.parametrize("stage",['approval','complete','finalize'])
+def test_no_new_capture_complete_or_save_after_window(working, monkeypatch, stage):
+    e=working
+    clock=[routes.now().replace(hour=1,minute=0,second=0)]
+    monkeypatch.setattr(routes,'now',lambda:clock[0])
+    _,_,_,saved,normal=clock_in(e)
+    clock[0]=clock[0].replace(hour=2,minute=59,second=50)
+    job,_=issue(e,normal,purpose='noon_check')
+    if stage=='approval':
+        from test_identity_service import signed, wire
+        body={'probe_b64':wire.b64encode(signed(e,'id_probe',probe(e,job,'capture')))}
+        operation='approvals'
+    else:
+        body=result(e,normal,job)
+        operation='complete'
+        if stage=='finalize':
+            assert post(e,normal,job,'complete',body).status_code==200
+            body={'client_request_id':str(uuid4())}
+            operation='finalize'
+    clock[0]=clock[0].replace(hour=3,minute=0,second=0)
+    denied=post(e,normal,job,operation,body)
+    assert denied.status_code==409 and denied.json['error']['code']=='ATTENDANCE_NOON_NOT_DUE'
+    with e[0].app_context():
+        from remotework.features.identity.models import Challenge
+        from remotework.features.identity.attendance import WorkflowReceipt
+        db=get_db()
+        assert db.get(WorkSession,saved['work_session_ref']).noon_at is None
+        assert not db.get(Challenge,job['challenge_id']).workflow_completed
+        assert db.get(WorkflowReceipt,job['challenge_id']) is None
+
+
+def test_committed_afternoon_receipt_recovers_after_12_and_relogin_is_not_a_new_check(working, monkeypatch):
+    e=working
+    clock=[routes.now().replace(hour=1,minute=0,second=0)]
+    monkeypatch.setattr(routes,'now',lambda:clock[0])
+    _,_,_,saved,normal=clock_in(e)
+    clock[0]=clock[0].replace(hour=2,minute=59,second=50)
+    job,_=issue(e,normal,purpose='noon_check')
+    body=result(e,normal,job)
+    assert post(e,normal,job,'complete',body).status_code==200
+    key={'client_request_id':str(uuid4())}
+    original=post(e,normal,job,'finalize',key)
+    assert original.status_code==200
+    login=e[1].post('/api/v1/auth/login',json={'login_id':'staff1','password':__import__('test_identity_service').PASSWORD})
+    assert login.status_code==200
+    other={'Authorization':'Bearer '+login.json['data']['access_token']}
+    data=e[1].get(ROOT+'/workday',headers=other).json['data']
+    assert data['noon_at']==routes.iso(clock[0]) and not data['noon_due'] and data['work_session_ref']==saved['work_session_ref']
+    duplicate=e[1].post(ROOT+'/challenges',headers=other,json=dict(device_id=DID,purpose='noon_check',client_request_id=str(uuid4())))
+    assert duplicate.status_code==409 and duplicate.json['error']['code']=='ATTENDANCE_NOON_ALREADY_RECORDED'
+    clock[0]=clock[0].replace(hour=3,minute=0,second=0)
+    assert post(e,normal,job,'finalize',key).json['data']==original.json['data']
+    assert post(e,normal,job,'complete',body).json['data']['workflow_state']=='completed'
+    assert e[1].get(ROOT+'/challenges/'+job['challenge_id'],headers=normal).json['data']['workflow_state']=='completed'
 
 
 def test_pending_anonymous_and_query_cannot_select_work_or_user(working):

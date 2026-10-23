@@ -418,12 +418,15 @@ def test_clock_out_revokes_old_sessions_but_allows_password_access_without_reent
 
 def test_noon_server_time_once_only_and_same_work_session(working, monkeypatch):
     e = working
+    # Synthetic clock advances through the complete window; do not expire the
+    # test login at exactly 11:00 or change the product session policy.
+    monkeypatch.setitem(e[0].config, "SESSION_HOURS", 24)
     t = routes.now().replace(hour=1, minute=0, second=0)
     monkeypatch.setattr(routes, "now", lambda: t)
     _, _, _, first, normal = clock_in(e)
     r = e[1].post(ROOT + "/challenges", headers=normal, json={"device_id": DID, "purpose": "noon_check", "client_request_id": str(uuid4())})
     assert r.status_code == 409 and r.json["error"]["code"] == "ATTENDANCE_NOON_NOT_DUE"
-    monkeypatch.setattr(routes, "now", lambda: t + timedelta(hours=2))
+    monkeypatch.setattr(routes, "now", lambda: t + timedelta(hours=1))
     job, _ = issue(e, normal, purpose="noon_check")
     assert ticket(e, job)["work_session_ref"] == first["work_session_ref"]
     assert post(e, normal, job, "complete", result(e, normal, job)).status_code == 200

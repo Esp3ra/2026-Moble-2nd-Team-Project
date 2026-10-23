@@ -38,7 +38,7 @@ public sealed class WorkdayStateConnection(ApiClient.Session session)
             if (DateOnly.FromDateTime(local.DateTime) != day || started > now
                 || DateOnly.FromDateTime(started.ToOffset(TimeSpan.FromHours(9)).DateTime) != day
                 || checkedAt is not null && (checkedAt < started || checkedAt > now)
-                || due != (checkedAt is null && local.Hour >= 12)) throw Invalid();
+                || due != (checkedAt is null && local.Hour >= 11 && local.Hour < 12)) throw Invalid();
             return new(work, day, now, started, checkedAt, due);
         }
         catch (Exception error) when (error is InvalidOperationException or KeyNotFoundException or FormatException or ArgumentException)

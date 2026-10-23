@@ -46,8 +46,8 @@ def fail(status, code):
         "ATTENDANCE_DAY_CLOSED": "오늘 퇴근을 완료했습니다. 같은 날 재출근은 아직 지원하지 않습니다.",
         "ATTENDANCE_DAY_REVIEW_REQUIRED": "이전 근무일의 미종료 기록을 담당자와 확인해 주세요.",
         "ATTENDANCE_ALREADY_STARTED": "이미 출근했습니다. 아이디·비밀번호로 기존 근무에 다시 로그인해 주세요.",
-        "ATTENDANCE_NOON_NOT_DUE": "정오 본인 확인은 한국 시간 12시 이후에 진행할 수 있습니다.",
-        "ATTENDANCE_NOON_ALREADY_RECORDED": "오늘 정오 확인을 이미 완료했습니다.",
+        "ATTENDANCE_NOON_NOT_DUE": "오후 업무 전 지문 확인은 한국 시간 11:00 이상 12:00 미만에만 진행할 수 있습니다.",
+        "ATTENDANCE_NOON_ALREADY_RECORDED": "오늘 오후 업무 전 지문 확인을 이미 완료했습니다.",
         "ATTENDANCE_NOT_STARTED": "먼저 지문 확인 후 오늘 출근을 완료해 주세요.",
     }
     raise AppError(status, code, messages.get(code, "본인 확인 상태 또는 준비 조건을 확인해 주세요."))

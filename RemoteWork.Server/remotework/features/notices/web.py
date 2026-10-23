@@ -1,7 +1,7 @@
 """Cookie-authenticated notice UI; shares notice operations with the API."""
 import json
 from datetime import datetime, timedelta, timezone
-from flask import Blueprint, flash, g, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, g, redirect, render_template, request, url_for
 from sqlalchemy.exc import SQLAlchemyError
 from ...auth import login_required
 from ...common import AppError, require_role
@@ -62,16 +62,19 @@ def index():
                            target=target or "", sort=sort, direction=direction, pages=pages)
 
 
-def form(values=None, error=None, status=200):
+def form(values=None, error=None, status=200, **operation):
     from ..results_web import session_scope
     return render_template("notices/form.html", targets=TARGETS, values=values or {}, error=error,
-                           attachment_session=session_scope()), status
+                           attachment_session=session_scope(), **operation), status
 
 
 @bp.route("/new", methods=["GET", "POST"])
 @require_role("admin")
 def create():
     require_table()
+    if current_app.config.get("ENABLE_COMMON_WRITE_DRAFT") or request.form.get("operation_context"):
+        from .web_operations import handle
+        return handle(form)
     if request.method == "GET":
         return form()
     if request.files:

@@ -27,17 +27,20 @@ public sealed partial class LoginWorkdayActivity : System.ComponentModel.Compone
     private readonly TaskCompletionSource stopped = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private FingerprintWorkdayOperation? noonOperation;
     private IIdentityRelayDevice? device;
-    private bool reading, showingNoon, started, beforeNoonSeen, noonPrompted, disposed;
+    private bool reading, showingNoon, started, noonPrompted, disposed;
     private int ended;
     private Task pendingCheck = Task.CompletedTask;
     public ApiClient.Session Session { get; }
     public IActivityMonitor Monitor { get; }
     public WorkdayActivityState? Workday { get; private set; }
     public bool HasFreshWorkday { get; private set; }
+    public bool HasConnectionError { get; private set; }
     public bool IsWorkdayClosed { get; private set; }
     public bool IsCurrent => Volatile.Read(ref ended) == 0 && !cancellation.IsCancellationRequested && Session.IsCurrent;
     public bool CanCheckNoon => IsCurrent && !showingNoon && !showingClockOut && !clockOutPaused &&
         (HasFreshWorkday && Workday?.NoonDue == true || noonOperation is { HasFinalizeAttempt: true, Completed: null });
+    public bool IsNoonReceiptRecovery => noonOperation is { HasFinalizeAttempt: true, Completed: null };
+    public bool CanReconnect => CanRefresh && !showingNoon && !reading && HasConnectionError;
     public string Status { get; private set; } = "현재 근무 연결 준비 중";
     public event Action? Changed;
 
@@ -116,9 +119,8 @@ public sealed partial class LoginWorkdayActivity : System.ComponentModel.Compone
             }
             if (Workday is { } previous && (next.ServerTime < previous.ServerTime || previous.NoonAt is not null && next.NoonAt is null))
                 throw new InvalidDataException("서버 근무 상태가 이전 기록과 다릅니다.");
-            Workday = next; HasFreshWorkday = true;
+            Workday = next; HasFreshWorkday = true; HasConnectionError = false;
             if (next.NoonAt is not null) noonPrompted = true;
-            else if (next.ServerTime.ToOffset(TimeSpan.FromHours(9)).Hour < 12) beforeNoonSeen = true;
             if (!Monitor.IsRunning)
             {
                 var expected = next.WorkSessionId;
@@ -126,12 +128,17 @@ public sealed partial class LoginWorkdayActivity : System.ComponentModel.Compone
                     () => IsCurrent && HasFreshWorkday && !clockOutPaused && Workday?.WorkSessionId == expected, cancellation), options.Camera, options.PiAddress);
                 if (!IsCurrent) { await Monitor.StopAsync(); return; }
             }
-            SetStatus(next.NoonDue ? "정오 지문 확인이 필요합니다." : next.NoonAt is not null ? "근무 중 · 정오 지문 확인 완료" : "근무 중 · 활동 상태 확인 중");
+            SetStatus(next.NoonDue ? "오후 업무 전 지문 확인이 필요합니다. (한국 시간 11:00~12:00)"
+                : next.NoonAt is not null ? "근무 중 · 오후 업무 전 지문 확인 완료"
+                : next.ServerTime.ToOffset(TimeSpan.FromHours(9)).Hour >= 12
+                    ? "근무 중 · 오후 업무 전 지문 확인 시간 종료 · 완료 기록 없음"
+                    : "근무 중 · 오후 업무 전 지문 확인은 한국 시간 11:00~12:00에 진행합니다.");
         }
         catch (Exception e) when (e is ApiException or HttpRequestException or InvalidDataException or InvalidOperationException or OperationCanceledException or ArgumentException)
         {
             HasFreshWorkday = false;
             bool closed = e is ApiException { StatusCode: 409, Code: "ATTENDANCE_DAY_CLOSED" };
+            HasConnectionError = !closed && IsCurrent;
             if (closed && IsCurrent)
             {
                 // A normal login may outlive today's work. Keep the captured
@@ -142,12 +149,13 @@ public sealed partial class LoginWorkdayActivity : System.ComponentModel.Compone
             }
             await Monitor.StopAsync();
             if (IsCurrent) SetStatus(closed ? "퇴근 완료 · 일반 접속 중" : e is ApiException { StatusCode: 404 or 503 }
-                ? "근무 연결 준비가 필요합니다. 서버 설정을 확인해 주세요." : "현재 근무 확인 필요 · 다시 확인을 눌러주세요.");
+                ? "근무 연결 준비가 필요합니다. 서버 설정을 확인한 후 연결 오류 재시도를 눌러주세요."
+                : "근무 연결 오류 · 자동 재연결 중입니다. 연결 오류 재시도로 다시 연결할 수 있습니다.");
         }
-        finally { reading = false; }
-        // Initial late connection does not invent a missed-noon/grace policy.
-        // Only a before-noon observation followed by server NoonDue opens once.
-        if (allowAutomaticPrompt && IsCurrent && !showingClockOut && !clockOutPaused && HasFreshWorkday && beforeNoonSeen && !noonPrompted
+        finally { reading = false; if (!disposed) Changed?.Invoke(); }
+        // Server due is true only during the confirmed 11:00 <= KST < 12:00
+        // window. A login inside that window may prompt once; no late grace.
+        if (allowAutomaticPrompt && IsCurrent && !showingClockOut && !clockOutPaused && HasFreshWorkday && !noonPrompted
             && Workday?.NoonDue == true && owner.Visible && owner.Enabled && !showingNoon)
             await ShowNoonAsync();
     }
@@ -180,7 +188,7 @@ public sealed partial class LoginWorkdayActivity : System.ComponentModel.Compone
             if (IsCurrent) await CheckAsync(allowAutomaticPrompt: false);
         }
         catch (Exception e) when (e is ApiException or HttpRequestException or InvalidDataException or InvalidOperationException or OperationCanceledException or ArgumentException)
-        { if (IsCurrent) SetStatus("정오 지문 결과 확인 필요 · 같은 작업을 다시 확인해 주세요."); }
+        { if (IsCurrent) SetStatus("오후 업무 전 지문 결과 확인 필요 · 같은 작업을 다시 확인해 주세요."); }
         finally { showingNoon = false; if (!disposed) Changed?.Invoke(); }
     }
     private static void Validate(WorkdayActivityState state)
@@ -190,7 +198,8 @@ public sealed partial class LoginWorkdayActivity : System.ComponentModel.Compone
             || DateOnly.FromDateTime(state.ServerTime.ToOffset(TimeSpan.FromHours(9)).DateTime) != state.WorkDate
             || state.NoonAt is { } noon && (noon.Offset != TimeSpan.Zero || noon > state.ServerTime
                 || DateOnly.FromDateTime(noon.ToOffset(TimeSpan.FromHours(9)).DateTime) != state.WorkDate)
-            || state.NoonDue != (state.NoonAt is null && state.ServerTime.ToOffset(TimeSpan.FromHours(9)).Hour >= 12))
+            || state.NoonDue != (state.NoonAt is null && state.ServerTime.ToOffset(TimeSpan.FromHours(9)).Hour >= 11
+                && state.ServerTime.ToOffset(TimeSpan.FromHours(9)).Hour < 12))
             throw new InvalidDataException("현재 근무 상태를 확인할 수 없습니다.");
     }
     private void SetStatus(string text) { Status = text; if (!disposed) Changed?.Invoke(); }

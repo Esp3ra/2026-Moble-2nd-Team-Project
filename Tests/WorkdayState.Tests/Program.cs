@@ -5,17 +5,18 @@ using RemoteWork.WinForms.Infrastructure;
 
 int checks = 0;
 void Check(bool ok, string name) { if (!ok) throw new Exception(name); checks++; }
-foreach (string mode in new[] { "open", "noon", "checked", "wrong_day", "wrong_id", "unknown", "bad_due", "future", "missing", "offset" })
+foreach (string mode in new[] { "open", "before_boundary", "noon", "end_before", "end_exact", "checked",
+    "wrong_day", "wrong_id", "unknown", "bad_due", "outside_due", "early_due", "future", "missing", "offset" })
 {
     using var handler = new Handler(mode);
     using var api = new ApiClient("http://127.0.0.1:1", handler);
     await api.LoginAsync("synthetic", "test-only");
     var source = new WorkdayStateConnection(api.CaptureSession());
-    if (mode is "open" or "noon" or "checked")
+    if (mode is "open" or "before_boundary" or "noon" or "end_before" or "end_exact" or "checked")
     {
         var state = await source.ReadAsync();
         Check(state.WorkSessionId == Guid.Parse(Handler.Id), mode + " server work ID");
-        Check(state.NoonDue == (mode == "noon"), mode + " server noon status");
+        Check(state.NoonDue == (mode is "noon" or "end_before"), mode + " server noon status");
         Check(state.NoonAt.HasValue == (mode == "checked"), mode + " persisted noon");
         api.ClearIdentity();
         try { await source.ReadAsync(); throw new Exception("stale work read"); }
@@ -54,13 +55,18 @@ sealed class Handler(string mode, int status = 200) : HttpMessageHandler
             WorkReads++;
             if (status != 200) return Task.FromResult(Reply(status, new { ok = false, error = new { code = "TEST", message = "synthetic error" } }));
             var value = new Dictionary<string, object?> {
-                ["server_time"] = mode is "noon" or "checked" or "bad_due" ? "2026-10-22T03:00:00Z" : "2026-10-22T01:00:00Z",
+                ["server_time"] = mode switch {
+                    "before_boundary" or "early_due" => "2026-10-22T01:59:59Z",
+                    "noon" or "bad_due" => "2026-10-22T02:00:00Z",
+                    "end_before" => "2026-10-22T02:59:59Z",
+                    "checked" or "end_exact" or "outside_due" => "2026-10-22T03:00:00Z",
+                    _ => "2026-10-22T01:00:00Z" },
                 ["work_session_ref"] = mode == "wrong_id" ? Guid.Empty.ToString() : Id,
                 ["work_date"] = mode == "wrong_day" ? "2026-10-21" : "2026-10-22",
                 ["state"] = mode == "unknown" ? "unknown" : "open",
                 ["started_at"] = mode == "future" ? "2026-10-22T04:00:00Z" : mode == "offset" ? "2026-10-22T09:00:00+09:00" : "2026-10-22T00:00:00Z",
-                ["noon_at"] = mode == "checked" ? "2026-10-22T03:00:00Z" : null,
-                ["noon_due"] = mode == "noon" };
+                ["noon_at"] = mode == "checked" ? "2026-10-22T02:30:00Z" : null,
+                ["noon_due"] = mode is "noon" or "end_before" or "outside_due" or "early_due" };
             if (mode == "missing") value.Remove("noon_at");
             data = value;
         }

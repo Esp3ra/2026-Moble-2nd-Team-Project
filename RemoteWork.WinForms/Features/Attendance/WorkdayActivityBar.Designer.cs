@@ -13,7 +13,7 @@ namespace RemoteWork.WinForms.Features.Attendance
         {
             components = new System.ComponentModel.Container();
             layoutStatus = new TableLayoutPanel(); lblWorkday = new Label(); actions = new FlowLayoutPanel();
-            btnNoon = new Button(); btnRefresh = new Button(); btnActivity = new Button(); btnClockOut = new Button(); refreshTimer = new System.Windows.Forms.Timer(components);
+            btnNoon = new Button(); btnReconnect = new Button(); btnActivity = new Button(); btnClockOut = new Button(); refreshTimer = new System.Windows.Forms.Timer(components);
             layoutStatus.SuspendLayout(); actions.SuspendLayout(); SuspendLayout();
             layoutStatus.Name = "layoutStatus"; layoutStatus.Dock = DockStyle.Fill; layoutStatus.ColumnCount = 1; layoutStatus.RowCount = 2;
             layoutStatus.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
@@ -22,10 +22,10 @@ namespace RemoteWork.WinForms.Features.Attendance
             lblWorkday.Name = "lblWorkday"; lblWorkday.Dock = DockStyle.Fill; lblWorkday.Text = "현재 근무 연결 준비 중";
             lblWorkday.TextAlign = ContentAlignment.MiddleLeft; lblWorkday.AutoEllipsis = true;
             actions.Name = "actions"; actions.Dock = DockStyle.Fill; actions.WrapContents = false; actions.Margin = new Padding(0);
-            actions.Controls.AddRange(new Control[] { btnNoon, btnActivity, btnRefresh, btnClockOut });
-            btnNoon.Name = "btnNoon"; btnNoon.Text = "정오 지문 확인"; btnNoon.Size = new Size(140, 30); btnNoon.Enabled = false; btnNoon.Click += Noon_Click;
+            actions.Controls.AddRange(new Control[] { btnNoon, btnActivity, btnReconnect, btnClockOut });
+            btnNoon.Name = "btnNoon"; btnNoon.Text = "오후 업무 전 지문 확인"; btnNoon.Size = new Size(185, 30); btnNoon.Enabled = false; btnNoon.Click += Noon_Click;
             btnActivity.Name = "btnActivity"; btnActivity.Text = "활동 상태"; btnActivity.Size = new Size(110, 30); btnActivity.Enabled = false; btnActivity.Click += Activity_Click;
-            btnRefresh.Name = "btnRefresh"; btnRefresh.Text = "근무 다시 확인"; btnRefresh.Size = new Size(140, 30); btnRefresh.Enabled = false; btnRefresh.Click += Refresh_Click;
+            btnReconnect.Name = "btnReconnect"; btnReconnect.Text = "연결 오류 재시도"; btnReconnect.Size = new Size(145, 30); btnReconnect.Enabled = false; btnReconnect.Visible = false; btnReconnect.Click += Reconnect_Click;
             btnClockOut.Name = "btnClockOut"; btnClockOut.Text = "지문 확인 후 퇴근"; btnClockOut.Size = new Size(150, 30); btnClockOut.Enabled = false; btnClockOut.Click += ClockOut_Click;
             refreshTimer.Interval = 500; refreshTimer.Tick += RefreshTimer_Tick;
             AutoScaleDimensions = new SizeF(7F, 15F); AutoScaleMode = AutoScaleMode.Font; Font = new Font("맑은 고딕", 9F);
@@ -36,7 +36,7 @@ namespace RemoteWork.WinForms.Features.Attendance
         private TableLayoutPanel layoutStatus;
         private FlowLayoutPanel actions;
         private Label lblWorkday;
-        private Button btnNoon, btnActivity, btnRefresh, btnClockOut;
+        private Button btnNoon, btnActivity, btnReconnect, btnClockOut;
         private System.Windows.Forms.Timer refreshTimer;
     }
 }

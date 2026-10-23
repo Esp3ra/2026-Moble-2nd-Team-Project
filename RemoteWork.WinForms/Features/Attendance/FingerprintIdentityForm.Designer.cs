@@ -50,7 +50,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             lblDetail.Padding = new Padding(0, 10, 0, 0);
             lblDetail.Text = "시작을 누른 뒤 OLED 안내에 따라 손가락을 올려주세요.";
             lblNotice.Name = "lblNotice"; lblNotice.Dock = DockStyle.Fill;
-            lblNotice.Text = "본인 확인 결과만 표시합니다. 로그인·출근·정오 확인·퇴근의 최종 처리는 담당 화면에서 확인합니다.";
+            lblNotice.Text = "본인 확인 결과만 표시합니다. 로그인·출근·오후 업무 전 지문 확인·퇴근의 최종 처리는 담당 화면에서 확인합니다.";
             lblNotice.ForeColor = Color.FromArgb(80, 94, 112);
             flowActions.Name = "flowActions"; flowActions.Dock = DockStyle.Fill;
             flowActions.WrapContents = false;

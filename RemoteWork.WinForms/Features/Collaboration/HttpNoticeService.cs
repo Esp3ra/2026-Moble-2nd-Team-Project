@@ -3,7 +3,7 @@ using RemoteWork.WinForms.Infrastructure;
 namespace RemoteWork.WinForms.Features.Collaboration;
 
 /// <summary>Uses the shared authenticated client; never falls back to sample data.</summary>
-public sealed class HttpNoticeService(ApiClient api) : INoticeService, INoticePopupService
+public sealed partial class HttpNoticeService(ApiClient api) : INoticeService, INoticePopupService, IRecoverableNoticeService
 {
     private sealed record NoticeData(int Id, string Title, string Content, string Target,
         bool IsPinned, int AuthorId, string Author, DateTimeOffset CreatedAt, string[] AttachmentNames,
@@ -69,6 +69,8 @@ public sealed class HttpNoticeService(ApiClient api) : INoticeService, INoticePo
 
     public async Task<Notice> CreateNoticeAsync(CreateNoticeRequest request, CancellationToken ct = default)
     {
+        // Explicit compatibility entry point. Product creation uses CreateOrRecoverNoticeAsync;
+        // a failed recoverable operation must never fall back here.
         // Empty optional fields must not break a still-deployed legacy server.
         object body = request.AttachmentIds.Length == 0
             ? new { request.Title, request.Content, request.Target, request.IsPinned, request.AttachmentNames }

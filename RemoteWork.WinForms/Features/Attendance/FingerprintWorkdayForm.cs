@@ -26,9 +26,9 @@ public partial class FingerprintWorkdayForm : Form
         if (operation is null)
         { btnConfirm.Enabled = btnCancel.Enabled = false; lblStatus.Text = "현재 근무 연결 전"; return; }
         bool noon = operation.Purpose == "noon_check";
-        Text = lblTitle.Text = noon ? "정오 지문 확인" : "지문 확인 후 퇴근";
-        btnConfirm.Text = noon ? "정오 지문 확인" : "지문 확인 후 퇴근";
-        lblDetail.Text = noon ? "OLED 안내에 따라 지문을 찍어주세요. 서버 저장까지 확인하면 정오 확인이 완료됩니다."
+        Text = lblTitle.Text = noon ? "오후 업무 전 지문 확인" : "지문 확인 후 퇴근";
+        btnConfirm.Text = noon ? "오후 업무 전 지문 확인" : "지문 확인 후 퇴근";
+        lblDetail.Text = noon ? "한국 시간 11:00 이상 12:00 미만에 OLED 안내에 따라 지문을 찍어주세요. 서버 저장까지 확인해야 완료됩니다."
             : "지문 일치 후 서버의 퇴근 저장을 확인합니다. 창을 닫는 것만으로 퇴근 처리되지 않습니다.";
         ShowRetainedState();
     }
@@ -64,14 +64,14 @@ public partial class FingerprintWorkdayForm : Form
                 if (operation.Attempt.Result is not { State: "verified" })
                 { lblStatus.Text = operation.Attempt.Latest.Title; lblDetail.Text = operation.Attempt.Latest.Detail; return; }
             }
-            lblStatus.Text = operation.Purpose == "noon_check" ? "정오 확인 저장 중" : "퇴근 저장 확인 중";
+            lblStatus.Text = operation.Purpose == "noon_check" ? "오후 업무 전 지문 확인 저장 중" : "퇴근 저장 확인 중";
             lblDetail.Text = "응답이 끊겨도 원래 작업 결과를 확인합니다. 지문과 저장을 새로 요청하지 않습니다.";
             btnClose.Enabled = false;
             var receipt = await operation.CompleteAsync(lifetime.Token);
             if (!Live) return;
             CompletedReceipt = receipt;
-            lblStatus.Text = operation.Purpose == "noon_check" ? "정오 지문 확인 완료" : "퇴근 저장 완료";
-            lblDetail.Text = operation.Purpose == "noon_check" ? "서버에서 현재 근무의 정오 확인 저장을 확인했습니다."
+            lblStatus.Text = operation.Purpose == "noon_check" ? "오후 업무 전 지문 확인 완료" : "퇴근 저장 완료";
+            lblDetail.Text = operation.Purpose == "noon_check" ? "서버에서 현재 근무의 오후 업무 전 지문 확인 저장을 확인했습니다."
                 : "서버에 퇴근 기록이 저장되었습니다.";
             btnClose.Text = "확인";
         }

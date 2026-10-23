@@ -16,6 +16,11 @@ from ...models import AuthSession, User, iso
 from .models import Context, Challenge, Operation
 
 
+def afternoon_check_window(stamp):
+    """Server UTC only; legacy noon_* wire names keep their existing shape."""
+    return 11 <= (stamp + timedelta(hours=9)).hour < 12
+
+
 class AttendanceBase(DeclarativeBase):
     pass
 
@@ -105,11 +110,12 @@ class AttendanceWorkflow:
         return {"server_time": iso(stamp), "work_session_ref": row.id,
                 "work_date": day, "state": "open", "started_at": iso(row.started_at),
                 "noon_at": iso(row.noon_at) if row.noon_at is not None else None,
-                "noon_due": row.noon_at is None and (stamp + timedelta(hours=9)).hour >= 12}
+                "noon_due": row.noon_at is None and afternoon_check_window(stamp)}
 
-    def current(self, db, user, purpose):
+    def current(self, db, user, purpose, *, at=None):
         from .routes import now, fail
-        day, row = self._work(db, user)
+        stamp = now() if at is None else at
+        day, row = self._work(db, user, at=stamp)
         if row is not None and row.ended_at is not None:
             fail(409, "ATTENDANCE_DAY_CLOSED")
         if purpose == "clock_in":
@@ -119,7 +125,7 @@ class AttendanceWorkflow:
         if row is None:
             fail(409, "ATTENDANCE_NOT_STARTED")
         if purpose == "noon_check":
-            if (now() + timedelta(hours=9)).hour < 12:
+            if not afternoon_check_window(stamp):
                 fail(409, "ATTENDANCE_NOON_NOT_DUE")
             if row.noon_at is not None:
                 fail(409, "ATTENDANCE_NOON_ALREADY_RECORDED")
@@ -148,9 +154,13 @@ class AttendanceWorkflow:
             fail(409, "IDENTITY_TERMINAL")
         if item.expires_at <= now():
             fail(410, "IDENTITY_EXPIRED")
-        state = self.current(db, user, item.purpose)
-        day, work = self._work(db, user)
-        t = now(); retain = t + timedelta(days=1)
+        # Recheck at the actual new attendance write. Earlier capture/approval
+        # cannot authorize a first noon save after the 12:00 boundary. Already
+        # committed exact receipts were returned above, even outside the window.
+        t = now()
+        state = self.current(db, user, item.purpose, at=t)
+        day, work = self._work(db, user, at=t)
+        retain = t + timedelta(days=1)
         answer = {"state": "completed", "workflow_receipt_id": str(uuid4()),
                   "work_date": day, "work_session_ref": state["work_session_ref"]}
         if item.purpose == "clock_in":

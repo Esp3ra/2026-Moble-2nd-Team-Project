@@ -59,9 +59,7 @@ def test_actual_workday_forms_to_server_and_pi(working, monkeypatch, purpose, mo
     assert dll.name == "IdentityLogin.Ui.Tests.dll"
     # Explicit owned fixture represents a previously committed open shift, not
     # a proposed production reader or a replacement for first clock-in coverage.
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    if (now + timedelta(hours=9)).hour < 12:
-        now = now.replace(hour=3, minute=5, second=0, microsecond=0)
+    now = datetime.now(timezone.utc).replace(hour=2, minute=5, second=0, microsecond=0, tzinfo=None)
     monkeypatch.setattr(routes, "now", lambda: now)
     day = (now + timedelta(hours=9)).date().isoformat()
     work_id = str(uuid4())

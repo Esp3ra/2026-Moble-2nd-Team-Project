@@ -14,7 +14,7 @@ internal static partial class Program
     private static readonly Guid Work = Guid.Parse("70000000-0000-4000-8000-000000000001");
     private static readonly Guid DeviceId = Guid.Parse("10000000-0000-4000-8000-000000000001");
     private static readonly WorkdayActivityOptions Options = new(DeviceId, new Uri("http://pi.invalid:8080"), new());
-    private static WorkdayActivityState Before => new(Work, new(2026, 10, 22), DateTimeOffset.Parse("2026-10-22T02:59:00Z"), null, false);
+    private static WorkdayActivityState Before => new(Work, new(2026, 10, 22), DateTimeOffset.Parse("2026-10-22T01:59:00Z"), null, false);
     private static WorkdayActivityState Due => Before with { ServerTime = Before.ServerTime.AddMinutes(1), NoonDue = true };
     private sealed class VerificationFailure(string message) : Exception(message);
     private static void Check(bool ok, string message) { checks++; if (!ok) throw new VerificationFailure(message); }
@@ -38,7 +38,7 @@ internal static partial class Program
                 else if (args.FirstOrDefault() == "--loopback-clockout-activity") await ClockOutLoopback(args);
                 else
                 {
-                    await NoonAndBorrowedViews(owner); await LateAndOtherPc(owner); await ErrorsAndConcurrency(owner);
+                    await NoonAndBorrowedViews(owner); await LateAndOtherPc(owner); await WindowAndReconnect(owner); await ErrorsAndConcurrency(owner);
                     await EndedAndChangedWork(owner); await InvalidSource(owner); await ClosedWorkdayKeepsGeneralLogin(owner);
                     await MainOwnership(); await ClosedMainKeepsGeneralMenus(); await NormalCloseDrains();
                     StartupProfile(); await IndependentStartup(false, false); await IndependentStartup(true, false); await IndependentStartup(false, true);
@@ -120,8 +120,8 @@ internal static partial class Program
         using var host = new LoginWorkdayActivity(owner, api.CaptureSession(), source.Read, Options, new Monitor(),
             _ => { shown++; return Task.CompletedTask; }, _ => new NoSensor(), automaticallyPoll: false);
         await host.StartAsync(); await host.CheckAsync();
-        Check(shown == 0 && host.CanCheckNoon, "Late initial connection shows required state without inventing catch-up popup policy");
-        await host.ShowNoonAsync(); Check(shown == 1, "Late required check remains available explicitly");
+        Check(shown == 1 && host.CanCheckNoon, "Initial login inside the confirmed window prompts once");
+        await host.ShowNoonAsync(); Check(shown == 2, "An unfinished in-window check reopens its retained operation");
     }
     private static async Task ErrorsAndConcurrency(Form owner)
     {
@@ -306,7 +306,7 @@ internal static partial class Program
                     }
                     if (path.EndsWith("/auth/login")) data = new LoginResult(new string('x', 43), "Bearer", DateTimeOffset.UtcNow.AddHours(1), User);
                     else if (path.EndsWith("/auth/me")) data = new IdentityResult(User, DateTimeOffset.UtcNow.AddHours(1));
-                    else if (path.EndsWith("/workday")) data = new { server_time = "2026-10-22T02:59:00Z", work_session_ref = Work, work_date = "2026-10-22",
+                    else if (path.EndsWith("/workday")) data = new { server_time = "2026-10-22T01:59:00Z", work_session_ref = Work, work_date = "2026-10-22",
                         state = "open", started_at = "2026-10-22T01:00:00Z", noon_at = (string?)null, noon_due = false };
                     else if (path.EndsWith("/auth/logout")) { Interlocked.Increment(ref Logouts); data = new MessageResult("signed out"); }
                     else data = new { items = Array.Empty<object>() };
