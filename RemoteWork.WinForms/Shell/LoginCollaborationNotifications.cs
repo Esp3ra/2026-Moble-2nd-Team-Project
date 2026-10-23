@@ -28,9 +28,10 @@ public sealed class LoginCollaborationNotifications : Component
         });
     }
 
-    // No silent 10-second production policy: an explicit client setting is
-    // required. Missing/invalid settings keep automatic reception disconnected.
+    // User-requested automatic reception: no environment setup is needed.
+    // Explicit overrides remain supported; malformed overrides stay disconnected.
     public static TimeSpan? ParseInterval(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? TimeSpan.FromSeconds(30) :
         int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var seconds) &&
         seconds is >= 1 and <= 3600 ? TimeSpan.FromSeconds(seconds) : null;
 
