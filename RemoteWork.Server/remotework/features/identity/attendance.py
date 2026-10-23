@@ -75,19 +75,22 @@ class AttendanceWorkflow:
         return day, next((row for row in rows if row.work_date == day), None)
 
     def can_resume(self, db, user):
+        """Application access after today's attendance, including closed work.
+
+        This is not permission to resume work; current/read_workday still reject
+        a closed session and login never changes attendance.
+        """
         from .routes import now
         day = (now() + timedelta(hours=9)).date().isoformat()
         row = db.scalar(select(WorkSession).where(WorkSession.user_id == user.id,
             WorkSession.work_date == day).execution_options(populate_existing=True))
-        return row is not None and row.ended_at is None
+        return row is not None
 
     def resume(self, db, user):
         from .routes import fail
         _, row = self._work(db, user)
         if row is None:
             fail(409, "IDENTITY_FINGERPRINT_REQUIRED")
-        if row.ended_at is not None:
-            fail(409, "ATTENDANCE_DAY_CLOSED")
         return row
 
     def read_workday(self, db, user):
