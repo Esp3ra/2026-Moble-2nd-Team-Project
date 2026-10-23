@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import secrets
+import subprocess
 import tempfile
 import threading
 import unittest
@@ -16,7 +17,7 @@ import fingerprint_identity_wire as wire
 from fingerprint_identity import IdentityProfile
 from fingerprint_enrollment_private import ConfigurationError
 from identity_restart import RestartObservation
-from identity_startup import StartupReadiness, inputs_current, profile_digest, read_root_document, validate_handoff
+from identity_startup import StartupReadiness, inputs_current, process_stamp, profile_digest, read_root_document, validate_handoff
 from identity_transition import (
     claim_value, install_server_sources, require_server_ready, server_sources_document, switch_service,
 )
@@ -133,6 +134,130 @@ class StartupTests(unittest.TestCase):
     def test_user_private_json_cannot_be_used_as_root_handoff(self):
         with self.assertRaises(ConfigurationError):
             read_root_document(self.file)
+
+
+class ProcessStampTests(unittest.TestCase):
+    """Exercise the real OS-reader boundary with controlled proc/systemd facts."""
+    def setUp(self):
+        self.boot, self.invocation, self.pid, self.start = str(uuid4()), "a" * 32, 4321, "123456"
+        self.group = "/system.slice/attendance-device.service"
+        self.manager = dict(MainPID=str(self.pid), InvocationID=self.invocation,
+                            ControlGroup=self.group, ActiveState="active")
+        self.cgroup = "0::" + self.group + "\n"
+        self.proc_error = None
+        self.environment = {"INVOCATION_ID": self.invocation, "PATH": "/attacker",
+            "DBUS_SYSTEM_BUS_ADDRESS": "unix:path=/attacker/bus", "LD_PRELOAD": "/attacker/preload.so",
+            "SYSTEMD_BUS_TIMEOUT": "infinity"}
+        for target, options in (
+            ("identity_startup.os.environ", dict(new=self.environment)),
+            ("identity_startup.os.getpid", dict(side_effect=lambda: self.pid)),
+            ("identity_startup.Path.read_text", dict(autospec=True, side_effect=self.read_proc)),
+            ("identity_startup.subprocess.run", dict(side_effect=self.systemctl))):
+            mock = patch(target, **options)
+            value = mock.start()
+            self.addCleanup(mock.stop)
+            if target.endswith("subprocess.run"): self.command = value
+
+    def read_proc(self, path, *args, **kwargs):
+        if self.proc_error: raise self.proc_error
+        if str(path).replace("\\", "/") == "/proc/sys/kernel/random/boot_id": return self.boot
+        if str(path).replace("\\", "/") == "/proc/self/stat":
+            return str(self.pid) + " (python worker) S " + " ".join(["0"] * 18 + [self.start])
+        if str(path).replace("\\", "/") == "/proc/self/cgroup": return self.cgroup
+        raise AssertionError("Unexpected proc read")
+
+    def systemctl(self, *args, **kwargs):
+        return SimpleNamespace(stdout="\n".join(name + "=" + value for name, value in self.manager.items()) + "\n")
+
+    def test_live_main_process_in_active_or_activating_unit_is_allowed(self):
+        for state in ("active", "activating"):
+            self.manager["ActiveState"] = state
+            self.assertEqual((self.boot, self.invocation, self.pid, self.start), process_stamp())
+
+    def test_trusted_absolute_systemctl_ignores_caller_environment(self):
+        process_stamp()
+        args, kwargs = self.command.call_args
+        self.assertEqual(["/usr/bin/systemctl", "--system", "show", "attendance-device.service", "--no-pager",
+            "--property", "MainPID", "--property", "InvocationID", "--property", "ControlGroup",
+            "--property", "ActiveState"], args[0])
+        self.assertEqual({"PATH": "/usr/bin:/bin", "LANG": "C", "LC_ALL": "C"}, kwargs["env"])
+        self.assertEqual(1, kwargs["timeout"])
+        self.assertTrue(kwargs["check"])
+
+    def test_old_handoff_cannot_admit_replacement_after_first_process_closes(self):
+        fixture = StartupTests()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        fixture.stamp = list(process_stamp())
+        fixture.evidence.update(boot_id=self.boot, invocation_id=self.invocation, previous_pid=self.pid + 10000)
+        binding = fixture.binding()
+        def new_gate():
+            return StartupReadiness(binding, fixture.profile, SimpleNamespace(current=lambda: True), fixture.service,
+                evidence_path=fixture.file, evidence_sha256=fixture.root_hash, stamp_reader=process_stamp,
+                root_reader=lambda _: ({}, fixture.root_hash))
+        first = new_gate()
+        self.assertTrue(first(fixture.profile))
+        first.close()
+        self.manager.update(MainPID="0", ActiveState="inactive")
+        self.pid += 1
+        self.start = "999999"
+        # Same boot, inherited INVOCATION_ID, unchanged root handoff and inputs.
+        with self.assertRaises(ConfigurationError): new_gate()
+        # The old PID still listed by systemd, or a new OS invocation, cannot help.
+        self.manager.update(MainPID="4321", ActiveState="active")
+        with self.assertRaises(ConfigurationError): new_gate()
+        self.manager.update(MainPID=str(self.pid), InvocationID="f" * 32)
+        with self.assertRaises(ConfigurationError): new_gate()
+        self.assertFalse(first(fixture.profile))
+
+    def test_other_pid_invocation_group_or_inactive_service_is_denied(self):
+        for changes in (dict(MainPID="0"), dict(MainPID=str(self.pid + 1)), dict(InvocationID="f" * 32),
+                        dict(ControlGroup="/another.service"), dict(ActiveState="deactivating"),
+                        dict(ActiveState="inactive"), dict(ActiveState="failed")):
+            with self.subTest(changes=changes), patch.dict(self.manager, changes), self.assertRaises(ConfigurationError):
+                process_stamp()
+
+    def test_missing_or_ambiguous_unified_cgroup_is_denied(self):
+        for group in ("", "1:name=systemd:" + self.group, "0::/", "0::relative", self.cgroup * 2):
+            self.cgroup = group
+            with self.subTest(group=group), self.assertRaises(ConfigurationError): process_stamp()
+
+    def test_manager_error_timeout_and_malformed_output_fail_closed(self):
+        for error in (FileNotFoundError(), subprocess.TimeoutExpired("systemctl", 1),
+                      subprocess.CalledProcessError(1, "systemctl")):
+            self.command.side_effect = error
+            with self.subTest(error=type(error)), self.assertRaises(ConfigurationError):
+                process_stamp()
+        valid = self.systemctl().stdout
+        for output in ("", valid.replace("MainPID=4321\n", ""), valid + "MainPID=4321\n",
+                       valid + "unexpected=value\n", "invalid", valid.replace("MainPID=4321", "MainPID=abc")):
+            self.command.side_effect = lambda *a, **k: SimpleNamespace(stdout=output)
+            with self.subTest(output=output), self.assertRaises(ConfigurationError):
+                process_stamp()
+
+    def test_proc_failure_bad_boot_invocation_or_start_is_denied(self):
+        self.proc_error = PermissionError()
+        with self.assertRaises(ConfigurationError): process_stamp()
+        self.proc_error = None
+        for name, value in (("boot", "invalid"), ("start", "invalid")):
+            with patch.object(self, name, value), self.assertRaises(ConfigurationError): process_stamp()
+        for invocation in ("", "A" * 32, "f" * 31):
+            with patch.dict(self.environment, INVOCATION_ID=invocation), self.assertRaises(ConfigurationError): process_stamp()
+
+    def test_os_membership_loss_permanently_closes_existing_gate(self):
+        fixture = StartupTests()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        fixture.stamp = list(process_stamp())
+        fixture.evidence.update(boot_id=self.boot, invocation_id=self.invocation, previous_pid=self.pid + 10000)
+        gate = StartupReadiness(fixture.binding(), fixture.profile, SimpleNamespace(current=lambda: True), fixture.service,
+            evidence_path=fixture.file, evidence_sha256=fixture.root_hash, stamp_reader=process_stamp,
+            root_reader=lambda _: ({}, fixture.root_hash))
+        self.assertTrue(gate(fixture.profile))
+        self.manager["MainPID"] = "0"
+        self.assertFalse(gate(fixture.profile))
+        self.manager["MainPID"] = str(self.pid)
+        self.assertFalse(gate(fixture.profile))
 
 
 class TransitionTests(unittest.TestCase):

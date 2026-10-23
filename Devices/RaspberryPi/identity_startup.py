@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import re
 import stat
+import subprocess
 import threading
 
 from fingerprint_enrollment_private import ConfigurationError, _no_symlinks
@@ -36,13 +37,39 @@ def read_root_document(path):
 
 
 def process_stamp():
-    boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
-    wire.canonical_uuid(boot)
-    invocation = os.environ.get("INVOCATION_ID", "")
-    if not re.fullmatch("[0-9a-f]{32}", invocation):
-        raise ConfigurationError("identity_systemd_invocation_required")
-    start = Path("/proc/self/stat").read_text().rsplit(") ", 1)[1].split()[19]
-    return boot, invocation, os.getpid(), start
+    """Only the live system unit's main process may consume its root handoff.
+
+    INVOCATION_ID alone is caller-controlled. A replacement process must not
+    reopen admission by inheriting that value after the approved process exits.
+    """
+    try:
+        boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+        wire.canonical_uuid(boot)
+        invocation = os.environ.get("INVOCATION_ID", "")
+        if not re.fullmatch("[0-9a-f]{32}", invocation):
+            raise ValueError()
+        pid = os.getpid()
+        start = Path("/proc/self/stat").read_text().rsplit(") ", 1)[1].split()[19]
+        groups = [line[3:] for line in Path("/proc/self/cgroup").read_text().splitlines()
+                  if line.startswith("0::")]
+        fields = ("MainPID", "InvocationID", "ControlGroup", "ActiveState")
+        # Never inherit a caller's PATH, loader settings or D-Bus redirection.
+        result = subprocess.run(
+            ["/usr/bin/systemctl", "--system", "show", "attendance-device.service", "--no-pager"]
+            + [arg for name in fields for arg in ("--property", name)],
+            capture_output=True, text=True, check=True, timeout=1,
+            env={"PATH": "/usr/bin:/bin", "LANG": "C", "LC_ALL": "C"})
+        lines = result.stdout.splitlines()
+        values = dict(line.split("=", 1) for line in lines)
+        if (len(lines) != len(fields) or set(values) != set(fields)
+                or values["MainPID"] != str(pid) or values["InvocationID"] != invocation
+                or values["ActiveState"] not in ("active", "activating")
+                or len(groups) != 1 or not groups[0].startswith("/") or groups[0] == "/"
+                or values["ControlGroup"] != groups[0] or not start.isdecimal()):
+            raise ValueError()
+        return boot, invocation, pid, start
+    except Exception:
+        raise ConfigurationError("identity_systemd_process_required") from None
 
 
 def profile_digest(profile):

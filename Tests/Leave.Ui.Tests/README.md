@@ -6,6 +6,8 @@ dotnet run --project Tests/Leave.Ui.Tests -c Release
 
 실제 WinForms 메시지 루프와 합성 로그인/내부 ILeaveWorkflow 대역을 사용한다. 5개 신청 유형과 병가·공가 차감 제외 안내, 미연결 시 저장 완료 금지, 기간 검사, 중복 클릭/응답 유실의 요청 고정, 다른 신청의 영수증 거부, 지정 직원의 관리자 검토 제한, 접속 종료 뒤 늦은 결과를 확인한다. 실제 HTTP 휴가 계약·DB 정책을 만든 시험이 아니며 실제 회원/서버/DB/장치를 사용하지 않는다.
 
+테스트 호스트도 제품 프로젝트와 같은 `ApplicationHighDpiMode=DpiUnawareGdiScaled`와 `ForceDesignerDPIUnaware=true`를 사용한다. `ApplicationConfiguration.Initialize()`가 이 설정을 적용하므로 기본 실행 명령에 별도 DPI 인수를 덧붙이지 않는다. 제품과 다른 호스트 DPI 설정에 따른 배치를 제품의 목록 오류로 판정하지 않으며, 이 검사는 제품이 지원하지 않는 별도 DPI 모드까지 보장하지 않는다.
+
 출력 폴더를 인자로 넘기면 신청·검토 폼 PNG를 생성한다. 폼 컨트롤은 제품의 Designer.cs/resx에서 관리한다. 서버 adapter의 담당 범위 권한·실제 차감·동시성과 API 협의는 별도다.
 
 2026-10-22 화면 보완 후 **76검사**(기존57 포함)다. 신청 유형/기간·사유 글자수의 즉시 요약, 검토 차감 안내, 본인/지정 목록 안의 상태 필터, 필터가 새 조회를 하지 않는 것, 선택 상태 초기화, 로그아웃 뒤 필터의 이전 자료 복구 금지, 조회 실패를 빈 정상 응답으로 바꾸지 않는 것을 추가 확인한다. 독립 [화면 체험 도구](../../Tools/LeavePreview/README.md)의9검사와 구분한다.
