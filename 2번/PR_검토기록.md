@@ -1,3 +1,22 @@
+<a id="pr79-fixed-merged-20261023"></a>
+## PR79 R79-01·02 수정·재검증·병합 완료 — 2026-10-23
+
+사용자의 직접 수정·댓글·병합 지시로 원88f78fa에서 최신alphaea45d437을 일반 merge(0ab6e32)하고 **8730b9ea76a5f43a46b95d0dc3060ac7baeac28c**로 수정했습니다. [기존 PR79 통합 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/79#issuecomment-6355102205)에 근거를 게시한 뒤 Draft→Open→Merge를 완료했습니다. **2026-10-23 10:22:36 KST**, 실제 [dc823221556cd639237440722c396371c7b63c23](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/commit/dc823221556cd639237440722c396371c7b63c23)이며 부모ea45d437/8730b9ea·전체tree **2db4536d24215011a527153483c82ffe19e16dfd**가 검증 결합본과 같습니다. REST merged/closed·원격alpha를 확인했고 같은 댓글에 최종 결과를 갱신했습니다. 아래79 수정대기·미병합은 원88 당시 이력입니다.
+
+**R79-01/P1 해결:** 검토목록의 담당관계 IN서브쿼리를 신청·현재활성User·reviewers 직접JOIN으로 바꿔 같은 FOR UPDATE query에서 현재관계를 읽습니다. request_view의 readable 재검사가 각 행의 현재 열람권한도 검사하며 can_review=false를 개인정보 공개 허가로 쓰지 않습니다.
+
+**R79-02/P2 해결:** 활성/현재담당 필터를 after/limit+1 전에 적용해 비활성/재배정 항목이 다른 활성직원의 목록·페이지를 막지 않도록 했습니다. own조회에는 reviewerJOIN을 추가하지 않아 관리자 해제·재배정·비활성 후에도 활성 본인의 이력을 유지합니다. 전역admin/비활성회원 권한 확대는 없습니다.
+
+| 직접 확인 | 결과·정확한 범위 |
+|---|---|
+| 원본 음성대조 |두 반례2 failed/7.82초, 원본761파일 hash불변·제품되돌림없음. 별도 소유MySQL 정리true|
+| 수정본 전체 |**50 passed/139.62초**, 기존39+추가11. 원HTTP/인증뒤 cooperating TX 재배정·비활성, 현재권한/직렬화·페이지/next_cursor·본인이력·401/403. child140.74/전체145.59초|
+| 실제 C# bridge |C#→Flask TCP→MySQL14assertion은 위50중1개시험에포함, 별도합산안함|
+| UI/빌드 |원WinForms/합성workflow·신원대역115PASS. LeaveService.Tests 및 통합솔루션Release 각각0경고/0오류|
+| 정적/재감사 |Python2AST·diffcheck·기존앵커 보존. 독립읽기감사에서 새차단결함없음. GitHub status/workflow등록0건이며 자동CI성공을뜻하지않음|
+
+정확 수정은 서비스/회귀/설명5파일, PR전체는 기존14파일입니다. SQL016·공통auth·setup·C#bridge·원실행기는 원88blob과 같고, 최신alpha 다른담당 코드는 일반merge로 보존했습니다. [상세 변경/근거·미실행·로컬동기화](업무_구현검증.md#member2-pr79-fix-check-20261023)와 [담당/정책 경계](공통규약.md#member2-pr79-merged-boundary-20261023)를 따릅니다. 같은소스의 빌드/시험을 병합 후 새 실행으로 중복 집계하지 않습니다. D1/D2·실제공유쓰기/5번주입은 별도이며 이번병합은 운영승인이 아닙니다.
+
 <a id="pr78-82-reviewed-20261023"></a>
 ## 열린 PR78~82 전체 검토 — 2026-10-23
 
