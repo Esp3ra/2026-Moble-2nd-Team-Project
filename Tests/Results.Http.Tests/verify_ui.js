@@ -6,6 +6,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 const source = fs.readFileSync(process.argv[2] || path.join(__dirname,"../../RemoteWork.Server/remotework/static/results.js"),"utf8");
+const hashSource = fs.readFileSync(path.join(__dirname,"../../RemoteWork.Server/remotework/static/file_hash.js"),"utf8");
 let checks = 0;
 function check(value, message) { assert.ok(value,message); checks++; }
 class Element {
@@ -87,9 +88,11 @@ function harness({role="admin",state="submitted",write,lookup,initialTask="",vie
     throw new Error("Unexpected test endpoint "+endpoint);
   };
   const window=new Element("window");
-  vm.runInNewContext(source,{document:{getElementById:id=>ids.get(id)||null,createElement:tag=>new Element(tag)},window,
+  const browser=vm.createContext({document:{getElementById:id=>ids.get(id)||null,createElement:tag=>new Element(tag)},window,
     fetch,FormData,AbortController,setTimeout,clearTimeout,URL,Intl,Date,BigInt,Map,Set,Uint8Array,Object,JSON,Error,SyntaxError,
-    location:{assign(){}},crypto:require("node:crypto").webcrypto,Blob,console});
+    location:{assign(){}},ArrayBuffer,DOMException,Blob,console});
+  vm.runInContext(hashSource,browser,{filename:"file_hash.js"});
+  vm.runInContext(source,browser,{filename:"results.js"});
   const rowButton=(id,index)=>ids.get(id).querySelectorAll("button")[index];
   return {ids,task,requests,paused,context,rowButton,
     get rounds(){return rounds;},set rounds(value){rounds=value;},
