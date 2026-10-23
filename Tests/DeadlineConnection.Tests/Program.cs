@@ -5,7 +5,7 @@ using RemoteWork.WinForms.Features.DeadlineAlerts;
 using RemoteWork.WinForms.Infrastructure;
 using RemoteWork.WinForms.Shell;
 
-internal static class Program
+internal static partial class Program
 {
     private const string Event = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
     private const string TaskId = "9007199254740993";
@@ -20,13 +20,13 @@ internal static class Program
         using var host = new Form { ShowInTaskbar = false, Opacity = 0 };
         host.Shown += async (_, _) =>
         {
-            try { if (args.Contains("--shared-read")) await SharedRead(host); else if (args.Contains("--main")) await MainFormLive(); else if (args.Contains("--live")) await Live(host); else await Doubles(); }
+            try { if (args.Contains("--shared-demo")) await SharedDemo(); else if (args.Contains("--shared-read")) await SharedRead(host); else if (args.Contains("--main")) await MainFormLive(); else if (args.Contains("--live")) await Live(host); else await Doubles(); }
             catch (Exception error) { failure = error; }
             finally { host.Close(); }
         };
         Application.Run(host);
         if (failure is not null) { Console.Error.WriteLine(failure); Environment.ExitCode = 1; }
-        else Console.WriteLine($"PASS: {checks} binding-aware deadline checks ({(args.Contains("--shared-read") ? "deployed server read-only + captured wrapper/scope/panel; business writes 0" : args.Contains("--live") || args.Contains("--main") ? "actual PR70 HTTP/MySQL + captured wrapper/scope/panel/MainForm; fixture tasks" : "explicit HTTP doubles")}).");
+        else Console.WriteLine($"PASS: {checks} binding-aware deadline checks ({(args.Contains("--shared-demo") ? "actual deployed server/user-approved NEW demo/MainForm/navigation/confirmation/relogin/independent session; not two physical PCs" : args.Contains("--shared-read") ? "deployed server read-only + captured wrapper/scope/panel; business writes 0" : args.Contains("--live") || args.Contains("--main") ? "actual PR70 HTTP/MySQL + captured wrapper/scope/panel/MainForm; fixture tasks" : "explicit HTTP doubles")}).");
     }
     private static async Task SharedRead(Form host)
     {

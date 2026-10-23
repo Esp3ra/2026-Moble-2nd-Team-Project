@@ -29,3 +29,10 @@ scope/panel, 정상/저장 후 응답 유실/성공 뒤 GET 실패/실제MainFor
 ## 배포 서버 읽기 최종 확인
 
 `--shared-read`는 환경 변수 `DEADLINE_TEST_URL`, `DEADLINE_SHARED_LOGIN`, `DEADLINE_SHARED_PASSWORD`를 메모리로 받아 실제 서버를 조회한다. 원 source → 기존 캡처 wrapper/scope → 실제 panel, 원 binding, 재조회, 로그아웃 무효화, 재로그인을 확인한다. 업무 확인/키 발급/receipt 쓰기0이다. 계정/비밀번호를 문서나 로그에 남기지 않는다. **`--live`/`--main`은 확인 저장을 실행하므로 실제 사용자 서버에 테스트 용도로 실행하지 않는다.** 이 모드는 소유 MySQL fixture 전용이다.
+
+
+## 승인된 새 시연 업무의 실제 확인 검증 — 2026-10-23
+
+`--shared-demo`는 사용자가 명시 지정한 **새 시연 업무ID**(`DEADLINE_DEMO_TASK_ID`) 하나만 실제 확인한다. 같은 비공개 로그인 환경변수를 사용하며 실제 MainForm/source/scope/panel→업무 화면의 정확한 ID 탐색→확인 저장→별도 로그인 세션과 재로그인의 DB 반영을 검사한다. 기존 다른 알림의 확인 상태가 유지됐는지도 대조한다. 원 MainForm은 최소화/비표시 taskbar로 동작해 다른 기존 알림을 임의 확인하지 않는다. 일반 `--live`/`--main` fixture 모드와 구분한다. 이 모드를 실제 기존 사용자 업무에 재사용하지 않는다.
+
+10/23 사용자 승인 신규 task5에서11 PASS. 확인 POST200/request_id `10250a21945d37ac`, 원 업무 GET200/request_id `1ec814fc80af460a`. 실제 서버는1번 보고0628902이며 API의SHA 직접표시는 없다. 요청번호만 남기는 loopback pass-through가 실제 서버로 전달했고 응답 대역/DB fixture는 아니다. 두 독립 세션을 같은PC에서 실행했으므로 두 물리PC 검증은 별도다. 종료 때 취소된 구 화면의 HTTP 연결1건에서 proxy write ConnectionAborted 로그가 있었으나 전체검사는exit0이며 원 확인 저장을 다시 실행하지 않았다.
