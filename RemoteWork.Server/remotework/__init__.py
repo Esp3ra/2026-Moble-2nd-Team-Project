@@ -193,4 +193,10 @@ def create_app(test_config=None):
             session.execute(delete(LoginFailure).where(LoginFailure.created_at < utcnow() - timedelta(days=1)))
         click.echo("만료된 접속과 오래된 실패 기록 정리 완료")
 
+    # Member1 leave proposal: opt-in API; no DDL/calendar/member grants at startup.
+    if app.config.get('ENABLE_LEAVE_DRAFT', os.getenv('REMOTEWORK_ENABLE_LEAVE_DRAFT') == '1'):
+        app.config.setdefault('LEAVE_WRITE_POLICY', os.getenv('REMOTEWORK_LEAVE_WRITE_POLICY', ''))
+        from .leave_service import install as install_leave
+        install_leave(app)
+
     return app
