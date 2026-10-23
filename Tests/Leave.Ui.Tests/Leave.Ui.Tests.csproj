@@ -5,6 +5,8 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <ApplicationHighDpiMode>DpiUnawareGdiScaled</ApplicationHighDpiMode>
+    <ForceDesignerDPIUnaware>true</ForceDesignerDPIUnaware>
   </PropertyGroup>
   <PropertyGroup Condition="Exists('$(MSBuildProjectDirectory)/../../RemoteWork.WinForms/Infrastructure/HttpLeaveWorkflow.cs')">
     <DefineConstants>$(DefineConstants);REAL_LEAVE_ADAPTER</DefineConstants>

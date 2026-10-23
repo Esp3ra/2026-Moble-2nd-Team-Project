@@ -26,9 +26,9 @@ namespace RemoteWork.WinForms.Features.Attendance
                 panelAttendance.Visible = !value;
                 btnActivityPresence.Visible = !value;
                 layoutRecords.RowStyles[0].SizeType = value ? SizeType.Absolute : SizeType.Percent;
-                layoutRecords.RowStyles[0].Height = value ? 0 : 50;
+                layoutRecords.RowStyles[0].Height = value ? 0 : 35;
                 layoutRecords.RowStyles[1].SizeType = SizeType.Percent;
-                layoutRecords.RowStyles[1].Height = value ? 100 : 50;
+                layoutRecords.RowStyles[1].Height = value ? 100 : 65;
                 lblPageTitle.Text = value ? (LeaveInput.Administrator(leaveSession) ? "연차 · 휴가 검토" : "연차 · 휴가 신청") : "출퇴근 · 연차";
             }
         }

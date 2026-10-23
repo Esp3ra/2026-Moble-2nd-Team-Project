@@ -226,7 +226,7 @@ public sealed class FingerprintEnrollmentForm : Form
             }
             attempt = null;
             scope.TryPost(view, () => status.Text =
-                "기존 예약이 남아 일반 등록을 시작하지 않았습니다. '운영자가 승인한 복구 작업으로 등록'을 선택하고 전달받은 복구 번호를 확인해 주세요.");
+                "현재 허용된 지문 등록 번호 중 비어 있는 번호가 없습니다. 운영자에게 등록 공간과 기존 작업 확인을 요청해 주세요. 복구번호는 별도 승인을 받은 경우에만 사용합니다.");
         }
         catch (ApiException error)
         {

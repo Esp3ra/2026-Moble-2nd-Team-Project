@@ -81,6 +81,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             layoutPage.RowStyles.Add(new RowStyle(SizeType.Absolute, 80F));
             layoutPage.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             layoutPage.Dock = DockStyle.Fill;
+            layoutPage.MinimumSize = new Size(0, 688);
             layoutPage.Margin = new Padding(0);
             layoutPage.Name = "layoutPage";
             layoutPage.Controls.Add(layoutHeading, 0, 0);
@@ -168,9 +169,10 @@ namespace RemoteWork.WinForms.Features.Attendance
             layoutRecords.ColumnCount = 1;
             layoutRecords.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             layoutRecords.RowCount = 2;
-            layoutRecords.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
-            layoutRecords.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
+            layoutRecords.RowStyles.Add(new RowStyle(SizeType.Percent, 35F));
+            layoutRecords.RowStyles.Add(new RowStyle(SizeType.Percent, 65F));
             layoutRecords.Dock = DockStyle.Fill;
+            layoutRecords.MinimumSize = new Size(0, 560);
             layoutRecords.Margin = new Padding(0);
             layoutRecords.Name = "layoutRecords";
             layoutRecords.Controls.Add(panelAttendance, 0, 0);
@@ -358,6 +360,8 @@ namespace RemoteWork.WinForms.Features.Attendance
             // AttendanceControl
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
+            AutoScroll = true;
+            AutoScrollMinSize = new Size(0, 724);
             BackColor = Color.FromArgb(242, 245, 250);
             Font = new Font("맑은 고딕", 9F);
             ForeColor = Color.FromArgb(30, 42, 61);
