@@ -3,14 +3,16 @@
 No keys, DDL, accounts, contexts or sensor operations are generated here.
 """
 import base64
+import hashlib
 import json
 import os
 from pathlib import Path
 import stat
 import subprocess
+from uuid import UUID
 
 from flask import Flask
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from .features.identity import validate_configuration
@@ -164,3 +166,77 @@ def create_private_app(profile_path, retired_path, *, enabled, base_overrides=No
     except Exception:
         app.extensions["db_engine"].dispose()
         raise
+
+
+def restart_observation(app, cycle_id):
+    """Private operator handoff proposal, not an admission grant.
+
+    Existing context/challenge IDs identify the ORIGINAL owner's GET/cancel
+    operation. No bearer/pending token, request bytes or key leaves the server.
+    A database observation cannot establish Pi drain/lock/process identity.
+    """
+    if type(cycle_id) is not str or str(UUID(cycle_id)) != cycle_id:
+        raise ValueError("Canonical reconciliation cycle UUID required")
+    report = preflight(app)
+    profiles = validate_configuration(app.config)
+    records = []
+    with Session(app.extensions["db_engine"]) as db:
+        # No old app request snapshot, no commit/DDL/state repair. Database UTC
+        # and challenge rows are one read-only repeatable-read observation.
+        db.execute(text("SET TRANSACTION READ ONLY"))
+        observed = db.execute(text("SELECT UTC_TIMESTAMP(6)")).scalar_one()
+        rows = db.scalars(select(Challenge).where(Challenge.device_id.in_(profiles),
+            (Challenge.state == "issued")
+            | ((Challenge.state == "verified") & Challenge.workflow_completed.is_(False))
+            | Challenge.capture_nonce.is_not(None)).order_by(Challenge.device_id, Challenge.id).limit(1001)).all()
+        if len(rows) > 1000:
+            raise ValueError("Restart observation bound exceeded; do not truncate unresolved work")
+        for row in rows:
+            records.append(dict(challenge_id=row.id, context_id=row.context_id,
+                client_request_id=row.client_request_id, device_id=row.device_id, purpose=row.purpose,
+                state=row.state, expires_at=row.expires_at.isoformat() + "Z",
+                lookup_until=row.lookup_until.isoformat() + "Z", workflow_completed=row.workflow_completed,
+                capture_fence_sha256=hashlib.sha256(row.capture_nonce.encode()).hexdigest() if row.capture_nonce else None,
+                result_id=row.result_id, result_sha256=row.result_hash))
+    report.update(version=1, contract="identity-restart-observation-v1-PROPOSAL", cycle_id=cycle_id,
+        checked_at_server_utc=observed.isoformat() + "Z", observation_only=True,
+        pi_ready_authorization=False, records=records,
+        profiles=[{k: p[k] for k in ("device_id", "key_id", "key_epoch", "minimum_slot", "maximum_slot", "capacity")}
+                  for p in profiles.values()])
+    # Snapshot counts, not the earlier independent storage/profile preflight.
+    report["unresolved_challenges"] = sum(r["state"] == "issued" or
+        (r["state"] == "verified" and not r["workflow_completed"]) for r in records)
+    report["persisted_capture_fences"] = sum(r["capture_fence_sha256"] is not None for r in records)
+    report["source_sha256"] = {name: hashlib.sha256((Path(__file__).parent / name).read_bytes()).hexdigest()
+        for name in ("identity_host.py", "features/identity/routes.py", "features/identity/attendance.py")}
+    return report
+
+
+def write_restart_observation(app, profile_path, retired_path, destination, cycle_id):
+    """Write once beside the checked private server profile; never overwrite."""
+    profile_path, retired_path, destination = (Path(p).absolute() for p in (profile_path, retired_path, destination))
+    if destination.parent != profile_path.parent or destination.exists() or destination.is_symlink():
+        raise ValueError("New report must be beside the private profile; existing paths are preserved")
+    # Recheck private parent permissions before creating even the operator report.
+    document = read_private(profile_path)
+    inventory = read_private(retired_path)
+    candidate = configuration(app.config, document, inventory)
+    if (candidate["IDENTITY_DEVICE_PROFILES"] != app.config["IDENTITY_DEVICE_PROFILES"]
+            or candidate["IDENTITY_EXCLUDED_KEYS"] != app.config.get("IDENTITY_EXCLUDED_KEYS", ())
+            or candidate["IDENTITY_WORKFLOW_PROVIDER"]._key != app.config["IDENTITY_WORKFLOW_PROVIDER"]._key
+            or candidate["IDENTITY_WORKFLOW_PROVIDER"]._key_id != app.config["IDENTITY_WORKFLOW_PROVIDER"]._key_id):
+        raise ValueError("Private configuration changed since application composition")
+    report = restart_observation(app, cycle_id)
+    report["retired_inventory_count"] = len(inventory["keys"])
+    raw = json.dumps(report, ensure_ascii=False, indent=2).encode("utf-8")
+    if len(raw) > 65536:
+        raise ValueError("Private observation size bound exceeded; do not truncate")
+    fd = os.open(destination, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    with os.fdopen(fd, "wb") as stream:
+        stream.write(raw)
+        stream.flush()
+        os.fsync(stream.fileno())
+    if read_private(destination) != report:
+        raise ValueError("Private restart observation readback failed")
+    return dict(report_written=True, observation_only=True, pi_ready_authorization=False,
+                sha256=hashlib.sha256(raw).hexdigest())

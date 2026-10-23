@@ -12,7 +12,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from remotework.identity_host import configuration, read_private, preflight, create_private_app
+from remotework.identity_host import configuration, read_private, preflight, create_private_app, restart_observation, write_restart_observation
 from remotework.features.identity.attendance import AttendanceWorkflow
 from remotework.features.identity.models import Challenge
 from test_device_enrollment import DID, KEYS, env
@@ -132,6 +132,53 @@ def test_mysql_current_profile_mismatch_fails(identity):
     e[0].config["IDENTITY_DEVICE_PROFILES"] = {DID: config}
     with pytest.raises(ValueError, match="mismatch"):
         preflight(e[0])
+
+
+def test_mysql_private_restart_observation_preserves_original_ids_and_fence(identity):
+    e = identity; use_workflow(e)
+    h, _ = pending(e); job, original = issue(e, h)
+    approval(e, h, job, "capture")
+    cycle = str(uuid4())
+    first = restart_observation(e[0], cycle)
+    assert first["observation_only"] and first["pi_ready_authorization"] is False
+    assert first["pi_restart_readiness"] == "NOT_SUPPLIED"
+    assert first["unresolved_challenges"] == first["persisted_capture_fences"] == 1
+    record = first["records"][0]
+    assert record["challenge_id"] == job["challenge_id"]
+    assert record["client_request_id"] == original["client_request_id"]
+    assert len(record["capture_fence_sha256"]) == 64
+    assert not {"capture_nonce", "request_bytes", "result_bytes", "token", "password", "keys"} & set(record)
+    assert h["Authorization"].split(" ")[1] not in json.dumps(first)
+    assert post(e, h, job, "cancel", dict(client_request_id=str(uuid4()))).status_code == 200
+    second = restart_observation(e[0], cycle)
+    assert second["unresolved_challenges"] == 0 and second["persisted_capture_fences"] == 1
+    assert second["records"][0]["capture_fence_sha256"] == record["capture_fence_sha256"]
+    assert second["records"][0]["state"] == "cancelled"
+
+
+@pytest.mark.parametrize("cycle", ["invalid", "123E4567-E89B-42D3-A456-426614174000", None])
+def test_invalid_cycle_rejected_before_database(cycle):
+    with pytest.raises((ValueError, TypeError)):
+        restart_observation(None, cycle)
+
+
+def test_existing_report_preserved_without_reading_private_inputs(tmp_path):
+    destination = tmp_path / "existing.json"; destination.write_text("preserve")
+    with pytest.raises(ValueError, match="existing paths"):
+        write_restart_observation(None, tmp_path / "profile", tmp_path / "inventory", destination, str(uuid4()))
+    assert destination.read_text() == "preserve"
+
+
+def test_changed_profile_rejected_before_database_or_report_write(tmp_path):
+    from types import SimpleNamespace
+    base, doc, inventory = fixture()
+    config = configuration(base, doc, inventory)
+    changed = deepcopy(doc); changed["profiles"][DID]["key_epoch"] = "2"
+    with patch("remotework.identity_host.read_private", side_effect=[changed, inventory]):
+        with pytest.raises(ValueError, match="changed since"):
+            write_restart_observation(SimpleNamespace(config=config), tmp_path / "profile",
+                                      tmp_path / "inventory", tmp_path / "new.json", str(uuid4()))
+    assert not (tmp_path / "new.json").exists()
 
 
 @pytest.mark.parametrize("enabled", [False, True])

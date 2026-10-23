@@ -13,10 +13,14 @@ def main():
     parser.add_argument("--identity-private-config", help="Private server profile file; never a Pi profile")
     parser.add_argument("--identity-retired-keys", help="Explicit private retired-key inventory")
     parser.add_argument("--identity-check-config", action="store_true", help="Read-only server composition; no listener or activation")
+    parser.add_argument("--identity-restart-report", help="Write-once private observation beside the server profile; not readiness approval")
+    parser.add_argument("--identity-restart-cycle", help="Canonical UUID identifying this joint reconciliation cycle")
     args = parser.parse_args()
     if (bool(args.identity_private_config) != bool(args.identity_retired_keys)
             or (args.identity_check_config and not args.identity_private_config)
-            or (args.identity_private_config and (args.demo or args.init))):
+            or (args.identity_private_config and (args.demo or args.init))
+            or (bool(args.identity_restart_report) != bool(args.identity_restart_cycle))
+            or (args.identity_restart_report and not args.identity_check_config)):
         parser.error("Identity requires both private files and cannot be combined with --demo/--init")
     root = Path(__file__).resolve().parent
     load_dotenv(root / ".env")
@@ -46,8 +50,17 @@ def main():
             parser.exit(1, "STOPPED: identity private configuration/storage/current profile check failed.\n")
         if args.identity_check_config:
             import json
-            print(json.dumps(app.extensions["identity_host_preflight"], sort_keys=True))
-            app.extensions["db_engine"].dispose()
+            try:
+                report = app.extensions["identity_host_preflight"]
+                if args.identity_restart_report:
+                    from remotework.identity_host import write_restart_observation
+                    report = write_restart_observation(app, args.identity_private_config, args.identity_retired_keys,
+                        args.identity_restart_report, args.identity_restart_cycle)
+                print(json.dumps(report, sort_keys=True))
+            except Exception:
+                parser.exit(1, "STOPPED: private restart observation failed; no activation or state repair.\n")
+            finally:
+                app.extensions["db_engine"].dispose()
             return
     else:
         app = create_app()

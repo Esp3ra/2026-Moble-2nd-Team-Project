@@ -54,3 +54,32 @@ python Tests/IdentityHost.Tests/run_check.py --allow-disposable-mysql --mysql-bi
 ```
 
 runner는 기존 소유 MySQL 도구로 독립 DB/프로세스를 만들고 정리한다. 사용자 .env를 읽지 않는다.
+
+## 5번과 대조할 비공개 관측 자료 (전달 형식 제안)
+
+5번의 10/23 실행 인계 회신에 맞춰 원 작업 식별 근거를 파일로 공급한다. 기존 check 명령에
+`--identity-restart-report <새 파일> --identity-restart-cycle <이번 회차 UUID>`를 함께 추가한다.
+보고서는 검사한 서버 프로필과 같은 비공개 폴더에만 새로 만들며 기존 파일·symlink는 덮지 않는다.
+stdout에는 작성 여부·파일 SHA만 나오고 실제 보고서는 공개 Git에 올리지 않는다.
+
+`identity-restart-observation-v1-PROPOSAL`은 **로컬 전달 제안**이며 새 API/DTO나 운영 허용 증표가
+아니다. 회차 UUID·서버 DB UTC·현재 프로필 device/key/epoch/범위·실제 소스3파일 SHA와,
+미확정/영속 fence 보관 작업의 원 challenge/context/client_request UUID·purpose/state·만료/보관
+기한·workflow완료 여부·fence SHA·원result UUID/SHA를 제공한다. DB context ID는 인증수단이
+아니며 이것으로 원 문맥을 복제하거나 다른 사람의 GET/취소를 대신 호출할 수 없다.
+pending/Bearer token·request/result 원문·capture nonce·키·개인정보·DB 접속 정보는 내보내지 않는다.
+challenge/DB UTC는 하나의 읽기 전용 TX 관측이다. 물리 schema/profile preflight는 별도 읽기이며
+전체가 현재 권한 guard의 원자적 운영 승인이라고 주장하지 않는다. 1000행 또는64KiB 초과는 잘라서
+미확정0으로 만들지 않고 중단한다. 서버 상태·fence·기존 영수증은 변경하지 않는다.
+
+`observation_only=true`, `pi_ready_authorization=false`, `pi_restart_readiness=NOT_SUPPLIED`를
+고정해서 초기 빈 DB·파일 전달을 ready로 오해하지 않게 한다. 회수 목록의 출처/관리 범위
+감사는 별도 운영 기록이다. 이 파일은 운영자 비공개 인계 경로로만 전달한다.
+
+공동 수용 제안: 1번은 **원 문맥의 기존 GET/명시취소·만료/최종결과**와 관측 원 ID/fence를
+대조하고 회수키 출처/현재 서버 설정을 공급한다. 5번은 동일 회차에서 후보 프로필·기존 release
+의미·이전 서비스 종료/drain·동일 runtime.lock·단일 UART/새 process 근거를 확인한다.
+5번 호스트가 네트워크 대조를 요청 밖에서 수행하고 기존 동기 ready(profile)에는 해당 process/
+profile에 묶인 판정만 공급하는 방향을 수용한다. 자료 전달 형태/수명은 5번 수용 회신과 대조 후
+결합하며 **이 제안만으로 callback을 True로 만들거나 서비스/기능을 ON으로 전환하지 않는다.**
+False/예외/stopping 뒤 영구 닫힘·새 process 재대조·원 ID 재촬영 금지를 유지한다.
