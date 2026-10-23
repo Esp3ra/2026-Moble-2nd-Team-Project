@@ -18,3 +18,10 @@
 **/instance/
 /Desktop/
 /work/
+
+# This PC's desktop launcher contains an absolute local path.
+/원격 근무 관리.lnk
+
+# Private device diagnostics and recovery handoff stay on the operator PC.
+/장비 복구/
+/장비 복구 패키지_*.zip

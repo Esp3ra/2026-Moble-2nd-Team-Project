@@ -122,7 +122,7 @@ $env:REMOTEWORK_ENABLE_NOTICE_DRAFT = "1"
 & .\Start-Demo.cmd
 ```
 
-클라이언트는 별도 창에서 Start-Desktop.cmd로 실행합니다. 플래그가 꺼진 서버는 공지 API가 미등록이므로 목록 조회 오류가 표시됩니다. 예시 목록으로 성공 처리하지 않습니다. 팝업·직원별 확인 기록·정렬 추가 보완은 이 DB PR에 포함하지 않습니다.
+클라이언트는 Visual Studio의 `RemoteWork.WinForms` 시작 또는 빌드된 `RemoteWork.WinForms.exe`로 실행합니다. 플래그가 꺼진 서버는 공지 API가 미등록이므로 목록 조회 오류가 표시됩니다. 예시 목록으로 성공 처리하지 않습니다. 팝업·직원별 확인 기록·정렬 추가 보완은 이 DB PR에 포함하지 않습니다.
 
 초기 alpha9b8d00c 로컬 구현에서는 서버 SQLite43통과/2생략, 공지/채팅85검증, 공통 ApiClient88검증, 공지37검증(로컬 HTTP/SQLite 포함)을 실행했습니다. 이 결과는 최신 alpha 등록 조정 후 PR 후보의 테스트 결과가 아닙니다. PR 최초 게시 때 최신 결합본 테스트는 미실행이었으며, 이후 사용자 추가 요청으로 실행한 결과는 아래 절을 따릅니다.
 

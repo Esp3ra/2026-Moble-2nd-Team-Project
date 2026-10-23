@@ -1,5 +1,8 @@
 # 원격 근무용 업무 처리 확인 시스템
 
+데스크톱 실행은 **빌드된 EXE 또는 Visual Studio**로 통일했습니다. 중복된 데스크톱 CMD 두 개는
+제거했고 서버 실행·초기화·장비 준비 스크립트는 유지합니다. PC별 실행 바로가기는 Git에 올리지 않습니다.
+
 일반 **WinForms EXE와 Visual Studio 실행**에서도 로그인 후 저장된 연결 설정을 읽어 지문·근무 상태 바와
 연차 연결을 설치합니다. 별도 CMD는 필요하지 않습니다. 설정이 없거나 잘못되면 일반 업무를 유지하며
 설정 필요를 안내하고, 서버가 준비되지 않으면 지문 버튼을 비활성화합니다.
@@ -111,7 +114,7 @@ W1 공통 쓰기 지원은 [WRITE_SUPPORT](docs/WRITE_SUPPORT.md)를 따릅니�
 ## 실행
 
 1. 처음 화면과 공통 로그인을 확인하려면 프로젝트 루트의 `Start-Demo.cmd`를 실행합니다. 별도 SQLite 데모 DB가 준비되며 최초 생성 계정의 무작위 비밀번호는 서버 창에 표시됩니다.
-2. 서버를 켠 상태에서 `Start-Desktop.cmd`를 실행하거나 `RemoteWork.sln`을 Visual Studio로 열어 `RemoteWork.WinForms`를 시작합니다.
+2. 서버를 켠 상태에서 `RemoteWork.sln`을 Visual Studio로 열어 `RemoteWork.WinForms`를 시작합니다. 이미 Release 빌드를 했다면 `RemoteWork.WinForms/bin/Release/net8.0-windows/RemoteWork.WinForms.exe`를 직접 열거나 이 EXE를 가리키는 PC별 바로가기를 사용합니다. 지문·근무 연결에도 별도 CMD가 필요하지 않습니다.
 3. 웹 공통 화면은 `http://127.0.0.1:5000/login`에서 확인합니다.
 
 ```powershell

@@ -7,7 +7,7 @@
 1. 공통 코드 PR의 소스 브랜치를 내려받아 프로젝트 루트에서 시작합니다. GitHub에는 실행 바이너리를 포함하지 않습니다.
 2. `Start-Demo.cmd`를 더블클릭합니다. 첫 실행은 인터넷으로 서버 패키지를 설치합니다. Python 3.11 이상이 필요하며, 이 PC의 Codex에 포함된 Python도 자동 탐색합니다.
 3. 서버 창에 표시되는 `admin1`, `staff1`, `staff2` 계정과 **각각의 무작위 비밀번호를 기록**하세요. 이미 생성된 계정은 비밀번호를 바꾸지 않습니다.
-4. 서버 창을 열어 둔 채 `Start-Desktop.cmd`를 더블클릭하고 로그인합니다. 소스 실행에는 Windows와 .NET 8 SDK가 필요합니다. `Start-Desktop.cmd`는 빌드된 Desktop 실행본이 없으면 `dotnet run`을 실행합니다.
+4. 서버 창을 열어 둔 채 `RemoteWork.sln`을 Visual Studio로 열어 `RemoteWork.WinForms`를 시작하고 로그인합니다. 소스 실행에는 Windows와 .NET 8 SDK가 필요합니다. 이미 Release 빌드를 했다면 `RemoteWork.WinForms/bin/Release/net8.0-windows/RemoteWork.WinForms.exe` 또는 이 파일을 가리키는 PC별 바로가기로 실행합니다. 일반 EXE에서도 저장된 설정으로 지문·근무 연결을 설치하므로 별도 클라이언트 CMD는 필요하지 않습니다.
 5. 웹은 `http://127.0.0.1:5000/login`에서 같은 계정으로 로그인합니다.
 
 데모는 이 PC에서만 접속하는 SQLite 모드입니다. 저장 파일은 `RemoteWork.Server/instance/demo.db`이며 프로그램 재실행 후에도 사용자 정보가 보존됩니다. 비밀번호를 잊었다면 아래 CLI 명령으로 다른 관리자 계정을 만든 뒤 사용자 관리에서 초기화하세요. **기존 DB를 지워서 초기화하지 마세요.**

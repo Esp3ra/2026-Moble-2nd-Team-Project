@@ -10,7 +10,9 @@ Visual Studio에서 `RemoteWork.WinForms`를 시작하거나 빌드한 `RemoteWo
 현재 서버에 유효한 열린 근무가 있어야 기존 monitor가 카메라를 시작한다. 열린 근무를 임의 생성하거나
 정상 로그인·창 닫기를 지문 출근/퇴근으로 표시하지 않는다.
 
-`Start-Connected-Workspace.cmd`/`--run`은 호환용으로 남아 있으며 제품의 같은 시작 연결부를 호출한다.
+별도 클라이언트 CMD는 제거했다. `ConnectedWorkspace` 프로젝트의 `--run`/`--check-config`는
+호환·설정 점검용으로 유지하며 제품의 같은 시작 연결부를 사용한다. 필요한 경우 저장소 루트에서
+`dotnet run --project Tools/ConnectedWorkspace -c Release -- --run`으로 호출할 수 있다.
 제품과 호환 실행기는 동일한 `DpiUnawareGdiScaled` 설정을 사용하므로 진입점에 따라 화면 배율이 바뀌지 않는다.
 
 로컬 실제 서버의 직원 계정으로 새 기본 시작 연결부를 실행해 기존 공지 화면과 지문 근무 바가
