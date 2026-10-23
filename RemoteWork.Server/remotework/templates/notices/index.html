@@ -19,7 +19,7 @@
 <div class="notice-client-right"><section class="card notice-detail" aria-labelledby="detail-heading"><h2 id="detail-heading">공지사항 상세</h2><div class="notice-detail-scroll">
 {% if selected %}<div class="notice-detail-heading"><h3>{{ selected.title }}</h3>{% if g.user.role == 'admin' %}<a class="notice-delete-link" href="{{ url_for('notice_web.delete',notice_id=selected.id) }}">삭제</a>{% endif %}</div>
 <div class="notice-meta"><div>대상: {{ selected.target }}</div><div>작성자: {{ selected.author }}<span class="notice-meta-date">등록일: {{ selected.created_at|notice_date }}</span></div></div><div class="notice-body">{{ selected.content }}</div>
-{% if selected.attachment_names %}<div class="notice-attachments"><h3>첨부파일명</h3><ul>{% for name in selected.attachment_names %}<li>{{ name }}</li>{% endfor %}</ul><p class="muted">파일명만 저장되어 있습니다. 다운로드는 아직 지원하지 않습니다.</p></div>{% endif %}
+{% if selected.attachment_names %}<div class="notice-attachments"><h3>첨부파일명</h3><ul>{% for name in selected.attachment_names %}<li>{{ name }}</li>{% endfor %}</ul><p class="muted">이전 공지는 파일명만 남아 있을 수 있습니다. 파일명만 저장된 첨부의 다운로드는 아직 지원하지 않습니다.</p><div data-notice-downloads="{{ selected.id }}" data-attachment-session="{{ attachment_session }}" data-csrf="{{ csrf_token() }}"></div></div>{% endif %}
 {% else %}<p class="notice-empty">{% if data['items'] %}목록에서 공지사항을 선택한 뒤 조회 버튼을 눌러 주세요.{% else %}조회할 공지사항이 없습니다.{% endif %}</p>{% endif %}</div></section>
 <section class="card notice-deadline" aria-labelledby="deadline-heading"><h2 id="deadline-heading">업무 마감 알림</h2><div class="notice-deadline-scroll"><p>업무 마감 알림은 아직 연결되지 않았습니다.</p></div></section>
 </div></div></div>{% endblock %}

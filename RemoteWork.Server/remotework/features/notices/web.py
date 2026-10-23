@@ -1,4 +1,5 @@
 """Cookie-authenticated notice UI; shares notice operations with the API."""
+import json
 from datetime import datetime, timedelta, timezone
 from flask import Blueprint, flash, g, redirect, render_template, request, url_for
 from sqlalchemy.exc import SQLAlchemyError
@@ -56,12 +57,15 @@ def index():
             # Never substitute the first row's body for a stale/deleted selection.
             if request.args.get("selected"):
                 selected = get_notice(wanted_id).public()
-    return render_template("notices/index.html", data=data, selected=selected, chosen_id=chosen_id, targets=TARGETS,
+    from ..results_web import session_scope
+    return render_template("notices/index.html", attachment_session=session_scope(), data=data, selected=selected, chosen_id=chosen_id, targets=TARGETS,
                            target=target or "", sort=sort, direction=direction, pages=pages)
 
 
 def form(values=None, error=None, status=200):
-    return render_template("notices/form.html", targets=TARGETS, values=values or {}, error=error), status
+    from ..results_web import session_scope
+    return render_template("notices/form.html", targets=TARGETS, values=values or {}, error=error,
+                           attachment_session=session_scope()), status
 
 
 @bp.route("/new", methods=["GET", "POST"])
@@ -71,10 +75,21 @@ def create():
     if request.method == "GET":
         return form()
     if request.files:
-        raise AppError(400, "INVALID_INPUT", "실제 파일 업로드는 지원하지 않습니다. 파일명만 입력해 주세요.")
+        raise AppError(400, "INVALID_INPUT", "실제 파일 업로드는 첨부 전송 API로 완료한 후 공지를 등록해 주세요.")
     values = {k: request.form.get(k, "") for k in ("title", "content", "target", "attachment_names")}
     values["is_pinned"] = "is_pinned" in request.form
-    body = {**values, "attachment_names": [n.strip() for n in values["attachment_names"].splitlines() if n.strip()]}
+    try:
+        attachment_ids = json.loads(request.form.get("attachment_ids", "[]"))
+    except ValueError:
+        raise AppError(400, "INVALID_INPUT", "첨부 목록을 확인해 주세요.") from None
+    values["attachment_ids"] = json.dumps(attachment_ids)
+    if attachment_ids:
+        from ..results_web import session_scope
+        import hmac
+        if not hmac.compare_digest(request.form.get("attachment_session", ""), session_scope()):
+            raise AppError(403, "NOTICE_SESSION_CHANGED", "로그인이 변경되었습니다. 공지 작성 화면을 다시 열어 주세요.")
+    body = {**values, "attachment_ids": attachment_ids,
+            "attachment_names": [n.strip() for n in values["attachment_names"].splitlines() if n.strip()]}
     try:
         saved = create_notice_record(body)
     except AppError as exc:

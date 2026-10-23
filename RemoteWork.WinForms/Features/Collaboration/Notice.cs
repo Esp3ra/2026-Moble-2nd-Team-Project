@@ -20,7 +20,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             var names = AttachmentNames.Length > 0 ? AttachmentNames
                 : AttachmentPaths.Select(path => System.IO.Path.GetFileName(path)).ToArray();
             if (names.Length > 0)
-                text += "\r\n\r\n첨부파일 (파일명만 저장 · 다운로드 미연결)\r\n" + string.Join("\r\n", names);
+                text += "\r\n\r\n첨부파일 (연결된 파일은 첨부파일 메뉴에서 다운로드)\r\n" + string.Join("\r\n", names);
             return text;
         }
     }

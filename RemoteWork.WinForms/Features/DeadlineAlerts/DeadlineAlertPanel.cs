@@ -6,9 +6,17 @@ public sealed class DeadlineAlertPanel : UserControl
     private DeadlineAlertScope? scope;
     private readonly Label status = new() { Dock = DockStyle.Fill, Text = "마감 알림 서버 연결 준비 중입니다.", AutoEllipsis = true };
     private readonly Button open = new() { Dock = DockStyle.Bottom, Text = "미확인 알림 보기", Height = 32, Enabled = false };
+    private readonly Button refresh = new() { Dock = DockStyle.Bottom, Text = "마감 알림 새로고침", Height = 32 };
+    public event Func<Task>? RefreshRequested;
     public DeadlineAlertPanel()
     {
-        Controls.Add(status); Controls.Add(open);
+        Controls.Add(status); Controls.Add(open); Controls.Add(refresh);
+        refresh.Click += async (_, _) =>
+        {
+            refresh.Enabled = false;
+            try { if (RefreshRequested is not null) await RefreshRequested(); }
+            finally { if (!IsDisposed) refresh.Enabled = true; }
+        };
         open.Click += (_, _) =>
         {
             if (scope is not { IsCurrent: true }) return;
@@ -17,6 +25,10 @@ public sealed class DeadlineAlertPanel : UserControl
             inbox.Show(FindForm());
         };
         Disposed += (_, _) => { if (scope is not null) scope.Changed -= RefreshStatus; };
+    }
+    public void ShowConnectionError(string message)
+    {
+        if (!IsDisposed && scope is null) status.Text = "마감 알림을 불러오지 못했습니다. " + message;
     }
     public void Bind(DeadlineAlertScope? borrowed)
     {

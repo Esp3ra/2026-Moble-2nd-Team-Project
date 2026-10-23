@@ -159,12 +159,14 @@ internal static class CollaborationReviewChecks
     }
     private static async Task LoginHostAndNoticeChecks(Action<bool,string> check)
     {
-        foreach (var missing in new string?[] {null,"","0","-1"," 10","1.5","3601","invalid"})
-            check(LoginCollaborationNotifications.ParseInterval(missing) is null,"missing/invalid interval never silently enables reception");
+        foreach (var missing in new string?[] {null,""," "})
+            check(LoginCollaborationNotifications.ParseInterval(missing)==TimeSpan.FromSeconds(30),"missing interval enables user-requested 30-second login receiver");
+        foreach (var invalid in new[] {"0","-1"," 10","1.5","3601","invalid"})
+            check(LoginCollaborationNotifications.ParseInterval(invalid) is null,"malformed explicit override stays disconnected");
         check(LoginCollaborationNotifications.ParseInterval("10")==TimeSpan.FromSeconds(10),"explicit development interval is preserved");
         using var service=new Service();
         using var owner=new Form {ShowInTaskbar=false,Opacity=0};
-        using var loginHost=new LoginCollaborationNotifications(owner,service,TimeSpan.FromMinutes(10));
+        using var loginHost=new LoginCollaborationNotifications(owner,service,LoginCollaborationNotifications.ParseInterval(null)!.Value);
         await ShowAsync(owner);
         check(service.ListCalls==2,"owner Shown starts exactly one received/sent receiver");
         using (var page=new UserControl()) { owner.Controls.Add(page); owner.Controls.Remove(page); }
@@ -221,6 +223,23 @@ internal static class CollaborationReviewChecks
             ClosePopups(); delayedNoticeSource.Read=null; delayedNoticeSource.Items=[NoticeItem(2)];
             await PollDelayed();
             check(Application.OpenForms.OfType<ImportantNoticeForm>().Count(f=>f.Visible)==1,"late deferred notice remains unconsumed for next poll");
+        }
+        // Production LoginForm opens MainForm with ShowDialog. Its own Modal
+        // flag must not block its receiver; other dialogs still block popups.
+        using (var modalService=new Service())
+        using (var workspace=new Form {ShowInTaskbar=false,Opacity=0})
+        using (var modalHost=new LoginCollaborationNotifications(workspace,modalService,LoginCollaborationNotifications.ParseInterval(null)!.Value))
+        {
+            bool connected=false, modal=false;
+            modalHost.Scope.StatusChanged+=status=>connected=string.IsNullOrEmpty(status);
+            workspace.Shown+=(_,_)=>workspace.BeginInvoke((Action)(()=>
+            {
+                modal=workspace.Modal;
+                workspace.Close();
+            }));
+            workspace.ShowDialog(owner);
+            check(modal && modalService.ListCalls==2 && connected,"actual ShowDialog workspace starts received/sent polling and reports connected");
+            check(!modalHost.Scope.IsCurrent,"modal workspace closure disposes receiver");
         }
         owner.Close();
         check(!loginHost.Scope.IsCurrent && Popups()==0,"owner close disposes login scope and popup");

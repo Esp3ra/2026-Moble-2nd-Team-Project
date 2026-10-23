@@ -9,6 +9,9 @@ namespace RemoteWork.WinForms.Features.Collaboration
         private readonly INoticeService noticeService;
         private readonly CancellationTokenSource lifetime = new();
         private bool busy;
+        private int? attachmentNoticeId;
+        private readonly Button attachmentDownload = new() { Text = "첨부 다운로드", AutoSize = true, Height = 28, Margin = new Padding(0), Enabled = false };
+        private ResourceAttachmentClient? attachmentClient;
         private bool lifetimeEnded;
 
         public NoticesControl() : this(PreviewRole.Employee) { }
@@ -25,6 +28,27 @@ namespace RemoteWork.WinForms.Features.Collaboration
             cmbOptions2.SelectedIndexChanged += FilterNotices;
             gridNotices.ColumnHeaderMouseClick += SortNotices;
             InitializeDeleteMenu();
+            var fileMenu = new ContextMenuStrip(components!);
+            var download = new ToolStripMenuItem("첨부파일 다운로드…");
+            fileMenu.Items.Add(download);
+            fileMenu.Opening += (_, e) => e.Cancel = attachmentNoticeId is null || busy;
+            download.Click += (_, _) =>
+            {
+                if (attachmentNoticeId is not int id) return;
+                try
+                {
+                    attachmentClient ??= new ResourceAttachmentClient(AppServices.Api.CaptureSession());
+                    using var dialog = new AttachmentDownloadForm(attachmentClient, "notice", id.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    dialog.ShowDialog(FindForm());
+                }
+                catch (Exception ex) { MessageBox.Show(this, ex.Message); }
+            };
+            txtContent.ContextMenuStrip = fileMenu;
+            var header = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = new Padding(0) };
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            layoutContent7.Controls.Remove(lblText4); lblText4.AutoSize = false; lblText4.Dock = DockStyle.Fill; lblText4.AutoEllipsis = true;
+            header.Controls.Add(lblText4, 0, 0); header.Controls.Add(attachmentDownload, 1, 0); layoutContent7.Controls.Add(header, 0, 0);
+            attachmentDownload.Click += (_, _) => download.PerformClick();
             ClearNoticeDetails();
             Disposed += (_, _) =>
             {
@@ -39,6 +63,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
         {
             base.OnLoad(e);
             BindDeadlineAlertsFromOwner();
+            if (!PreviewActions.IsDesignMode(this)) _ = RefreshDeadlineAlertsAsync();
             if (!PreviewActions.IsDesignMode(this)) await ReloadNoticesAsync();
         }
 
@@ -65,6 +90,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
         private void SetBusy(bool value)
         {
             busy = value;
+            attachmentDownload.Enabled = !value && attachmentNoticeId is not null;
             UseWaitCursor = value;
             btnQuery.Enabled = btnNewNoticePreview.Enabled = cmbOptions2.Enabled = gridNotices.Enabled = !value;
             lblText2.Text = value ? "공지사항 목록 · 처리 중…" : "공지사항 목록";
@@ -129,7 +155,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
         {
             if (previewRole != PreviewRole.Administrator) return;
 
-            var menu = new ContextMenuStrip(components);
+            var menu = new ContextMenuStrip(components!);
             var deleteItem = new ToolStripMenuItem("삭제");
             Notice? rightClickedNotice = null;
             menu.Items.Add(deleteItem);
@@ -230,7 +256,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
                 if (gridNotices.CurrentRow?.Tag is Notice selected)
                 {
                     var detail = await noticeService.GetNoticeAsync(selected.Id, lifetime.Token);
-                    if (!IsDisposed) { lblText4.Text = detail.Title; txtContent.Text = detail.GetDisplayText(); }
+                    if (!IsDisposed) { attachmentNoticeId = detail.Id; lblText4.Text = detail.Title; txtContent.Text = detail.GetDisplayText() + "\r\n\r\n첨부파일: 본문 우클릭 → 첨부파일 다운로드"; }
                 }
             }
             catch (ApiException ex) { ShowLoadError(ex.Message); }
@@ -240,6 +266,8 @@ namespace RemoteWork.WinForms.Features.Collaboration
 
         private void ClearNoticeDetails()
         {
+            attachmentNoticeId = null;
+            attachmentDownload.Enabled = false;
             lblText4.Text = "공지사항 상세";
             txtContent.Text = gridNotices.Rows.Count == 0
                 ? "조회할 공지사항이 없습니다."
