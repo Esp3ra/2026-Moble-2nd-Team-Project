@@ -18,7 +18,7 @@ internal static partial class Program
         ApplicationConfiguration.Initialize();
         Exception? failure=null;
         using var host=new Form { ShowInTaskbar=false,Opacity=0 };
-        host.Shown+=async(_,_)=>{try{PolicyChecks();await UiChecks();await ReviewRegressionChecks();await ConfirmationRefreshChecks();}catch(Exception ex){failure=ex;}finally{host.Close();}};
+        host.Shown+=async(_,_)=>{try{PolicyChecks();await UiChecks();await ReviewRegressionChecks();await ConfirmationRefreshChecks();await AssignmentSafetyChecks();}catch(Exception ex){failure=ex;}finally{host.Close();}};
         Application.Run(host);
         if(failure is not null){Console.Error.WriteLine(failure);Environment.ExitCode=1;}
         else Console.WriteLine($"PASS: {checks} deadline policy/UI checks; explicit source doubles, no HTTP server or DB.");

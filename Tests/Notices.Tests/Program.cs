@@ -168,6 +168,7 @@ internal static class Program
             {
                 creates++;
                 using var json = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(ct));
+                Check(!json.RootElement.TryGetProperty("attachment_ids", out _), "Empty attachments retain the deployed legacy notice contract");
                 Check(json.RootElement.GetProperty("attachment_names")[0].GetString() == "안내.pdf", "Filename metadata serialized");
                 Check(!json.RootElement.TryGetProperty("author", out _) && !json.RootElement.TryGetProperty("attachment_paths", out _), "No forged author or PC path sent");
                 return Json(new { notice = Wire(23) });
@@ -215,12 +216,19 @@ internal static class Program
         Check(title.Text == "입력 유지" && body.Text == "작성 중인 본문", "Save failure preserves inputs");
         Check(editor.CreatedNotice is null && editor.DialogResult != DialogResult.OK && !editor.IsDisposed, "Save failure keeps editor open");
         Check(Field<TextBox>(editor, "saveError").Text.Contains("synthetic database failure"), "Error is visible inline");
-        Check(Field<Button>(editor, "btnPublishNotice").Enabled, "Can retry after failure");
+        Check(!Field<Button>(editor, "btnPublishNotice").Enabled, "Unknown notice result blocks a duplicate original save");
+        await editor.PublishAsync();
+        Check(service.Creates == 1, "Unknown save preserves the original inputs and makes no second request");
+        editor.Close();
+        using var fresh = new NoticeEditForm(service) { Location = new Point(-20000, -20000) };
+        fresh.Show(host);
+        Field<TextBox>(fresh, "txtNoticeTitle").Text = "새로 확인한 입력";
+        Field<TextBox>(fresh, "txtNoticeBody").Text = "본문";
         service.CreateCompletion = new();
-        var retry = editor.PublishAsync();
+        var retry = fresh.PublishAsync();
         service.CreateCompletion.SetResult(Notice(42));
         await retry;
-        Check(editor.CreatedNotice?.Id == 42 && editor.DialogResult == DialogResult.OK, "Only successful commit closes editor");
+        Check(fresh.CreatedNotice?.Id == 42 && fresh.DialogResult == DialogResult.OK, "Only successful commit closes editor");
     }
 
     private static async Task ScreenLifecycle(Form host)

@@ -4,12 +4,16 @@ using RemoteWork.WinForms.Features.Tasks.Queries;
 namespace RemoteWork.WinForms.Features.DeadlineAlerts;
 
 // In-process integration draft, NOT an agreed HTTP DTO, event model or DB schema.
-// EventToken must come from authoritative deadline history; never manufacture it
-// from a date, row_version or assignment_revision in the client.
+// EventToken is the opaque confirmation target provided by the source.
+// PR70 uses the server-provided d1 task/event/assignment binding; EventId is the
+// separate immutable deadline UUID. Never derive an event from dates/versions.
 public sealed record DeadlineAlert(
     string EventToken, string TaskId, string RowVersion, int AssignmentRevision,
     int RecipientId, int CurrentAssigneeId, string Title, DateOnly DueDate,
-    TaskDisplayStatus Status, bool IsCancelled = false, bool IsConfirmed = false);
+    TaskDisplayStatus Status, bool IsCancelled = false, bool IsConfirmed = false)
+{
+    public string? EventId { get; init; }
+}
 
 public sealed record DeadlineAlertSnapshot(DateTimeOffset ServerTime, IReadOnlyList<DeadlineAlert> Items);
 

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}채팅{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
+<script type="module" src="{{ url_for('static', filename='chat.js') }}"></script>{% endblock %}
+{% block content %}
+<section id="chat-app" data-base="{{ url_for('chat_web.rooms') }}" data-directory="{{ url_for('chat_web.directory') }}" data-session="{{ chat_session }}" data-attachment-session="{{ attachment_session }}" data-csrf="{{ csrf_token() }}" data-user="{{ g.user.id }}">
+  <p class="eyebrow">WORKSPACE</p><h1>채팅</h1>
+  <p class="chat-subtitle">서버 DB 저장 · 작성자: {{ g.user.display_name }} · Enter 전송 · Shift+Enter 줄바꿈</p>
+  <p id="chat-status" role="status" aria-live="polite">대화방을 불러오는 중입니다.</p>
+  <div class="chat-toolbar">
+    <label class="sr-only" for="chat-filter">대화방 종류</label>
+    <select id="chat-filter"><option value="all">전체 대화방</option><option value="personal">개인 대화방</option><option value="group">그룹 대화방</option></select>
+    <button id="chat-create" type="button" class="chat-secondary">대화방 만들기</button>
+    <button id="chat-refresh" type="button" class="chat-secondary">새로고침</button>
+    <button id="chat-hide" type="button" class="chat-secondary" disabled>내 목록에서 삭제</button>
+  </div>
+  <div class="chat-layout">
+    <div class="chat-left">
+      <section class="chat-panel chat-rooms"><h2>대화방</h2><div class="chat-scroll">
+        <table><thead><tr><th>종류</th><th>대화방</th><th>인원</th></tr></thead><tbody id="chat-rooms"></tbody></table>
+        <p id="chat-empty" class="chat-hint" hidden>참여 중인 대화방이 없습니다.</p>
+      </div></section>
+      <section class="chat-panel chat-members"><h2>참여자</h2><ul id="chat-members" class="chat-scroll"></ul></section>
+    </div>
+    <div class="chat-right">
+      <section class="chat-panel chat-conversation"><h2 id="chat-room-title">대화방을 선택해 주세요</h2>
+        <div id="chat-messages" class="chat-scroll" role="log" aria-label="대화 내용"></div>
+      </section>
+      <section class="chat-panel chat-compose"><h2><label for="chat-content">메시지 작성</label></h2>
+        <form id="chat-send"><textarea id="chat-content" rows="6" maxlength="4000" disabled aria-describedby="chat-send-hint"></textarea>
+          <p id="chat-send-hint" class="chat-hint">메시지는 2,000자까지 입력할 수 있습니다. 이모지는 한 글자로 계산합니다.</p>
+          <div class="chat-actions"><button id="chat-attach" type="button" class="chat-secondary" disabled>파일 첨부</button><input id="chat-file-picker" type="file" multiple hidden><span id="chat-file-status" role="status"></span>
+            <button id="chat-send-button" type="submit" disabled>보내기</button><button id="chat-result" type="button" class="chat-secondary" hidden>전송 결과 확인</button></div>
+        </form>
+      </section>
+    </div>
+  </div>
+  <noscript><p class="error">채팅을 사용하려면 브라우저에서 JavaScript를 허용해 주세요.</p></noscript>
+  <dialog id="chat-dialog" aria-labelledby="chat-dialog-title"><form id="chat-room-form">
+    <h2 id="chat-dialog-title">대화방 만들기</h2>
+    <label for="chat-new-title">대화방 이름</label><input id="chat-new-title" maxlength="120" required autocomplete="off">
+    <label for="chat-kind">종류</label><select id="chat-kind"><option value="personal">개인 채팅 · 상대방 1명</option><option value="group">그룹 채팅 · 상대방 2명 이상</option></select>
+    <label for="chat-department">부서 필터</label><select id="chat-department"><option value="">전체 부서</option></select>
+    <fieldset><legend>초대할 활성 사용자</legend><div id="chat-people" class="chat-scroll"></div></fieldset>
+    <p id="chat-room-status" role="status" aria-live="polite"></p><div class="chat-actions">
+      <button id="chat-room-close" type="button" class="chat-secondary">닫기</button><button id="chat-room-reload" type="button" class="chat-secondary">직원 새로고침</button><button id="chat-room-submit" type="submit">만들기</button>
+    </div>
+  </form></dialog>
+</section>
+{% endblock %}

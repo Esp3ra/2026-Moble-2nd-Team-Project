@@ -180,6 +180,7 @@ internal static class Program
                 if(req.Method==HttpMethod.Post)
                 {
                     using var body=JsonDocument.Parse(await req.Content!.ReadAsStringAsync(ct));
+                    Check(!body.RootElement.TryGetProperty("attachment_ids",out _), "Plain messages retain the deployed legacy chat contract");
                     string id=body.RootElement.GetProperty("message_id").GetString()!;
                     string content=body.RootElement.GetProperty("content").GetString()!;
                     SentIds.Add(id);

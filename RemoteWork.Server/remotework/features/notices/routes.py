@@ -11,6 +11,11 @@ from .models import Notice, TARGETS
 
 bp = Blueprint("notices", __name__, url_prefix="/api/v1/notices")
 
+@bp.record_once
+def register_attachment_authority(state):
+    from ..collaboration_attachments import register
+    register(state.app, "notice")
+
 
 @bp.cli.command("init-table")
 def init_table():
@@ -66,7 +71,7 @@ def detail(notice_id):
 
 
 def validate(body):
-    allowed = {"title", "content", "target", "is_pinned", "attachment_names"}
+    allowed = {"title", "content", "target", "is_pinned", "attachment_names", "attachment_ids"}
     if set(body) - allowed:
         raise AppError(400, "INVALID_INPUT", "지원하지 않는 공지사항 입력 항목입니다.")
     for key, maximum in (("title", 200), ("content", 5000)):
@@ -75,6 +80,12 @@ def validate(body):
             raise AppError(400, "INVALID_INPUT", f"제목은 200자, 내용은 5000자 이내로 입력해 주세요.")
     if body.get("target") not in TARGETS or type(body.get("is_pinned", False)) is not bool:
         raise AppError(400, "INVALID_INPUT", "공지사항 대상과 고정 여부를 확인해 주세요.")
+    ids = body.get("attachment_ids", [])
+    if (not isinstance(ids, list) or len(ids) > 10 or any(not isinstance(i, str) for i in ids)
+            or len(set(ids)) != len(ids)):
+        raise AppError(400, "INVALID_INPUT", "중복 없는 첨부 ID를 최대 10개 전달해 주세요.")
+    if ids and body.get("attachment_names"):
+        raise AppError(400, "INVALID_INPUT", "실제 첨부와 기존 파일명 입력은 함께 저장할 수 없습니다.")
     names = body.get("attachment_names", [])
     if not isinstance(names, list) or len(names) > 20:
         raise AppError(400, "INVALID_INPUT", "첨부파일 이름은 20개까지 저장할 수 있습니다.")
@@ -136,9 +147,15 @@ def create_notice_record(body):
                         attachment_names_json=json.dumps(names, ensure_ascii=False))
         session.add(notice)
         session.flush()
+        if body.get("attachment_ids"):
+            from ..collaboration_attachments import provider
+            files = provider().replace_resource_files(session, "notice", notice.id, body["attachment_ids"])
+            notice.attachment_names_json = json.dumps([f["name"] for f in files], ensure_ascii=False)
+            session.flush()
         # Return stored values, including MySQL DATETIME precision, not the pre-flush timestamp.
         session.refresh(notice)
-        audit("notice.created", "notice", notice.id, {"target": notice.target})
+        audit("notice.created", "notice", notice.id,
+              {"target": notice.target, "attachment_count": len(body.get("attachment_ids", []))})
         result = notice.public()
     return result
 
@@ -147,5 +164,7 @@ def delete_notice_record(notice_id):
     require_table()
     with admin_transaction() as session:
         notice = get_notice(notice_id, for_update=True)
+        from ..collaboration_attachments import block_notice_file_delete
+        block_notice_file_delete(session, notice.id)
         session.delete(notice)
         audit("notice.deleted", "notice", notice_id)

@@ -20,6 +20,7 @@ public sealed class DeadlineAlertScope : Component
     // account-wide DB confirmation or a source-owned W1 key/body/receipt store.
     private readonly HashSet<string> confirmed = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Task<DeadlineConfirmation>> confirming = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (string TaskId, int Revision)> eventBindings = new(StringComparer.Ordinal);
     private DeadlineAlertForm? popup;
     private bool stopped, checking, confirmationNeedsRefresh;
     private int failures;
@@ -127,8 +128,15 @@ public sealed class DeadlineAlertScope : Component
     private void ValidateSnapshot(DeadlineAlertSnapshot snapshot)
     {
         DeadlineAlertPolicy.Validate(snapshot, source.UserId);
+        // Action identity is source-bound. PR70 supplies a distinct server target
+        // for each task/event/assignment. Reject any identity reused for another
+        // binding; never reuse displayed/confirmed/unresolved state across it.
+        if (snapshot.Items.Any(x => eventBindings.TryGetValue(x.EventToken, out var binding) &&
+            binding != (x.TaskId, x.AssignmentRevision)))
+            throw new InvalidDataException("배정이 변경되었습니다. 사건·배정 세대 연결을 확인해 주세요.");
         if (snapshot.Items.Any(x => confirmed.Contains(x.EventToken) && !x.IsConfirmed))
             throw new InvalidDataException("확인된 사건과 현재 알림 목록이 일치하지 않습니다. 목록을 다시 조회해 주세요.");
+        foreach (var item in snapshot.Items) eventBindings[item.EventToken] = (item.TaskId, item.AssignmentRevision);
     }
     private void ConfirmationNeedsRefresh()
     {
@@ -265,6 +273,7 @@ public sealed class DeadlineAlertScope : Component
             timer.Stop(); timer.Dispose(); lifetime.Cancel(); popup?.Close();
             Snapshot = null; Status = "접속이 종료되었습니다.";
             confirmed.Clear(); unresolved.Clear();
+            eventBindings.Clear();
             Changed?.Invoke(); Changed = null;
             TaskRequested = null;
             identitySubscription.Dispose();
