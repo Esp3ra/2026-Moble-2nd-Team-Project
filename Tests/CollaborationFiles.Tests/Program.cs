@@ -11,6 +11,7 @@ internal static class Program
     private static async Task<int> Main(string[] args)
     {
         if(args.Contains("--partial"))return PartialSelectionChecks.Run();
+        if(args.Contains("--notice-delete"))return NoticeDeletionChecks.Run();
         string url = Environment.GetEnvironmentVariable("FILES_TEST_URL")!, folder = Environment.GetEnvironmentVariable("FILES_TEST_DIR")!;
         using var api = new ApiClient(url);
         await api.LoginAsync("admin1", "Admin-test-2026!");
@@ -29,8 +30,9 @@ internal static class Program
         Check((await files.DownloadAsync("notice", notice.Id.ToString(), listed.Single())).SequenceEqual(bytes), "desktop download bytes/hash");
         try { await files.DownloadAsync("notice", notice.Id.ToString(), file with { Sha256 = new string('0', 64) }); throw new Exception("bad hash accepted"); }
         catch (ApiException) { checks++; }
-        try { await service.DeleteNoticeAsync(notice.Id); throw new Exception("unagreed deletion accepted"); }
-        catch (ApiException ex) { Check(ex.StatusCode == 409, "attached notice delete fails closed"); }
+        var second = await service.CreateNoticeAsync(new("C# 삭제 시연", "첨부 참조", "전 직원", false, []) { AttachmentIds = [file.AttachmentId] });
+        await service.DeleteNoticeAsync(second.Id);
+        Check((await files.ListAsync("notice", notice.Id.ToString())).Length == 1, "delete A preserves remaining original notice reference");
         string empty = Path.Combine(folder, "빈파일.txt"); await File.WriteAllBytesAsync(empty, []);
         var zero = await files.UploadAsync("notice", null, empty);
         var zeroNotice = await service.CreateNoticeAsync(new CreateNoticeRequest("빈 첨부", "0 bytes", "전 직원", false, []) { AttachmentIds = [zero.AttachmentId] });
