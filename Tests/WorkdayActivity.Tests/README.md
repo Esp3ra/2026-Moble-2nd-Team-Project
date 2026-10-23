@@ -1,6 +1,15 @@
 # MainForm 정오·퇴근·활동 감시 연결 검사
 
-2026-10-23 후속: `Tools/ConnectedWorkspace`의 명시 실행 조립·설정 검사를 추가해 기본 검사가 **81항목**(아래 기존51 포함)이다. 실제 MainForm에서 연차/근무 각각1회 시도·한쪽 실패 격리·정책OFF 차단·동일 workflow/monitor 대여·로그인 종료를 확인한다. 서버/센서 대역 범위는 유지하며 실제 운영활성화 성공이 아니다.
+2026-10-23 R80-01 수정 후 기본 검사는 **95항목**(이전81 포함)이다. 실제 파일 Load와
+Main이 사용하는 Run 명령 처리부에 소유 임시 경로만 공급해 연차 전용/Pi 설정 누락·손상,
+근무 요청 시 누락·손상·다른 서버 거절, 정상 동시 설정을 검증한다. 명령 검사는
+`--check-config` 경로이며 실계정 로그인/OS 프로세스 GUI/운영 설정은 사용하지 않는다.
+임시 폴더는 종료 때 정리한다. 초기 명령 처리 회귀에서 필요한 Pi 설정 실패가
+InvalidDataException으로 처리되지 않는 문제도 발견해 기존 안내/exit1 경계에 추가했다.
+
+이전81은 `Tools/ConnectedWorkspace` 명시 조립·설정 및 아래 기존51을 포함한다.
+실제 MainForm에서 연차/근무 각각1회 시도·한쪽 실패 격리·정책OFF 차단·동일 workflow/monitor
+대여·로그인 종료를 확인한다. 서버/센서 대역 범위는 유지하며 실제 운영활성화 성공이 아니다.
 
 ```powershell
 dotnet run --project Tests/WorkdayActivity.Tests -c Release

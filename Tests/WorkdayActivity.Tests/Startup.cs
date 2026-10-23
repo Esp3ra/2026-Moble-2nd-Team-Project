@@ -41,6 +41,62 @@ internal static partial class Program
             catch (InvalidDataException) { denied = true; }
             Check(denied, "Invalid or wrong-server startup profile rejected before login/camera");
         }
+        // Actual filesystem Load used before login, rather than Parse with an
+        // already-created topology. Test-owned paths never read user settings.
+        string directory = Path.Combine(Path.GetTempPath(), "workday-startup-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            string workspace = Path.Combine(directory, "workspace.json"), topology = Path.Combine(directory, "endpoints.json");
+            var command = typeof(WorkspaceProfile).Assembly.GetType("RemoteWork.ConnectedWorkspace.Program")!
+                .GetMethod("Run", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+            int CheckStartup()
+            {
+                string previousServer = AppServices.Api.ServerUri.ToString();
+                try
+                {
+                    AppServices.Api.SetServer(server.ToString());
+                    return (int)command.Invoke(null, new object[] { new[] { "--check-config" },
+                        (Func<Uri, WorkspaceProfile>)(current => WorkspaceProfile.Load(current, workspace, topology)) })!;
+                }
+                finally { AppServices.Api.SetServer(previousServer); }
+            }
+            string leaveOnly = JsonSerializer.Serialize(new { version = 1, server_url = server.ToString(), leave_enabled = true, workday = (object?)null });
+            File.WriteAllText(workspace, leaveOnly);
+            Check(!File.Exists(topology), "Owned leave-only PC has no Pi topology");
+            var loaded = WorkspaceProfile.Load(server, workspace, topology);
+            Check(loaded.LeaveEnabled && loaded.Workday is null, "Actual pre-login Load supports leave-only without Pi settings");
+            Check(CheckStartup() == 0, "Explicit check-config command accepts leave-only without Pi topology");
+            File.WriteAllText(topology, "invalid Pi JSON");
+            loaded = WorkspaceProfile.Load(server, workspace, topology);
+            Check(loaded.LeaveEnabled && loaded.Workday is null, "Leave-only Load never parses an unrelated invalid Pi file");
+            Check(CheckStartup() == 0, "Explicit check-config command ignores malformed Pi topology for leave-only");
+
+            File.WriteAllText(workspace, valid);
+            foreach (var contents in new string?[] { null, "invalid Pi JSON", JsonSerializer.Serialize(new
+            {
+                version = 1, server_url = "http://127.0.0.1:5001/", allow_insecure_http = true,
+                devices = new Dictionary<string, object> { [DeviceId.ToString("D")] = new { pi_base_url = "http://pi.invalid:8080/" } }
+            }) })
+            {
+                if (contents is null) File.Delete(topology); else File.WriteAllText(topology, contents);
+                bool denied = false;
+                try { WorkspaceProfile.Load(server, workspace, topology); }
+                catch (InvalidDataException) { denied = true; }
+                Check(denied, "Requested workday still rejects missing, malformed or wrong-server Pi settings");
+                Check(CheckStartup() == 1, "Explicit check-config rejects required bad Pi topology before login");
+            }
+            File.WriteAllText(topology, JsonSerializer.Serialize(new
+            {
+                version = 1, server_url = server.ToString(), allow_insecure_http = true,
+                devices = new Dictionary<string, object> { [DeviceId.ToString("D")] = new { pi_base_url = "http://pi.invalid:8080/" } }
+            }));
+            loaded = WorkspaceProfile.Load(server, workspace, topology);
+            Check(loaded.LeaveEnabled && loaded.Workday?.FingerprintDeviceId == DeviceId, "Actual Load keeps both tracks when topology is valid");
+            Check(loaded.Workday!.PiAddress == new Uri("http://pi.invalid:8080/"), "Actual Load resolves the selected Pi unchanged");
+            Check(CheckStartup() == 0, "Explicit check-config accepts valid combined topology");
+        }
+        finally { Directory.Delete(directory, recursive: true); }
     }
 
     private static async Task IndependentStartup(bool leaveFails, bool workdayFails)

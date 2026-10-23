@@ -8,13 +8,16 @@ public sealed record WorkspaceProfile(Uri Server, WorkdayActivityOptions? Workda
 {
     public static string DefaultPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "RemoteWork", "workspace-connections.json");
-    public static WorkspaceProfile Load(Uri server, string? path = null)
+    public static WorkspaceProfile Load(Uri server, string? path = null, string? endpointsPath = null)
     {
         var file = new FileInfo(path ?? DefaultPath);
         if (!file.Exists || file.Length > 16384) throw new InvalidDataException("통합 연결 설정 파일을 확인해 주세요.");
-        return Parse(File.ReadAllBytes(file.FullName), server, EnrollmentEndpoints.Load(server));
+        return ParseCore(File.ReadAllBytes(file.FullName), server, () => EnrollmentEndpoints.Load(server, endpointsPath));
     }
     public static WorkspaceProfile Parse(ReadOnlyMemory<byte> bytes, Uri current, EnrollmentEndpoints endpoints)
+        => ParseCore(bytes, current, () => endpoints);
+
+    private static WorkspaceProfile ParseCore(ReadOnlyMemory<byte> bytes, Uri current, Func<EnrollmentEndpoints> loadEndpoints)
     {
         try
         {
@@ -39,7 +42,7 @@ public sealed record WorkspaceProfile(Uri Server, WorkdayActivityOptions? Workda
                 var selected = new ActivityCameraOptions(camera.GetProperty("index").GetInt32(), camera.GetProperty("backend").GetString()!,
                     camera.GetProperty("left").GetInt32(), camera.GetProperty("top").GetInt32(),
                     camera.GetProperty("right").GetInt32(), camera.GetProperty("bottom").GetInt32());
-                selected.Validate(); options = new(device, endpoints.Resolve(id), selected);
+                selected.Validate(); options = new(device, loadEndpoints().Resolve(id), selected);
             }
             if (options is null && !leave) throw new InvalidDataException();
             return new(server, options, leave);
