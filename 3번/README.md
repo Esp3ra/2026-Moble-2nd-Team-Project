@@ -1,3 +1,12 @@
+<a id="owner3-pr83-merged-20261023"></a>
+## 3번 최신 — PR83 현재 첨부ID 제공부 병합 완료
+
+[PR83](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/83#issuecomment-6355309762) **048572cb→badffbdf** 병합 완료입니다.3파일/제품12줄을 검토했고 공개 reader는 현재read권한·동일인증TX/db→해당자원ID 정렬FOR UPDATE만 수행합니다. 새TX/commit/IO/감사·참조변경은 없습니다. 원소유MySQL/HTTP **108+80=188PASS/8.80초**, cold/defaultOFF PASS·실제접속시도0, 정식015/schema1·소스불변/정리완료를 확인했습니다.
+
+D3의 A연결해제/B다운로드유지·마지막참조정리·commit뒤파일정리실패재시도는 **3번 채팅 사용자선택 보고로 수신**합니다. 코드병합이1/4번 정책전달·실제소비/차단해제·공유배포 완료를 대신하지 않습니다.4번은 공개reader→기존release→공지삭제/감사를동일TX로연결하고commit뒤정리 경계를 유지하면 됩니다. 기존76/78을 미완료로 되돌리거나 제공부를 재구현하지 않습니다.
+
+[중앙 검토/정확 범위](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr80-83-reviewed-20261023)·[담당 후속](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr80-83-boundaries-20261023).80도수정병합됐으며 실제삭제UI/실계정·두PC·운영배포는 이번검사 범위가 아닙니다. 아래는 이전 이력입니다.
+
 <a id="pr76-owner3-provider-merged-20261022"></a>
 ## 3번 최신 — PR76 자원 첨부 공급 병합
 

@@ -1,3 +1,10 @@
+<a id="member2-pr80-83-current-20261023"></a>
+## 2번 최신 — PR80 수정·PR83 신규 검토 병합
+
+[PR80](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/80#issuecomment-6354991039) **70d3d924→1b83e4f3**, [PR83](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/83#issuecomment-6355309762) **048572cb→badffbdf** 병합 완료입니다.80R80-01해소/실제파일·명령경로와새Pi관측부를확인했고83현재첨부IDreader의같은인증TX·현재권한/locking read를확인했습니다. [직접검사·반복/실패구분·tree일치](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr80-83-reviewed-20261023)·[담당경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr80-83-boundaries-20261023)를기존취합에기록합니다.
+
+79의별도직접수정8730b9ea→dc823221/50PASS기록과기존8문서·원문·앵커를보존합니다. 이번검토는2번writer/journal/화면·사용자프로젝트를수정/동기화하지않았고 실제서버/DB/정책·키/장치도변경하지않았습니다. 새공개회신MD/브랜치/PR은없습니다. 아래는이전기록입니다.
+
 ## 최신 — PR79 두 오류 수정·댓글·병합 완료, 2026-10-23
 
 현재담당 회수 뒤 목록노출 R79-01과 비활성직원 때문에 전체목록403인 R79-02를 **8730b9ea**로 수정했습니다. [댓글·재검증·실제병합](PR_검토기록.md#pr79-fixed-merged-20261023) 후 alpha **dc823221**에 반영했고 검증tree와 같습니다. 실제MySQL50(기존39포함)/원UI115·두Release0/0을 확인했습니다. [5파일변경·미실행·사용자798파일동기화/DOCX7보존](업무_구현검증.md#member2-pr79-fix-check-20261023), [남은정책/담당경계](공통규약.md#member2-pr79-merged-boundary-20261023)를 기존8문서에 취합합니다. 운영쓰기/D1·D2는 미확정이며 아래79미병합은 과거기록입니다.

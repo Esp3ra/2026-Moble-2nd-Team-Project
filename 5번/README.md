@@ -1,3 +1,12 @@
+<a id="owner5-pr80-merged-20261023"></a>
+## 5번 최신 — PR80 R80-01 해결·추가 Pi 관측 검사 병합 완료
+
+[PR80](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/80#issuecomment-6354991039) **70d3d924→1b83e4f3** 병합 완료입니다. `workday:null`이면Pi topology를읽지않고,근무연결요청시기존필수설정검사를유지합니다. 실제파일Load/Main동일Run회귀를포함한 **Workday95(기존81포함)·LeaveUI144·IdentityUI179PASS**, Release0/0, 현재79adapter의실제연차소비4PASS/29.14초를직접확인했습니다.79의8730b9ea→dc823221수정병합을보존합니다.
+
+추가Pi관측부 원266실행/263PASS/Linux3skip·5.997초와 별도합성bundle21PASS를 확인했습니다. 첫tzdata누락실패는검사환경만교정/원소스불변이며수치합산안함. Pi전체는기존임시SQLitefixture를포함하고실제연차MySQL4와다른범위입니다. `--restart-bundle`은check-config전용·bool금지·관측은ready권한아님, CLI독립sourcepin미제공한계를유지합니다.
+
+이병합은실제Linux/private설치·trustedhost/cycle대조·서비스drain/동일lock/UART·새process·별도ON·실물/두PC완료가아닙니다. D1/D2와실제연차쓰기설정도별도입니다. [정확한 검사](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr80-83-reviewed-20261023)·[후속](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr80-83-boundaries-20261023). 실제설정/키/서비스/센서 변경없음,아래보류는이전이력입니다.
+
 <a id="owner5-pr80-review-20261023"></a>
 ## 5번 최신 — PR80 연차 전용 실행 준비 P2 수정 요청
 

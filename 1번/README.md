@@ -1,3 +1,12 @@
+<a id="owner1-pr80-83-current-20261023"></a>
+## 1번 최신 — 80·83 병합 수신 / 공통 운영·원결과 후속
+
+[PR80](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/80#issuecomment-6354991039) **70d3d924→1b83e4f3**, [PR83](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/83#issuecomment-6355309762) **048572cb→badffbdf** 병합 완료입니다.79의 **8730b9ea→dc823221** 현재권한/활성목록 수정·병합은 기존 LOG 근거로 수신하며 미제공/미병합으로 되돌리지 않습니다.80은 현재79adapter를 실제 MainForm/폼→Flask/W1→소유MySQL4PASS로 소비했고 이번4는79전체50과 별도입니다.
+
+83은 공개 `read_resource_attachment_ids(db,kind,id)`만 추가해 기존 동일 인증TX/현재자원권한·정렬locking ID조회를 제공합니다. 기존 release/cleanup·정식013/015·4번 차단은 그대로입니다.1번은4번 실제 소비 후 같은TX 공지/참조/감사·commit실패 rollback과 commit뒤 물리정리 실패/재시도·운영 정리 책임을 대조하면 됩니다. 새 DB/015 재적용 요청이 아닙니다. 공지 생성 durable원UUID/W1 복구는 별도 후속입니다.
+
+80 Pi는82의 관측형식과 호환되지만 파일/빈DB/health를 ready로 쓰지 않습니다. private전달 수신·현재서버/원작업 대조와5번 drain/동일lock/UART·새process를 묶는 실제host/서비스전환은 별도입니다. [직접 검사](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr80-83-reviewed-20261023)·[경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr80-83-boundaries-20261023). D1/D2·실제설정/키/서비스 승인을 새로 추가하지 않습니다. 아래는 이전 이력입니다.
+
 <a id="owner1-pr79-81-82-review-20261023"></a>
 ## 1번 최신 — 공통 해시·지문 실행 공급 병합 / 연차 현재 권한 수정 요청
 

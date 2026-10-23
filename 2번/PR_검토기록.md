@@ -1,3 +1,37 @@
+<a id="pr80-83-reviewed-20261023"></a>
+## PR80 수정 재검토·신규 PR83 검토와 병합 — 2026-10-23
+
+시작시열린PR은80·83두개입니다. [PR80](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/80#issuecomment-6354991039)의기존검토를앞에갱신하고 [PR83](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/83#issuecomment-6355309762)의단일통합댓글에검토·실제병합결과를기록했습니다. 별도79사용자작업의8730b9ea수정/dc823221병합을Git/최신LOG로확인해보존하며이번에그전체50검사를재실행했다고쓰지않습니다.
+
+|PR|고정head/원base|판정·실제병합|
+|---|---|---|
+|80|`70d3d924883c4e7bae17a04bc0526a687e40c281`;`dc823221556cd639237440722c396371c7b63c23`,30파일|R80-01/P2해소·추가Pi검토통과,`1b83e4f3e732b9d0295e05b79f7cf82600eef8a0`|
+|83|`048572cb4f431750f00f488567c6589e14d3ca56`;같은원base,3파일|공개현재첨부IDreader·실패회귀검토통과,`badffbdf31d2bf79f95b03d77a2d0193f38eaf57`|
+
+실제순서는83→80입니다.83의tree`44b0f26781ab5abcaa19212712785072529a9b60`는고정검증head와동일/gitdiff0,부모dc823221/048572cb입니다.80의tree`469897f43fbe43e70cb131d84cdb88d2e8ca4bd6`는직전badffbdf+70d3d924의사전gitmerge-tree와같고부모도일치합니다. 누적83의3파일외80검증제품/검사소스diff0과RESTmerged/closed를확인했습니다.
+
+**R80-01해소:** WorkspaceProfile이Pi로더를지연호출해workdaynull에서는파일을읽지않습니다. 근무요청시누락/손상/다른서버·미등록장치검사는유지합니다. Main과같은Run/실제Load회귀와InvalidDataException처리로연차전용은통과·필수설정오류는안내/exit1입니다. 원본79의8730b9e는headancestor이며adapter/service/016/원검사는base와diff0입니다.
+
+**83제공범위:** 제품추가12줄의reader는`_access(...,'read')`에서동일request/인증TX/동일db·현재자원권한을확인하고해당자원ID만정렬FOR UPDATE tuple로반환합니다. commit/flush/새TX/IO/감사·참조변경·타자원열거가없습니다. 기존release/cleanup·4번release409/삭제차단·정식013/015는diff0입니다. 독립정적검토도차단결함없음입니다.
+
+|이번직접검증밴드|결과/범위·합산경계|
+|---|---|
+|80 C# UI/실행설정|Release3개0경고0오류·Workday95PASS(기존81+새Load8/명령6포함),Leave144/Identity179PASS. 실제C#폼/명시대역·원Main동일Run --check-config·소유파일Load. 전체실프로세스로그인/카메라/센서조작검사는아님|
+|80 실제연차소비|원MainForm/폼→현재79adapter→Flask TCP/W1→소유nativeMySQL4PASS/29.14초. 정상승인·신청/결정응답유실원복구·정책OFF,클라이언트DLL불변/정리true. 위UI와별도|
+|80 Pi원회귀|266실행/263PASS/Linux전용3skip,5.997초. 기존소유임시SQLiteledger/cachefixture포함;전체를SQLite0/실제MySQL·Pi연동으로표시하지않음|
+|80 독립관측대조|합성in-memory bundle21PASS,현재공개PR82source핀정상/불일치·cycle/manifest/현재profile/원ID·fence·bound/오류거절. 원266에합산안함·실제private파일/서버진위검사아님|
+|83 원자원검사|원188PASS=기존108+D3 80,child8.80초/wrapper14.11초/exit0. 정식015를새소유MySQL실제적용/schema1·실제loopbackHTTP. 권한/삭제consumer는명시대역|
+|83 D3범위|동일TX밖reader거절·현재ID/권한·A/B참조보존·공지/참조/감사rollback/commit실패·마지막참조바이트정리·파일잠금후삭제대기/재시도·실제인증RRsnapshot뒤B연결commit/A삭제경합|
+|83 cold|원defaultOFF PASS/3.25초·실제DB접속시도0. SQLite engine URL만만들고연결되지않음;실제DB188은nativeMySQL|
+
+80첫Pi원회귀는검토용venv의Asia/Seoul tzdata누락으로실패했고기존bundledzoneinfo의PYTHONTZPATH만시험환경에지정해원제품/원검사불변으로통과했습니다. 최초실패보고를보존/반복합산없음입니다.83작성자의최초SQL주석세미콜론분리실패는시험기수정이력으로수신했고이번원188은수정된시험기로1회통과했습니다.80첫진행보고의32파일은기재오류로실제git/REST30파일확인후정정했습니다.
+
+각원본/export·DLL불변/Gitclean/diffcheckPASS,모든소유MySQL/DB/nativechild/runtime정리true.83CIcheck/status등록0은자동CI성공이아닙니다. 실제공유server/env·DB/DDL·실계정/키/센서/Pi서비스·flags/ACK·사용자프로젝트를이번에읽거나변경하지않았습니다. 작성자의실제PC/Linux/private전달/운영보고는수신과직접검사를구분합니다.
+
+80Pi의restart-bundle은check-config전용이고lock/UART/서비스를열지않으며관측bool변환도금지합니다. CLI독립sourcepin미제공/관측은ready아님을문서대로유지하고실제trustedhost/같은cycle원작업대조·이전서비스drain/동일lock·단일UART/새process·별도ON·실물/두PC는남습니다. D1/D2와실제연차쓰기설정도별도입니다.
+
+83의D3선택(A해제/B유지·마지막참조정리·commit뒤물리실패재시도)은3번채팅사용자선택보고로수신합니다. 실제4번정책수용/409해제·공지삭제서비스/화면과1번운영정리·공유배포를완료로표시하지않습니다.4번은같은관리자TX/공지잠금→공개reader→기존release→공지삭제/감사→commit·뒤정리를연결하면됩니다. 공지생성durable원UUID/W1은별도후속입니다. [담당경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr80-83-boundaries-20261023). 아래는이전시점기록입니다.
+
 <a id="pr79-fixed-merged-20261023"></a>
 ## PR79 R79-01·02 수정·재검증·병합 완료 — 2026-10-23
 

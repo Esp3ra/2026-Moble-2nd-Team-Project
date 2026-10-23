@@ -1,3 +1,12 @@
+<a id="pr80-83-current-20261023"></a>
+## 최신 — PR80 수정 재검토·PR83 신규 검토 / 둘 다 병합 완료
+
+[PR80](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/80#issuecomment-6354991039) 최신 **70d3d924→1b83e4f3**는 R80-01/P2 연차 전용 실행 오류를 해결했고 새 Pi 관측 검사까지 검토해 병합했습니다. [PR83](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/83#issuecomment-6355309762) **048572cb→badffbdf**는 같은 인증TX의 현재 첨부ID 조회 접점을 검토해 병합했습니다.83→80 순으로 병합했고 실제 tree/부모가 검증본·사전 merge-tree와 일치합니다.
+
+80의 실제 파일 Load/명령 경로·95/144/179·연차 MySQL4, Pi266실행/263통과/3생략과 별도bundle21,83의 nativeMySQL/HTTP188·defaultOFF/접속0을 직접 확인했습니다. 포함/반복/별도 밴드는 합산하지 않습니다. [정확한 SHA·검증·한계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr80-83-reviewed-20261023)와 [담당별 후속](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr80-83-boundaries-20261023)를 따릅니다.79는 별도 사용자 작업의 **8730b9ea→dc823221** 수정·병합 기록을 보존하며 이번에50개를 다시 실행한 것으로 쓰지 않습니다.
+
+3번 채팅의 D3 사용자 선택 보고를 수신했으나 실제4번 첨부공지 삭제409/차단 해제·소비 연결/공유배포는 별도입니다.80의 Pi 관측도 ready권한/서비스 전환·새지문ON이 아닙니다. 실제서버/env·공유DB/DDL·실계정/키/장치/flags/ACK·사용자프로젝트는 이번 검토에서 변경하지 않았습니다. 아래는 당시 기록입니다.
+
 ## 최신 — PR79 직접 수정·재검증·병합 완료, 2026-10-23
 
 사용자 요청으로 R79-01 현재담당권한/P1·R79-02 비활성목록/P2를 수정해 **8730b9ea→alpha dc823221**에 병합했습니다. [기존PR댓글/실제tree·50/115/Release0·0](2번/PR_검토기록.md#pr79-fixed-merged-20261023)과 [변경파일·미실행·사용자프로젝트798파일동기화/DOCX7보존](2번/업무_구현검증.md#member2-pr79-fix-check-20261023)을 취합합니다. [D1/D2·5번소비·운영쓰기 후속](2번/공통규약.md#member2-pr79-merged-boundary-20261023)은 별도이며 공유서버/DB/설정은 변경하지 않았습니다. 아래79수정대기/미병합은 당시기록입니다.
