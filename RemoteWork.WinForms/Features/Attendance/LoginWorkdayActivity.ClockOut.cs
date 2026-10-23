@@ -9,7 +9,7 @@ public sealed partial class LoginWorkdayActivity
     private FingerprintWorkdayOperation? clockOutOperation;
     private IIdentityRelayDevice? clockOutDevice;
     private bool showingClockOut, clockOutPaused;
-    public bool CanRefresh => IsCurrent && !clockOutPaused && !showingClockOut;
+    public bool CanRefresh => IsCurrent && !IsWorkdayClosed && !clockOutPaused && !showingClockOut;
     public bool CanClockOut => IsCurrent && prepareClockOut is not null && !showingNoon && !showingClockOut &&
         (HasFreshWorkday && Workday is not null || clockOutOperation?.IsCurrent == true);
 

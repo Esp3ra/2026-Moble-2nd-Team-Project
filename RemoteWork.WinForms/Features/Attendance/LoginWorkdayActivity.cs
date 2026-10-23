@@ -34,6 +34,7 @@ public sealed partial class LoginWorkdayActivity : System.ComponentModel.Compone
     public IActivityMonitor Monitor { get; }
     public WorkdayActivityState? Workday { get; private set; }
     public bool HasFreshWorkday { get; private set; }
+    public bool IsWorkdayClosed { get; private set; }
     public bool IsCurrent => Volatile.Read(ref ended) == 0 && !cancellation.IsCancellationRequested && Session.IsCurrent;
     public bool CanCheckNoon => IsCurrent && !showingNoon && !showingClockOut && !clockOutPaused &&
         (HasFreshWorkday && Workday?.NoonDue == true || noonOperation is { HasFinalizeAttempt: true, Completed: null });
@@ -91,12 +92,12 @@ public sealed partial class LoginWorkdayActivity : System.ComponentModel.Compone
         if (started) throw new InvalidOperationException("이 로그인에는 이미 근무 감시가 연결됐습니다.");
         started = true;
         await CheckAsync();
-        if (IsCurrent && timer.Tag is true) timer.Start();
+        if (IsCurrent && !IsWorkdayClosed && timer.Tag is true) timer.Start();
     }
     public Task CheckAsync(bool allowAutomaticPrompt = true)
     {
         OnUi();
-        if (!IsCurrent || clockOutPaused) return Task.CompletedTask;
+        if (!IsCurrent || clockOutPaused || IsWorkdayClosed) return Task.CompletedTask;
         if (reading) return pendingCheck;
         return pendingCheck = CheckCoreAsync(allowAutomaticPrompt);
     }
@@ -130,8 +131,17 @@ public sealed partial class LoginWorkdayActivity : System.ComponentModel.Compone
         catch (Exception e) when (e is ApiException or HttpRequestException or InvalidDataException or InvalidOperationException or OperationCanceledException or ArgumentException)
         {
             HasFreshWorkday = false;
+            bool closed = e is ApiException { StatusCode: 409, Code: "ATTENDANCE_DAY_CLOSED" };
+            if (closed && IsCurrent)
+            {
+                // A normal login may outlive today's work. Keep the captured
+                // session and original result owners; never restart this work's
+                // camera or create another attendance operation in this login.
+                IsWorkdayClosed = true;
+                timer.Stop();
+            }
             await Monitor.StopAsync();
-            if (IsCurrent) SetStatus(e is ApiException { StatusCode: 404 or 503 }
+            if (IsCurrent) SetStatus(closed ? "퇴근 완료 · 일반 접속 중" : e is ApiException { StatusCode: 404 or 503 }
                 ? "근무 연결 준비가 필요합니다. 서버 설정을 확인해 주세요." : "현재 근무 확인 필요 · 다시 확인을 눌러주세요.");
         }
         finally { reading = false; }

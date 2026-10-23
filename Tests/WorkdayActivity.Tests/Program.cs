@@ -39,7 +39,8 @@ internal static partial class Program
                 else
                 {
                     await NoonAndBorrowedViews(owner); await LateAndOtherPc(owner); await ErrorsAndConcurrency(owner);
-                    await EndedAndChangedWork(owner); await InvalidSource(owner); await MainOwnership(); await NormalCloseDrains();
+                    await EndedAndChangedWork(owner); await InvalidSource(owner); await ClosedWorkdayKeepsGeneralLogin(owner);
+                    await MainOwnership(); await ClosedMainKeepsGeneralMenus(); await NormalCloseDrains();
                     StartupProfile(); await IndependentStartup(false, false); await IndependentStartup(true, false); await IndependentStartup(false, true);
                     await ClockOutFlow(owner, false); await ClockOutFlow(owner, true); await ClockOutFailure(owner);
                     Console.WriteLine($"PASS workday activity: {checks} assertions; real C# forms/captured sessions, synthetic reader/monitor/device; no production changes.");
@@ -150,6 +151,39 @@ internal static partial class Program
         Check(!second.IsCurrent && secondMonitor.Stops == 1 && secondMonitor.Starts == 1 && secondApi.CurrentUser is not null,
             "Late old read after same-account login neither restarts camera nor clears new login");
     }
+    private static async Task ClosedWorkdayKeepsGeneralLogin(Form owner)
+    {
+        foreach (bool alreadyMonitoring in new[] { false, true })
+        {
+            using var api = await Login(); var session = api.CaptureSession();
+            var source = new Source(); var monitor = new Monitor(); int devices = 0, prompts = 0;
+            var closed = new ApiException("synthetic closed work", 409, "ATTENDANCE_DAY_CLOSED");
+            if (!alreadyMonitoring) source.Error = closed;
+            using var host = new LoginWorkdayActivity(owner, session, source.Read, Options, monitor,
+                _ => { prompts++; return Task.CompletedTask; }, _ => { devices++; return new NoSensor(); }, automaticallyPoll: false);
+            await host.StartAsync();
+            if (alreadyMonitoring) { source.Error = closed; await host.CheckAsync(); }
+            Check(host.Status == "퇴근 완료 · 일반 접속 중" && host.IsWorkdayClosed,
+                "Exact closed-work response is an ordinary post-clock-out login, not a connection error");
+            Check(session.IsCurrent && host.IsCurrent && api.CurrentUser?.Id == User.Id,
+                "Closed work keeps the same authenticated general session");
+            Check(!host.HasFreshWorkday && !monitor.IsRunning && !host.CanRefresh && !host.CanCheckNoon && !host.CanClockOut,
+                "Closed work cannot restart monitoring, refresh or offer new noon/clock-out work");
+            Check(monitor.Starts == (alreadyMonitoring ? 1 : 0) && monitor.Stops == (alreadyMonitoring ? 1 : 0),
+                "Initially closed work never opens camera; another-PC clock-out drains the existing monitor once");
+            int reads = source.Reads; source.Error = null; source.State = Before;
+            await host.CheckAsync(); await host.ShowNoonAsync(); await host.ShowClockOutAsync();
+            Check(source.Reads == reads && !monitor.IsRunning && devices == 0 && prompts == 0,
+                "Later old open data cannot resume closed work or send a new scan in the same login");
+        }
+        using var otherApi = await Login(); var otherSource = new Source
+            { Error = new ApiException("other conflict", 409, "SYNTHETIC_OTHER_CONFLICT") };
+        using var other = new LoginWorkdayActivity(owner, otherApi.CaptureSession(), otherSource.Read, Options,
+            new Monitor(), automaticallyPoll: false);
+        await other.StartAsync();
+        Check(!other.IsWorkdayClosed && other.CanRefresh && !other.HasFreshWorkday,
+            "Other 409 errors are not mislabeled as a confirmed clock-out");
+    }
     private static async Task MainOwnership()
     {
         using var server = new Server(); var api = AppServices.Api; string previous = api.ServerUri.ToString();
@@ -195,6 +229,30 @@ internal static partial class Program
             Check(monitor.Starts == 0 && !host.HasFreshWorkday && !host.CanCheckNoon, "OFF or inconsistent noon state cannot start camera or authorize scan");
         }
     }
+    private static async Task ClosedMainKeepsGeneralMenus()
+    {
+        using var server = new Server { WorkdayClosed = true };
+        var api = AppServices.Api; string previous = api.ServerUri.ToString(); api.SetServer(server.Url);
+        try
+        {
+            var login = await api.LoginAsync("synthetic", "synthetic"); var session = api.CaptureSession();
+            using var main = new MainForm(login.User) { ShowInTaskbar = false,
+                StartPosition = FormStartPosition.Manual, Location = new(-20000, -20000) };
+            main.Show(); var monitor = new Monitor();
+            await main.ConnectWorkdayActivityAsync(Options, monitor);
+            var host = Field<LoginWorkdayActivity>(main, "workdayActivity");
+            Check(host.IsWorkdayClosed && host.Status == "퇴근 완료 · 일반 접속 중" && session.IsCurrent,
+                "Actual MainForm and shared HTTP reader preserve a normal login on closed-work 409");
+            Field<Button>(main, "btnAttendance").PerformClick();
+            Check(Field<AttendanceControl>(main, "currentPage") is not null && monitor.Starts == 0,
+                "General attendance/leave menu remains available without starting a closed work camera");
+            Field<Button>(main, "btnChat").PerformClick();
+            Check(session.IsCurrent && server.Logouts == 0 && !monitor.IsRunning,
+                "General navigation does not log out, reopen attendance or activate the monitor");
+            await host.StopAsync(); main.Close();
+        }
+        finally { api.ClearIdentity(); api.SetServer(previous); }
+    }
     private static async Task NormalCloseDrains()
     {
         using var server = new Server(); var api = AppServices.Api; string previous = api.ServerUri.ToString();
@@ -224,6 +282,7 @@ internal static partial class Program
         private readonly HttpListener listener = new(); private readonly Task run;
         public string Url { get; }
         public int Logouts;
+        public bool WorkdayClosed;
         public Server()
         {
             var probe = new TcpListener(IPAddress.Loopback, 0); probe.Start(); int port = ((IPEndPoint)probe.LocalEndpoint).Port; probe.Stop();
@@ -237,6 +296,14 @@ internal static partial class Program
                 {
                     var c = await listener.GetContextAsync(); object data;
                     string path = c.Request.Url!.AbsolutePath;
+                    if (path.EndsWith("/workday") && WorkdayClosed)
+                    {
+                        byte[] error = JsonSerializer.SerializeToUtf8Bytes(new { ok = false,
+                            error = new { code = "ATTENDANCE_DAY_CLOSED", message = "synthetic closed work" } }, ApiClient.Json);
+                        c.Response.StatusCode = 409; c.Response.ContentType = "application/json";
+                        c.Response.ContentLength64 = error.Length;
+                        await c.Response.OutputStream.WriteAsync(error); c.Response.Close(); continue;
+                    }
                     if (path.EndsWith("/auth/login")) data = new LoginResult(new string('x', 43), "Bearer", DateTimeOffset.UtcNow.AddHours(1), User);
                     else if (path.EndsWith("/auth/me")) data = new IdentityResult(User, DateTimeOffset.UtcNow.AddHours(1));
                     else if (path.EndsWith("/workday")) data = new { server_time = "2026-10-22T02:59:00Z", work_session_ref = Work, work_date = "2026-10-22",
