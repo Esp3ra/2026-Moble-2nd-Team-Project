@@ -67,6 +67,20 @@ def write_new_or_same(path, raw, *, mode=0o640, gid=None):
     os.chmod(path, mode)
 
 
+def server_sources_document(code, sources):
+    # Pi code may stay identical while the reviewed server changes. Keep each
+    # exact server profile immutable beside it instead of overwriting a fixed
+    # filename that an earlier invocation has already bound into readiness.
+    raw = json.dumps(sources, sort_keys=True).encode()
+    return Path(code) / ("server-sources-" + digest(raw) + ".json"), raw
+
+
+def install_server_sources(code, sources, *, gid):
+    path, raw = server_sources_document(code, sources)
+    write_new_or_same(path, raw, gid=gid)
+    return path
+
+
 def command(args, *, timeout=60):
     return subprocess.run(args, capture_output=True, text=True, timeout=timeout, check=True).stdout
 
@@ -205,10 +219,9 @@ class LinuxTransition:
         for required in ("identity_transition.py", "pi_api_identity_service.py", "identity_startup.py"):
             if required not in m["files"]:
                 raise RuntimeError("source_incomplete")
-        sources = self.code / "server-sources.json"
-        write_new_or_same(sources, json.dumps(m["server_sources"], sort_keys=True).encode(), gid=self.owner.pw_gid)
+        self.server_sources = install_server_sources(self.code, m["server_sources"], gid=self.owner.pw_gid)
         out = command(["runuser", "-u", m["user"], "--", m["python"], "-B", "-c", PROBE,
-                       str(self.code), m["config"], m["identity_config"], m["bundle_directory"], str(sources)])
+                       str(self.code), m["config"], m["identity_config"], m["bundle_directory"], str(self.server_sources)])
         self.observed = json.loads(out)
         # Explicit new server ON observation AND real OS handoff are both needed.
         require_server_ready(self.observed)
@@ -255,7 +268,7 @@ class LinuxTransition:
             raise RuntimeError("handoff_existing_or_unsafe")
         os.chown(self.handoff_dir, 0, self.owner.pw_gid)
         inputs = {str(self.code / name): expected for name, expected in m["files"].items()}
-        paths = [m["config"], m["identity_config"], str(self.code / "server-sources.json")]
+        paths = [m["config"], m["identity_config"], str(self.server_sources)]
         paths += [str(Path(m["bundle_directory"]) / name) for name in (
             "deployment-context.private.json", "managed-key-audit.private.json", "restart-observation.private.json",
             "retired-identity-keys.private.json", "SHA256SUMS.txt", "전달_안내.txt")]
@@ -273,7 +286,7 @@ class LinuxTransition:
             write_new_or_same(target, read(labels, 16384), gid=self.owner.pw_gid)
         args = [m["python"], "-B", "-u", str(self.code / "pi_api_identity_service.py"), "--config", m["config"],
                 "--identity-config", m["identity_config"], "--restart-bundle", m["bundle_directory"],
-                "--reviewed-server-sources", str(self.code / "server-sources.json"), "--handoff", str(self.handoff)]
+                "--reviewed-server-sources", str(self.server_sources), "--handoff", str(self.handoff)]
         if any(not re.fullmatch(r"[a-zA-Z0-9_./:-]+", value) for value in args):
             raise RuntimeError("service_argument_path")
         self.override = ("[Service]\nExecStart=\nExecStart=" + " ".join(args)

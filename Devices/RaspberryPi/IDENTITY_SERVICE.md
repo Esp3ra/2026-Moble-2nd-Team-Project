@@ -28,6 +28,11 @@ MySQL `runtime.lock`의 획득된 RuntimeLease를 서비스 종료까지 보관�
 접점이며 적용 전 코드/운영 결합 검토가 필요하다. 현재 OFF 묶음으로 apply하면 서비스 정지 전에
 `server_off_or_original_work_unresolved_no_stop`으로 거절한다.
 
+서버3소스 대조 파일은 내용 SHA를 포함한 `server-sources-SHA256.json`으로 보관한다.
+같은 Pi 소스 버전에서 서버 코드만 변경되어도 이전 회차 파일을 덮어쓰지 않는다.
+현재 대조에 선택한 정확한 파일을 probe·root 인계 입력·서비스 인수에 동일하게 전달한다.
+이전 고정 이름 파일은 증거로 보존하며, 같은 내용 주소의 파일이 변조되어 있으면 계속 거절한다.
+
 ## 실행 중 닫힘
 
 `StartupReadiness`는 설정/소스/root 자료·프로세스·lease 변경 또는 종료 시 영구 닫힌다.

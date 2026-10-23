@@ -1,12 +1,14 @@
 """Synthetic authority/lease/process binding; no actual root/service or sensor."""
 from dataclasses import replace
 import hashlib
+import json
 import os
 from pathlib import Path
 import secrets
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -15,7 +17,9 @@ from fingerprint_identity import IdentityProfile
 from fingerprint_enrollment_private import ConfigurationError
 from identity_restart import RestartObservation
 from identity_startup import StartupReadiness, inputs_current, profile_digest, read_root_document, validate_handoff
-from identity_transition import claim_value, require_server_ready, switch_service
+from identity_transition import (
+    claim_value, install_server_sources, require_server_ready, server_sources_document, switch_service,
+)
 
 
 class StartupTests(unittest.TestCase):
@@ -132,6 +136,40 @@ class StartupTests(unittest.TestCase):
 
 
 class TransitionTests(unittest.TestCase):
+    def test_same_pi_code_accepts_new_server_sources_without_overwriting_old_cycle(self):
+        with tempfile.TemporaryDirectory() as folder:
+            code = Path(folder)
+            legacy = code / "server-sources.json"
+            legacy.write_bytes(b"previous deployment evidence")
+            before = {"identity_host.py": "a" * 64, "features/identity/routes.py": "b" * 64}
+            after = before | {"features/identity/routes.py": "c" * 64}
+            # Only a synthetic owned directory; no actual root/service change.
+            with patch("identity_transition.os.O_NOFOLLOW", getattr(os, "O_NOFOLLOW", 0), create=True), \
+                    patch("identity_transition.os.O_NONBLOCK", getattr(os, "O_NONBLOCK", 0), create=True):
+                first = install_server_sources(code, before, gid=None)
+                second = install_server_sources(code, after, gid=None)
+            self.assertNotEqual(first, second)
+            self.assertEqual(before, json.loads(first.read_bytes()))
+            self.assertEqual(after, json.loads(second.read_bytes()))
+            self.assertEqual(b"previous deployment evidence", legacy.read_bytes())
+
+    def test_reordered_server_map_selects_same_immutable_profile(self):
+        before = {"identity_host.py": "a" * 64, "features/identity/routes.py": "b" * 64}
+        self.assertEqual(server_sources_document(Path("code"), before),
+                         server_sources_document(Path("code"), dict(reversed(list(before.items())))))
+
+    def test_tampered_content_addressed_server_file_still_blocks_instead_of_overwriting(self):
+        with tempfile.TemporaryDirectory() as folder:
+            code = Path(folder)
+            values = {"identity_host.py": "a" * 64}
+            path, _ = server_sources_document(code, values)
+            path.write_bytes(b"preserve conflicting evidence")
+            with patch("identity_transition.os.O_NOFOLLOW", getattr(os, "O_NOFOLLOW", 0), create=True), \
+                    patch("identity_transition.os.O_NONBLOCK", getattr(os, "O_NONBLOCK", 0), create=True):
+                with self.assertRaisesRegex(RuntimeError, "existing_file_differs"):
+                    install_server_sources(code, values, gid=None)
+            self.assertEqual(b"preserve conflicting evidence", path.read_bytes())
+
     class Operations:
         def __init__(self, fail=()):
             self.fail, self.events = set(fail), []
