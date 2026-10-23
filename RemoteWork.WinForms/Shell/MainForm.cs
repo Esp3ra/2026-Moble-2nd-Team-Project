@@ -138,9 +138,8 @@ namespace RemoteWork.WinForms.Shell
 
         private void btnAttendance_Click(object? sender, EventArgs e)
         {
-            if (workdayActivity is null) ShowPage(new AttendanceControl(previewRole), btnAttendance);
-            else if (workdayActivity.IsCurrent)
-                ShowPage(new AttendanceControl(previewRole, workdayActivity.Session, null, workdayActivity.Monitor), btnAttendance);
+            if ((workdayActivity is null || workdayActivity.IsCurrent) && (leaveConnection is null || leaveConnection.IsCurrent))
+                ShowPage(CreateAttendancePage(), btnAttendance);
         }
 
         private void btnHistory_Click(object? sender, EventArgs e)
