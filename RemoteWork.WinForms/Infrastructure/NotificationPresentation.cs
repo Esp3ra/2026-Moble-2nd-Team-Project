@@ -8,6 +8,6 @@ public static class NotificationPresentation
 {
     public static bool CanPresent(Form owner) => !owner.IsDisposed && !owner.Disposing &&
         owner.Visible && owner.Enabled && owner.WindowState != FormWindowState.Minimized &&
-        !Application.OpenForms.Cast<Form>().Any(form => form.Visible &&
+        !Application.OpenForms.Cast<Form>().Any(form => form != owner && form.Visible &&
             (form.Modal || form is ImportantNoticeForm or CollaborationResponseForm or DeadlineAlertForm or DeadlineAlertInboxForm));
 }

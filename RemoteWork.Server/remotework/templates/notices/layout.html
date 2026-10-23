@@ -1,4 +1,4 @@
 {% extends 'base.html' %}
 {% block title %}공지사항{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='notices.css') }}"><script defer src="{{ url_for('static', filename='notices.js') }}"></script>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='notices.css') }}"><script defer src="{{ url_for('static', filename='notices.js') }}"></script><script type="module" src="{{ url_for('static', filename='resource_attachments.js') }}"></script>{% endblock %}
 {% block content %}<div class="notice-page">{% block notices_content %}{% endblock %}</div>{% endblock %}

@@ -15,6 +15,9 @@ namespace RemoteWork.WinForms.Features.Collaboration
             Visible = false, TabStop = false
         };
         private bool saving;
+        private bool unknownSave;
+        private readonly List<ResourceAttachment> uploadedFiles = new();
+        private ResourceAttachmentClient? attachmentClient;
         private bool lifetimeEnded;
 
         public NoticeEditForm() : this(new HttpNoticeService(AppServices.Api)) { }
@@ -29,7 +32,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             layoutContent2.Controls.Add(saveError, 0, 1);
             txtNoticeTitle.MaxLength = 200;
             txtNoticeBody.MaxLength = 5000;
-            txtAttachments.PlaceholderText = "파일명만 저장됩니다. 업로드·다운로드는 아직 연결되지 않았습니다.";
+            txtAttachments.PlaceholderText = "첨부파일 선택 후 등록 시 전송합니다. 최대 10개 · 파일당 25MiB";
             FormClosing += (_, e) =>
             {
                 // Do not suggest that closing cancels an already submitted DB commit.
@@ -64,7 +67,10 @@ namespace RemoteWork.WinForms.Features.Collaboration
             };
             if (dialog.ShowDialog(this) != DialogResult.OK) return;
 
+            if (dialog.FileNames.Length > 10 || dialog.FileNames.Any(p => new FileInfo(p).Length > 26214400))
+            { MessageBox.Show(this, "최대 10개, 파일당 25MiB까지 선택해 주세요."); return; }
             SelectedAttachmentPaths = dialog.FileNames;
+            uploadedFiles.Clear();
             txtAttachments.Lines = SelectedAttachmentPaths.Select(
                 path => System.IO.Path.GetFileName(path)).ToArray();
         }
@@ -73,7 +79,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
 
         public async Task PublishAsync()
         {
-            if (saving || IsDisposed) return;
+            if (saving || IsDisposed || unknownSave) return;
             if (string.IsNullOrWhiteSpace(txtNoticeTitle.Text) ||
                 string.IsNullOrWhiteSpace(txtNoticeBody.Text))
             {
@@ -89,11 +95,22 @@ namespace RemoteWork.WinForms.Features.Collaboration
             btnPublishNotice.Text = "저장 중…";
             try
             {
+                if (SelectedAttachmentPaths.Length > 0)
+                {
+                    attachmentClient ??= new ResourceAttachmentClient(noticeService is HttpNoticeService http ? http.AttachmentIdentity() : AppServices.Api.CaptureSession());
+                    foreach (var path in SelectedAttachmentPaths.Skip(uploadedFiles.Count))
+                        uploadedFiles.Add(await attachmentClient.UploadAsync("notice", null, path, lifetime.Token));
+                }
+                // The legacy notice API has no durable original-result lookup.
+                // Freeze an unknown original save; never generate a second notice
+                // or discard its possibly linked uploads automatically.
+                unknownSave = true;
                 var saved = await noticeService.CreateNoticeAsync(new CreateNoticeRequest(
                     txtNoticeTitle.Text.Trim(), txtNoticeBody.Text.Trim(), cmbNoticeAudience.Text,
-                    chkPinToTop.Checked, SelectedAttachmentPaths.Select(Path.GetFileName)
-                        .Select(name => name ?? "").ToArray()), lifetime.Token);
+                    chkPinToTop.Checked, Array.Empty<string>())
+                    { AttachmentIds = uploadedFiles.Select(f => f.AttachmentId).ToArray() }, lifetime.Token);
                 if (IsDisposed) return;
+                unknownSave = false;
                 CreatedNotice = saved;
                 saving = false;
                 DialogResult = DialogResult.OK;
@@ -101,18 +118,24 @@ namespace RemoteWork.WinForms.Features.Collaboration
             }
             catch (ApiException ex)
             {
+                if (ex.StatusCode is >= 400 and < 500) unknownSave = false;
                 if (!IsDisposed) ShowSaveError(ex.Message);
             }
             catch (OperationCanceledException)
             {
                 if (!IsDisposed) ShowSaveError("접속이 변경되어 저장 결과를 확인하지 못했습니다. 다시 로그인한 후 목록을 확인해 주세요.");
             }
+            catch (Exception ex)
+            {
+                if (!IsDisposed) ShowSaveError("첨부 또는 등록 처리 실패: " + ex.Message);
+            }
             finally
             {
                 saving = false;
                 if (!IsDisposed)
                 {
-                    btnPublishNotice.Enabled = btnClose.Enabled = panelContent.Enabled = true;
+                    btnPublishNotice.Enabled = panelContent.Enabled = !unknownSave;
+                    btnClose.Enabled = true;
                     btnPublishNotice.Text = "공지사항 등록";
                 }
             }
@@ -121,7 +144,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
         private void ShowSaveError(string message)
         {
             // Keep every input intact and do not return OK on a failed/unknown save.
-            saveError.Text = message + "\r\n입력 내용은 유지됩니다. 통신 오류라면 재등록 전에 목록에서 저장 여부를 확인해 주세요.";
+            saveError.Text = message + "\r\n입력·첨부 ID는 유지됩니다. 저장 결과가 불명확하면 이 창에서 재등록을 막습니다. 목록에서 저장 여부를 먼저 확인해 주세요.";
             saveError.Visible = true;
         }
 

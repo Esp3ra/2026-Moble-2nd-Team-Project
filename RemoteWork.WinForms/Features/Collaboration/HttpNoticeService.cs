@@ -10,6 +10,12 @@ public sealed class HttpNoticeService(ApiClient api) : INoticeService, INoticePo
         string? PopupKey);
     private sealed record NoticeResult(NoticeData Notice);
     private ApiClient.Session? popupSession;
+    private ApiClient.Session? writeSession;
+    internal ApiClient.Session AttachmentIdentity()
+    {
+        var identity = writeSession ??= api.CaptureSession();
+        identity.ThrowIfChanged(); return identity;
+    }
     private ApiClient.Session PopupIdentity()
     {
         var identity = popupSession ??= api.CaptureSession();
@@ -63,7 +69,11 @@ public sealed class HttpNoticeService(ApiClient api) : INoticeService, INoticePo
 
     public async Task<Notice> CreateNoticeAsync(CreateNoticeRequest request, CancellationToken ct = default)
     {
-        var result = await api.PostAsync<NoticeResult>("notices", request, ct);
+        // Empty optional fields must not break a still-deployed legacy server.
+        object body = request.AttachmentIds.Length == 0
+            ? new { request.Title, request.Content, request.Target, request.IsPinned, request.AttachmentNames }
+            : new { request.Title, request.Content, request.Target, request.IsPinned, request.AttachmentNames, request.AttachmentIds };
+        var result = await AttachmentIdentity().PostAsync<NoticeResult>("notices", body, ct);
         return Map(result.Notice);
     }
 
