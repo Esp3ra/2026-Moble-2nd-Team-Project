@@ -42,6 +42,7 @@ internal static partial class Program
                 ClosingSubmission(false); ClosingSubmission(true);
                 ClosingDecision(false); ClosingDecision(true); ClosingDecisionSessionEnded();
                 ConnectedLeaveScreens(); ManagerPreparation(); LatePreparation(false); LatePreparation(true); LeaveConnectionLifetime();
+                LeaveListLayout(args.Length == 1 ? args[0] : null);
                 if (args.Length == 1) Render(args[0]);
                 Console.WriteLine($"PASS Leave UI: {checks} assertions; actual WinForms + synthetic workflow/identity; no real server, database or device.");
                 result = 0;
