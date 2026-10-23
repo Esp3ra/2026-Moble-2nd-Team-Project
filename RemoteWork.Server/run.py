@@ -10,7 +10,18 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--demo", action="store_true", help="Use local SQLite and create sample accounts on first run")
     parser.add_argument("--init", action="store_true", help="Create missing common tables without deleting data")
+    parser.add_argument("--identity-private-config", help="Private server profile file; never a Pi profile")
+    parser.add_argument("--identity-retired-keys", help="Explicit private retired-key inventory")
+    parser.add_argument("--identity-check-config", action="store_true", help="Read-only server composition; no listener or activation")
+    parser.add_argument("--identity-restart-report", help="Write-once private observation beside the server profile; not readiness approval")
+    parser.add_argument("--identity-restart-cycle", help="Canonical UUID identifying this joint reconciliation cycle")
     args = parser.parse_args()
+    if (bool(args.identity_private_config) != bool(args.identity_retired_keys)
+            or (args.identity_check_config and not args.identity_private_config)
+            or (args.identity_private_config and (args.demo or args.init))
+            or (bool(args.identity_restart_report) != bool(args.identity_restart_cycle))
+            or (args.identity_restart_report and not args.identity_check_config)):
+        parser.error("Identity requires both private files and cannot be combined with --demo/--init")
     root = Path(__file__).resolve().parent
     load_dotenv(root / ".env")
     if args.demo:
@@ -30,7 +41,29 @@ def main():
     from remotework.models import User
     from sqlalchemy import select
     from waitress import serve
-    app = create_app()
+    if args.identity_private_config:
+        from remotework.identity_host import create_private_app
+        try:
+            app = create_private_app(args.identity_private_config, args.identity_retired_keys,
+                enabled=not args.identity_check_config and os.getenv("REMOTEWORK_ENABLE_DEVICE_IDENTITY_DRAFT") == "1")
+        except Exception:
+            parser.exit(1, "STOPPED: identity private configuration/storage/current profile check failed.\n")
+        if args.identity_check_config:
+            import json
+            try:
+                report = app.extensions["identity_host_preflight"]
+                if args.identity_restart_report:
+                    from remotework.identity_host import write_restart_observation
+                    report = write_restart_observation(app, args.identity_private_config, args.identity_retired_keys,
+                        args.identity_restart_report, args.identity_restart_cycle)
+                print(json.dumps(report, sort_keys=True))
+            except Exception:
+                parser.exit(1, "STOPPED: private restart observation failed; no activation or state repair.\n")
+            finally:
+                app.extensions["db_engine"].dispose()
+            return
+    else:
+        app = create_app()
     with app.app_context():
         if args.init or args.demo:
             init_schema()
