@@ -2,6 +2,7 @@ import contextlib
 import io
 import sys
 import unittest
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pi_api_identity_mysql as entry
@@ -47,6 +48,25 @@ class IdentityMySqlEntryTests(unittest.TestCase):
         with patch.object(entry, "load_mysql_configuration", side_effect=RuntimeError("private data")), \
                 patch.object(entry, "mysql_runtime_session") as session:
             self.assertEqual(1, self.run_entry(ready=Mock()))
+            session.assert_not_called()
+
+    def test_restart_observation_is_check_only_and_does_not_open_runtime(self):
+        with patch.object(entry, "load_mysql_configuration"), patch.object(entry, "load_identity_configuration") as profile, \
+                patch.object(entry, "mysql_runtime_session") as session, \
+                patch("identity_restart.load_restart_bundle") as observation:
+            observation.return_value = SimpleNamespace(retired_keys=(b"r" * 32,), identity_enabled=False,
+                                                        unresolved_challenges=1, persisted_capture_fences=1)
+            self.assertEqual(0, self.run_entry(["--check-config", "--restart-bundle", "/private/observations"]))
+            self.assertEqual((b"r" * 32,), profile.call_args.kwargs["retired_keys"])
+            session.assert_not_called()
+            self.assertEqual(1, self.run_entry(["--restart-bundle", "/private/observations"], ready=Mock(return_value=True)))
+            session.assert_not_called()
+
+    def test_invalid_restart_observation_fails_without_opening_runtime(self):
+        with patch.object(entry, "load_mysql_configuration"), patch.object(entry, "load_identity_configuration"), \
+                patch.object(entry, "mysql_runtime_session") as session, \
+                patch("identity_restart.load_restart_bundle", side_effect=ValueError("private evidence")):
+            self.assertEqual(1, self.run_entry(["--check-config", "--restart-bundle", "/private/observations"]))
             session.assert_not_called()
 
 

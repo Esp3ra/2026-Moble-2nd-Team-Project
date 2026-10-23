@@ -14,11 +14,24 @@ def run(argv=None, *, ready=None, retired_keys=()):
     parser.add_argument("--config", required=True)
     parser.add_argument("--identity-config", required=True)
     parser.add_argument("--check-config", action="store_true")
+    parser.add_argument("--restart-bundle", help="Private observation directory; check-config only, never an activation grant")
     args = parser.parse_args(argv)
     try:
+        if args.restart_bundle and not args.check_config:
+            raise ConfigurationError("restart_observation_check_only")
         config = load_mysql_configuration(args.config)
         profile = load_identity_configuration(args.identity_config, config, retired_keys=retired_keys)
         if args.check_config:
+            if args.restart_bundle:
+                from identity_restart import load_restart_bundle
+                observed = load_restart_bundle(args.restart_bundle, profile)
+                combined = tuple(dict.fromkeys(retired_keys + observed.retired_keys))
+                load_identity_configuration(args.identity_config, config, retired_keys=combined)
+                print("PASS: private restart observation/profile/inventory consistency checked.")
+                print("CHECK: server identity=" + ("ON" if observed.identity_enabled else "OFF")
+                      + "; unresolved=" + str(observed.unresolved_challenges)
+                      + "; retained fences=" + str(observed.persisted_capture_fences))
+                print("NOT_READY: observation is not a grant; source/runtime/reconciliation evidence remains separate.")
             print("PASS: private enrollment/identity profiles agree; no runtime/sensor/service changes.")
             print("NOT_READY: restart reconciliation and trusted readiness provider are separate.")
             return 0
