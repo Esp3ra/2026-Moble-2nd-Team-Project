@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using RemoteWork.WinForms.Infrastructure;
 using RemoteWork.WinForms.Ui;
+using RemoteWork.ConnectedWorkspace;
 
 namespace RemoteWork.WinForms.Shell;
 
@@ -25,7 +26,7 @@ public partial class LoginForm : Form
             throw new ArgumentException("별도 접속을 전달할 때는 같은 접속의 업무 화면 연결도 필요합니다.", nameof(openWorkspace));
         this.api = api ?? AppServices.Api;
         this.fingerprintLogin = fingerprintLogin ?? OpenFingerprintLogin;
-        this.openWorkspace = openWorkspace ?? (login => { using var workspace = new MainForm(login.User); workspace.ShowDialog(this); });
+        this.openWorkspace = openWorkspace ?? (login => { using var workspace = WorkspaceStartup.CreateMainForm(login); workspace.ShowDialog(this); });
         this.createIdentityLogin = createIdentityLogin ?? (ct => this.api.BeginIdentityLogin(lifetime: ct));
         lblLoginId.Text = "아이디";
         txtLoginId.MaxLength = 50;

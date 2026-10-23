@@ -42,6 +42,8 @@ internal static partial class Program
                     await EndedAndChangedWork(owner); await InvalidSource(owner); await ClosedWorkdayKeepsGeneralLogin(owner);
                     await MainOwnership(); await ClosedMainKeepsGeneralMenus(); await NormalCloseDrains();
                     StartupProfile(); await IndependentStartup(false, false); await IndependentStartup(true, false); await IndependentStartup(false, true);
+                    await NormalStartupSettings(); await NormalStartupConnections(0); await NormalStartupConnections(404); await NormalStartupConnections(503);
+                    await NormalStartupSessionChanges();
                     await ClockOutFlow(owner, false); await ClockOutFlow(owner, true); await ClockOutFailure(owner);
                     Console.WriteLine($"PASS workday activity: {checks} assertions; real C# forms/captured sessions, synthetic reader/monitor/device; no production changes.");
                 }
@@ -283,6 +285,7 @@ internal static partial class Program
         public string Url { get; }
         public int Logouts;
         public bool WorkdayClosed;
+        public int WorkdayError, WorkdayReads;
         public Server()
         {
             var probe = new TcpListener(IPAddress.Loopback, 0); probe.Start(); int port = ((IPEndPoint)probe.LocalEndpoint).Port; probe.Stop();
@@ -296,6 +299,15 @@ internal static partial class Program
                 {
                     var c = await listener.GetContextAsync(); object data;
                     string path = c.Request.Url!.AbsolutePath;
+                    if (path.EndsWith("/workday")) Interlocked.Increment(ref WorkdayReads);
+                    if (path.EndsWith("/workday") && WorkdayError != 0)
+                    {
+                        byte[] error = JsonSerializer.SerializeToUtf8Bytes(new { ok = false,
+                            error = new { code = "SYNTHETIC_NOT_READY", message = "synthetic disabled or unavailable workday" } }, ApiClient.Json);
+                        c.Response.StatusCode = WorkdayError; c.Response.ContentType = "application/json";
+                        c.Response.ContentLength64 = error.Length;
+                        await c.Response.OutputStream.WriteAsync(error); c.Response.Close(); continue;
+                    }
                     if (path.EndsWith("/workday") && WorkdayClosed)
                     {
                         byte[] error = JsonSerializer.SerializeToUtf8Bytes(new { ok = false,

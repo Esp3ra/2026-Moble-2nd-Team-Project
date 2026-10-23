@@ -1,8 +1,21 @@
-# 연차·지문 근무 동시 연결 실행기
+# 일반 WinForms의 연차·지문 근무 연결
 
-기존 LoginForm·MainForm·Designer 화면을 재사용하는 명시 실행기다. 별도 모의 로그인이나 새 UI를 만들지 않는다. 기본 제품 실행/서버 설정은 바꾸지 않는다.
+Visual Studio에서 `RemoteWork.WinForms`를 시작하거나 빌드한 `RemoteWork.WinForms.exe`를 열면,
+일반 로그인 성공 후 저장된 설정으로 기존 연차·지문 근무 연결을 설치한다. 별도 CMD 실행은 필요 없다.
+기존 LoginForm·MainForm·Designer와 근무 상태 바를 사용하며 서버 기능을 자동으로 켜지 않는다.
 
-`Start-Connected-Workspace.cmd`를 명시 실행하면 기존 로그인 후 MainForm.Shown에서 같은 접속에 연차·현재 근무 연결을 각각 설치한다. 한쪽 연결 실패/미제공이 다른 쪽 설치를 막지 않는다. 현재 서버에 열린 근무가 있어야 기존 monitor가 카메라를 시작한다. 열린 근무를 임의 생성하지 않으며 정상 로그인·창 닫기를 지문 출근/퇴근으로 표시하지 않는다.
+로그인한 MainForm이 표시될 때 같은 접속에 연차·현재 근무 연결을 각각 한 번 설치한다.
+설정 누락·손상·다른 서버 설정이면 일반 로그인을 유지하고 하단에 **지문·근무 연결 설정 필요**를 표시한다.
+정상 설정에서 서버 지문 경로가404/503이면 기존 지문 근무 바는 보이되 지문 확인·퇴근 버튼은 비활성화한다.
+현재 서버에 유효한 열린 근무가 있어야 기존 monitor가 카메라를 시작한다. 열린 근무를 임의 생성하거나
+정상 로그인·창 닫기를 지문 출근/퇴근으로 표시하지 않는다.
+
+`Start-Connected-Workspace.cmd`/`--run`은 호환용으로 남아 있으며 제품의 같은 시작 연결부를 호출한다.
+제품과 호환 실행기는 동일한 `DpiUnawareGdiScaled` 설정을 사용하므로 진입점에 따라 화면 배율이 바뀌지 않는다.
+
+로컬 실제 서버의 직원 계정으로 새 기본 시작 연결부를 실행해 기존 공지 화면과 지문 근무 바가
+함께 표시되는 것도 확인했다. 서버의 지문 기능이 준비되지 않은 상태에서 준비 안내와 비활성
+지문 확인·퇴근 버튼을 확인했으며, 검사 접속은 종료했다. 이는 장비 인증 성공 검사가 아니다.
 
 설정은 PC의 `%LOCALAPPDATA%/RemoteWork/workspace-connections.json`이다. 버전1이며 정확히 `version`, `server_url`, `workday`, `leave_enabled`를 가진다. `server_url`은 현재 client.json과 일치해야 한다. `workday`는 null 또는 `device_id`·`camera` 객체다. `camera` 필드는 `index`, `backend`, `left`, `top`, `right`, `bottom`이며 기존 ActivityCameraOptions 범위를 검사한다. 실제 장치 UUID·Pi 주소는 기존 enrollment-endpoints.json에서 선택/해결하며 계정 소유권은 서버가 판단한다. 비밀번호·Bearer·서명키는 이 설정에 넣지 않는다. 양쪽 비활성/중복·모르는 필드·다른 서버·미등록 장치를 거부한다.
 
@@ -24,11 +37,17 @@ dotnet run --project Tools/ConnectedWorkspace -c Release -- --check-config
 # 설정 검사만으로 카메라/서버/Pi를 열거나 로그인하지 않는다.
 ```
 
-실제 지문 로그인은 서버가 기존 `IDENTITY_FINGERPRINT_REQUIRED`를 반환할 때 기존 LoginForm/FingerprintLoginForm 흐름을 따른다. 새 경로404/키/재시작 재조정 미준비를 `/scan`으로 우회하거나 서버 OFF를 켜지 않는다. 정오·퇴근은 이미 병합된 WorkdayStateConnection/PR73·74의 MainForm 연결을 사용한다. 로그인 종료/만료 시 같은 기존 소유자가 정리하고 메뉴는 같은 monitor를 빌린다.
+실제 지문 로그인은 서버가 기존 `IDENTITY_FINGERPRINT_REQUIRED`를 반환할 때 기존 LoginForm/FingerprintLoginForm 흐름을 따른다. 새 경로404/키/재시작 재조정 미준비를 `/scan`으로 우회하거나 서버 OFF를 켜지 않는다. 오후 업무 전 확인·퇴근은 이미 병합된 WorkdayStateConnection/PR73·74의 MainForm 연결을 사용한다. 로그인 종료/만료 시 같은 기존 소유자가 정리하고 메뉴는 같은 monitor를 빌린다.
 
 연차는 병합된 PR79 수정본의 `HttpLeaveWorkflow.cs`를 같은 captured Session당 하나 설치한다. 일부 소스만 있는 별도 빌드에 adapter가 없으면 연차 미연결 안내를 제공하고 지문·근무 경로는 계속한다. 연결 설치가 실제 연차쓰기 허용을 의미하지 않으며 D1/D2가 미설정이면 기존 readiness/버튼 차단을 유지한다.
 
-검증은 `Tests/WorkdayActivity.Tests`의 **95항목**(기존81+R80-01 파일 Load/명령 처리14)이다. 실제 MainForm/공통 reader/통합 조립을 쓰되 로그인/열린 근무 HTTP와 monitor·연차 workflow는 명시 대역이다. 설정 오류와 두 연결의 독립 시도, 실패 격리, 정책OFF, 같은 adapter/monitor 메뉴 공유, 로그인 종료를 확인한다. 실제 계정·키·운영 DB·라파·카메라 성공으로 확대하지 않는다. 실제 PR79 결합/서버·MySQL 검증은 연차 UI 검사와 별개다.
+2026-10-23 일반 EXE 연결 변경 후 `Tests/WorkdayActivity.Tests` **170항목**과 기존
+`Tests/IdentityLogin.Ui.Tests` **179항목**을 통과했다. 전자는 기존124항목에 설정 누락/손상/다른 서버의
+일반 메뉴 유지, 표시 후1회 연결, 서버404/503의 지문 바·비활성 버튼, 최소 창 크기, 동일 계정 재로그인과
+늦은 응답 차단을 추가했다. 호환 실행기의 실제 `--check-config` 명령 검사도 유지한다.
+실제 MainForm/공통 reader/HTTP를 사용하되 계정·현재 근무·monitor·연차 workflow는 명시 대역이다.
+설정 오류 검사도 소유 임시 파일만 사용한다. 운영 DB·실제 장비·계정 매핑·키 준비 완료를 의미하지 않는다.
+두 실행 DLL의 실제 초기화에서도 DPI 설정과96DPI가 일치함을 별도 확인했다.
 
 PR79의 R79-01/02 수정은 팀장8730b9e·원본 병합dc82322를 수신했다. 이번5번 변경에서
 서버 권한 로직을 재구현하지 않았다. 아래는 PR79 병합 전의 실행 이력이며 현재 상태와 구분한다.

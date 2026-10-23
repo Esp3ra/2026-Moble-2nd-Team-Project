@@ -48,7 +48,7 @@ internal static partial class Program
         try
         {
             string workspace = Path.Combine(directory, "workspace.json"), topology = Path.Combine(directory, "endpoints.json");
-            var command = typeof(WorkspaceProfile).Assembly.GetType("RemoteWork.ConnectedWorkspace.Program")!
+            var command = System.Reflection.Assembly.Load("ConnectedWorkspace").GetType("RemoteWork.ConnectedWorkspace.Program")!
                 .GetMethod("Run", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
             int CheckStartup()
             {
@@ -139,6 +139,138 @@ internal static partial class Program
             }
             api.ClearIdentity(); await Task.Delay(15);
             Check(connection?.IsCurrent != true && !monitor.IsRunning, "Login end terminates both owned tracks");
+        }
+        finally { api.ClearIdentity(); api.SetServer(previous); }
+    }
+
+    private static async Task ShowNormalWorkspace(MainForm main)
+    {
+        main.ShowInTaskbar = false; main.StartPosition = FormStartPosition.Manual; main.Location = new(-20000, -20000);
+        var shown = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        main.Shown += (_, _) => shown.TrySetResult();
+        main.Show(); await shown.Task; Field<System.Windows.Forms.Timer>(main, "identityTimer").Stop();
+    }
+
+    private static async Task NormalStartupSettings()
+    {
+        using var server = new Server(); var api = AppServices.Api; string previous = api.ServerUri.ToString();
+        string directory = Path.Combine(Path.GetTempPath(), "normal-workspace-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory); api.SetServer(server.Url);
+        try
+        {
+            string workspace = Path.Combine(directory, "workspace.json"), topology = Path.Combine(directory, "endpoints.json");
+            foreach (var contents in new string?[] { null, "invalid JSON", JsonSerializer.Serialize(new
+            { version = 1, server_url = "http://other.invalid/", workday = (object?)null, leave_enabled = true }) })
+            {
+                if (contents is null) File.Delete(workspace); else File.WriteAllText(workspace, contents);
+                var login = await api.LoginAsync("synthetic", "synthetic"); var accepted = api.CaptureSession(); int connects = 0;
+                using var main = WorkspaceStartup.CreateMainForm(login, current => WorkspaceProfile.Load(current, workspace, topology),
+                    (_, _) => { connects++; return Task.FromResult(new WorkspaceConnectionReport([])); });
+                Check(connects == 0, "Normal EXE setup does not connect before MainForm is shown");
+                await ShowNormalWorkspace(main); await main.PendingWorkspaceConnection;
+                var notice = Field<Label>(main, "workspaceConnectionNotice");
+                Check(notice.Visible && notice.Text.Contains("지문·근무 연결 설정 필요"), "Missing, malformed or wrong-server settings give persistent guidance");
+                Check(accepted.IsCurrent && connects == 0 && server.WorkdayReads == 0, "Bad settings preserve ordinary login without touching workday or devices");
+                Field<Button>(main, "btnAttendance").PerformClick();
+                Check(Field<UserControl>(main, "currentPage") is AttendanceControl && notice.Visible,
+                    "General menus remain usable and the settings notice survives navigation");
+                main.Dispose(); api.ClearIdentity();
+            }
+        }
+        finally { api.ClearIdentity(); api.SetServer(previous); Directory.Delete(directory, recursive: true); }
+    }
+
+    private static async Task NormalStartupConnections(int workdayError)
+    {
+        using var server = new Server { WorkdayError = workdayError }; var api = AppServices.Api; string previous = api.ServerUri.ToString();
+        api.SetServer(server.Url);
+        try
+        {
+            var login = await api.LoginAsync("synthetic", "synthetic"); var accepted = api.CaptureSession();
+            var profile = new WorkspaceProfile(new Uri(server.Url), Options, true);
+            var monitor = new Monitor(); var workflow = new StartupLeave(); int loads = 0, connects = 0;
+            using var main = WorkspaceStartup.CreateMainForm(login, current =>
+            {
+                loads++; Check(current == profile.Server && accepted.IsCurrent, "Normal startup loads the accepted login's server settings"); return profile;
+            }, (owner, selected) =>
+            {
+                connects++;
+                return WorkspaceConnector.ConnectAsync(owner, selected, session => new(session, workflow,
+                    _ => Task.FromResult(new LeavePreparationState(true, false, ["LEAVE_POLICY_REQUIRED"], 2026, Before.ServerTime)),
+                    (_, _) => Task.FromException<LeaveBalanceState>(new InvalidOperationException())),
+                    (owner, options) => owner.ConnectWorkdayActivityAsync(options, monitor));
+            });
+            Check(loads == 0 && connects == 0, "Normal startup defers optional setup until the main window exists");
+            await ShowNormalWorkspace(main); await main.PendingWorkspaceConnection;
+            typeof(Form).GetMethod("OnShown", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .Invoke(main, [EventArgs.Empty]);
+            await main.PendingWorkspaceConnection;
+            var host = Field<LoginWorkdayActivity>(main, "workdayActivity");
+            var bar = main.Controls.Find("WorkdayActivityBar", true).Single();
+            Check(loads == 1 && connects == 1 && server.WorkdayReads == 1, "Repeated Shown does not attach duplicate connections");
+            Check(bar.Visible && host.Session.IsCurrent && host.Session.User.Id == accepted.User.Id,
+                "Normal EXE displays the fingerprint workday bar on the current captured login");
+            main.Size = main.MinimumSize; main.PerformLayout();
+            var actions = Field<FlowLayoutPanel>(bar, "actions");
+            Check(actions.Controls.Cast<Control>().Where(c => c.Visible).All(c => c.Right <= actions.ClientSize.Width && c.Bottom <= actions.ClientSize.Height)
+                && main.ClientRectangle.Contains(main.PointToClient(bar.PointToScreen(new Point(bar.Width - 1, bar.Height - 1)))),
+                "Fingerprint actions remain inside the existing main window at its minimum size");
+            Check(!Field<Label>(main, "workspaceConnectionNotice").Visible, "Successful setup removes only the setup notice, not the workday bar");
+            if (workdayError != 0)
+            {
+                Check(monitor.Starts == 0 && !host.CanCheckNoon && !host.CanClockOut,
+                    "404/503 cannot start monitoring or authorize fingerprint actions");
+                Check(host.Status.Contains("근무 연결 준비가 필요") && !Field<Button>(bar, "btnNoon").Enabled
+                    && !Field<Button>(bar, "btnClockOut").Enabled && Field<Button>(bar, "btnReconnect").Visible,
+                    "Unavailable server remains visibly disconnected with disabled fingerprint buttons and retry");
+            }
+            else Check(monitor.Starts == 1 && host.HasFreshWorkday, "Confirmed work starts the existing monitor once");
+            var leave = Field<LoginLeaveConnection>(main, "leaveConnection");
+            Check(leave.IsCurrent && ReferenceEquals(leave.Workflow, workflow), "Leave setup remains independent from unavailable fingerprint routes");
+            api.ClearIdentity(); await host.StopAsync();
+            Check(!host.IsCurrent && !leave.IsCurrent && !monitor.IsRunning, "Ending the login also ends both normal EXE connections");
+        }
+        finally { api.ClearIdentity(); api.SetServer(previous); }
+    }
+
+    private static async Task NormalStartupSessionChanges()
+    {
+        using var server = new Server(); var api = AppServices.Api; string previous = api.ServerUri.ToString(); api.SetServer(server.Url);
+        try
+        {
+            var profile = new WorkspaceProfile(new Uri(server.Url), Options, false);
+            var oldLogin = await api.LoginAsync("synthetic", "synthetic"); int loads = 0, connects = 0;
+            using (var oldMain = WorkspaceStartup.CreateMainForm(oldLogin, _ => { loads++; return profile; },
+                (_, _) => { connects++; return Task.FromResult(new WorkspaceConnectionReport([])); }))
+            {
+                await api.LoginAsync("synthetic", "synthetic"); await ShowNormalWorkspace(oldMain); await oldMain.PendingWorkspaceConnection;
+                Check(loads == 0 && connects == 0 && server.WorkdayReads == 0,
+                    "Same-account relogin before Shown cannot attach old workspace to the new session");
+            }
+            bool rejected = false;
+            try { using var stale = WorkspaceStartup.CreateMainForm(oldLogin, _ => profile); }
+            catch (OperationCanceledException) { rejected = true; }
+            Check(rejected, "A stale accepted login cannot create the normal workspace");
+
+            var login = await api.LoginAsync("synthetic", "synthetic");
+            using (var changed = WorkspaceStartup.CreateMainForm(login, _ => { api.ClearIdentity(); return profile; },
+                (_, _) => { connects++; return Task.FromResult(new WorkspaceConnectionReport([])); }))
+            {
+                await ShowNormalWorkspace(changed); await changed.PendingWorkspaceConnection;
+                Check(connects == 0, "Login changes while reading settings block all connection installation");
+            }
+            login = await api.LoginAsync("synthetic", "synthetic");
+            var pending = new TaskCompletionSource<WorkspaceConnectionReport>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using (var delayed = WorkspaceStartup.CreateMainForm(login, _ => profile, (_, _) => pending.Task))
+            {
+                await ShowNormalWorkspace(delayed); var completion = delayed.PendingWorkspaceConnection;
+                Check(!completion.IsCompleted, "Late setup response is exercised while a real form remains open");
+                string before = Field<Label>(delayed, "workspaceConnectionNotice").Text;
+                await api.LoginAsync("synthetic", "synthetic");
+                pending.SetResult(new WorkspaceConnectionReport(["stale report"])); await completion;
+                Check(Field<Label>(delayed, "workspaceConnectionNotice").Text == before,
+                    "A late old-login setup report does not update the new session's UI state");
+            }
         }
         finally { api.ClearIdentity(); api.SetServer(previous); }
     }
