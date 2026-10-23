@@ -1,3 +1,10 @@
+<a id="pr89-current-20261023"></a>
+## 최신 — PR89 신규 검토 / 시작 인계 재사용 수정 대기
+
+[PR89 독립 검토](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/89#pullrequestreview-5625537856)의 고정 head **e2721d0ee661c862b5d7b729591d731a1af95194**, alpha **389f5ac50153799157afbc90701582472b889259**를 확인했습니다. 열린 PR은89 한 건이며 **R89-01/P2 수정 요청·미병합**입니다. 기존 서비스 종료/lease 해제 뒤 같은 서비스 계정이 옛 환경 `INVOCATION_ID`와 기존 root 인계 자료로 새 프로세스를 실행하면 admission이 다시 열리는 반례를 확인했습니다. 실제 현재 systemd 실행과의 결합 및 새 프로세스 재사용 거절 검사가 필요합니다. 본 채팅 팀장이 본인 쪽에서 수정한 뒤 재검토·병합하기로 했으며 담당자 구현을 대신 변경하지 않았습니다.
+
+이번 직접 검사는 Workday109, 사용자 관리 연결341/복구95/기존회원 신규58/관리14시나리오46, Pi294개 중290통과·Linux4생략, Release 두 빌드 경고0·오류0입니다. Leave 기본 호스트 DPI168은 실패했고, **제품과 같은 DPI 모드의 별도 정확한 추적 소스 실행은242통과**했습니다. 두 실행을 구분하며 수치를 합산하지 않습니다. [검증·반례·한계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr89-reviewed-20261023)·[담당별 후속](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr89-boundaries-20261023). 작성자의 실물 보고는 독립 검증으로 바꾸지 않았으며 실제 Pi/공유DB/키/계정/센서/운영 서비스는 이번에 변경하지 않았습니다. 아래 기록은 이전 이력입니다.
+
 <a id="pr86-88-current-20261023"></a>
 ## 최신 — PR86·87·88 검토와 현재 병합 상태
 

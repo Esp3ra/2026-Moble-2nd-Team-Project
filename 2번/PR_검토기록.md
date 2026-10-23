@@ -1,3 +1,38 @@
+<a id="pr89-reviewed-20261023"></a>
+## PR89 독립 검토 — 시작 인계 재사용 수정 요청, 2026-10-23
+
+[GitHub 검토 원문](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/89#pullrequestreview-5625537856) · 기준 alpha `389f5ac50153799157afbc90701582472b889259`
+
+PR89 고정 head `e2721d0ee661c862b5d7b729591d731a1af95194`를 독립 검토했습니다. **R89-01/P2 수정 전 병합 보류**입니다. 팀장이 본인 쪽에서 수정한 뒤 재검토·병합하기로 했으므로 다른 담당자의 구현은 대신 수정하지 않았습니다.
+
+### R89-01 / P2 — 이전 인계 자료로 새 프로세스의 admission이 다시 열림
+
+`identity_startup.py:41-45,88-99`는 `INVOCATION_ID`를 환경변수에서만 읽습니다. 실제 현재 systemd unit 소속·InvocationID·MainPID와 연결하지 않으며, 새 `StartupReadiness`는 자신의 PID/start tick을 새 기준으로 잡습니다.
+
+기존 서비스가 종료되어 같은 `runtime.lock`이 풀린 뒤, **같은 서비스 계정**이 같은 boot에서 이전 `INVOCATION_ID`와 기존 root 인계 파일·입력으로 진입점을 수동 실행하면 새 PID/start tick도 승인됩니다. 합성 fixture에서 기존 gate `True` → close → PID/start tick만 변경 → 새 gate **`True`**를 직접 재현했습니다. 문서의 root가 승인한 한 번의 실제 systemd 실행/새 회차 필요 조건을 만족하지 않습니다.
+
+현재 실제 unit의 실행 소속·InvocationID·MainPID를 신뢰 가능한 OS 상태와 대조하거나 root가 후보 PID/start tick까지 연결해, **새 프로세스가 옛 인계 자료를 쓰면 거절**하도록 보완해 주세요. 정상 최초 시작 허용·실행 중 PID/입력 변경 시 영구 닫힘을 유지하면서, 프로세스 종료 후 같은 boot/옛 환경값/동일 인계 파일로 재실행하는 회귀 검사도 필요합니다.
+
+범위: 일반적인 systemd 재시작은 기존 root `claim()`에서 거절됩니다. 동시 UART 점유나 임의 로그인/HMAC 우회를 재현한 것은 아닙니다. 기존 lease와 최신 서버 capture/result 승인은 계속 필요합니다.
+
+### 직접 실행한 검사
+
+|밴드|결과와 범위|
+|---|---|
+|Pi tracked 파일 전체, Python3.14/Windows|294개 발견·290통과·Linux 권한/lease 관련4생략, 5.489초. 명시 센서/systemd 대역·Flask test client, 일부 기존 SQLite 호환 fixture 포함. 실제 Pi/공유DB 검사 아님|
+|WorkdayActivity|109 assertions 통과. 실제 C# 폼/캡처 세션·명시 reader/monitor/device 대역|
+|UserManagement 필수 MySQL 등록 모드|연결341·복구95·기존회원 신규58·관리14시나리오/46 통과. 실제 폼+통제 HTTP/Pi, 실제 MySQL/장치 아님|
+|Leave UI|기본 테스트 호스트는 DPI168에서 1100×600 최초 행 가시성 검사 실패. **제품과 동일한 `DpiUnawareGdiScaled`/`ForceDesignerDPIUnaware=true` 설정으로 정확한 추적 소스를 재빌드한 별도 실행은242통과**, 3.766초. 제품 설정은 원래 이 값이며 변경하지 않음|
+|Release 빌드|RemoteWork.sln 및 ConnectedWorkspace 모두 경고0·오류0|
+|추가 반례|R89-01 옛 인계 자료의 새 프로세스 재사용 승인 재현. 기본 Pi 검사 통과와 별도임|
+
+테스트 유지보수 권고: `Tests/Leave.Ui.Tests`의 DPI 모드를 제품과 맞추거나 지원 DPI를 명시해 기본 명령도 같은 전제로 실행되게 해 주세요. 현재 제품 시작 모드에서의 연차 화면 차단 결함으로 분류하지 않습니다. 일반직원/관리자, 세 창 크기와 모드 전환을 검사했으며 1100×600 PNG에서 첫 행·반려 사유를 확인했습니다.
+
+작성자의 Linux294·실물 전환/지문/출퇴근 보고는 이번 독립 실행과 구분합니다. 실제 Pi/systemd/root 권한/UART·실계정/공유DB·정오/응답 유실/두PC·운영 설정/키/슬롯은 이번 검토에서 실행하거나 변경하지 않았습니다. 기존 PR86/87 확정 정책도 변경하지 않았습니다.
+
+
+아래는 이전 검토 이력입니다.
+
 <a id="pr86-88-reviewed-20261023"></a>
 ## PR86·87·88 검토·정책 확정·병합 — 2026-10-23
 
