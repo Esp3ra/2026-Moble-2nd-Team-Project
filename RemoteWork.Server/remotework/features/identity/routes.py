@@ -193,14 +193,20 @@ def challenge(db, ctx, cid):
     return item, ticket
 
 
-def profile(db, ctx, device_id):
+def device_profile(db, device_id):
     p = current_app.extensions["identity_profiles"].get(device_id)
     device = locked(db, Device, Device.device_id == device_id)
-    mapping = locked(db, Mapping, Mapping.device_id == device_id, Mapping.user_id == ctx.user_id)
-    if (p is None or not p["enabled"] or not device or not device.enabled or not mapping or not mapping.active
+    if (p is None or not p["enabled"] or not device or not device.enabled
             or str(device.key_epoch) != p["key_epoch"]
-            or (device.minimum_slot, device.maximum_slot, device.capacity) != (p["minimum_slot"], p["maximum_slot"], p["capacity"])
-            or not p["minimum_slot"] <= mapping.slot <= p["maximum_slot"]):
+            or (device.minimum_slot, device.maximum_slot, device.capacity) != (p["minimum_slot"], p["maximum_slot"], p["capacity"])):
+        fail(403, "IDENTITY_NOT_ALLOWED")
+    return p
+
+
+def profile(db, ctx, device_id):
+    p = device_profile(db, device_id)
+    mapping = locked(db, Mapping, Mapping.device_id == device_id, Mapping.user_id == ctx.user_id)
+    if not mapping or not mapping.active or not p["minimum_slot"] <= mapping.slot <= p["maximum_slot"]:
         fail(403, "IDENTITY_NOT_ALLOWED")
     return p, mapping
 
@@ -224,16 +230,23 @@ def workflow(db, ctx, actor, purpose):
     return value
 
 
-def current_binding(db, ctx, actor, item, ticket):
-    p, mapping = profile(db, ctx, item.device_id)
+def current_binding(db, ctx, actor, item, ticket, *, retained=False):
+    p = device_profile(db, item.device_id)
+    mapping = locked(db, Mapping, Mapping.mapping_id == item.mapping_id, Mapping.device_id == item.device_id)
+    if not mapping or not mapping.active or not p["minimum_slot"] <= mapping.slot <= p["maximum_slot"]:
+        fail(403, "IDENTITY_NOT_ALLOWED")
     wire.verify(item.request_bytes, kind="id_request", device_id=item.device_id,
                 key_id=p["key_id"], key=p["keys"]["id_request"])
     state = {} if item.workflow_completed else workflow(db, ctx, actor, item.purpose)
     envelope = wire.parse_json(item.request_bytes)
-    if (mapping.mapping_id != item.mapping_id or str(mapping.revision) != ticket["mapping_revision"] or mapping.slot != ticket["expected_slot"]
+    if (mapping.slot != ticket["expected_slot"]
             or p["key_epoch"] != ticket["key_epoch"] or p["key_id"] != envelope["key_id"]
             or any(state[k] != ticket[k] for k in state)):
         fail(403, "IDENTITY_NOT_ALLOWED")
+    if mapping.user_id != ctx.user_id or str(mapping.revision) != ticket['mapping_revision']:
+        from ..enrollment.transfer import retained_completed_binding
+        if not retained or not retained_completed_binding(db, ctx, item, mapping, ticket):
+            fail(403, "IDENTITY_NOT_ALLOWED")
     return p
 
 
@@ -320,7 +333,7 @@ def lookup(db, rid):
             fail(403, "IDENTITY_NOT_ALLOWED")
         return {"state": "not_recorded"}
     item, ticket = challenge(db, ctx, item.id)
-    current_binding(db, ctx, actor, item, ticket)
+    current_binding(db, ctx, actor, item, ticket, retained=True)
     return issued_view(item)
 
 
@@ -328,7 +341,7 @@ def lookup(db, rid):
 @guarded
 def get(db, cid):
     ctx, actor = context(db, receipt_result=True); item, ticket = challenge(db, ctx, cid)
-    current_binding(db, ctx, actor, item, ticket)
+    current_binding(db, ctx, actor, item, ticket, retained=True)
     return view(item)
 
 
@@ -371,7 +384,7 @@ def approve(db, cid):
 def complete(db, cid):
     data = body("complete"); ctx, actor = context(db, receipt_result=True)
     item, ticket = challenge(db, ctx, cid)
-    p = current_binding(db, ctx, actor, item, ticket)
+    p = current_binding(db, ctx, actor, item, ticket, retained=True)
     raw = wire.b64decode(data["result_b64"], 16384)
     result = wire.verify(raw, kind="id_result", device_id=item.device_id, key_id=p["key_id"], key=p["keys"]["id_result"])
     if item.result_bytes is not None:
@@ -448,7 +461,7 @@ def revoke(db):
 def finalize(db, cid):
     data = body("finalize"); ctx, actor = context(db, receipt_result=True)
     item, ticket = challenge(db, ctx, cid)
-    current_binding(db, ctx, actor, item, ticket)
+    current_binding(db, ctx, actor, item, ticket, retained=True)
     if item.state != "verified":
         return error(409, "IDENTITY_TERMINAL")
     writer = getattr(current_app.extensions["identity_workflow"], "finalize", None)
