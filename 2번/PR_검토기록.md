@@ -1,3 +1,46 @@
+<a id="pr78-82-reviewed-20261023"></a>
+## 열린 PR78~82 전체 검토 — 2026-10-23
+
+시작 시 열린5개를 최신 head에 고정해 검토했습니다. 사용자 기존 병합 지시에 따라 문제없는3개를 병합하고2개는 수정 요청했습니다. 각 소유자의 기존 PR Conversation 한 곳에 검토를 취합했으며 새 회신전용 MD/브랜치/PR은 없습니다.
+
+|PR|고정 head / 원 기준|판정·실제 병합|
+|---|---|---|
+|[78](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/78#issuecomment-6337428379)|`f4ab296ca07c92322216fb88dd84de2d1bf53d18` / `38233949b49ed113db2e0d7e4d60c80ee7e9d22a`,60파일|R78-01 해소, `ea45d437f05d5af41f309b656ad9a533b7c3f9d3` 병합|
+|[79](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/79#issuecomment-6354990801)|`88f78fa8364a2e50129c20ef3e5ea14739c96cbc` / 같은원기준,14파일|R79-01/P1·R79-02/P2, Draft/미병합|
+|[80](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/80#issuecomment-6354991039)|`11b216b2aa5297b9d50cd645692d19cb375e3e2c` / 같은원기준,27파일|R80-01/P2, Open/미병합|
+|[81](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/81#issuecomment-6354927202)|`ee366d2d77cd5493f9c5e07e2391a1887b3d09c3` / 같은원기준,3파일|Draft→Open→`560bba27acf4241802959e681892933fb7fab66e`|
+|[82](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/82#issuecomment-6354944328)|`21f3ca224aeecad525ef3cc38b624a99fd6f0430` / 같은원기준,5파일|Draft→Open→`99fe414ffc89ec6a6e9fa4f83092b14bf9ebc4d6`|
+
+실제 병합 순서는81→82→78입니다.81 tree `96617a8c910d863c3db48a93642df46e6591b072`는 검토 head와 git diff0입니다.82 tree `abe5dbf078aceb3e1e8da1e269aa7a0742a16cf5`,78 tree `a58d783a459c2795ca140f46459c8c101ae3af4a`는 각각 직전alpha+고정 head의 사전 git merge-tree와 동일하고 두 부모도 일치합니다. 실제 REST merged/closed를 확인했습니다. 열린79/80의 `merge_commit_sha`는 GitHub 시험 결합값이며 실제 병합으로 쓰지 않습니다.
+
+### 확정 수정 요청 3건
+
+**R79-01/P1 — 담당자 회수 뒤 옛 관리자에게 연차 사유 노출.** `leave_service.py:422–425`의 담당관계 서브쿼리가 인증 당시 RR snapshot을 읽고 `request_view:290–300`은 현재관계를 `can_review=false`에만 반영합니다. 별도소유MySQL에서 원HTTP/인증/handler를 변경하지 않고 인증후·featureguard전 별도 cooperating TX(AdminGuard→운영자 현재User/AuthSession→대상 현재User잠금)로 boss→outsider/revision2 재배정을 commit했습니다. 진행중 옛boss GET200/items1/can_review=false로 원신청 내용·사유가 노출됐습니다. 다음새GET200/items0·같은detail403 대조도 확인했습니다. 각 목록행의 현재담당 locking read와 직렬화 전 권한검증/페이지 처리가 필요합니다.
+
+**R79-02/P2 — 비활성 신청인1명이 전체 검토목록403.** 담당직원2명의 신청 성공 후 한명만 비활성화해 원boss GET을 호출하면 `request_view:291`의 `actor()`가403 FORBIDDEN을 던져 나머지 활성직원의 신청도 사라집니다. 활성·현재권한 경계를 유지하며 비활성행이 전체목록/페이지를 중단시키지 않도록 보완 요청했습니다.
+
+**R80-01/P2 — 연차 전용 실행에도 Pi 설정 필수.** `WorkspaceProfile.cs:15`가 `workday:null/leave_enabled:true`에도 `EnrollmentEndpoints.Load`를 먼저 실행합니다. `Program.cs:16`은 로그인전 호출이어서 Pi주소파일 미설치 PC의 연차만 연결도 실패합니다. 실제 원C#·소유LocalAppData probe는 `parse_leave_only=True / topology_exists=False / load_failed_missing_topology=true`. workday 명시 시에만 해당 설정을 읽도록 분리/회귀 요청했습니다.
+
+### 직접 검증 — 별도 밴드/포함 수치 합산 안함
+
+|범위|결과/한계|
+|---|---|
+|78 R78-01·원첨부|Release0/0; 원 소유MySQL/TCP HTTP33·기존C#11·새실제WinForms16·실제Edge12 모두PASS/pageErrors0. 같은DB 포함/겹침. B만재시도시C유지·버튼/Enter차단→C완료ABC정확3개·명시제외AB·불명원UUID/body/files유지|
+|78 수신/기한|명시HTTP/UI대역 협업118·기한UI166·기한연결75 PASS. 독립실제ShowDialog 모달7PASS: owner허용·다른모달양보·닫힌뒤보류알림·owner종료. 최초probe의 native modal과Form.Enabled 동일가정 오류는 assertion만교정/원제품불변·최초실패보존|
+|79 원본|LeaveService Release0/0, 원39 PASS/133.20초(childwall134.69/전체140.22). 그중 실제C#→TCP→MySQL14 assertion은 포함. 추가반례2실패 및 R79-01 current잠금보강/fresh control 실패는 정상39와 구분|
+|80 단독·결합|PR79고정88f78fa+80고정11b216b 결합tree `238b7132c1f506f655c82203ba4e1dc35832c0ff`, Release0/0·Workday81/LeaveUI144/IdentityLogin179 PASS·명시대역. Pi255실행252PASS/Linux3skip/4.558초. PR79없는단독ConnectedWorkspace도0/0·COMMON_LEAVE미정의안내유지|
+|80 실제연차소비|원MainForm/폼→79adapter→Flask/W1→소유MySQL4PASS/23.39초. 정상승인·신청/결정응답유실원복구·정책OFF. startup Load를거치지않아R80-01을부정하지않음. 79 P1/P2부재증거아님|
+|81 공통SHA|원Node32PASS/exit0, Nodecrypto oracle·정확slice/snapshot·padding/Unicode/1MiB/25MiB·초과/취소/입력변경/중복설치. 화면소비/실제LAN브라우저검사는별도|
+|82 지문private조립|원소유MySQL23PASS/1skip·20.64초(wrapper27.20/exit0). Windows token의fixture owner ACL교체불가1개생략. 현재epoch/키분리/ON-OFF·원GET·취소후fence보존·원ID/관측·기존파일/설정변경차단|
+
+각 raw/export 소스불변·Git clean/diffcheck PASS, 모든 소유DB/MySQL/child/runtime 정리를 확인했습니다.79 최초반례의 cleanupfalse는 wrapper가 exit0 여부를 정리여부로 잘못 매핑한 보고오류이며 원main의 mysql.clean/runtime assert와 정리완료 출력/cleanup-addendum으로 정정했습니다. 강화반례 보고는 정리true입니다. 실패를 성공으로 감추거나 반복수를 새통과에 더하지 않습니다.81/82 GitHub check/status는 등록0건이며 자동CI 성공을 뜻하지 않습니다.
+
+### 운영보고와 다음 담당
+
+1번/4번의 실제같은5000·016/54테이블·private프로필/기존파일/확인상태·각PC읽기 보고는 수신으로구분합니다. 이번은 그 실환경을 독립접속/재배포/쓰기한 검사가 아닙니다. 실제서버/env·공유DB/DDL·계정/관계/개인부여·키/장치·flags/ACK·사용자프로젝트를 읽거나 변경하지 않았습니다. 실제동시두PC·실물·25MiB UI·부하/운영최종승인은 별도입니다.
+
+D1/D2 연차 정책·담당관계/달력·부여와 D3 첨부공지 삭제/보존·durable결과는 팀장결정대기입니다.78의첨부공지삭제409·불명등록차단을보존하고 확인CASCADE를파일삭제승인으로확대하지않습니다.81의2/3번최소소비,82의5번trusted ready/서비스전환·실물후속을 [공통규약](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr78-82-boundaries-20261023)에 모읍니다. 아래는 이전 시점 기록입니다.
+
 <a id="pr7778-reviewed-20261022"></a>
 ## PR77 수정 재검토·병합 / PR78 검토·R78-01 보완 요청 — 2026-10-22
 

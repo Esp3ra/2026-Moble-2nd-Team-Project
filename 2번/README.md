@@ -1,3 +1,10 @@
+<a id="member2-pr78-82-current-20261023"></a>
+## 2번 최신 — PR78~82 전체 검토·3건 병합 / 2건 수정 요청
+
+[78](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/78#issuecomment-6337428379) R78-01 해소와 협업 수신 최신본 **f4ab296c→ea45d437**, [81](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/81#issuecomment-6354927202) 공통해시 **ee366d2d→560bba27**, [82](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/82#issuecomment-6354944328) private 서버실행/관측 **21f3ca22→99fe414f** 병합 완료입니다. [79](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/79#issuecomment-6354990801) 현재권한 P1·비활성목록 P2, [80](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/80#issuecomment-6354991039) 연차전용 startup 설정 P2로 미병합입니다. [정확한 실행/재현](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr78-82-reviewed-20261023)·[담당 후속](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr78-82-boundaries-20261023)를 기존 취합에 갱신합니다.
+
+81은2·3번 화면 앞의 공통SHA 함수 공급으로,2번 업무/3번 결과물의 최소소비·취소/현재세션/원file·key/body/전체bytes 검증 연결은 각 소유자의 다음 작업입니다. 이번 검토는2번 writer/journal/업무화면을 바꾸지 않았습니다. 기존2번8문서와 모든 원문/앵커를 보존하며 새 공개회신MD/브랜치/PR은 만들지 않습니다. 실제서버/사용자 프로젝트 동기화·DB/설정 변경도 수행하지 않았습니다. 아래는 이전 이력입니다.
+
 <a id="member2-pr7778-current-20261022"></a>
 ## PR77 수정 병합·PR78 보완 대기 — 2번 기존 기록 보존
 
