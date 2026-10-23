@@ -1,3 +1,12 @@
+<a id="owner4-pr83-provider-20261023"></a>
+## 4번 최신 — PR83 공개 reader 공급 병합 / D3 실제 삭제 연결은 후속
+
+[PR83](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/83#issuecomment-6355309762) **048572cb→badffbdf**로 동일TX의 현재첨부ID reader가 제공됐습니다. 원nativeMySQL/HTTP188과독립정적검토를통과했지만4번 실제 `notice_resource(...,'release')`409·`block_notice_file_delete`는 diff0/차단 유지입니다. 시험consumer의삭제통과를실제서비스/화면연결로확대하지않습니다.
+
+3번채팅의 사용자선택보고(A연결만해제/B다운로드유지·마지막참조정리·commit뒤파일정리실패재시도)를 수신했습니다. 정책전달/담당수용뒤 기존관리자TX·공지잠금→공개reader→기존release→공지삭제·감사→commit으로 연결하고, 불명결과는원요청보존·확정전UI삭제성공표시금지를 유지하면 됩니다. 공지생성 durable원UUID/W1은1/4번 별도입니다. 확인기록CASCADE를 이번검토만으로 파일삭제활성화로 확대하지않습니다.
+
+기존78병합/협업기본30초·모달owner허용은유지합니다. [PR80](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/80#issuecomment-6354991039)도수정병합완료입니다. [직접근거](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr80-83-reviewed-20261023)·[후속경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr80-83-boundaries-20261023). 실제공유삭제·두PC·배포는이번에실행하지않았습니다. 아래는이전기록입니다.
+
 <a id="owner4-pr78-merged-20261023"></a>
 ## 4번 최신 — PR78 R78-01 해소·협업 수신까지 병합
 
