@@ -1,5 +1,17 @@
 # 회원 관리·새 회원 지문 등록 연결 검사
 
+## 기존 활성 회원의 신규 등록 연결 — 2026-10-23
+
+같은 필수 모드 명령은 신규 ExistingMemberEnrollmentChecks **58검사**도 실행한다. 실제 회원관리 폼에서
+기존 행 선택→현재 users 재조회→확인→기존 launcher/5번 등록창의 정상 모드→명시 시작→원 발급 API→
+physical 원문 선보관→complete를 검증한다. 계정 POST/PATCH/비밀번호 전송·가짜 recovery/reissue는0이다.
+비활성/미존재/중복 응답/잘못된 페이지·사용자 거절·선택/접속 변경·닫기·불확정 후 재실행을 차단한다.
+기존 생성회원 버튼은 기존 회원 target으로 활성화되지 않고, 복구 전용 모드/번호는 별도 유지한다.
+
+같은 실행에서 기존 연결341/복구95/회원관리14시나리오46검사 PASS를 확인했다. 서로 다른 계층의 수치를
+합쳐 실제 통합검증 개수로 표시하지 않는다. HTTP/Pi는 명시 대역이며 실제 공유 DB/센서/추가 슬롯 검증이 아니다.
+EXISTING_ENROLLMENT_UI_PROOF_DIRECTORY를 지정하면 합성 기존회원 선택 화면 PNG를 한 장 저장한다.
+
 Windows/.NET8 Desktop에서 실행한다. 앱 프로젝트를 참조하여 실제 WinForms 메시지 루프와 `UserManagementForm`/`FingerprintEnrollmentForm`을 사용한다.
 
 ```powershell

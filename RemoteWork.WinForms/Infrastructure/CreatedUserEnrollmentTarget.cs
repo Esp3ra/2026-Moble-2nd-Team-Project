@@ -1,7 +1,7 @@
 namespace RemoteWork.WinForms.Infrastructure;
 
 /// <summary>
-/// Borrowed handoff for a created account or an explicitly reverified recovery target.
+/// Borrowed handoff for a created account or an explicitly reverified existing member.
 /// Only the owning user-management view can create/invalidate this target.
 /// </summary>
 public sealed class CreatedUserEnrollmentTarget
@@ -12,6 +12,7 @@ public sealed class CreatedUserEnrollmentTarget
     public UserInfo User { get; }
     public int UserId => User.Id;
     public string? RequiredRecoveryId { get; private init; }
+    public bool IsExistingMember { get; private init; }
     public ApiClient.Session AdministratorSession { get; }
     public CancellationToken Cancellation { get; }
     public bool IsCurrent => Volatile.Read(ref invalidated) == 0
@@ -19,7 +20,7 @@ public sealed class CreatedUserEnrollmentTarget
 
     internal CreatedUserEnrollmentTarget(UserInfo user, ApiClient.Session administratorSession, Func<bool> isViewCurrent)
     {
-        if (user.Id <= 0) throw new ArgumentException("서버에서 생성한 회원 ID가 필요합니다.", nameof(user));
+        if (user.Id <= 0) throw new ArgumentException("서버에서 확인한 회원 ID가 필요합니다.", nameof(user));
         User = user;
         AdministratorSession = administratorSession;
         this.isViewCurrent = isViewCurrent;
@@ -33,7 +34,15 @@ public sealed class CreatedUserEnrollmentTarget
         if (!verifiedUser.IsActive || verifiedUser.Role is not ("employee" or "admin")
             || !Guid.TryParseExact(recoveryId, "D", out var parsed) || parsed.ToString("D") != recoveryId)
             throw new ArgumentException("현재 활성 회원과 정규 복구 번호를 확인해 주세요.");
-        return new(verifiedUser, administratorSession, isViewCurrent) { RequiredRecoveryId = recoveryId };
+        return new(verifiedUser, administratorSession, isViewCurrent) { RequiredRecoveryId = recoveryId, IsExistingMember = true };
+    }
+
+    internal static CreatedUserEnrollmentTarget ForExistingMember(UserInfo verifiedUser,
+        ApiClient.Session administratorSession, Func<bool> isViewCurrent)
+    {
+        if (!verifiedUser.IsActive || verifiedUser.Role is not ("employee" or "admin"))
+            throw new ArgumentException("현재 활성 회원을 다시 확인해 주세요.");
+        return new(verifiedUser, administratorSession, isViewCurrent) { IsExistingMember = true };
     }
 
     public void ThrowIfChanged()
