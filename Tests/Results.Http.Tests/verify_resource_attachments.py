@@ -22,15 +22,17 @@ sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT/'RemoteWork.Server'), str(ROOT/'Tests/TaskQueries.Http.Tests')]
 import run_mysql_http_check as owned
-from flask import g
-from sqlalchemy import select, func
+from flask import g, request
+from sqlalchemy import select, func, event
+from sqlalchemy.orm import Session
+from concurrent.futures import ThreadPoolExecutor
 from waitress import create_server
 from werkzeug.security import generate_password_hash
 from remotework import create_app
 from remotework.auth import authenticated_transaction, login_required
-from remotework.common import AppError, payload, success
+from remotework.common import AppError, payload, success, audit
 from remotework.db import transaction, get_db
-from remotework.models import Base, User, AdminGuard, SchemaVersion, utcnow
+from remotework.models import Base, User, AdminGuard, SchemaVersion, AuditEvent, utcnow
 from remotework.features import shared_attachments as shared, shared_resource_attachments as resource
 from remotework.features.chat.models import ChatRoom, ChatMember, ChatMessage
 from remotework.features.notices.models import Notice
@@ -48,14 +50,18 @@ def check(value, label):
 def run(url, directory):
     app = create_app(dict(TESTING=False, DATABASE_URL=url, SECRET_KEY=secrets.token_hex(32),
         ENABLE_TASK_QUERY_DRAFT=True, ENABLE_COMMON_WRITE_DRAFT=True, ENABLE_RESULTS_DRAFT=True,
-        ENABLE_SHARED_ATTACHMENTS_DRAFT=True, ENABLE_NOTICE_DRAFT=True, ENABLE_CHAT_DRAFT=True,
+        # Authority/consumer hooks below are explicit test fixtures, not member4
+        # product registration. Do not overwrite that owner's live adapters.
+        ENABLE_SHARED_ATTACHMENTS_DRAFT=True, ENABLE_NOTICE_DRAFT=False, ENABLE_CHAT_DRAFT=False,
         RESULTS_CONTEXT_MODE='local-development', RESULTS_STORAGE_ROOT=str(directory/'files')))
     engine = app.extensions['db_engine']
     Base.metadata.create_all(engine)
-    # Apply the actual proposed SQL only in this disposable database.
+    # Apply the current numbered SQL only in this disposable database.
+    script = (ROOT/'RemoteWork.Server/migrations/015_notice_chat_attachments.mysql.sql').read_text(encoding='utf-8')
+    script = '\n'.join(line for line in script.splitlines() if not line.lstrip().startswith('--'))
     with engine.begin() as conn:
-        for statement in (ROOT/'docs/sql/notice_chat_attachments.mysql.sql').read_text(encoding='utf-8').split(';'):
-            statement = '\n'.join(line for line in statement.splitlines() if not line.startswith('--')).strip()
+        for statement in script.split(';'):
+            statement = statement.strip()
             if statement:
                 conn.exec_driver_sql(statement)
     password = secrets.token_urlsafe(24)
@@ -68,7 +74,7 @@ def run(url, directory):
             user = User(login_id=login, password_hash=generate_password_hash(password, method='pbkdf2:sha256'),
                 employee_no='TEST-'+login, display_name='TEST-'+login, department=department, role=role, is_active=True)
             db.add(user); db.flush(); ids[login] = user.id
-        for notice_id in (10, 20):
+        for notice_id in (10, 20, 40, 50, 60, 70, 80, 90):
             db.add(Notice(id=notice_id, title='TEST notice', content='TEST only', target='개발팀',
                 is_pinned=False, author_id=ids['manager'], author='TEST', created_at=utcnow()))
         for room_id, message_id in [(room, message), (other_room, other_message)]:
@@ -112,6 +118,26 @@ def run(url, directory):
     resource.register_adapter(app, 'notice', authorize_upload=notice_upload, authorize_resource=notice_access)
     resource.register_adapter(app, 'chat', authorize_upload=membership, authorize_resource=chat_access)
 
+    @event.listens_for(Session, 'before_commit')
+    def fail_test_commit(db):
+        if db.info.pop('d3_fail_commit', False):
+            raise AppError(503, 'TEST_COMMIT_FAILED', 'TEST commit failed before DB commit')
+
+    snapshot_gates = {}
+
+    @app.before_request
+    def wait_after_auth_snapshot():
+        gate = snapshot_gates.get(request.headers.get('X-D3-Snapshot'))
+        if gate is None:
+            return
+        db = get_db()
+        query = select(resource.NoticeFile).where(resource.NoticeFile.attachment_id == gate['file'])
+        gate['before'] = sorted(row.notice_id for row in db.scalars(query))
+        gate['ready'].set()
+        if not gate['resume'].wait(8):
+            raise AppError(503, 'TEST_TIMEOUT', 'TEST snapshot scheduling')
+        gate['after'] = sorted(row.notice_id for row in db.scalars(query))
+
     @app.post('/api/v1/_resource_test/<kind>/<target>/<operation>')
     @login_required
     def consumer(kind, target, operation):
@@ -121,6 +147,16 @@ def run(url, directory):
                 items = resource.replace_resource_files(db, kind, target, body['attachment_ids'])
             elif operation == 'release':
                 resource.release_resource_files(db, kind, target); items = []
+            elif operation == 'read':
+                items = list(resource.read_resource_attachment_ids(db, kind, target))
+            elif operation == 'delete' and kind == 'notice':
+                # Candidate member4 same-TX composition, NOT its product route.
+                before = resource.read_resource_attachment_ids(db, kind, target)
+                resource.release_resource_files(db, kind, target)
+                db.delete(db.get(Notice, int(target)))
+                audit('notice.deleted', 'notice', target, {'attachment_ids': list(before)})
+                db.info['d3_fail_commit'] = body.get('fail_commit', False)
+                items = []
             else:
                 raise AppError(400, 'INVALID_INPUT', 'TEST operation')
             if body.get('rollback'):
@@ -181,9 +217,11 @@ def run(url, directory):
         call(who, path+'/complete', {})
         return item['attachment_id']
 
-    def change(kind, target, files=None, who='manager', operation='replace', rollback=False, status=200):
+    def change(kind, target, files=None, who='manager', operation='replace', rollback=False, status=200,
+               fail_commit=False, snapshot=None):
         return call(who, '/api/v1/_resource_test/'+kind+'/'+str(target)+'/'+operation,
-                    dict(attachment_ids=files or [], rollback=rollback), status=status)
+                    dict(attachment_ids=files or [], rollback=rollback, fail_commit=fail_commit), status=status,
+                    headers={'X-D3-Snapshot': snapshot} if snapshot else None)
 
     def download(kind, target, attachment, who='worker', status=200):
         return call(who, prefix+kind+'/'+str(target)+'/files/'+attachment+'/download', status=status)
@@ -347,7 +385,98 @@ def run(url, directory):
             check(get_db().get(shared.SharedFile, file) is None, 'last notice unlink cleans physical reference metadata')
             check(get_db().get(shared.SharedFile, chat_file) is not None, 'chat reference survives notice cleanup')
             check(get_db().scalar(select(func.count()).select_from(SchemaVersion)) == 1, 'common schema1 unchanged')
-        print(f'PASS {COUNT} owned MySQL/real HTTP resource-file checks; member4 authority/consumer routes are TEST fixtures.')
+        baseline_count = COUNT
+        print(f'PASS {baseline_count} existing resource-file checks; member4 authority/consumer routes are TEST fixtures.')
+
+        # D3: public current IDs, same-TX notice/ref/audit rollback, shared bytes,
+        # current refs after an old RR snapshot, and post-commit file retry.
+        with app.test_request_context(), app.app_context():
+            try:
+                resource.read_resource_attachment_ids(get_db(), 'notice', 40)
+            except RuntimeError:
+                check(True, 'current IDs require the exact authenticated caller TX')
+            else:
+                raise AssertionError('reader accepted a non-authenticated TX')
+        shared_file = upload('manager', content=b'TEST D3 A and B')
+        change('notice', 40, [shared_file]); change('notice', 50, [shared_file])
+        check(change('notice', 40, operation='read', who='worker')['items'] == [shared_file],
+              'public current reader returns sorted IDs without filenames/other resources')
+        change('notice', 40, operation='read', who='outsider', status=403)
+        change('notice', '01', operation='read', status=400)
+        change('notice', 999, operation='read', status=404)
+        change('notice', 40, operation='delete', who='worker', status=403)
+        change('notice', 40, operation='delete', rollback=True, status=409)
+        with app.app_context():
+            db = get_db()
+            check(db.get(Notice, 40) is not None, 'rollback keeps notice A')
+            check(db.get(resource.NoticeFile, (40, shared_file)) is not None, 'rollback restores A link')
+            check(db.scalar(select(func.count()).select_from(AuditEvent).where(
+                AuditEvent.action == 'notice.deleted', AuditEvent.resource_id == '40')) == 0,
+                'rollback never leaves a successful delete audit')
+        check(download('notice', 40, shared_file) == b'TEST D3 A and B', 'rollback preserves A bytes')
+        change('notice', 40, operation='delete', fail_commit=True, status=503)
+        with app.app_context():
+            check(get_db().get(Notice, 40) is not None, 'commit failure keeps original notice')
+            check(get_db().get(resource.NoticeFile, (40, shared_file)) is not None, 'commit failure restores link')
+            check(get_db().get(shared.SharedFile, shared_file).state == 'ready', 'commit failure keeps file ready')
+        change('notice', 40, operation='delete')
+        call('worker', prefix+'notice/40/files', status=404)
+        check(download('notice', 50, shared_file) == b'TEST D3 A and B', 'B downloads after A physical notice delete')
+        check((directory/'files/shared'/shared_file).is_file(), 'B bytes still exist after A deletion')
+        change('notice', 50, operation='delete')
+        with app.app_context():
+            check(get_db().get(shared.SharedFile, shared_file) is None, 'last delete removes file metadata')
+            check(get_db().get(resource.ResourceUpload, shared_file) is None, 'last delete removes upload scope')
+        check(not (directory/'files/shared'/shared_file).exists(), 'last reference removes physical bytes without retention')
+
+        only_file = upload('manager', content=b'TEST D3 last reference rollback')
+        change('notice', 60, [only_file])
+        change('notice', 60, operation='delete', fail_commit=True, status=503)
+        check(download('notice', 60, only_file) == b'TEST D3 last reference rollback',
+              'last-reference commit failure preserves original bytes')
+        with app.app_context():
+            check(get_db().get(shared.SharedFile, only_file).state == 'ready', 'deleting mark rolled back on commit failure')
+        change('notice', 60, operation='delete')
+        check(not (directory/'files/shared'/only_file).exists(), 'last-reference retry succeeds once')
+
+        busy_file = upload('manager', content=b'TEST D3 cleanup retry')
+        change('notice', 70, [busy_file])
+        original_unlink = Path.unlink
+        def block_file(path, *args, **kwargs):
+            if path.name == busy_file:
+                raise PermissionError('TEST owned file busy')
+            return original_unlink(path, *args, **kwargs)
+        with patch.object(Path, 'unlink', block_file):
+            change('notice', 70, operation='delete')
+        with app.app_context():
+            check(get_db().get(Notice, 70) is None, 'post-commit cleanup failure does not undo committed notice delete')
+            check(get_db().get(shared.SharedFile, busy_file).state == 'deleting', 'cleanup failure is pending, not falsely complete')
+        check((directory/'files/shared'/busy_file).exists(), 'busy bytes are pending physical deletion')
+        call('worker', prefix+'notice/70/files/'+busy_file+'/download', status=404)
+        with app.app_context():
+            check(shared.cleanup_shared_files() >= 1, 'public cleanup retries pending physical deletion')
+        check(not (directory/'files/shared'/busy_file).exists(), 'retry removes busy bytes without an archive')
+
+        raced_file = upload('manager', content=b'TEST D3 current reference')
+        change('notice', 80, [raced_file])
+        label = 'delete-after-auth-snapshot'
+        gate = dict(file=raced_file, ready=threading.Event(), resume=threading.Event())
+        snapshot_gates[label] = gate
+        with ThreadPoolExecutor(1) as pool:
+            future = pool.submit(change, 'notice', 80, operation='delete', snapshot=label)
+            try:
+                check(gate['ready'].wait(8), 'delete request paused after real auth RR snapshot')
+                change('notice', 90, [raced_file])
+            finally:
+                gate['resume'].set()
+            future.result(timeout=12)
+        check(gate['before'] == [80] and gate['after'] == [80], 'ordinary RR snapshot really stayed old')
+        check(download('notice', 90, raced_file) == b'TEST D3 current reference',
+              'current locking refs preserve newly committed B during A deletion')
+        change('notice', 90, operation='delete')
+        check(not (directory/'files/shared'/raced_file).exists(), 'last concurrent reference cleanup removes bytes')
+        print(f'PASS {COUNT-baseline_count} D3 current-reference/atomic rollback/cleanup-retry checks; '
+              f'total {COUNT}. Real member4 delete service remains unmodified and blocked.')
     finally:
         closing.set(); server.close(); thread.join(timeout=5); engine.dispose()
 
