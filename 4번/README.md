@@ -1,3 +1,12 @@
+<a id="owner4-pr84-d3-merged-20261023"></a>
+## 4번 최신 — PR84 D3 실제 삭제 연결 병합 / 팀장 정책 확정
+
+[PR84](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/84#issuecomment-6355596252) **e498ad2b→ed9b0e81** 병합 완료이며, 본 채팅에서 D3 팀장 확정과 @1·3·4 전달을 완료했습니다. D3는 이번 본 채팅에서 팀장이 **이 정책으로 확정**했습니다. 공지 A의 연결만 해제하고 B 등 다른 참조가 있으면 파일을 유지하며, 마지막 참조는 DB commit 뒤 실제 정리합니다. 파일 IO 실패 시 deleting/접근 차단을 유지하고 기존 cleanup으로 재시도합니다.
+
+기존 release409/첨부 공지 삭제 차단을 해당 코드에서 실제 연결로 바꿨고 공지·참조·감사는 같은 관리자 TX에서 처리합니다. C#은 삭제 응답 불명 직후 원행/ID를 유지하고 성공한 목록 GET 전에는 재POST를 막습니다. 이후 GET 실패 시 기존 동작대로 목록은 비우지만 unknown ID 잠금은 유지합니다. 파일만 정리되지 않은 것을 공지 DB 삭제 실패 또는 물리 삭제 완료로 표시하지 않습니다.
+
+1번과 실제 배포·새 시연/실계정·공유 파일 정리 책임을 확인하는 후속은 남습니다. 공지 생성 durable 원UUID/W1 복구는 별도입니다. [검증 수치와 한계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr84-reviewed-merged-20261023)·[담당 경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr84-d3-adopted-20261023). 아래 D3 미정·전달 대기·4번 삭제 차단 유지 기록은 이전 이력이며, 이 최신 확정·PR84 코드 연결 병합 기록으로 갱신합니다. 공유 서버 배포와 실계정 삭제 성공을 뜻하지 않습니다.
+
 <a id="owner4-pr83-provider-20261023"></a>
 ## 4번 최신 — PR83 공개 reader 공급 병합 / D3 실제 삭제 연결은 후속
 

@@ -1,3 +1,12 @@
+<a id="pr84-current-20261023"></a>
+## 최신 — PR84 검토·병합 / 팀장 D3 삭제 정책 확정
+
+[PR84 최종 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/84#issuecomment-6355596252)의 고정 head **e498ad2b→alpha ed9b0e81**를 검토 후 Draft→Open→Merge로 병합했습니다. 실제 merge tree는 검증본과 동일합니다. D3는 이번 본 채팅에서 팀장이 **이 정책으로 확정**했습니다. 공지 A의 연결만 해제하고 B 등 다른 참조가 있으면 파일을 유지하며, 마지막 참조는 DB commit 뒤 실제 정리합니다. 파일 IO 실패 시 deleting/접근 차단을 유지하고 기존 cleanup으로 재시도합니다.
+
+단일 댓글에서 @1번·3번·4번에게 정책과 기술·배포 후속을 전달했습니다. 원4번 공지 삭제 TX/권한·3번 공개 reader/release/cleanup과 C# 불명 결과 보호를 연결했습니다. [직접 검증·실패/정리 기록](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr84-reviewed-merged-20261023)·[담당별 후속](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr84-d3-adopted-20261023)를 확인합니다. 실제 공유 서버/DB·계정·환경 설정·키·장치·DDL은 변경하지 않았습니다.
+
+아래 D3 미정·전달 대기·4번 삭제 차단 유지 기록은 이전 이력이며, 이 최신 확정·PR84 코드 연결 병합 기록으로 갱신합니다. 공유 서버 배포와 실계정 삭제 성공을 뜻하지 않습니다. 공지 생성 durable 원UUID/W1 복구·연차 D1/D2·실서버 배포/실물 검증은 별도입니다.
+
 <a id="pr80-83-current-20261023"></a>
 ## 최신 — PR80 수정 재검토·PR83 신규 검토 / 둘 다 병합 완료
 
