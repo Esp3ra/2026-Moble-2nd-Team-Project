@@ -24,7 +24,10 @@ class RecoveryCheckTests(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
         self.state = self.root / "state"
-        self.state.mkdir()
+        # The production cache requires a private directory on Linux. Creating
+        # the fixture with the default 0755 makes every recovery case fail before
+        # reaching its assertion; keep the same permissions as a real deployment.
+        self.state.mkdir(mode=0o700)
         self.job = dict(enrollment_id=REQUEST_PAYLOAD["enrollment_id"], target_user_id=88,
             slot=7, operation_revision="1", claim_revision="1", mappings=0,
             claim_state="reserved", claim_current_job=True)
