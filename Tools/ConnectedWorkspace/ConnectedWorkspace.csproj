@@ -2,9 +2,8 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType><TargetFramework>net8.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
-  </PropertyGroup>
-  <PropertyGroup Condition="Exists('$(MSBuildProjectDirectory)/../../RemoteWork.WinForms/Infrastructure/HttpLeaveWorkflow.cs')">
-    <DefineConstants>$(DefineConstants);COMMON_LEAVE</DefineConstants>
+    <ApplicationHighDpiMode>DpiUnawareGdiScaled</ApplicationHighDpiMode>
+    <ForceDesignerDPIUnaware>true</ForceDesignerDPIUnaware>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../../RemoteWork.WinForms/RemoteWork.WinForms.csproj" /></ItemGroup>
 </Project>

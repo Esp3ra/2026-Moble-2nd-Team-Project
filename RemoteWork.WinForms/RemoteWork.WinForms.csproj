@@ -10,6 +10,9 @@
     <RootNamespace>RemoteWork.WinForms</RootNamespace>
     <AssemblyName>RemoteWork.WinForms</AssemblyName>
   </PropertyGroup>
+  <PropertyGroup Condition="Exists('$(MSBuildProjectDirectory)/Infrastructure/HttpLeaveWorkflow.cs')">
+    <DefineConstants>$(DefineConstants);COMMON_LEAVE</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <Compile Update="Shell\*Form.cs;Features\**\*Form.cs">
       <SubType>Form</SubType>

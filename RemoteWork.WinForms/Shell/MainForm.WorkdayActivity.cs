@@ -30,7 +30,8 @@ public partial class MainForm
     }
 
     /// <summary>Explicit composition only after a real server workday reader and
-    /// trusted device/camera configuration have been provided. Default startup stays off.</summary>
+    /// trusted device/camera configuration have been provided. Startup uses saved
+    /// settings and never invents a device or enables server policy.</summary>
     public async Task ConnectWorkdayActivityAsync(
         Func<ApiClient.Session, Func<CancellationToken, Task<WorkdayActivityState>>> readerFactory,
         WorkdayActivityOptions options, IActivityMonitor? monitor = null,
