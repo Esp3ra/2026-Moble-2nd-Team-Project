@@ -1,3 +1,12 @@
+<a id="owner3-pr84-consumer-merged-20261023"></a>
+## 3번 최신 — PR84 실제 삭제 소비 병합 / D3 팀장 확정 전달
+
+[PR84](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/84#issuecomment-6355596252) **e498ad2b→ed9b0e81**에서 기존 PR83의 동일TX reader와 release/cleanup을 4번 실제 공지 삭제 서비스에 연결했습니다. D3는 이번 본 채팅에서 팀장이 **이 정책으로 확정**했습니다. 공지 A의 연결만 해제하고 B 등 다른 참조가 있으면 파일을 유지하며, 마지막 참조는 DB commit 뒤 실제 정리합니다. 파일 IO 실패 시 deleting/접근 차단을 유지하고 기존 cleanup으로 재시도합니다.
+
+3번 제공 코드는 불변이고 기존188 검증은 소스 불변 근거로 재사용했습니다. 이번에188을 새로 실행한 것이 아닙니다. 새4번 nativeMySQL/HTTP·C#·Edge 검사와 제공부 과거 검사를 합산하지 않습니다. 제공부 재구현·신규 DDL 없이 기존 정리 접점을 유지합니다. 실제 공유 배포·실계정 시연은1·4번 후속입니다. [직접 검증](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr84-reviewed-merged-20261023)·[경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr84-d3-adopted-20261023).
+
+아래 D3 미정·전달 대기·4번 삭제 차단 유지 기록은 이전 이력이며, 이 최신 확정·PR84 코드 연결 병합 기록으로 갱신합니다. 공유 서버 배포와 실계정 삭제 성공을 뜻하지 않습니다.
+
 <a id="owner3-pr83-merged-20261023"></a>
 ## 3번 최신 — PR83 현재 첨부ID 제공부 병합 완료
 

@@ -1,3 +1,10 @@
+<a id="member2-pr84-current-20261023"></a>
+## 2번 최신 — PR84 검토·병합 / D3 팀장 확정·전달 완료
+
+[PR84 단일 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/84#issuecomment-6355596252)에 D3 정책 확정·@1/3/4 전달과 기술 검토·배포 후속을 기록했습니다. **e498ad2b→ed9b0e81** 병합 tree/부모와 검증본 일치를 확인했습니다. [새 직접 검사·실패/정리 구분](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr84-reviewed-merged-20261023)·[확정 정책/담당 후속](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr84-d3-adopted-20261023)를 기존 취합에 추가합니다.
+
+기존8문서·원문·앵커와79/80/83 기록은 그대로 보존합니다. 이번에2번 writer/journal·업무 화면·사용자 프로젝트나 공유 환경을 수정하지 않았습니다. 아래 D3 미정/전달 대기는 이전 이력이며 최신 팀장 확정·전달 완료로 갱신합니다. 공유 배포·실계정 삭제 성공, 공지 생성 W1·연차 D1/D2는 별도입니다.
+
 <a id="member2-pr80-83-current-20261023"></a>
 ## 2번 최신 — PR80 수정·PR83 신규 검토 병합
 

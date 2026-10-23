@@ -1,3 +1,12 @@
+<a id="owner1-pr84-d3-adopted-20261023"></a>
+## 1번 최신 — D3 팀장 확정·PR84 병합 / 공유 배포·정리 대조 후속
+
+[PR84](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/84#issuecomment-6355596252) **e498ad2b→ed9b0e81** 병합과 D3 팀장 확정·전달 완료입니다. D3는 이번 본 채팅에서 팀장이 **이 정책으로 확정**했습니다. 공지 A의 연결만 해제하고 B 등 다른 참조가 있으면 파일을 유지하며, 마지막 참조는 DB commit 뒤 실제 정리합니다. 파일 IO 실패 시 deleting/접근 차단을 유지하고 기존 cleanup으로 재시도합니다.
+
+4번 실제 서비스의 관리자 인증TX 안에서 공지 잠금→공개 reader→기존 release→공지 삭제/감사를 연결했습니다. 1번은 4번과 배포 버전·실제 설정·commit 실패 rollback 및 commit 뒤 정리 실패/운영 재시도를 대조하고 새 시연을 확인하면 됩니다. 이번에 공유 DB/정식 DDL을 다시 적용하지 않았습니다. 공지 생성 durable 원UUID/W1 복구·연차 D1/D2는 별도입니다. [검증 근거](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr84-reviewed-merged-20261023)·[후속 경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr84-d3-adopted-20261023).
+
+아래 D3 미정·전달 대기·4번 삭제 차단 유지 기록은 이전 이력이며, 이 최신 확정·PR84 코드 연결 병합 기록으로 갱신합니다. 공유 서버 배포와 실계정 삭제 성공을 뜻하지 않습니다.
+
 <a id="owner1-pr80-83-current-20261023"></a>
 ## 1번 최신 — 80·83 병합 수신 / 공통 운영·원결과 후속
 

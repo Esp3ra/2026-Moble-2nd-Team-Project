@@ -1,3 +1,30 @@
+<a id="pr84-reviewed-merged-20261023"></a>
+## PR84 검토·팀장 D3 정책 확정·병합 — 2026-10-23
+
+[PR84 단일 최종 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/84#issuecomment-6355596252)에서 본 채팅의 팀장 직접 결정 **“이 정책으로 확정”**을 반영하고 @1·3·4번에게 정책·기술·배포 후속을 전달했습니다. 공지 A의 연결만 해제하고 B 등 다른 참조가 있으면 파일을 유지하며, 마지막 참조는 DB commit 뒤 실제 정리합니다. 파일 IO 실패 시 deleting/접근 차단을 유지하고 기존 cleanup으로 재시도합니다. 아래 D3 미정·다른 채팅 선택 보고만 수신·4번409 유지 기록은 당시 이력이며 최신 확정/연결 병합으로 갱신합니다.
+
+|고정 대상|확인 결과|
+|---|---|
+|head/base|`e498ad2b94bc0a5c085632179a1394226dd4f25c` / `1b83e4f3e732b9d0295e05b79f7cf82600eef8a0`,11파일|
+|실제 병합|`ed9b0e81c6260f0504327c035422ce3685b1101a`, Draft→Open→Merge|
+|tree/부모|`3a1e47c168515bf89f7d507eb0f8b75fc88f0700`, 검증 head와 동일/diff0; 부모1b83e4f3+e498ad2b,REST merged/closed 확인|
+
+**제품 변경:** 4번 기존 관리자 인증TX/공지 잠금 안에서3번 공개 reader→기존 release→공지 삭제·감사를 묶습니다. 다른 참조는 보존하고 마지막 참조는 commit 후 정리합니다. DB/참조/감사·commit 실패는 rollback하며, commit 뒤 파일 IO 실패는 deleting/접근 차단·기존 cleanup 재시도로 처리합니다. 정식 DDL·3번 제공부·공통 인증은 불변입니다.
+
+**C# 결과 불명:** 삭제 응답503/취소·잘못된200에서 원 공지 ID별 잠금과 불명 직후 원행을 유지합니다. 자동 재POST 없이 성공한 목록 GET으로 확인합니다. 이후 GET 실패는 기존 ShowLoadError로 목록을 비우지만 unknown ID 잠금은 유지합니다. 정상 MainForm/페이지 종료 취소·늦은 응답 무시와 실제 원 ID 사용을 확인했습니다. 기존 HttpNoticeService의 current ApiClient 호출은 이번 diff0이며 외부 코드가 동일 페이지에서 접속을 바꾸는 경우의 기존 한계를 새 캡처 Session 보장으로 쓰지 않습니다.
+
+|이번 직접 검증 밴드|결과와 범위|
+|---|---|
+|원 통합 HTTP/소유 MySQL|HTTP55 검사 안에 D3 추가assert24가 포함됩니다. 같은 DB의 C#전송11·R78부분복구16·새 실제삭제UI7·Edge14/pageErrors0을 별도 밴드로 기록하고 합산하지 않습니다. 통합 child exit0/35.86초|
+|D3 실제 소비|실제4번 API/권한·공지TX/감사/commit rollback·제공부OFF/누락 차단·A해제/B보존·마지막참조 정리·commit후 파일잠금/명시cleanup 재시도. C#은 실제폼/HttpNoticeService→HTTP/MySQL의 commit응답 유실·재POST0·목록GET 복구·공지/첨부404. Edge는 실제cookie/CSRF 공지삭제와 수신자 부재안내|
+|별도 공지 UI|원Notices45PASS/1.98초, 명시HTTP/서비스 대역과 실제WinForms·DB없음. Notices/CollaborationFiles Release 경고0/오류0. failedGET·403·잘못된200 구분|
+|별도 기존 공지 서버 회귀|nativeMySQL55PASS/88.52초, SQLite 하드코딩 cold8 제외. wrapper 전체100.81초·소유 DB/runtime 정리 완료|
+|3번 제공부188|제품 소스 불변인 기존 실행 근거 재사용. 이번 새188 실행이나 다른 밴드와의 합산이 아님|
+
+**실패/정리 기록:** 통합 검사는 child가 성공했으나 최초 outer wrapper의 runtime 삭제가 PermissionError로 exit1이었습니다. 원 실패 보고를 보존하고 해당 소유 runtime의 경로·자식 종료를 확인한 뒤 정확한 대상만 후처리 정리했습니다. addendum에서 정리 완료를 확인했고 제품/검사 재실행은0회입니다. 최종 모든 소유 MySQL/HTTP/native 자식·파일/runtime 정리true, source/export/DLL 불변·Git clean/diff-check 통과입니다.
+
+이번 코드는 삭제 소비를 연결했지만 공유 서버 배포나 실제 팀 자료/실계정 삭제를 수행한 것은 아닙니다. 기존 공유 DB·env/DDL·키·장치·flags/ACK는 변경하지 않았습니다. 1번+4번의 실제 배포와 새 시연, 공지 생성 durable 원UUID/W1 복구·연차 D1/D2·실물/두PC는 별도입니다. [담당 후속](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr84-d3-adopted-20261023). 아래는 이전 기록입니다.
+
 <a id="pr80-83-reviewed-20261023"></a>
 ## PR80 수정 재검토·신규 PR83 검토와 병합 — 2026-10-23
 
