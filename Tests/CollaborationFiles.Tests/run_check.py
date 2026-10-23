@@ -24,7 +24,9 @@ def run(args,mysql,runtime,env):
  with app.app_context(),transaction() as db:db.add_all([SchemaVersion(version=1),AdminGuard(id=1)])
  # Existing common tables + literal numbered migrations; no create_all shortcuts
  # for the file refs whose SQL ownership/review remains member 1/3.
- paths=['002_task_queries.mysql.sql','003_notices.mysql.sql','004_write_receipts.mysql.sql','005_chat_storage.mysql.sql','006_results.mysql.sql','013_shared_attachments.mysql.sql','015_notice_chat_attachments.mysql.sql']
+ # Current notice forms prepare a W1 operation; this owned fixture needs its
+ # reviewed raw017 tables as well as the original notice/file tables.
+ paths=['002_task_queries.mysql.sql','003_notices.mysql.sql','004_write_receipts.mysql.sql','005_chat_storage.mysql.sql','006_results.mysql.sql','013_shared_attachments.mysql.sql','015_notice_chat_attachments.mysql.sql','017_notice_operations.mysql.sql']
  with app.extensions['db_engine'].begin() as db:
   for path in [ROOT/'RemoteWork.Server/migrations'/n for n in paths]:
    sql='\n'.join(x for x in path.read_text(encoding='utf-8-sig').splitlines() if not x.lstrip().startswith('--'))

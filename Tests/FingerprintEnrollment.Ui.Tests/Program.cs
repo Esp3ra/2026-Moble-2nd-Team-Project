@@ -185,7 +185,11 @@ internal static class Program
         Check(recovery.Enabled == released, "Uncertain/post-job/recovery attempts keep mode pinned: " + mode);
         if (released)
         {
-            Check(Controls(form).OfType<Label>().Any(l => l.Text.Contains("기존 예약")), "Definitive rejection explains recovery selection");
+            Check(Controls(form).OfType<Label>().Any(l =>
+                l.Text.Contains("비어 있는 번호가 없습니다", StringComparison.Ordinal)
+                && l.Text.Contains("운영자", StringComparison.Ordinal)
+                && l.Text.Contains("별도 승인을 받은 경우에만", StringComparison.Ordinal)),
+                "Definitive rejection explains no free slot, operator review and separately approved recovery");
             server.FaultStage = null;
             PrepareRecovery();
             Check(server.Reissues == 0 && pi.Calls == 0, "Switch and recovery GET never auto-start");

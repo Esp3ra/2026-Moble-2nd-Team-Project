@@ -195,6 +195,13 @@ internal static partial class Program
                         status = 404;
                         payload = new { ok = false, error = new { code = "NOT_FOUND", message = "fixture popup disabled" } };
                     }
+                    else if (request == "GET /api/v1/deadline-alerts HTTP/1.1")
+                    {
+                        // MainForm probes the current deadline-alert consumer.
+                        // Model only its disabled contract, never arbitrary 404s.
+                        status = 404;
+                        payload = new { ok = false, error = new { code = "NOT_FOUND", message = "fixture deadline alerts disabled" } };
+                    }
                     else throw new InvalidOperationException("Unexpected authentication fixture route");
                     byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(payload, ApiClient.Json);
                     byte[] headers = Encoding.ASCII.GetBytes($"HTTP/1.1 {status} {(status == 200 ? "OK" : status == 404 ? "Not Found" : "Unauthorized")}\r\nContent-Type: application/json\r\nContent-Length: {bytes.Length}\r\nConnection: close\r\n\r\n");

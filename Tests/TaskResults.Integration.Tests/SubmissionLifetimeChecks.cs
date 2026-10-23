@@ -36,6 +36,9 @@ internal static class SubmissionLifetimeChecks
         Complete(api.LoginAsync("fixture", "fixture-password"));
         handler.Enqueue(HttpMethod.Get, "/api/v1/tasks?scope=own", new { items = new[] { TaskItem() } });
         handler.Enqueue(HttpMethod.Get, "/api/v1/tasks/1", new { task = TaskItem() });
+        // The selected task also reads its shared task-attachment summary.
+        // Keep this exact request in the queue; unknown reads must still fail.
+        handler.Enqueue(HttpMethod.Get, "/api/v1/results/shared/tasks/1", new { items = Array.Empty<object>() });
 
         using var page = new TasksControl(PreviewRole.Employee, new HttpTaskQueryService(api));
         using var host = new Form

@@ -1,3 +1,12 @@
+<a id="task-web-exact-physical-fixture-restore"></a>
+## 물리 스키마 fixture 정확 복원 — 2026-10-23
+
+`--suite remainder-regression`의 기존357개에는 생성식·저장 방식·테이블 누락을 일부러 만드는 lifecycle 물리 검사가 포함됩니다. 이 검사는 변경 전 `SHOW CREATE TABLE` 원문을 보관하고 동일한 물리 정의로 복원합니다. MySQL이 기본 COLLATE를 명시 CHARACTER SET으로 바꾸지 않도록 알려진 문자 열의 기본값 상속만 복원용 DDL에 재현하고, 최종 SHOW CREATE의 원문 완전 일치를 검사합니다. CHECK/문자열 literal·FK·인덱스는 수정하지 않습니다. ORM의 인덱스 집합 순서로 raw009의 두 KEY 선언 순서가 바뀌던 fixture 문제를 고쳤으며, 실행기의 DDL/schema1 비교는 그대로 유지합니다. 열·FK·CHECK·생성식·문자열 literal·인덱스 내용/순서 검사를 완화하지 않습니다.
+
+복원 helper는 TESTING 앱·명시 loopback `remote_work_test_*` URL·현재 DB 일치를 확인하고, 변경 전/복원 전 대상 테이블이 비어 있어야 합니다. 복원 뒤 `SHOW CREATE TABLE`이 원문과 완전히 같은지도 검사합니다. 공유 서버·사용자 DB·테이블 데이터는 이 검사 대상이 아닙니다. 실제 원본357개와 DDL 불변 확인 결과는 이번 검증 기록을 따르며, 이전357개 통과 뒤 guard 실패 기록과 구분합니다.
+
+수정본의 공식 `--suite remainder-regression` 전체 실행은 **357개 통과·225.36초**, 물리DDL 불변·schema1·소유 MySQL/DB/runtime 정리를 확인했습니다. 별도 raw009+전체 collection 문맥의 물리3개와, 사전 DDL 없이 기존 shared pytest app이 ORM으로 생성하는 문맥의 물리3개도 각각 통과했습니다. 중복3개를357개에 합산하지 않습니다. 최종 보고서는 소스 밖 `ES/tmp/remote_work_validation_fixes_20261023/server/remainder-regression-final/verification.json`입니다. 실제 운영 DB·공유 배포/실계정·두 PC 검증을 뜻하지 않습니다.
+
 <a id="task-web-attachment-redisplay-checks"></a>
 ## 첨부 표시 정보 재표시 — 2026-10-22
 

@@ -39,4 +39,6 @@ dotnet run --project .\Tests\TaskResults.Integration.Tests\TaskResults.Integrati
 
 실제 TasksControl·SubmissionForm·ApiClient·WinForms 메시지 루프를 쓰되 HTTP와 자식 창의 최종 `DialogResult.OK`는 명시적 대역입니다. 취소, 접속 A→B 변경 후 늦은 자식 OK, 부모 폐기 후 늦은 자식 OK의3개 시나리오·26개 검사를 실행합니다. 이전 계정의 부모 GET·상태 POST·화면 오류가 추가되지 않는지 검사하며, 이 경로를 실제 제출 성공·서버/DB 시험으로 표시하지 않습니다. 실제 HTTP 검사 수치와 합산하지 않습니다.
 
+2026-10-23 회귀: 현재 선택 상세의 업무 첨부 요약 조회인 `GET /api/v1/results/shared/tasks/1`에만 빈 목록 대역을 추가했습니다. 요청 순서·알 수 없는 요청 거부·취소·계정 변경·부모 폐기 검증을 유지한 원본 실행에서 **26검사·3시나리오 PASS**를 확인했습니다.
+
 공유 DB·실계정·물리 두 PC·최종 조직/연장 모델·실장치·웹·수동 전체 UI 검수는 별도입니다. 이 검증은 3번 구현을 대신 작성하거나 업무 수정/재배정/연장 정책을 새로 확정하지 않습니다.

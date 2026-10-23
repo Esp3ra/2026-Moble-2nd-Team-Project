@@ -1,6 +1,31 @@
 # 공지·채팅 첨부 실제 소비 검증
 
-1·3번 제공 접점을 4번 제품에 연결한 상태를 검사한다. SQLite·공유 DB·사용자 환경파일을 읽지 않으며 native MySQL 소유 helper가 독립 DB/프로세스를 만들고 종료·삭제한다. 공통 테이블만 명시 ORM으로 만들고 002/003/004/005/006/013 및3번 `docs/sql/notice_chat_attachments.mysql.sql` 원문을 적용한다. 새 파일 DDL 번호나 공유 적용을 선언하지 않는다.
+## V07 현재 공지 작성 계약의 fixture 반영 — 2026-10-23
+
+기본 `run_check.py`가 새 소유 DB에 기존002/003/004/005/006/013/015와 함께
+`017_notice_operations.mysql.sql`을 준비한다. 현재 공지 작성 폼은 W1 원 요청을 준비하므로
+raw017이 없는 옛 fixture에서는 GET503·작성POST403 뒤 브라우저 URL 대기가 실패했다.
+공유 DB/설정에 적용하는 코드가 아니며 제품의 준비 검사·CSRF·원 요청 처리를 우회하지 않는다.
+
+브라우저는 등록/처리 결과 확인 버튼 중 `notice_action=publish`인 등록 버튼을 정확히 선택한다.
+대기 시간·업로드/다운로드·원UUID·POST횟수·권한·삭제 assertion은 변경하지 않는다.
+기본 명령에 `--node`, `--node-modules`, `--browser`, `--report-dir`만 지정해 실행하며
+별도 진단 export나 fixture 패치가 필요하지 않다.
+
+```powershell
+dotnet build Tests/CollaborationFiles.Tests -c Release
+& $testPython Tests/CollaborationFiles.Tests/run_check.py `
+  --node '<node.exe 절대 경로>' --node-modules '<node_modules 절대 경로>' `
+  --browser '<Chromium 실행파일 절대 경로>' --report-dir '<외부 새 결과 폴더>'
+```
+
+직접 검증: alpha `6ab7a43` 제품과 이 기본 runner에서 실제 Chromium **14시나리오 통과,
+pageErrors0**을 확인했다. 같은 실행의 HTTP/MySQL55·D3단언24·C#전송11/부분복구16/삭제7도
+통과했으며 중복 범위이므로 합산하지 않는다. 전체33.94초, 소유 HTTP·MySQL·DB·파일·runtime
+정리 완료다. 시험프로젝트 빌드3개는 오류0·경고0, 수정 CJS 문법 검사도 통과했다.
+제품 코드·API·검사 assertion·운영 DB/설정/장비는 수정하지 않았다.
+
+1·3번 제공 접점을 4번 제품에 연결한 상태를 검사한다. SQLite·공유 DB·사용자 환경파일을 읽지 않으며 native MySQL 소유 helper가 독립 DB/프로세스를 만들고 종료·삭제한다. 공통 테이블만 명시 ORM으로 만들고 위 번호별 원문을 적용한다. 새 파일 DDL 번호나 공유 적용을 선언하지 않는다.
 
 먼저 `dotnet build Tests/CollaborationFiles.Tests -c Release` 후 Python `run_check.py`를 실행한다. `--node`, `--node-modules`, `--browser`, `--report-dir`에 절대 경로를 지정하면 실제 Edge/Playwright cookie2계정 UI 검사도 한다. 실제 C# `ApiClient`/공지·채팅 서비스와 전송 클래스, TCP HTTP/MySQL, 실제 웹 폼·모듈을 사용한다. C# 및 브라우저 검사는 같은 DB의 HTTP 검사와 겹치므로 건수를 합산하지 않는다.
 

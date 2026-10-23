@@ -21,8 +21,8 @@ internal static partial class Program
             "registration starts without fabricated task values or chosen dates");
         Need(form.CheckedInput is null, "unchecked registration has no reusable input snapshot");
         Need(!Field<ComboBox>(form, "cmbAssignee").Enabled
-            && Field<TextBox>(form, "txtAttachments").Text.Contains("연결 규약 확인 필요"),
-            "unagreed assignee lookup and attachments are not fabricated");
+            && Field<TextBox>(form, "txtAttachments").Text == "이 화면에서는 첨부 연결을 제공하지 않습니다.",
+            "disconnected preview does not fabricate assignee lookup or attachment support");
         title.Text = "   ";
         check.PerformClick();
         Need(errors.GetError(title).Length > 0 && !form.IsDisposed,

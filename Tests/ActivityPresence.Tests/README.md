@@ -6,6 +6,13 @@ Windows, .NET SDK 8 이상/Windows Desktop runtime 8, `Tools/HandPresence/.venv`
 dotnet run --project Tests/ActivityPresence.Tests
 ```
 
+테스트 전용 `REMOTEWORK_ACTIVITY_TEST_PYTHON`에 기존 Python 실행파일의 절대 경로를 지정하면 저장소 안에 가상환경이나 링크를 만들지 않아도 됩니다. 지정한 환경에는 이 회귀에서 실제 import하는 NumPy·OpenCV·Pillow가 필요합니다. 지정하지 않으면 위 `.venv`를 사용하며, 상대 경로나 없는 실행파일은 거부합니다. 외부 빌드 출력의 DLL도 저장소 루트를 현재 폴더로 두고 실행하면 실제 `Tools/HandPresence` 소스를 사용합니다.
+
+```powershell
+$env:REMOTEWORK_ACTIVITY_TEST_PYTHON = 'C:\venvs\handpresence\Scripts\python.exe'
+dotnet run --project Tests/ActivityPresence.Tests -c Release
+```
+
 실제 WinForms 메시지 루프/컨트롤에 대역 카메라와 합성 JPEG를 사용합니다. 명시적 시작, 영역 오류, 상태 표시/지연/복구, 중지 후 결과 무시, 소유 모달과 종료, 직원/관리자의 기존 근태 화면을 검사합니다. 실제 Python 자식 프로세스의 stdio·stderr 동시 처리/최신 프레임·QPC 시각·즉시 중지·비정상 종료·응답 없는 프로세스 종료도 검사합니다. 물리 카메라·모델·사용자 영상·외부 장치/공통 서버·DB는 사용하지 않습니다. HTTP 대역과 테스트 소유 loopback TCP 통신은 포함합니다.
 
 선택 `-- --render <임시 PNG 경로>`는 합성 단색 영상만 포함한 폼 렌더링을 임시 위치에 생성합니다. 실제 카메라 촬영 기능이 아니며 결과물을 Git에 넣지 않습니다. 상용 배포와 실제 하드웨어 인식 정확도는 이 테스트 범위가 아닙니다.
@@ -25,3 +32,5 @@ R23-03: 안내 닫기에는 `WM_CLOSE`를 사용하고, 전송 직전에도 같�
 별도 실제 Python 대역은 중지에 응답하지 않도록 실행하여 일반 모달 닫기와 부모 종료에서 2초 유예 후 소유 프로세스가 끝나고 조도 조회도 해제되는지 검사합니다. PID 임시 파일에는 테스트 자식의 PID만 쓰고 시험 뒤 삭제합니다. 물리 카메라·모델·실제 Pi에는 접근하지 않습니다.
 
 `MonitorTests.cs`는 UI 없는 자동 감지, 같은 세션의 중복 시작/다른 세션 거절, 메뉴 Dispose와 공유 상태 창 닫기/재열기 뒤 지속 감지, 세션 무효화·취소/공유 Stop, 카메라와 조도 모두 기다리기·정리 제한 시간/오류·재사용 거절을 검사합니다. QueuedUi 대역으로 Post 전/후의 세션·세대·근무ID·최신 갱신·view 생존/구독 해제를 검증하며 닫힌 UI의 Post 실패가 소유 worker를 중지하지 않는지도 검사합니다. 공통 세션 확인 함수를 서비스 잠금 밖에서 호출하는 경계도 독립 검증합니다. 테스트에서 시작하는 근무ID는 명시적 가상 값이고 서버 출근 저장이나 실제 MainForm 연결이 아닙니다. 기존 수동 창/30초/로그인 만료 회귀를 그대로 실행합니다.
+
+2026-10-23 회귀: MainForm의 정확한 `GET /api/v1/deadline-alerts` 요청에만 비활성 `404/NOT_FOUND` 대역을 추가했습니다. 알 수 없는 다른 경로는 계속 거부합니다. 실제 로그인 폼→메인→활동 창의 인증 만료·자식/부모 종료 검증과 실제 Python stdio 검사를 유지하여, 외부 Python 3.14 환경·합성 카메라/HTTP로 원본 **297검사·12시나리오 PASS**를 확인했습니다. 물리 장치·공유 서버·DB 검증은 포함하지 않습니다.
