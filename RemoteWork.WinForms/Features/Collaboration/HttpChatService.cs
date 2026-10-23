@@ -13,6 +13,7 @@ internal sealed class HttpChatService : IChatService
     private readonly object pendingLock = new();
     private (string Key, string Id)? pendingRoom;
     private readonly Dictionary<string, (string Content, string Id)> pendingMessages = new();
+    internal bool HasPendingMessage(string room) { lock (pendingLock) return pendingMessages.ContainsKey(room); }
     internal ResourceAttachmentClient Attachments => attachmentClient ??= new ResourceAttachmentClient(Identity());
     private ResourceAttachmentClient? attachmentClient;
     public ChatParticipant CurrentUser { get; }

@@ -8,8 +8,9 @@ internal static class Program
     private static int checks;
     private static void Check(bool value, string label) { if (!value) throw new Exception(label); checks++; }
     [STAThread]
-    private static async Task Main()
+    private static async Task<int> Main(string[] args)
     {
+        if(args.Contains("--partial"))return PartialSelectionChecks.Run();
         string url = Environment.GetEnvironmentVariable("FILES_TEST_URL")!, folder = Environment.GetEnvironmentVariable("FILES_TEST_DIR")!;
         using var api = new ApiClient(url);
         await api.LoginAsync("admin1", "Admin-test-2026!");
@@ -52,5 +53,6 @@ internal static class Program
         catch (OperationCanceledException) { checks++; }
         await api.LogoutAsync();
         Console.WriteLine($"PASS {checks} actual C# ApiClient/notice/chat transport + native MySQL checks");
+        return 0;
     }
 }

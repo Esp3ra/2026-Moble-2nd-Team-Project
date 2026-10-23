@@ -13,7 +13,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
         private bool loadingRooms;
         private bool loadingMessages;
         private bool sending;
-        private readonly Dictionary<string, List<ResourceAttachment>> roomFiles = new();
+        private readonly Dictionary<string, ChatAttachmentSelection> roomFiles = new();
         private readonly HashSet<string> unknownSends = new();
         private readonly HashSet<string> fileErrors = new();
         private IReadOnlyList<ChatMessage> shownMessages = Array.Empty<ChatMessage>();
@@ -37,6 +37,24 @@ namespace RemoteWork.WinForms.Features.Collaboration
             InitializeDeleteMenu();
             btnAttachFile.Click -= Unavailable_Click;
             btnAttachFile.Click += AttachFiles_Click;
+            var selectionMenu = new ContextMenuStrip(components!);
+            btnAttachFile.ContextMenuStrip = selectionMenu;
+            selectionMenu.Opening += (_, e) =>
+            {
+                selectionMenu.Items.Clear();
+                if (selectedRoom is null || sending || unknownSends.Contains(selectedRoom.Id) || !roomFiles.TryGetValue(selectedRoom.Id, out var selection)) { e.Cancel = true; return; }
+                string room = selectedRoom.Id;
+                foreach (var entry in selection.Entries)
+                {
+                    var remove = new ToolStripMenuItem($"{(entry.File is null ? "전송 대기" : "완료")} · {Path.GetFileName(entry.Path)} — 선택에서 제외");
+                    remove.Click += (_, _) =>
+                    {
+                        RemoveSelectedFile(room, entry.Path);
+                    };
+                    selectionMenu.Items.Add(remove);
+                }
+                e.Cancel = selectionMenu.Items.Count == 0;
+            };
             var fileMenu = new ContextMenuStrip(components!);
             fileMenu.Opening += (_, e) =>
             {
@@ -322,7 +340,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
 
         private async Task SendMessageAsync()
         {
-            if (selectedRoom is null || loadingRooms || loadingMessages || sending || creatingRoom || deletingRoom || fileErrors.Contains(selectedRoom.Id)) return;
+            if (selectedRoom is null || loadingRooms || loadingMessages || sending || creatingRoom || deletingRoom || HasUnfinishedAttachments(selectedRoom.Id)) return;
             if (string.IsNullOrWhiteSpace(txtContent3.Text))
             {
                 ShowStatus("메시지를 입력해 주세요.");
@@ -338,10 +356,10 @@ namespace RemoteWork.WinForms.Features.Collaboration
             {
                 if (chatService is HttpChatService http)
                     await http.SendMessageWithFilesAsync(roomId, content,
-                        roomFiles.GetValueOrDefault(roomId, new()).Select(f => f.AttachmentId).ToArray(), lifetime.Token);
+                        roomFiles.GetValueOrDefault(roomId, new()).Completed.Select(f => f.AttachmentId).ToArray(), lifetime.Token);
                 else await chatService.SendMessageAsync(roomId, content, lifetime.Token);
                 unknownSends.Remove(roomId);
-                if (chatService is HttpChatService sentHttp) sentHttp.Attachments.ForgetLinkedUploads(roomFiles.GetValueOrDefault(roomId, new()).Select(f => f.AttachmentId));
+                if (chatService is HttpChatService sentHttp) sentHttp.Attachments.ForgetLinkedUploads(roomFiles.GetValueOrDefault(roomId, new()).Completed.Select(f => f.AttachmentId));
                 roomFiles.Remove(roomId);
                 saved = true;
                 if (IsDisposed || Disposing) return;
@@ -386,10 +404,10 @@ namespace RemoteWork.WinForms.Features.Collaboration
         {
             bool canCompose = selectedRoom is not null && !loadingRooms && !loadingMessages && !sending && !creatingRoom && !deletingRoom;
             txtContent3.Enabled = canCompose && (selectedRoom is null || !unknownSends.Contains(selectedRoom.Id));
-            btnAttachFile.Enabled = canCompose && chatService is HttpChatService && (selectedRoom is null || !unknownSends.Contains(selectedRoom.Id));
-            btnAttachFile.Text = selectedRoom is not null && roomFiles.TryGetValue(selectedRoom.Id, out var files) ? $"파일 첨부 ({files.Count}/10)" : "파일 첨부";
+            btnAttachFile.Enabled = canCompose && chatService is HttpChatService && (selectedRoom is null || CanEditAttachments(selectedRoom.Id));
+            btnAttachFile.Text = selectedRoom is not null && roomFiles.TryGetValue(selectedRoom.Id, out var files) ? $"파일 첨부 ({files.Completed.Length}/{files.Entries.Count})" : "파일 첨부";
             btnSendMessage.Enabled = canCompose && !string.IsNullOrWhiteSpace(txtContent3.Text)
-                && ChatText.WithinLimit(txtContent3.Text.Trim(), 2000) && (selectedRoom is null || !fileErrors.Contains(selectedRoom.Id));
+                && ChatText.WithinLimit(txtContent3.Text.Trim(), 2000) && (selectedRoom is null || !HasUnfinishedAttachments(selectedRoom.Id));
             gridRooms.Enabled = cmbOptions.Enabled = !loadingRooms && !sending && !creatingRoom && !deletingRoom;
             btnCreateRoom.Enabled = !loadingRooms && !sending && !creatingRoom && !deletingRoom;
         }
@@ -400,28 +418,43 @@ namespace RemoteWork.WinForms.Features.Collaboration
             lblChatStatus.Text = $"{source} · 작성자: {chatService.CurrentUser.Name} | {text}";
         }
 
+        private bool HasUnfinishedAttachments(string room) => fileErrors.Contains(room) || (roomFiles.TryGetValue(room, out var state) && state.HasPending);
+        private bool CanEditAttachments(string room) => !sending && !unknownSends.Contains(room) && (chatService is not HttpChatService http || !http.HasPendingMessage(room));
+        private bool RemoveSelectedFile(string room, string path)
+        {
+            if (!CanEditAttachments(room) || !roomFiles.TryGetValue(room, out var selection)) return false;
+            selection.Remove(path);
+            if (!selection.HasPending) fileErrors.Remove(room);
+            UpdateInputState(); return true;
+        }
+
         private async void AttachFiles_Click(object? sender, EventArgs e)
         {
-            if (selectedRoom is null || sending || chatService is not HttpChatService http || unknownSends.Contains(selectedRoom.Id)) return;
+            if (selectedRoom is null || !CanEditAttachments(selectedRoom.Id) || chatService is not HttpChatService http) return;
             using var dialog = new OpenFileDialog { Multiselect = true, CheckFileExists = true, RestoreDirectory = true };
             if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
             string room = selectedRoom.Id;
+            await UploadSelectedFilesAsync(room, dialog.FileNames,
+                (path, ct) => http.Attachments.UploadAsync("chat", room, path, ct));
+        }
+
+        // Same product operation is called by the picker and isolated controls
+        // tests; the test does not need to automate a Windows file dialog.
+        private async Task UploadSelectedFilesAsync(string room, string[] paths,
+            Func<string, CancellationToken, Task<ResourceAttachment>> upload)
+        {
             var files = roomFiles.GetValueOrDefault(room, new());
-            if (files.Count + dialog.FileNames.Length > 10 || dialog.FileNames.Any(p => new FileInfo(p).Length > 26214400))
-            { ShowStatus("최대 10개 · 파일당 25MiB까지 첨부해 주세요."); return; }
             roomFiles[room] = files;
             sending = true; InvalidateReceive(); UpdateInputState();
             try
             {
-                foreach (var path in dialog.FileNames)
-                {
-                    var uploaded = await http.Attachments.UploadAsync("chat", room, path, lifetime.Token);
-                    if (!files.Any(f => f.AttachmentId == uploaded.AttachmentId)) files.Add(uploaded);
-                }
+                await files.UploadAsync(paths, upload, lifetime.Token);
                 fileErrors.Remove(room);
-                if (!IsDisposed) ShowStatus("첨부 전송 완료. 보내기를 누르면 메시지에 연결됩니다. 받은 첨부는 대화 본문 우클릭으로 다운로드하세요.");
+                if (!IsDisposed) ShowStatus(files.HasPending
+                    ? "남은 첨부: " + string.Join(" · ", files.Entries.Where(e => e.File is null).Select(e => Path.GetFileName(e.Path))) + " · 모두 전송하거나 선택에서 제외해 주세요."
+                    : "첨부 전송 완료. 보내기를 누르면 메시지에 연결됩니다.");
             }
-            catch (Exception ex) { fileErrors.Add(room); if (!IsDisposed) ShowStatus("첨부 실패: " + ex.Message + " 같은 파일을 다시 선택하면 원래 전송 상태를 확인합니다. 첨부 완료 전에는 메시지를 보낼 수 없습니다."); }
+            catch (Exception ex) { fileErrors.Add(room); if (!IsDisposed) ShowStatus("첨부 실패: " + ex.Message + " 원래 선택 전체를 유지합니다. 미완료 파일을 다시 선택하거나 첨부 선택 메뉴에서 제외해 주세요."); }
             finally { sending = false; if (!IsDisposed) UpdateInputState(); }
         }
 

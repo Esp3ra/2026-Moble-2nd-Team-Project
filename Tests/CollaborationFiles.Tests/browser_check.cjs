@@ -33,6 +33,50 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   await admin.locator('#chat-file-status').filter({hasText:filename}).waitFor();await admin.locator('#chat-content').fill('웹 채팅 첨부 전송');
   await admin.locator('#chat-send-button').click();const item=staff.locator('.chat-message').filter({hasText:'웹 채팅 첨부 전송'});await item.waitFor();await item.locator('button').first().click();
   const chatButton=item.locator('button').filter({hasText:filename});await chatButton.waitFor();const cd=await Promise.all([staff.waitForEvent('download'),chatButton.click()]);const savedChat=path.join(output,'chat-download.txt');await cd[0].saveAs(savedChat);assert.deepEqual(fs.readFileSync(savedChat),content);pass('web chat upload/send/poll and other participant download');
+  // R78-01: original handler, real browser + transport/MySQL, injected loss
+  // of B's committed chunk response. C has not started when B fails.
+  const abc=['A','B','C'].map(n=>({name:`R78 ${n}.txt`,mimeType:'text/plain',buffer:Buffer.from(`R78 ${n} bytes`)}));
+  let bId=null,failB=true;const starts=new Map(),partialPosts=[];
+  await admin.route('**/results/data/shared/resources/chat/uploads/**',async route=>{
+    const req=route.request(),url=new URL(req.url());
+    if(req.method()==='POST'&&url.pathname.endsWith('/start')){
+      const response=await route.fetch(),data=await response.json();const name=data.data.name;
+      starts.set(name,(starts.get(name)||0)+1);if(name==='R78 B.txt')bId=data.data.attachment_id;
+      await route.fulfill({response});
+    }else if(failB&&bId&&url.pathname.endsWith(`/${bId}/chunks`)){
+      failB=false;await route.fetch();await route.abort('failed');
+    }else await route.continue();
+  });
+  await admin.route('**/chat/data/rooms/*/messages',async route=>{
+    if(route.request().method()==='POST')partialPosts.push(new URLSearchParams(route.request().postData()).get('payload'));
+    await route.continue();
+  });
+  await admin.locator('#chat-content').fill('R78 ABC 복구');await admin.locator('#chat-file-picker').setInputFiles(abc);
+  await admin.waitForFunction(()=>document.querySelector('#chat-attach').disabled===false&&document.querySelector('#chat-file-status').textContent.includes('R78 C.txt'));
+  assert.equal(starts.get('R78 A.txt'),1);assert.equal(starts.get('R78 B.txt'),1);assert.equal(starts.has('R78 C.txt'),false);
+  assert.equal(await admin.locator('#chat-send-button').isDisabled(),true);
+  await admin.locator('#chat-file-picker').setInputFiles(abc[1]);
+  await admin.waitForFunction(()=>document.querySelector('#chat-attach').disabled===false&&document.querySelector('#chat-file-status').textContent.includes('R78 B.txt (완료)'));
+  assert.equal(await admin.locator('#chat-send-button').isDisabled(),true);assert.equal(starts.has('R78 C.txt'),false);assert.equal(starts.get('R78 B.txt'),1);
+  await admin.locator('#chat-content').press('Enter');assert.equal(partialPosts.length,0);
+  pass('R78 A success/B failure/C untried then B-only retry keeps C and blocks send/Enter');
+  await admin.locator('#chat-file-picker').setInputFiles(abc[2]);
+  await admin.waitForFunction(()=>document.querySelector('#chat-send-button').disabled===false);
+  await admin.locator('#chat-send-button').click();await admin.waitForFunction(()=>document.querySelector('#chat-content').value==='');
+  assert.equal(partialPosts.length,1);const original=JSON.parse(partialPosts[0]);assert.equal(original.attachment_ids.length,3);assert.equal(new Set(original.attachment_ids).size,3);
+  const recovered=staff.locator('.chat-message').filter({hasText:'R78 ABC 복구'});await recovered.waitFor();await recovered.locator('button').first().click();
+  await recovered.locator('button').filter({hasText:'R78 C.txt'}).waitFor();assert.equal(await recovered.locator('button').count(),4);
+  pass('R78 C completion sends original ABC once and real DB references are visible to recipient');
+  await admin.unroute('**/results/data/shared/resources/chat/uploads/**');await admin.unroute('**/chat/data/rooms/*/messages');
+  // Explicit user removal, rather than a retry, may remove an unfinished file.
+  await admin.route('**/results/data/shared/resources/chat/uploads/**/chunks',route=>route.abort('failed'));
+  await admin.locator('#chat-file-picker').setInputFiles({name:'R78 제거.txt',mimeType:'text/plain',buffer:Buffer.from('explicit removal')});
+  await admin.waitForFunction(()=>document.querySelector('#chat-attach').disabled===false&&document.querySelector('#chat-file-status').textContent.includes('R78 제거.txt'));
+  assert.equal(await admin.locator('#chat-send-button').isDisabled(),true);
+  await admin.locator('#chat-file-status span').filter({hasText:'R78 제거.txt'}).locator('button').click();
+  await admin.locator('#chat-content').fill('선택 제거 후 입력');assert.equal(await admin.locator('#chat-send-button').isDisabled(),false);
+  await admin.locator('#chat-content').fill('');await admin.unroute('**/results/data/shared/resources/chat/uploads/**/chunks');
+  pass('R78 explicit selection removal restores compose without deleting server files');
   // Lose only the original message success response; polling must recover that
   // UUID and its file set, without an extra business POST or orphan reupload.
   await admin.locator('#chat-file-picker').setInputFiles({name:'응답유실.txt',mimeType:'text/plain',buffer:Buffer.from('lost attachment')});await admin.locator('#chat-file-status').filter({hasText:'응답유실.txt'}).waitFor();

@@ -100,6 +100,8 @@ def run(args,mysql,runtime,env):
   testenv=env|{'FILES_TEST_URL':base,'FILES_TEST_DIR':str(runtime),'FILES_TEST_ROOM':room}
   result=subprocess.run(['dotnet','run','--project',str(ROOT/'Tests/CollaborationFiles.Tests'),'-c','Release','--no-build'],env=testenv,cwd=ROOT)
   assert result.returncode==0,'C# product integration failed'
+  result=subprocess.run(['dotnet','run','--project',str(ROOT/'Tests/CollaborationFiles.Tests'),'-c','Release','--no-build','--','--partial'],env=testenv,cwd=ROOT)
+  assert result.returncode==0,'R78 actual C# control selection regression failed'
   if args.node:
    result=subprocess.run([str(args.node),str(ROOT/'Tests/CollaborationFiles.Tests/browser_check.cjs')],env=testenv|{'NODE_PATH':str(args.node_modules),'FILES_TEST_BROWSER':str(args.browser),'FILES_TEST_REPORT':str(args.report_dir)},cwd=ROOT,timeout=180)
    assert result.returncode==0,'browser integration failed'

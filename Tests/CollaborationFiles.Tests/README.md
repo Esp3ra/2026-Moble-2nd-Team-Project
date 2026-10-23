@@ -9,3 +9,10 @@
 - 브라우저 실제 폼 업로드·공지 등록·다운로드·재조회, C# 생성 메시지 파일 열람, 웹 채팅 업로드/상대 자동수신·다운로드, 커밋 후 응답 유실 조회복구/POST1회, 데스크톱/390px 화면, pageerror0. 해시는 Node crypto와 13개 벡터로 대조한다.
 
 `run_notice_regression.py`는 기존 API/웹 공지 검사를 별도 소유 MySQL에서 실행하고 SQLite를 하드코딩한 cold 검사8개를 제외한다. 기존 웹채팅 native runner, 공지 WinForms·채팅 source/session·자동 수신 검사도 별도 실행한다. 실제 공용 서버 파일 업로드, 두 PC 네트워크 전송, 사용자가 선택하는 Windows 파일 대화상자/대형25MiB 브라우저 UI·장시간/다중 서버 부하, 미합의 공지 원결과 W1·삭제정책은 완료로 표시하지 않는다.
+
+
+## R78-01 추가 검사
+
+원 실행기는 기본 C#11에 이어 `--partial` 모드를 실행한다. 실제 WinForms의 파일선택 후 제품 메서드→원 ResourceAttachmentClient/HttpChatService→실제 HTTP/MySQL을 사용하며 B chunk 성공 응답과 메시지 성공 응답만 명시 주입으로 유실시킨다.16검사는 A완료/B실패/C미시도·B만재시도후차단·직접 send 차단·C완료/ABC정확3개 연결·명시C제외/AB·불명원메시지 선택잠금·같은UUID/body재시도/참조2개를 검증한다. 파일 대화상자를 조작했다고 표시하지 않는다.
+
+Edge 원 page/handler에도 같은 ABC chunk응답 유실을 주입한다. B만 재선택해도 C는 대기/전송차단이며, C완료 후 원3개ID와 실제 상대 파일목록3개를 검사한다. 명시 제외도 별도 검사한다. 기존9에3시나리오를 더한12이며 C#/HTTP와 같은DB범위를 합산하지 않는다.
