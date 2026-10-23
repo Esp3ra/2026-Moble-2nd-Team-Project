@@ -1,5 +1,11 @@
 # 등록·본인 인증 단일 실행 진입점
 
+2026-10-23 실제 호스트 구현: [IDENTITY_SERVICE.md](IDENTITY_SERVICE.md)의
+`pi_api_identity_service.py`가 root의 정상 종료/단일 invocation 인계와 현재 process/profile/
+획득된 runtime lease를 결합한다. 아래 `run(..., ready=...)`는 기존 주입 접점으로 유지한다.
+새 호스트·전환/복구 도구의 구현과 실제 검토/서비스 적용·새지문ON/실물 성공은 구분한다.
+아래 HTTP/프로필 부재·미설치 기록은 최초 준비 단계 이력이며 현재 배포 상태로 읽지 않는다.
+
 `pi_api_identity_mysql.run(argv, ready=..., retired_keys=...)`는 기존 MySQL 등록과 본인 인증을 하나의 `pi_api.main`에 명시 조립한다. 기존 `mysql_runtime_session`의 동일 runtime.lock을 먼저 획득하고 하나의 FingerprintService를 두 factory가 빌린다. 기존 main이 인증→등록→조도→센서 drain→UART 종료를 담당한다. 별도 DB·UART·서비스/로컬 SQLite/키 생성이나 등록·삭제를 하지 않는다.
 
 등록 MySQL 설정과 별도 인증 설정을 기존 strict loader로 검증한다. 기존 등록 키와 인증4키를 분리하고 `retired_keys`도 신뢰 호스트가 제공한다. 실제 비공개 설정을 Git에 넣지 않는다.

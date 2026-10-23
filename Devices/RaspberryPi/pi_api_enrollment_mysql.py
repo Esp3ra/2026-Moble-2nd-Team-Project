@@ -6,19 +6,40 @@ The same private state/runtime.lock coordinates the historical service owner.
 
 import argparse
 from contextlib import contextmanager
+from dataclasses import dataclass, field
 import json
 import os
+import stat
 from pathlib import Path
 import sys
 
 from fingerprint_enrollment_approval import suspend_aware_clock
 from fingerprint_enrollment_private import (
-    ConfigurationError, _directory, _open_private, _read_private,
+    ConfigurationError, _directory, _no_symlinks, _open_private, _read_private,
     parse_configuration, require_linux,
 )
 from fingerprint_enrollment_mysql import CONTRACT
 from fingerprint_enrollment_runtime import MySqlEnrollmentRuntime
 from fingerprint_enrollment_wire import parse_json
+
+
+@dataclass
+class RuntimeLease:
+    """Evidence of this context's already-acquired flock, never an acquire flag."""
+    path: Path = field(repr=False)
+    descriptor: int = field(repr=False)
+    pid: int
+    active: bool = True
+
+    def current(self):
+        try:
+            _no_symlinks(self.path)
+            held, linked = os.fstat(self.descriptor), self.path.stat()
+            return (self.active and self.pid == os.getpid()
+                    and held.st_uid == os.getuid() and stat.S_IMODE(held.st_mode) == 0o600 and held.st_nlink == 1
+                    and (held.st_dev, held.st_ino) == (linked.st_dev, linked.st_ino))
+        except (OSError, ConfigurationError):
+            return False
 
 
 def load_mysql_configuration(path):
@@ -45,6 +66,7 @@ def mysql_runtime_session(config):
     require_linux()
     import fcntl
     fd = None
+    lease = None
     previous = os.umask(0o077)
     try:
         root = config.state_directory
@@ -57,12 +79,15 @@ def mysql_runtime_session(config):
         # Never initialize, delete, repair, or silently ignore the old databases.
         if any(".sqlite3" in child.name for child in root.iterdir()):
             raise ConfigurationError("legacy_evidence_migration_required")
-        yield
+        lease = RuntimeLease(root / "runtime.lock", fd, os.getpid())
+        yield lease
     except ConfigurationError:
         raise
     except Exception:
         raise ConfigurationError("mysql_runtime_unavailable") from None
     finally:
+        if lease is not None:
+            lease.active = False
         if fd is not None:
             os.close(fd)
         os.umask(previous)

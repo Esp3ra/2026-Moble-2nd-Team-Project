@@ -116,10 +116,12 @@ class MySqlStartupTests(unittest.TestCase):
             config_path.touch(mode=0o600)
             config_path.write_text(json.dumps(value))
             config = entry.load_mysql_configuration(config_path)
-            with entry.mysql_runtime_session(config):
+            with entry.mysql_runtime_session(config) as lease:
+                self.assertTrue(lease.current())
                 with self.assertRaises(ConfigurationError) as caught:
                     with entry.mysql_runtime_session(config): pass
                 self.assertEqual(str(caught.exception), "state_in_use")
+            self.assertFalse(lease.current())
             legacy = state / "ledger.sqlite3"
             legacy.write_bytes(b"preserved evidence")
             legacy.chmod(0o600)
