@@ -7,7 +7,7 @@ using RemoteWork.WinForms.Features.Attendance;
 using RemoteWork.WinForms.Infrastructure;
 using RemoteWork.WinForms.Ui;
 
-internal static class Program
+internal static partial class Program
 {
     private static int checks;
     private static readonly DateOnly Day = new(2026, 10, 21);
@@ -25,6 +25,14 @@ internal static class Program
         {
             try
             {
+                if (args.FirstOrDefault() == "--loopback-leave")
+                {
+#if REAL_LEAVE_ADAPTER
+                    RealLeave(args); result = 0; return;
+#else
+                    throw new InvalidOperationException("Reviewed combined PR79 export required.");
+#endif
+                }
                 PolicyAndDisconnected(); InvalidPeriod(); Submission(false); Submission(true);
                 BadReceipt(); LateSubmission(false); LateSubmission(true);
                 ReviewGuards(); Decision("approved"); Decision("rejected"); DecisionRetry(); BadDecisionReceipt();
@@ -33,6 +41,7 @@ internal static class Program
                 RejectionDetails(); RejectionScopeAndMissing(); RejectionList();
                 ClosingSubmission(false); ClosingSubmission(true);
                 ClosingDecision(false); ClosingDecision(true); ClosingDecisionSessionEnded();
+                ConnectedLeaveScreens(); ManagerPreparation(); LatePreparation(false); LatePreparation(true); LeaveConnectionLifetime();
                 if (args.Length == 1) Render(args[0]);
                 Console.WriteLine($"PASS Leave UI: {checks} assertions; actual WinForms + synthetic workflow/identity; no real server, database or device.");
                 result = 0;
@@ -282,6 +291,7 @@ internal static class Program
         using var review = new LeaveDecisionForm(api.CaptureSession(), null, Request()); review.Show(); Application.DoEvents();
         using var image2 = new Bitmap(review.Width, review.Height); review.DrawToBitmap(image2, new Rectangle(Point.Empty, review.Size));
         image2.Save(Path.Combine(directory, "leave-review.png"));
+        RenderConnection(directory);
     }
     private static void FilteredList(bool admin)
     {

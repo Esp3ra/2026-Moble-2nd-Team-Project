@@ -52,6 +52,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             lblLeaveFilter = new Label();
             cmbLeaveStatus = new ComboBox();
             lblLeaveEmpty = new Label();
+            lblLeavePreparation = new Label();
             gridLeaveRequests = new DataGridView();
             columnLeaveEmployee = new DataGridViewTextBoxColumn();
             columnLeaveDepartment = new DataGridViewTextBoxColumn();
@@ -253,8 +254,9 @@ namespace RemoteWork.WinForms.Features.Attendance
             panelLeave.Controls.Add(layoutLeave);
             layoutLeave.ColumnCount = 1;
             layoutLeave.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            layoutLeave.RowCount = 4;
+            layoutLeave.RowCount = 5;
             layoutLeave.RowStyles.Add(new RowStyle(SizeType.Absolute, 34F));
+            layoutLeave.RowStyles.Add(new RowStyle(SizeType.Absolute, 48F));
             layoutLeave.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
             layoutLeave.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             layoutLeave.RowStyles.Add(new RowStyle(SizeType.Absolute, 40F));
@@ -262,9 +264,15 @@ namespace RemoteWork.WinForms.Features.Attendance
             layoutLeave.Margin = new Padding(0);
             layoutLeave.Name = "layoutLeave";
             layoutLeave.Controls.Add(lblLeaveTitle, 0, 0);
-            layoutLeave.Controls.Add(flowLeaveFilters, 0, 1);
-            layoutLeave.Controls.Add(gridLeaveRequests, 0, 2);
-            layoutLeave.Controls.Add(lblLeaveEmpty, 0, 3);
+            layoutLeave.Controls.Add(lblLeavePreparation, 0, 1);
+            layoutLeave.Controls.Add(flowLeaveFilters, 0, 2);
+            layoutLeave.Controls.Add(gridLeaveRequests, 0, 3);
+            layoutLeave.Controls.Add(lblLeaveEmpty, 0, 4);
+            lblLeavePreparation.Name = "lblLeavePreparation";
+            lblLeavePreparation.Dock = DockStyle.Fill;
+            lblLeavePreparation.TextAlign = ContentAlignment.MiddleLeft;
+            lblLeavePreparation.ForeColor = Color.FromArgb(103, 116, 135);
+            lblLeavePreparation.Text = "서버 연결 전입니다. 실제 설정과 잔여일은 연결 후 확인합니다.";
             flowLeaveFilters.Name = "flowLeaveFilters";
             flowLeaveFilters.Dock = DockStyle.Fill;
             flowLeaveFilters.Margin = new Padding(0);
@@ -406,6 +414,7 @@ namespace RemoteWork.WinForms.Features.Attendance
         private Label lblLeaveFilter;
         private ComboBox cmbLeaveStatus;
         private Label lblLeaveEmpty;
+        private Label lblLeavePreparation;
         private DataGridView gridLeaveRequests;
         private DataGridViewTextBoxColumn columnLeaveEmployee;
         private DataGridViewTextBoxColumn columnLeaveDepartment;

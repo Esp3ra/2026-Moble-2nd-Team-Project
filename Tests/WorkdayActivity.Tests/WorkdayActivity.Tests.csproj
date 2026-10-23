@@ -4,5 +4,6 @@
     <UseWindowsForms>true</UseWindowsForms><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../../RemoteWork.WinForms/RemoteWork.WinForms.csproj" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="../../Tools/ConnectedWorkspace/ConnectedWorkspace.csproj" /></ItemGroup>
   <ItemGroup><None Include="../../Devices/RaspberryPi/fixtures/identity_v2_peer1.json" Link="identity-v2.json" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
 </Project>

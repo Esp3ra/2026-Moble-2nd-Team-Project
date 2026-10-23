@@ -110,6 +110,8 @@ namespace RemoteWork.WinForms.Features.Attendance
                     lblLeaveEmpty.Text = "다시 로그인하면 내역을 확인할 수 있습니다.";
                     lblLeaveTitle.Text = "로그인이 필요합니다. 이전 신청 목록을 닫았습니다.";
                     lblBalance.Text = "잔여 연차 조회 전";
+                    lblLeavePreparation.Text = "로그인이 종료됐습니다. 연차 설정과 잔여일을 다시 확인해 주세요.";
+                    leaveSubmissionReady = false;
                     btnQuery.Enabled = btnLeaveDecision.Enabled = btnLeaveApplicationPreview.Enabled = btnLeaveDetails.Enabled = false;
                     cmbLeaveStatus.Enabled = false;
                 }));
@@ -127,6 +129,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             ? gridLeaveRequests.SelectedRows[0].Tag as LeaveRequestView : null;
         private void UpdateReviewButton()
         {
+            UpdateLeaveApplicationButton();
             btnLeaveDecision.Enabled = LeaveLive && !leaveLoading
                 && leaveWorkflow.IsConnected && LeaveInput.Administrator(leaveSession)
                 && SelectedLeave is { CanReview: true, Status: "pending" };
@@ -155,6 +158,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             lblLeaveTitle.Text = "연차 신청 조회 중…";
             lblLeaveEmpty.Text = "신청 내역을 불러오고 있습니다.";
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(leaveLifetime.Token, leaveSession!.Cancellation);
+            var screen = RefreshLeaveScreenAsync(linked.Token);
             try
             {
                 var rows = await leaveWorkflow.ListAsync(linked.Token);
@@ -175,6 +179,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             }
             finally
             {
+                await screen;
                 leaveLoading = false;
                 if (LeaveLive) { btnQuery.Enabled = true; UpdateReviewButton(); }
             }
@@ -203,6 +208,7 @@ namespace RemoteWork.WinForms.Features.Attendance
 
         private void btnLeaveApplicationPreview_Click(object? sender, EventArgs e)
         {
+            if (leaveConnection is not null && (!LeaveLive || leaveLoading || !leaveConnection.IsCurrent || !leaveSubmissionReady)) return;
             using var form = new LeaveApplicationForm(leaveSession, leaveWorkflow);
             if (PreviewOnly) form.Text = "화면 체험 · 실제 저장 없음 · " + form.Text;
             form.ShowDialog(this);
