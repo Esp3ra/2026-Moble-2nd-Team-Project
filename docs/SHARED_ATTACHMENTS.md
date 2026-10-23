@@ -1,5 +1,63 @@
 # 3번 공용 첨부 제공 계약 — 로컬 구현, 소비/DB 반영 전 검토
 
+## 2026-10-23 D3 사용자 선택 / 3번 보완 작업 경계
+
+기준 alpha `ea45d437f05d5af41f309b656ad9a533b7c3f9d3`, LOG
+`cd7ad2123ff4a9b6fbdc6d1eede12d909cb0d693`. 4번 PR76 댓글
+`member4-d3-owner3-request-20261023`에 대한 본 채팅 사용자 선택은 다음과 같다.
+공지 A의 연결만 해제하고 B가 같은 파일을 쓰면 B 다운로드를 유지한다.
+마지막 참조가 없어지면 별도 보관기간/보존 열람 기능 없이 실제 파일을 정리한다.
+다른 참조/현재 권한 검사를 무시하는 강제 삭제는 하지 않는다.
+공지·참조·감사 DB 처리 실패는 rollback한다. commit 후 파일 정리만 실패하면
+기존 deleting 상태에서 재시도하며, 이를 공지 DB 삭제 실패나 완료된 바이트 삭제로 표시하지 않는다.
+
+3번은 기존 release/cleanup 동작을 재구현하지 않고, 같은 인증TX의 현재 첨부 ID를
+읽는 공개 함수와 실패/경합 회귀만 보완한다. 4번의 notice_resource release409와
+block_notice_file_delete·공지 삭제 서비스/화면은 변경하지 않는다.
+이 기록은 사용자 선택을 담은 로컬 제공/검증 계약이며 팀장 수신·4번 연결·공유 배포
+완료를 뜻하지 않는다. 원UUID/W1 공지 저장 복구는1·4번 별도 후속이다.
+
+### D3 현재 제공 접점과 소비 순서
+
+`app.extensions["results_resource_attachments"]`의 다음 함수를 사용한다.
+
+- **추가:** `read_resource_attachment_ids(db, kind, resource_id) -> tuple[str, ...]`.
+  같은 인증TX에서 현재 자원의 정렬된 첨부 UUID만 locking read로 반환한다.
+  현재 `read` 권한을 검사하며 파일명·다른 자원 ID/권한은 반환하지 않는다.
+  별도 commit·파일 IO·변경·감사는 없다. HTTP 목록과 다른 동일TX용 공개 접점이다.
+  잘못된 kind/ID400, 현재 권한403, 자원 없음404, 제공부/스키마 미준비503,
+  호출자의 인증TX/db가 아니면 RuntimeError다.
+- **기존 유지:** `release_resource_files(db, "notice", notice_id) -> None`.
+  현재 `release` 권한 콜백을 거쳐 A 참조만 해제하고 현재 전체 참조를 확인한다.
+  B 참조가 있으면 ready/원 바이트를 유지하며, 마지막 참조면 같은TX에서 deleting 표시한다.
+  standalone 삭제 HTTP API나 새로운 성공/보존 DTO는 만들지 않는다.
+- **기존 유지:** `current_app.extensions["results_shared_attachments"].cleanup_shared_files() -> int`.
+  원TX commit 후 요청 종료 단계에서 실행하며, 실패분은 기존
+  `shared-attachments cleanup` CLI/위 공개 함수로 운영자가 재시도할 수 있다.
+  실행에는 기존 앱 설정·app context가 필요하며4번이 저장소 경로/ORM을 직접 복제하지 않는다.
+  성공한 물리 정리 수를 반환한다. 반환0은 대기 파일이 없다는 증명이 아니다.
+
+4번이 연결할 순서는 다음과 같다. 실제 적용은 기존 release409/삭제 차단과 함께
+4번이 변경해야 하며,3번이 해당 파일을 대신 수정하지 않는다.
+
+1. 기존 관리자 인증TX/현재 공지 잠금 안에서 공개 reader로 현재 ID를 읽는다.
+2. 같은 db로 공개 release를 호출하고 공지 삭제·감사를 동일TX에 묶는다.
+3. DB/참조/감사 처리나 commit 실패는 모두 rollback한다. 실제 파일은 commit 전에 지우지 않는다.
+4. commit 뒤 정리를 시도한다. 파일만 잠겨 실패하면 삭제대기로 남아 접근은 차단되고,
+   재시도해서 정리한다. 이미 commit된 공지를 자동 복구하거나 바이트 삭제 완료로 표시하지 않는다.
+
+**검증:** 최신 alpha 위 정식015를 별도 소유 MySQL에 적용해 실제 loopback HTTP로
+기존108 + D3 추가80 = 총188검사 통과. 추가 검사는 동일TX 외 호출 거절·현재 ID/
+권한/입력, A/B 참조 보존, 공지·참조·감사 rollback, 마지막 참조의 commit 실패,
+DB commit 후 파일 잠금/삭제 재시도, 실제 인증 RR snapshot 뒤 B 연결 commit과
+A 삭제 경합을 포함한다. 권한/공지 삭제 소비는 명시 시험 대역으로서4번 실제 서비스가 아니다.
+초기 실행은 시험기의 SQL 주석 안 세미콜론 분리로 실패했고, 주석을 먼저 제거하는
+시험기만 수정한 후 정식015 원문 그대로 재실행했다. SQL/DDL 제품 오류로 보고하지 않는다.
+
+정식013/015·공통 인증/옵션/DB·4번 코드·4폼은 변경하지 않았다. 실제 공유 서버/DB,
+실계정·두PC·브라우저/WinForms 공지 삭제·C# 빌드는 이번 미실행이다.
+새 보관기간/보존 화면/팀장 결정·공유 적용을 완료로 기록하지 않는다.
+
 ## 2026-10-22 공지·채팅 제공부 작업 경계 — 구현 전 기록
 
 기준 alpha `7692ce41cf36e89e6f5881b61efcc7fcb05fe5e5`, LOG

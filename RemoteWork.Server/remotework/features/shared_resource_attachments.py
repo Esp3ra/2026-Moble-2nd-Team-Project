@@ -241,6 +241,18 @@ def replace_resource_files(db, kind, resource_id, attachment_ids):
     return [service._attachment_json(item) for item in files]
 
 
+def read_resource_attachment_ids(db, kind, resource_id):
+    """Current sorted IDs in the caller's authenticated TX; no commit or IO.
+
+    Resource authority remains the owner's current read callback. This exposes
+    only this resource's IDs, never other resources or their readers.
+    """
+    resource_id, _ = _access(db, kind, resource_id, "read")
+    model, column = _model(kind)
+    return tuple(db.scalars(select(model.attachment_id).where(column == resource_id)
+                 .order_by(model.attachment_id).with_for_update()))
+
+
 def release_resource_files(db, kind, resource_id):
     """Explicit resource deletion only after owner policy approval; not hide."""
     resource_id, _ = _access(db, kind, resource_id, "release")
