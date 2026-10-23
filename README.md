@@ -1,3 +1,10 @@
+<a id="pr85-current-20261023"></a>
+## 최신 — PR85 내부망 HTTP 업무·결과물 첨부 검증 연결·병합
+
+[PR85 최종 검토](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/85#issuecomment-6356794850)의 고정 **b46f3679→alpha 412e2089**를 검토 후 병합했습니다. 기존 공통 `RemoteWorkFileHash.sha256`을 업무·결과물 소비 화면에서 같은 origin의 동적 import로 연결해, `crypto.subtle`이 없는 내부망 HTTP에서도 전체 크기·SHA 검증을 수행합니다. 공통 함수·API/DTO/DDL/권한·원 UUID·명시 재시도 계약은 유지합니다.
+
+직접 Node 검사141/83/32와 별도 결과 소비 VM8, 실제 headless Edge13/pageErrors0을 통과했습니다. 브라우저는 소유 loopback HTTP·비 localhost 테스트 도메인에서 secureContext=false/subtleAvailable=false와 제품 JS/CSP/동적 import·업무 업로드/검증 다운로드·모듈404 차단을 확인한 명시 HTTP/데이터 fixture입니다. [정확한 SHA·밴드·한계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr85-reviewed-merged-20261023)·[협업 경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr85-lan-hash-20261023). 실계정/공유DB·실제5000 전송·네이티브 파일선택창·두PC 검증은 별도입니다. 아래 기록은 당시 이력입니다.
+
 <a id="pr84-current-20261023"></a>
 ## 최신 — PR84 검토·병합 / 팀장 D3 삭제 정책 확정
 

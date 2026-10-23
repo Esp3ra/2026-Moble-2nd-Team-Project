@@ -1,3 +1,30 @@
+<a id="pr85-reviewed-merged-20261023"></a>
+## PR85 내부망 HTTP 업무·결과물 첨부 SHA-256 소비 연결 검토·병합 — 2026-10-23
+
+[단일 최종 댓글](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/85#issuecomment-6356794850)에 검토·실제 병합 결과를 기록했습니다. 병합을 막을 결함은 발견하지 못했습니다.
+
+|고정 대상|확인 결과|
+|---|---|
+|head/base|`b46f36790722746862d0f86725316ffbafe9871e` / `ed9b0e81c6260f0504327c035422ce3685b1101a`,4파일|
+|실제 병합|`412e20890dc3c5bf9288614d31fa95d0b02a7d2a`, 기존 Open→Merge|
+|tree/부모|`cebe509e74fff99a27159e20b0b49ab48fe8e68e`, 검증 head tree와 동일; 부모는 고정 base/head와 일치|
+
+업무 `task_attachments.js`와 결과물 `results.js`가 같은 origin의 기존 공통 해시 모듈을 불러옵니다. SHA·전체 크기·25MiB, 현재 세션/CSRF·취소, 원 UUID·명시 재시도 경로를 유지하며 모듈 실패를 검증 생략으로 바꾸지 않습니다. 공통 함수·새 endpoint/DTO/DDL/권한·키/운영ACK 변경은 없습니다.
+
+|이번 직접 검증 밴드|결과와 범위|
+|---|---|
+|TaskWeb transport|141개/17시나리오 PASS. 실제 소비 JS+실제 공통 함수, crypto/subtle 없는 DOM/HTTP 대역. 업/다운로드·불일치·세션/지연응답·원 요청 재시도·모듈 실패 송신0|
+|기존 Results UI|83개 PASS. 실제 results.js의 DOM/HTTP 대역. 이 수치가 결과 첨부 전송 전체 검증을 뜻하지 않음|
+|공통 FileHash|32개 PASS. Node crypto 기준값·25MiB·slice·입력변경·취소. 공통 모듈 제품 소스는 이번 변경 없음|
+|추가 Results 소비|VM8개 PASS. 실제 공통 함수의 abc 업로드 SHA/크기·바이트/첨부 UUID, 정상 다운로드·크기/해시 불일치 차단, 모듈 실패 뒤 텍스트 전용 처리. DB 없음|
+|별도 실제 Edge|headless13개 PASS/pageErrors0. 소유 loopback HTTP와 비 localhost 테스트 도메인에서 secureContext=false/subtleAvailable=false. 실제 제품 JS/CSP와 동적 import, 업무 선택→명시 start/chunk/complete→최종목록 재확인/검증 다운로드, 결과 이력 초기화, helper404 시 업무 파일 요청0·차단/일반 결과 조회 유지. HTTP/데이터는 명시 fixture|
+
+브라우저 최초 fixture의 table 누락과404 mock의 Referrer 가정을 고친 후 재실행했습니다. 원 실패를 로컬 감사 기록에 보존했고 제품 소스는 수정하지 않았습니다. Git clean/diff-check 통과. 각 밴드는 별도이며 반복/포함 수치를 합산하지 않습니다.
+
+비차단 참고: `task_attachments.js:195` helper 실패 안내에 이전 HTTPS/localhost 문구가 남습니다. 다음 소비부 정리 시 모듈 로드 실패·새로고침 안내와 맞추도록 권장했습니다.
+
+작성자의 실제5000 정적파일 적용 보고와 이번 직접 검증을 구분합니다. 실계정·공유 DB·실제5000 파일 전송·네이티브 파일 선택창·두 물리PC 검증은 별도입니다. 이번 검토에서 실제서버/env·DB/DDL·키·장치·운영flags/ACK·사용자 프로젝트를 변경하지 않았습니다. [협업 경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr85-lan-hash-20261023). 아래는 이전 기록입니다.
+
 <a id="pr84-reviewed-merged-20261023"></a>
 ## PR84 검토·팀장 D3 정책 확정·병합 — 2026-10-23
 
