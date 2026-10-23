@@ -69,3 +69,6 @@ W1-05 회신에 따라 002와 업무 ORM의 상태 CHECK는 다섯 소문자 코
 - 신규 D/E 모델은 기존 `tasks.task_id` signed BIGINT·`task_assignments(task_id, revision)`의 BIGINT/INTEGER·users signed INTEGER와 FK 타입/현재 DB를 맞춰야 합니다. 취소는 여섯 번째 업무 상태/물리 삭제로 구현하지 않고 이력을 보존합니다. 연장 대기1건의 DB/잠금 경계·동시 신청/판단·업무 버전 증가를 명시한 초안이 필요합니다.
 - 기존3번 `ExternalFacts`에는 `reviewer_id/extension_pending`만 있고 취소 여부가 없습니다.2번의 취소/연장 저장과3번의 제출·판단은 동일 task/배정 잠금·현재 관계·유효 기한을 같은 DB transaction에서 재검사하도록 연결해야 합니다. 현재의 명시 개발 `SubmissionGate`를 실연장 신청 모델이나 공유 환경의 기본 false로 취급하지 않습니다.
 - 1번은 수신한 초안을 전용MySQL에서 대조하고 raw009 FK/제약·정책/권한·재전송·새DB 복원까지64검사를 통과했습니다.2번의 TESTING 대역과3번 실제 경로는 구분하며,3번 제출·판단·단계별 첨부의 취소/연장 경합과 실제 대상 환경/백업복구/공유 적용은 후속입니다. 전체 통합ACK·공유 적용 완료로 표시하지 않습니다.
+# 016 연차 — 1번 개발 연결 계약
+
+`016_leave.mysql.sql`은 연차 전용5테이블의 명시 CREATE이며 schema_versions[1]·기존 업무/근태를 유지한다. 번호/정책은 이번 개발 구현이며 팀장·5번 계약수용과 공유적용은 별도로 확인한다. 일부 존재 시 재실행·자동ALTER/DROP하지 않는다. 기본8일은 명시 멤버 준비 시만 적용하고, 담당관리자/확정 휴일/정책 확인값 없이 차감하지 않는다. 전체DB/파일 비공개 백업→독립 복원·전행/DDL/파일 대조→016 리허설·엄격검사→실제적용 순서를 따른다. [API/초기 준비·복구/5번 주입](../../docs/LEAVE_API.md), [소유 MySQL/HTTP/C# 검사](../../Tests/LeaveService.Tests/README.md).

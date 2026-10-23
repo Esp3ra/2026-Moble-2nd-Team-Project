@@ -276,3 +276,8 @@ dotnet build .\Tests\TaskQueries.Http.Tests\TaskQueries.Http.Tests.csproj -c Rel
 [검토 결과·남은 연결·실행/미실행 범위](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr44-47-recheck-20261020). 코드 검증 이후 이 README 상태 기록만 추가했으며 제품 트리는 위 최종 코드 merge와 같습니다.
 
 </details>
+# 연차 서버 개발 연결 — 1번
+
+[연차 API·잔여일·같은 요청 복구·공통 C# 어댑터](docs/LEAVE_API.md)를 기본OFF로 제공한다. 기존5번 Designer/ILeaveWorkflow에 명시 주입하며 자동 startup/계정·관리자/연차 부여 seed는 없다. 사용자 기본8일/공휴일 제외 지시를 개발 구현했고 실제 개인별 담당/휴일자료·팀 정책수용/배포는 별도다. [전용 검증](Tests/LeaveService.Tests/README.md)과 실제공유환경/두PC를 구분한다.
+
+검토 목록은 현재 활성 신청인과 지정 담당관계를 같은 잠금 조회에서 확인한 뒤 페이지를 나누며, 각 행을 응답하기 전 조회 권한을 다시 검사한다. 담당관계가 회수된 신청이나 비활성 신청인이 다른 직원의 목록·다음 페이지에 섞이지 않도록 처리한다. 담당관리자가 해제·비활성화돼도 본인의 기존 이력은 읽을 수 있다.
