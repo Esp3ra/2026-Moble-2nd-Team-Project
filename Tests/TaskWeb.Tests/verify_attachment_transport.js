@@ -4,6 +4,7 @@
 const assert = require("node:assert/strict"), fs = require("node:fs");
 const path = require("node:path"), vm = require("node:vm"), crypto = require("node:crypto");
 const source = fs.readFileSync(path.join(__dirname, "../../RemoteWork.Server/remotework/static/task_attachments.js"), "utf8");
+const hashSource = fs.readFileSync(path.join(__dirname, "../../RemoteWork.Server/remotework/static/file_hash.js"), "utf8");
 let checks = 0, scenarios = 0;
 function check(value, message) { assert.ok(value, message); checks++; }
 const hash = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
@@ -97,7 +98,7 @@ function server() {
   };
   return state;
 }
-function harness({mode = "create", explicit = false, ids = null, display = [], service = server(), configPatch = {}} = {}) {
+function harness({mode = "create", explicit = false, ids = null, display = [], service = server(), configPatch = {}, hashAvailable = true} = {}) {
   const panel = new Element("section"), form = new Element("form"), window = new Element("window");
   const logout = new Element("form"), nodes = {}, created = [], blobs = [], confirmations = [];
   const config = {mode, explicit, ids, display, taskId: mode === "create" ? null : "1", session,
@@ -121,12 +122,15 @@ function harness({mode = "create", explicit = false, ids = null, display = [], s
   TestURL.revokeObjectURL = () => {};
   const storage = new Proxy({}, {get: () => { throw new Error("Browser persistence is forbidden"); }});
   const context = {document, window, console, location: {origin: "http://fixture.invalid"}, URL: TestURL,
-    AbortController, FormData: FormDataDouble, fetch: service.fetch, Uint8Array, Blob,
+    AbortController, DOMException, ArrayBuffer, FormData: FormDataDouble, fetch: service.fetch, Uint8Array, Blob,
     btoa: value => Buffer.from(value, "binary").toString("base64"),
     atob: value => Buffer.from(value, "base64").toString("binary"),
-    crypto: {subtle: {async digest(_, bytes) { return Uint8Array.from(Buffer.from(hash(Buffer.from(bytes)), "hex")).buffer; }}},
     setTimeout: callback => { callback(); return 1; }, localStorage: storage, sessionStorage: storage, indexedDB: storage};
-  vm.runInNewContext(source, context, {filename: "task_attachments.js"});
+  // Deliberately no crypto/subtle: all actual transport scenarios use the
+  // product LAN helper, while expected file hashes come from Node's SHA-256.
+  vm.createContext(context);
+  if (hashAvailable) vm.runInContext(hashSource, context, {filename: "file_hash.js"});
+  vm.runInContext(source, context, {filename: "task_attachments.js"});
   const h = {nodes, form, logout, window, service, blobs, created, confirmations,
     setConfirm: value => { confirmResult = value; },
     choose(files) { nodes.input.files = files; nodes.input.value = "fakepath"; nodes.input.emit("change"); },
@@ -140,6 +144,13 @@ function harness({mode = "create", explicit = false, ids = null, display = [], s
 async function scenario(name, fn) { await fn(); scenarios++; console.log("PASS " + name); }
 
 (async () => {
+  await scenario("missing common helper keeps file operations disabled without bypassing verification", async () => {
+    // No import callback in this VM models a failed common-module load.
+    const h=harness({hashAvailable:false}); await settle();
+    check(h.nodes.input.disabled && h.nodes.choose.disabled && h.nodes.upload.disabled, "missing hash leaves file controls disabled");
+    check(h.nodes.feedback.textContent.includes("파일 검증 기능을 불러오지 못했습니다"), "missing helper reports reload guidance");
+    check(h.service.calls.length===0, "missing verifier sends no file request");
+  });
   await scenario("local selection remains separate from explicit upload and form execution", async () => {
     const h = harness(); await settle();
     check(!h.nodes.choose.disabled && h.service.calls.length === 0, "create screen has no initial network or upload");

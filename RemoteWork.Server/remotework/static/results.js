@@ -1,7 +1,10 @@
 "use strict";
-(() => {
+(async () => {
   const root = document.getElementById("results-page");
   if (!root) return;
+  try {
+    if (!globalThis.RemoteWorkFileHash) await import("./file_hash.js");
+  } catch (_) { /* Other result actions remain available; file hashing fails closed. */ }
   const $ = id => document.getElementById(id);
   const labels = {not_started:"진행전", in_progress:"진행중", submitted:"제출완료", approved:"승인완료", returned:"반려완료"};
   const reviewLabels = {submitted:"검토 대기", approved:"승인", returned:"반려"};
@@ -11,6 +14,7 @@
   const scope = root.dataset.session, csrf = root.dataset.csrf;
   const readOnly = root.dataset.view === "read";
   const controllers = new Set();
+  const hashController = new AbortController(); controllers.add(hashController);
   let invalid = false, busy = false, pending = null;
   let pendingFailure = null, canReprepare = false, selectionRevision = 0;
   let tasks = [], task = null, submissions = [], selected = null, generation = 0;
@@ -95,9 +99,8 @@
     $("approve-open").disabled = $("return-open").disabled = busy || Boolean(pending) || !ready;
   }
   async function digest(content) {
-    if (!crypto.subtle) throw new Error("파일 확인은 localhost 또는 HTTPS 접속에서 사용할 수 있습니다.");
-    const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", content));
-    return Array.from(hash, x => x.toString(16).padStart(2,"0")).join("");
+    if (typeof globalThis.RemoteWorkFileHash?.sha256 !== "function") throw new Error("파일 검증 기능을 불러오지 못했습니다. 화면을 새로고침한 뒤 다시 시도해 주세요.");
+    return globalThis.RemoteWorkFileHash.sha256(content, {signal: hashController.signal});
   }
   async function download(file) {
     try {

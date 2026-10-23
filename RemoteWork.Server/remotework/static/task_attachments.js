@@ -1,6 +1,11 @@
 /* Owner 2 cookie attachment consumer. No Bearer tokens or persisted drafts. */
-(() => {
+(async () => {
   "use strict";
+  // Same-origin common helper also works on LAN HTTP. Load it here so cached
+  // server templates need no restart or change to the current login session.
+  try {
+    if (!globalThis.RemoteWorkFileHash) await import("./file_hash.js");
+  } catch (_) { /* Keep file operations disabled; never bypass verification. */ }
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
   const hash = /^[0-9a-f]{64}$/;
   const maxBytes = 25 * 1024 * 1024, chunkBytes = 16384;
@@ -18,7 +23,7 @@
     const idsField = panel.querySelector("[data-attachment-ids]");
     const displayField = panel.querySelector("[data-attachment-display]");
     const editable = config.mode !== "read";
-    const canHash = !!(globalThis.crypto && globalThis.crypto.subtle);
+    const canHash = typeof globalThis.RemoteWorkFileHash?.sha256 === "function";
     if (!feedback || !list || !count || !refresh || (editable && (!form || !input || !choose || !upload || !idsField || !displayField))) return;
     let alive = true, busy = false, loaded = !config.taskId, explicit = config.explicit === true, serial = 0;
     const display = restoredDisplay();
@@ -170,7 +175,7 @@
       finally { busy = false; render(); }
     }
     async function refreshList() {
-      if (!config.taskId) { loaded = true; say(canHash ? "파일을 선택한 뒤 명시적으로 업로드해 주세요." : "이 브라우저 연결에서는 파일 검증을 사용할 수 없습니다. HTTPS 또는 localhost로 접속해 주세요.", !canHash); return; }
+      if (!config.taskId) { loaded = true; say(canHash ? "파일을 선택한 뒤 명시적으로 업로드해 주세요." : "파일 검증 기능을 불러오지 못했습니다. 화면을 새로고침한 뒤 다시 시도해 주세요.", !canHash); return; }
       loaded = false;
       if (!explicit || !editable) rows = [];
       const items = await readList(); current();
@@ -188,7 +193,7 @@
         (editable && explicit ? " 입력 중인 최종 선택은 유지합니다." : ""));
       if (!canHash) say("파일 전송·다운로드 검증에는 HTTPS 또는 localhost 접속이 필요합니다. 기존 첨부 조회와 유지는 가능합니다.", true);
     }
-    const digest = async bytes => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))).map(x => x.toString(16).padStart(2, "0")).join("");
+    const digest = bytes => globalThis.RemoteWorkFileHash.sha256(bytes, {signal: controller.signal});
     async function uploadRow(row) {
       row.state = "uploading"; render();
       let started = !!row.id;
