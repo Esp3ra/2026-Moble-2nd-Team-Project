@@ -1,3 +1,33 @@
+<a id="pr86-88-reviewed-20261023"></a>
+## PR86·87·88 검토 — 2026-10-23
+
+원 base는 모두 `412e20890dc3c5bf9288614d31fa95d0b02a7d2a`입니다. 86·87은 다른 대화에서 승인받았다는 PR 작성자의 보고와 본 채팅 팀장의 직접 결정을 구분해 정책을 확인 요청한 상태입니다. 코드 차단 결함은 없지만 정책 확정 전에는 병합하지 않습니다.
+
+|PR|고정 head|현재 판정|
+|---|---|---|
+|[86](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/86#issuecomment-6359071539)|`3caa6c033b3b45f309dc2d663b3de23d84f48933`|기술 검토 통과·팀장 정책 확정 대기/미병합|
+|[87](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/87#issuecomment-6359071873)|`0ecf6807f143987c2ae456a9fc48559993737ccd`|기술 검토 통과·팀장 정책 확정 대기/미병합|
+|[88](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/88#issuecomment-6359006697)|`f365953df50edb33360ebd976461fa6ab02a64f2`|병합 e2ee34bf|
+
+**88:** 같은 captured 관리자 세션으로 원 페이지·ID·로그인명·활성/역할을 재조회한 뒤 명시 확인합니다. 선택/접속/수명 변경 뒤 늦은 응답은 창을 열지 않습니다. 생성/기존 회원 target을 구분하고 일반 기존 회원은 복구번호 없이 기존 launcher/5번폼의 별도 시작으로 연결합니다. 미저장 입력·비밀번호·회원 쓰기0, 열기만 하면 issue/센서0이며 결과불명 자동 신규시도는 없습니다. 실제 병합 `e2ee34bfcb8a8ca7a75a2efe3f26c9ee2106e98f`의 tree `36b4bc50f65757fdfc165b295621cc8b845187d0`는 검증 head와 같고 부모도 원 base/head와 일치합니다.
+
+**86:** 당일 실제 근태 이력으로 새 일반 세션만 발급하고, 퇴근 시 폐기한 토큰·기존 근무/퇴근시각은 복원하지 않습니다. 현재 근무/정오/퇴근·재출근409와 다음 KST 첫접속 지문 요구를 유지합니다.
+
+**87:** 공통 guard TX의 현재 관리자/장치 권한·양쪽 계정·mapping revision·원 completed Job/Claim·전체 이전 이력을 확인합니다. mapping·이전 이력·감사는 함께 commit/rollback하며 원 등록 증거·센서 지문은 보존합니다. 진행근무/미완료 등록·인증/대상 기존연결은 거절합니다. 옛 소유자는 완료된 원 결과만 원 문맥/바이트·동일 finalize UUID로 조회하고, 새 소유자는 그 결과를 승계하지 않습니다.
+
+|이번 직접 검증 밴드|결과와 범위|
+|---|---|
+|86 고정 head|native MySQL74PASS/1skip, child90.38초/전체96.48초. identity/service·workday·새postclockout·host. skip1은 현재 Windows 토큰의 임시 소유자 ACL 교체 불가|
+|87 고정 head|native MySQL239PASS/4skip, child245.02초/전체250.70초. 새 transfer20을 포함한 등록/내구성/복구·identity/근무/host. skip은 ACL1·명시 migration opt-in 미설정3|
+|87 추가 소유 MySQL|6PASS/11.97초. 대상기존mapping·권한철회·issued등록·손상된이력 무변경거절, 정확한 소유TX 연결만 종료한 실제 native COMMIT 실패의 mapping/이력/감사/pending rollback, 새소유자의 옛challenge/receipt 거절|
+|88 실제 폼|필수 --require-mysql-enrollment: 기존연결341·복구95·기존회원58·회원관리14시나리오46 PASS. 실제 폼/launcher/5번폼과 통제HTTP/Pi 대역이며 모드명이 실제 공유MySQL/센서 검증을 뜻하지 않음|
+|88 빌드/시각확인|Release0경고0오류·실제합성폼PNG. 새 등록 버튼 문구 끝부분 잘림은 비차단 표시 후속|
+|86+87+88 결합|88병합본 위86→87일반merge 충돌0. 별도 소유MySQL32PASS/46.68초, 전체53.23초. 새postclockout6·transfer20·추가6. 반복/포함 밴드 비합산|
+
+모든 native 소유DB/자식/runtime 정리true, SQLite시도0·제품소스 불변·Git clean/diff-check 통과입니다. 초기 새설치 FK 비교 보조 스크립트는 PYTHONPATH 누락을 실행 환경에서 교정했으며 제품을 수정하지 않았습니다. 비DB metadata 비교는 새 init이3열FK를 만들고 제공 raw DDL은 구4열FK를 DROP하는 기존007 이관 경로임을 확인했습니다. 새 설치·중간 실패의 재개 절차는 별도로 안내해야 하며 정식 DDL 번호/자동 운영 적용으로 처리하지 않습니다.
+
+86의 일반적인 종료근무 안내,88 긴버튼 잘림,87 CHECK식/claim revision 손상 방어·새설치 안내는 비차단 보완입니다. 작성자의 실제5000·계정 생성/슬롯 이전·서버ON/복원 보고는 이번 직접 검증과 구분합니다. 공유서버/DB·env/DDL·실계정/키/슬롯/센서·프로필·운영flags/ACK·사용자 프로젝트는 이번에 변경하지 않았습니다. [정책/담당별 후속](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr86-88-policy-20261023). 아래는 이전 기록입니다.
+
 <a id="pr85-reviewed-merged-20261023"></a>
 ## PR85 내부망 HTTP 업무·결과물 첨부 SHA-256 소비 연결 검토·병합 — 2026-10-23
 
