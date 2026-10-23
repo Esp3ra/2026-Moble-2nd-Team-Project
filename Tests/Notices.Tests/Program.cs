@@ -51,6 +51,7 @@ internal static class Program
                 await PopupSessionChanged(host);
                 await SaveLifecycle(host);
                 await ScreenLifecycle(host);
+                await DeleteOutcome(host);
                 if (args.Length > 0) await RealHttp(args[0], host);
                 Console.WriteLine($"PASS: {checks} notice checks. " + (args.Length > 0 ? "Includes actual local HTTP/database." : "HTTP test double and actual WinForms controls; no database."));
                 result = 0;
@@ -261,6 +262,33 @@ internal static class Program
         Check(page.IsDisposed, "Late response after disposal is ignored without UI access");
     }
 
+    private static async Task DeleteOutcome(Form host)
+    {
+        var service = new ControlledService(); var notice = Notice(88);
+        service.Items.Add(notice);
+        using var page = new NoticesControl(PreviewRole.Administrator, service);
+        host.Controls.Add(page); page.CreateControl(); await page.ReloadNoticesAsync();
+        var method = typeof(NoticesControl).GetMethod("DeleteNotice", Hidden)!;
+        Task Delete() => (Task)method.Invoke(page, new object[] {notice})!;
+        service.DeleteError = new ApiException("response lost", 503);
+        await Delete();
+        Check(Field<Label>(page,"lblText4").Text=="삭제 결과 확인 필요", "unknown delete is not declared a definite failure or success");
+        Check(Field<DataGridView>(page,"gridNotices").Rows.Count==1, "unknown delete retains original notice until GET");
+        await Delete(); Check(service.Deletes==1,"unknown original delete does not send another POST");
+        service.ListError = new ApiException("offline"); await page.ReloadNoticesAsync(); await Delete();
+        Check(service.Deletes==1,"failed list GET cannot unlock original unknown delete");
+        service.ListError=null; service.Items.Clear(); await page.ReloadNoticesAsync();
+        Check(Field<DataGridView>(page,"gridNotices").Rows.Count==0,"authoritative list confirms a committed deletion");
+        service.Items.Add(notice); await page.ReloadNoticesAsync(); service.DeleteError=new ApiException("forbidden",403);
+        await Delete(); Check(Field<Label>(page,"lblText4").Text=="공지사항 삭제 실패","definite 403 remains an error with original row");
+        service.DeleteError=null; await Delete();
+        Check(service.Deletes==3 && Field<DataGridView>(page,"gridNotices").Rows.Count==0,"explicit successful deletion refreshes row only after server response");
+        service.Items.Add(notice); await page.ReloadNoticesAsync();
+        service.DeleteError=new ApiException("malformed success",200); await Delete(); await Delete();
+        Check(service.Deletes==4 && Field<Label>(page,"lblText4").Text=="삭제 결과 확인 필요","malformed HTTP200 also preserves unknown original deletion without retry");
+        host.Controls.Remove(page);
+    }
+
     private static async Task RealHttp(string url, Form host)
     {
         // Optional fixture server: exclusively uses synthetic accounts in a disposable DB.
@@ -309,6 +337,8 @@ internal static class Program
     {
         public List<Notice> Items { get; } = new();
         public int Creates;
+        public int Deletes;
+        public ApiException? DeleteError;
         public TaskCompletionSource<Notice> CreateCompletion = new();
         public TaskCompletionSource<IReadOnlyList<Notice>>? ListCompletion;
         public ApiException? ListError;
@@ -316,6 +346,6 @@ internal static class Program
             ? Task.FromException<IReadOnlyList<Notice>>(ListError) : ListCompletion?.Task ?? Task.FromResult<IReadOnlyList<Notice>>(Items.ToArray());
         public Task<Notice> GetNoticeAsync(int id, CancellationToken ct = default) => Task.FromResult(Items.Single(n => n.Id == id));
         public Task<Notice> CreateNoticeAsync(CreateNoticeRequest request, CancellationToken ct = default) { Creates++; return CreateCompletion.Task; }
-        public Task DeleteNoticeAsync(int id, CancellationToken ct = default) { Items.RemoveAll(n => n.Id == id); return Task.CompletedTask; }
+        public Task DeleteNoticeAsync(int id, CancellationToken ct = default) { Deletes++; if (DeleteError is not null) return Task.FromException(DeleteError); Items.RemoveAll(n => n.Id == id); return Task.CompletedTask; }
     }
 }

@@ -1,6 +1,7 @@
 """Member 4 current authority and same-transaction consumers of member 3 ports.
 
-No DDL, storage, task permission or deletion policy is installed here.
+No DDL, storage or task permission is installed here.
+Notice deletion consumes the D3 selection through public member3 ports.
 """
 import hashlib
 import json
@@ -30,10 +31,7 @@ def notice_resource(db, notice_id, operation):
                        .execution_options(populate_existing=True))
     if notice is None:
         raise AppError(404, "NOTICE_NOT_FOUND", "공지사항이 없습니다.")
-    if operation == "release":
-        # File retention is separate from the adopted notice-confirmation CASCADE.
-        raise AppError(409, "NOTICE_ATTACHMENT_RETENTION_PENDING", "첨부가 있는 공지의 삭제·보존 정책 협의가 필요합니다.")
-    if (not g.user.is_active or (operation == "attach" and g.user.role != "admin") or
+    if (not g.user.is_active or (operation in ("attach", "release") and g.user.role != "admin") or
             (operation == "read" and g.user.role != "admin" and notice.target not in ("전 직원", g.user.department))):
         raise AppError(403, "FORBIDDEN", "현재 공지 대상 또는 관리자 권한이 필요합니다.")
     return provider().ResourceAccess(None)
@@ -86,12 +84,24 @@ def original_message_matches(db, message_id, body):
     return recorded == fingerprint(body) if recorded else not body.get("attachment_ids")
 
 
-def block_notice_file_delete(db, notice_id):
-    # The member4 creation audit records actual attachment use atomically. Do
-    # not reach into member3 private models, and keep the block when transport
-    # routes are OFF. Legacy filename-only notices retain their delete behavior.
-    rows = db.scalars(select(AuditEvent).where(AuditEvent.action == "notice.created",
-        AuditEvent.resource_type == "notice", AuditEvent.resource_id == str(notice_id))
-        .with_for_update().execution_options(populate_existing=True))
-    if any(json.loads(row.details_json).get("attachment_count", 0) > 0 for row in rows):
-        raise AppError(409, "NOTICE_ATTACHMENT_RETENTION_PENDING", "첨부가 있는 공지는 삭제·보존 정책 협의 후 삭제할 수 있습니다.")
+def release_notice_files(db, notice_id):
+    """Consume only public member3 ports inside the caller's admin transaction.
+
+    Legacy filename-only notices still delete when the file feature is OFF.
+    Real-file creation evidence must fail closed if its provider is unavailable.
+    """
+    resource = current_app.extensions.get("results_resource_attachments")
+    if resource is None:
+        rows = db.scalars(select(AuditEvent).where(AuditEvent.action == "notice.created",
+            AuditEvent.resource_type == "notice", AuditEvent.resource_id == str(notice_id))
+            .with_for_update().execution_options(populate_existing=True))
+        if any(json.loads(row.details_json).get("attachment_count", 0) > 0 for row in rows):
+            provider()  # Raises the existing adapter-not-ready 503, never deletes.
+        return ()
+    reader = getattr(resource, "read_resource_attachment_ids", None)
+    if not callable(reader):
+        raise AppError(503, "RESOURCE_ATTACHMENT_ADAPTER_REQUIRED", "공지 첨부 삭제 제공부를 준비해 주세요.")
+    ids = reader(db, "notice", notice_id)
+    if ids:
+        resource.release_resource_files(db, "notice", notice_id)
+    return ids

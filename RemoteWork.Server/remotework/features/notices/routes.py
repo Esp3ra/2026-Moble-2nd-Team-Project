@@ -164,7 +164,7 @@ def delete_notice_record(notice_id):
     require_table()
     with admin_transaction() as session:
         notice = get_notice(notice_id, for_update=True)
-        from ..collaboration_attachments import block_notice_file_delete
-        block_notice_file_delete(session, notice.id)
+        from ..collaboration_attachments import release_notice_files
+        released = release_notice_files(session, notice.id)
         session.delete(notice)
-        audit("notice.deleted", "notice", notice_id)
+        audit("notice.deleted", "notice", notice_id, {"attachment_count": len(released)})

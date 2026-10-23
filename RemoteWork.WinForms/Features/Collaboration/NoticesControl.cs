@@ -84,6 +84,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
             if (IsDisposed) return;
             notices.Clear();
             notices.AddRange(loaded);
+            unknownDeletes.Clear();
             RefreshNotices(notices.FirstOrDefault(n => n.Id == selectId));
         }
 
@@ -182,9 +183,17 @@ namespace RemoteWork.WinForms.Features.Collaboration
             };
         }
 
+        private readonly HashSet<int> unknownDeletes = [];
+
         private async Task DeleteNotice(Notice notice)
         {
             if (previewRole != PreviewRole.Administrator || busy || IsDisposed) return;
+            if (unknownDeletes.Contains(notice.Id))
+            {
+                lblText4.Text = "삭제 결과 확인 필요";
+                txtContent.Text = "원래 공지의 삭제 결과가 불명확합니다. 조회 버튼으로 목록을 새로 확인한 뒤 진행해 주세요.";
+                return;
+            }
             SetBusy(true);
             try
             {
@@ -195,11 +204,17 @@ namespace RemoteWork.WinForms.Features.Collaboration
             }
             catch (ApiException ex)
             {
-                if (!IsDisposed) { lblText4.Text = "공지사항 삭제 실패"; txtContent.Text = ex.Message; }
+                if (!IsDisposed)
+                {
+                    bool unknown = ex.StatusCode is < 400 or >= 500;
+                    if (unknown) unknownDeletes.Add(notice.Id);
+                    lblText4.Text = unknown ? "삭제 결과 확인 필요" : "공지사항 삭제 실패";
+                    txtContent.Text = ex.Message + (unknown ? "\r\n자동 재전송하지 않습니다. 조회 버튼으로 원래 공지의 저장 상태를 확인해 주세요." : "");
+                }
             }
             catch (OperationCanceledException)
             {
-                if (!IsDisposed) { lblText4.Text = "삭제 결과 확인 필요"; txtContent.Text = "접속이 변경되었습니다. 다시 로그인한 후 목록을 확인해 주세요."; }
+                if (!IsDisposed) { unknownDeletes.Add(notice.Id); lblText4.Text = "삭제 결과 확인 필요"; txtContent.Text = "접속이 변경되었습니다. 다시 로그인한 후 목록을 확인해 주세요."; }
             }
             finally { if (!IsDisposed) SetBusy(false); }
         }

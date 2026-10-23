@@ -24,9 +24,9 @@ def run(args,mysql,runtime,env):
  with app.app_context(),transaction() as db:db.add_all([SchemaVersion(version=1),AdminGuard(id=1)])
  # Existing common tables + literal numbered migrations; no create_all shortcuts
  # for the file refs whose SQL ownership/review remains member 1/3.
- paths=['002_task_queries.mysql.sql','003_notices.mysql.sql','004_write_receipts.mysql.sql','005_chat_storage.mysql.sql','006_results.mysql.sql','013_shared_attachments.mysql.sql']
+ paths=['002_task_queries.mysql.sql','003_notices.mysql.sql','004_write_receipts.mysql.sql','005_chat_storage.mysql.sql','006_results.mysql.sql','013_shared_attachments.mysql.sql','015_notice_chat_attachments.mysql.sql']
  with app.extensions['db_engine'].begin() as db:
-  for path in [ROOT/'RemoteWork.Server/migrations'/n for n in paths]+[ROOT/'docs/sql/notice_chat_attachments.mysql.sql']:
+  for path in [ROOT/'RemoteWork.Server/migrations'/n for n in paths]:
    sql='\n'.join(x for x in path.read_text(encoding='utf-8-sig').splitlines() if not x.lstrip().startswith('--'))
    for statement in sql.split(';'):
     if statement.strip():db.exec_driver_sql(statement)
@@ -67,7 +67,9 @@ def run(args,mysql,runtime,env):
   nid=notice['id'];call('staff1',f'{prefix}notice/{nid}/files')
   call('peer1',f'{prefix}notice/{nid}/files',status=403)
   call('staff1',f'{prefix}notice/uploads/{f["attachment_id"]}',status=403)
-  call('admin1',f'notices/{nid}/delete',{},409)
+  call('staff1',f'notices/{nid}/delete',{},403)
+  from notice_delete_checks import run as check_notice_deletes
+  check_notice_deletes(app,call,upload,runtime)
   # A rejected mixed-owner/duplicate/unfinished attachment leaves no notice/audit.
   with app.app_context(),transaction() as db:before=db.scalar(select(func.count()).select_from(__import__('remotework.features.notices.models',fromlist=['Notice']).Notice))
   call('admin1','notices',dict(title='rollback',content='x',target='전 직원',attachment_ids=[str(uuid.uuid4())]),404)
@@ -102,6 +104,8 @@ def run(args,mysql,runtime,env):
   assert result.returncode==0,'C# product integration failed'
   result=subprocess.run(['dotnet','run','--project',str(ROOT/'Tests/CollaborationFiles.Tests'),'-c','Release','--no-build','--','--partial'],env=testenv,cwd=ROOT)
   assert result.returncode==0,'R78 actual C# control selection regression failed'
+  result=subprocess.run(['dotnet','run','--project',str(ROOT/'Tests/CollaborationFiles.Tests'),'-c','Release','--no-build','--','--notice-delete'],env=testenv,cwd=ROOT)
+  assert result.returncode==0,'actual C# notice deletion UI regression failed'
   if args.node:
    result=subprocess.run([str(args.node),str(ROOT/'Tests/CollaborationFiles.Tests/browser_check.cjs')],env=testenv|{'NODE_PATH':str(args.node_modules),'FILES_TEST_BROWSER':str(args.browser),'FILES_TEST_REPORT':str(args.report_dir)},cwd=ROOT,timeout=180)
    assert result.returncode==0,'browser integration failed'
