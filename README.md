@@ -1,3 +1,12 @@
+<a id="pr78-82-current-20261023"></a>
+## 최신 — 열린 PR78~82 전체 검토·3건 병합 / 연차 2건 수정 대기
+
+10/23 확인한 열린 PR은78·79·80·81·82 총5개입니다. [78](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/78#issuecomment-6337428379) 최신 **f4ab296c**는 R78-01 첨부 부분 재시도 누락을 해소하고 협업 기본30초·실제 모달 owner 수신을 확인해 **ea45d437**에 병합했습니다. [81](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/81#issuecomment-6354927202) 공통 SHA-256 **ee366d2d→560bba27**, [82](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/82#issuecomment-6354944328) 지문 서버 비공개 실행/관측 **21f3ca22→99fe414f**는 Draft→Open→Merge 완료입니다. 각각 실제 병합 tree가 사전 검토/merge-tree와 같습니다.
+
+[79](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/79#issuecomment-6354990801) **88f78fa8**는 **R79-01/P1** 담당자 회수 뒤 옛 관리자에게 신청 사유 노출과 **R79-02/P2** 비활성 직원 한 명이 전체 검토 목록을403으로 막는 문제로 Draft/미병합입니다. [80](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/80#issuecomment-6354991039) **11b216b2**는 **R80-01/P2** 연차 전용 실행에도 미설치 Pi 주소 설정을 필수로 읽어 로그인 전에 중단되는 문제로 미병합입니다. 담당자에게 기존 PR 댓글로 수정 요청했습니다.
+
+[고정 SHA·직접 검사·재현/한계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr78-82-reviewed-20261023)와 [담당별 다음 작업·미확정 경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr78-82-boundaries-20261023)를 중앙 기록으로 사용합니다. 기본 회귀 통과와 별도 반례를 구분합니다. 실제서버/env·공유DB/DDL·키/계정/장치·운영 flags/ACK는 이번 검토에서 읽거나 변경하지 않았습니다. 아래 기록은 각 작성 시점의 이력입니다.
+
 <a id="pr7778-current-20261022"></a>
 ## 최신 — PR77 수정 검토·병합 / PR78 첨부 부분 실패 보완 대기
 

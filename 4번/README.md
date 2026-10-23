@@ -1,3 +1,12 @@
+<a id="owner4-pr78-merged-20261023"></a>
+## 4번 최신 — PR78 R78-01 해소·협업 수신까지 병합
+
+[78](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/78#issuecomment-6337428379) 최신 **f4ab296c→ea45d437** 병합 완료입니다. A완료/B실패/C미시도 뒤 B만 재시도해도 C를 보존해 보내기·Enter를 막고, C완료/명시 제외 뒤 원순서 첨부를 전송합니다. 불명 메시지의 원 UUID/body/files도 보존합니다. 소유HTTP33·C#11·부분복구16·실제Edge12/pageErrors0, 별도 협업118·기한UI166/연결75·독립모달7 및 Release0/0을 직접 확인했고 겹치는 수치는 합산하지 않습니다.
+
+환경변수 누락 시 로그인 직후/30초 수신과 ShowDialog 메인 owner 허용·다른 모달 양보를 확인했습니다. 기본30초는 보고된 사용자 요청의 클라이언트 기본값이며 전체 운영정책 승인으로 넓히지 않습니다. **D3는 별도 대기**, 첨부공지 삭제409·공지 저장 불명 시 입력/파일ID 유지·자동재등록 차단을 보존합니다. 확인기록 CASCADE는 파일 삭제 승인으로 확대하지 않습니다.
+
+[중앙 검토](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr78-82-reviewed-20261023)·[후속 경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr78-82-boundaries-20261023).1번/4번 각PC 읽기/파일 왕복은 작성자보고로 수신했고 이번에 공유서버·동시두PC·25MiB UI/장시간 부하를 재실행하지 않았습니다. 아래는 이전 이력입니다.
+
 <a id="pr7778-owner4-current-20261022"></a>
 ## 4번 최신 — PR78 채팅 첨부 원선택 보존 수정 요청
 

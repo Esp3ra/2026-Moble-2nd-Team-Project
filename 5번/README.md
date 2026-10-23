@@ -1,3 +1,12 @@
+<a id="owner5-pr80-review-20261023"></a>
+## 5번 최신 — PR80 연차 전용 실행 준비 P2 수정 요청
+
+[80](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/80#issuecomment-6354991039) **11b216b2**는 R80-01/P2로 미병합입니다. `WorkspaceProfile.Load`가 `workday:null/leave_enabled:true`에도 `EnrollmentEndpoints.Load`를 호출해 지문 주소 설정이 없는 PC에서 로그인 전에 종료됩니다. 원 C# 소유설정 probe에서 Parse의 연차 전용 허용과 실제 Load 실패를 대조했습니다. 근무 연결을 명시한 경우에만 Pi 설정을 읽도록 분리하고 연차 전용 Load 회귀를 추가해 주세요.
+
+PR79 고정88f78fa와 결합해 Release0/0, Workday81·LeaveUI144·IdentityLogin179, Pi255실행/252통과/Linux3생략 및 실제 MainForm/폼→adapter→Flask/W1→소유MySQL4 PASS를 확인했습니다. 이4개는 문제의 startup Load를 거치지 않아 반례를 부정하지 않습니다. [79](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/79#issuecomment-6354990801) 별도 서버 현재권한 P1/P2도 보완 대기입니다.1번 제공부/5번 소비가 미제공인 상태로 되돌리지는 않습니다.
+
+[82](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/82#issuecomment-6354944328) 실행/관측 공급은 병합됐지만 실제 Pi ready(profile) 결합·private 전달 수신/서비스 drain/전환·새지문ON·실물/두PC는 별도입니다. D1/D2 연차 관계·계산정책도 새로 승인하지 않습니다. [중앙 검토](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr78-82-reviewed-20261023)·[담당 경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr78-82-boundaries-20261023). 아래는 이전 이력입니다.
+
 <a id="pr58-owner5-leave-request-current-20261022"></a>
 ## 5번 최신 — PR74 소비 완료 유지 / PR58 연차 추가 계약 대기
 

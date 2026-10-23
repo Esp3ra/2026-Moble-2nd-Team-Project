@@ -1,3 +1,12 @@
+<a id="owner1-pr79-81-82-review-20261023"></a>
+## 1번 최신 — 공통 해시·지문 실행 공급 병합 / 연차 현재 권한 수정 요청
+
+[81](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/81#issuecomment-6354927202) 공통 파일 해시는 **ee366d2d→560bba27**, [82](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/82#issuecomment-6354944328) 지문 private 실행 조립/읽기 관측은 **21f3ca22→99fe414f**, 각각 Draft→Open→Merge 완료입니다. 원 Node32 PASS, 원 지문 MySQL23 PASS/1환경생략을 직접 확인했습니다. 81의2·3번 소비 연결,82의 trusted ready 결합·서비스/새지문ON·실물은 별도 후속입니다.
+
+[79](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/79#issuecomment-6354990801) **88f78fa8**의 원39 PASS·C#bridge/빌드0/0과 별개로 R79-01/P1(인증 snapshot 뒤 담당자 회수 시 옛 관리자 목록에 신청 사유 노출), R79-02/P2(비활성 직원1명 때문에 전체 검토 목록403)를 실제 소유MySQL·정상 HTTP 경로에서 재현했습니다. 같은 PR에서 현재 담당관계 locking read/직렬화 전 재검증과 활성 직원 목록·페이지 처리를 보완해 주세요. Draft/미병합이며 D1/D2·달력/개인부여·운영쓰기 승인은 미확정 그대로입니다.
+
+[중앙 검토](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr78-82-reviewed-20261023)·[담당 경계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr78-82-boundaries-20261023). 실제5000/016·54테이블·private 프로필·각PC 읽기 운영보고는 수신과 이번 독립검사를 구분합니다. 이 검토가 실제 설정/서비스 적용을 수행한 것은 아닙니다. 아래는 이전 이력입니다.
+
 <a id="pr7778-owner1-current-20261022"></a>
 ## 1번 최신 — PR77 물리 검사 수정 병합 / PR78 보완 대기
 
