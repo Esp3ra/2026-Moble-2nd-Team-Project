@@ -88,6 +88,15 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   await item.locator('button').first().click();await chatButton.waitFor();pass('personal hide retains recipient access');
   await staff.screenshot({path:path.join(output,'chat-files-desktop.png'),fullPage:true});await staff.setViewportSize({width:390,height:844});await staff.screenshot({path:path.join(output,'chat-files-mobile.png'),fullPage:true});
   assert.equal(await staff.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);assert.deepEqual(errors,[]);pass('desktop/mobile and no page script errors');
+  await admin.goto(base+`/notices/${id}/delete`);
+  await admin.locator('form[data-notice-write] button[type=submit]').click();
+  await admin.waitForURL(/\/notices$/);
+  pass('D3 actual cookie/CSRF delete form commits attached notice deletion');
+  const gone=await staff.goto(base+`/notices?selected=${id}`);
+  assert.equal(gone.status(),200);
+  assert.equal(await staff.locator(`tr[data-notice-id="${id}"]`).count(),0);
+  assert.equal(await staff.locator('[data-notice-downloads] button').count(),0);
+  pass('D3 deleted attached notice no longer accessible to recipient');
   fs.writeFileSync(path.join(output,'results.json'),JSON.stringify({passed:checks,pageErrors:errors},null,2));
  }finally{for(const context of contexts)await context.close();await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

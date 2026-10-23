@@ -16,3 +16,18 @@
 원 실행기는 기본 C#11에 이어 `--partial` 모드를 실행한다. 실제 WinForms의 파일선택 후 제품 메서드→원 ResourceAttachmentClient/HttpChatService→실제 HTTP/MySQL을 사용하며 B chunk 성공 응답과 메시지 성공 응답만 명시 주입으로 유실시킨다.16검사는 A완료/B실패/C미시도·B만재시도후차단·직접 send 차단·C완료/ABC정확3개 연결·명시C제외/AB·불명원메시지 선택잠금·같은UUID/body재시도/참조2개를 검증한다. 파일 대화상자를 조작했다고 표시하지 않는다.
 
 Edge 원 page/handler에도 같은 ABC chunk응답 유실을 주입한다. B만 재선택해도 C는 대기/전송차단이며, C완료 후 원3개ID와 실제 상대 파일목록3개를 검사한다. 명시 제외도 별도 검사한다. 기존9에3시나리오를 더한12이며 C#/HTTP와 같은DB범위를 합산하지 않는다.
+
+## D3 4번 실제 삭제 소비 검사 — 2026-10-23
+
+PR83 공개 reader에 의존한다. 실행기는 raw 정식015를 포함한 소유MySQL만 사용한다.
+notice_delete_checks.py의24 assertion은 원4번 실제API/권한/공지TX와3번 공개접점을 연결해 감사/commit 실패 rollback, 제공부OFF·누락 차단,
+A제거/B보존, 마지막참조 물리정리, commit후파일잠금의deleting/접근차단/명시cleanup재시도를 확인한다.
+기존HTTP요청 검사55와 중복되므로 합산하지 않는다. C#전송11·R78부분복구16도 같은DB검사다.
+--notice-delete의 실제 WinForms/HttpNoticeService→HTTP/MySQL7검사는 커밋응답유실 뒤 원행/ID보존·재POST0·목록GET복구·공지/첨부404를 확인한다.
+Native 파일대화상자 조작이 아니다. noticeUI45는 명시대역으로 잘못된200응답·실패GET·403도 구분한다.
+Edge14/pageErrors0은 기존12에 실제cookie/CSRF첨부공지삭제·수신자의삭제된공지/첨부목록부재2개를 포함한다.
+기존notice서버55PASS/cold8제외·3번 원제공기188PASS도 별도 실행했다. 3번 검사말미의blocked 문구는 그 실행기의 시험consumer 설명으로,
+이4번서비스연결상태를 판정한 것이 아니다. SQLite미사용/소유자원정리완료.
+초기 새 C#검사의 Length 대신Count 사용 컴파일오류, 실제컨트롤초기GET busy완료를 기다리지 않은 검사실패,
+삭제뒤웹index를404로 가정한 실패는 보존했다. 테스트만 교정했고 웹index의200+부재안내 계약이나 서버인가를 완화하지 않았다.
+공유서버/실계정 삭제·배포·정책승인·동시두PC·대형UI/장시간부하는 미실행이다. 신규DDL/설정·타담당제품수정없음.
