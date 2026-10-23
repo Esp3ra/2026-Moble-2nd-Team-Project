@@ -25,7 +25,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             layoutPage.Controls.Add(lblTitle, 0, 0); layoutPage.Controls.Add(lblStatus, 0, 1);
             layoutPage.Controls.Add(lblDetail, 0, 2); layoutPage.Controls.Add(actions, 0, 3);
             lblTitle.Name = "lblTitle"; lblTitle.Dock = DockStyle.Fill;
-            lblTitle.Font = new Font("맑은 고딕", 18F, FontStyle.Bold); lblTitle.Text = "정오·퇴근 지문 확인";
+            lblTitle.Font = new Font("맑은 고딕", 18F, FontStyle.Bold); lblTitle.Text = "오후 업무 전·퇴근 지문 확인";
             lblStatus.Name = "lblStatus"; lblStatus.Dock = DockStyle.Fill; lblStatus.Text = "지문 확인 준비";
             lblStatus.Font = new Font("맑은 고딕", 12F, FontStyle.Bold);
             lblDetail.Name = "lblDetail"; lblDetail.Dock = DockStyle.Fill; lblDetail.Padding = new Padding(0, 8, 0, 0);
@@ -38,7 +38,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             AutoScaleDimensions = new SizeF(7F, 15F); AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(680, 350); MinimumSize = new Size(640, 350);
             Font = new Font("맑은 고딕", 10F); BackColor = Color.FromArgb(242, 245, 249);
-            Name = "FingerprintWorkdayForm"; Text = "정오·퇴근 지문 확인"; StartPosition = FormStartPosition.CenterParent;
+            Name = "FingerprintWorkdayForm"; Text = "오후 업무 전·퇴근 지문 확인"; StartPosition = FormStartPosition.CenterParent;
             FormClosing += Workday_Closing; Controls.Add(layoutPage);
             layoutPage.ResumeLayout(false); actions.ResumeLayout(false); ResumeLayout(false);
         }

@@ -78,7 +78,7 @@ export class ResourceFiles {
 
 if(typeof document!=='undefined') {
   const form=document.querySelector('form[data-notice-attachments]');
-  if(form) {
+  if(form && !form.hasAttribute('data-notice-recovery')) {
     const transport=new ResourceFiles(form), picker=form.querySelector('[data-file-picker]'), status=form.querySelector('[data-file-status]'), field=form.querySelector('[name=attachment_ids]');
     const uploaded=[], unresolved=new Set();let uploading=false,unknown=false,uploadError=false;
     const identity=f=>JSON.stringify([f.name,f.size,f.lastModified]);

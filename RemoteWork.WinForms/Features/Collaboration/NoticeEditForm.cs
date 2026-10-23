@@ -16,6 +16,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
         };
         private bool saving;
         private bool unknownSave;
+        private CreateNoticeRequest? originalRequest;
         private readonly List<ResourceAttachment> uploadedFiles = new();
         private ResourceAttachmentClient? attachmentClient;
         private bool lifetimeEnded;
@@ -54,6 +55,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
 
         public string[] SelectedAttachmentPaths { get; private set; } = Array.Empty<string>();
         public Notice? CreatedNotice { get; private set; }
+        public NoticeCreationReceipt? CreatedReceipt { get; private set; }
 
         private void SelectAttachment_Click(object? sender, EventArgs e)
         {
@@ -79,7 +81,7 @@ namespace RemoteWork.WinForms.Features.Collaboration
 
         public async Task PublishAsync()
         {
-            if (saving || IsDisposed || unknownSave) return;
+            if (saving || IsDisposed || (unknownSave && noticeService is not IRecoverableNoticeService)) return;
             if (string.IsNullOrWhiteSpace(txtNoticeTitle.Text) ||
                 string.IsNullOrWhiteSpace(txtNoticeBody.Text))
             {
@@ -95,30 +97,31 @@ namespace RemoteWork.WinForms.Features.Collaboration
             btnPublishNotice.Text = "저장 중…";
             try
             {
-                if (SelectedAttachmentPaths.Length > 0)
+                if (originalRequest is null && SelectedAttachmentPaths.Length > 0)
                 {
                     attachmentClient ??= new ResourceAttachmentClient(noticeService is HttpNoticeService http ? http.AttachmentIdentity() : AppServices.Api.CaptureSession());
                     foreach (var path in SelectedAttachmentPaths.Skip(uploadedFiles.Count))
                         uploadedFiles.Add(await attachmentClient.UploadAsync("notice", null, path, lifetime.Token));
                 }
-                // The legacy notice API has no durable original-result lookup.
-                // Freeze an unknown original save; never generate a second notice
-                // or discard its possibly linked uploads automatically.
-                unknownSave = true;
-                var saved = await noticeService.CreateNoticeAsync(new CreateNoticeRequest(
+                originalRequest ??= new CreateNoticeRequest(
                     txtNoticeTitle.Text.Trim(), txtNoticeBody.Text.Trim(), cmbNoticeAudience.Text,
                     chkPinToTop.Checked, Array.Empty<string>())
-                    { AttachmentIds = uploadedFiles.Select(f => f.AttachmentId).ToArray() }, lifetime.Token);
+                    { AttachmentIds = uploadedFiles.Select(f => f.AttachmentId).ToArray() };
+                unknownSave = true;
+                if (noticeService is IRecoverableNoticeService recoverable)
+                    CreatedReceipt = await recoverable.CreateOrRecoverNoticeAsync(originalRequest, lifetime.Token);
+                else
+                    CreatedNotice = await noticeService.CreateNoticeAsync(originalRequest, lifetime.Token);
                 if (IsDisposed) return;
                 unknownSave = false;
-                CreatedNotice = saved;
                 saving = false;
                 DialogResult = DialogResult.OK;
                 Close();
             }
             catch (ApiException ex)
             {
-                if (ex.StatusCode is >= 400 and < 500) unknownSave = false;
+                if (noticeService is not IRecoverableNoticeService && ex.StatusCode is >= 400 and < 500)
+                { unknownSave = false; originalRequest = null; }
                 if (!IsDisposed) ShowSaveError(ex.Message);
             }
             catch (OperationCanceledException)
@@ -134,9 +137,10 @@ namespace RemoteWork.WinForms.Features.Collaboration
                 saving = false;
                 if (!IsDisposed)
                 {
-                    btnPublishNotice.Enabled = panelContent.Enabled = !unknownSave;
+                    panelContent.Enabled = !unknownSave;
+                    btnPublishNotice.Enabled = !unknownSave || noticeService is IRecoverableNoticeService;
                     btnClose.Enabled = true;
-                    btnPublishNotice.Text = "공지사항 등록";
+                    btnPublishNotice.Text = unknownSave && noticeService is IRecoverableNoticeService ? "저장 결과 확인·재시도" : "공지사항 등록";
                 }
             }
         }
@@ -144,7 +148,9 @@ namespace RemoteWork.WinForms.Features.Collaboration
         private void ShowSaveError(string message)
         {
             // Keep every input intact and do not return OK on a failed/unknown save.
-            saveError.Text = message + "\r\n입력·첨부 ID는 유지됩니다. 저장 결과가 불명확하면 이 창에서 재등록을 막습니다. 목록에서 저장 여부를 먼저 확인해 주세요.";
+            saveError.Text = message + (unknownSave && noticeService is IRecoverableNoticeService
+                ? "\r\n원 요청: " + originalRequest!.OperationId.ToString("D") + "\r\n입력·첨부를 유지합니다. ‘저장 결과 확인·재시도’로 원 요청을 조회합니다. 창을 닫기 전 결과를 확인해 주세요."
+                : "\r\n입력·첨부 ID는 유지됩니다. 저장 결과가 불명확하면 이 창에서 재등록을 막습니다. 목록에서 저장 여부를 먼저 확인해 주세요.");
             saveError.Visible = true;
         }
 

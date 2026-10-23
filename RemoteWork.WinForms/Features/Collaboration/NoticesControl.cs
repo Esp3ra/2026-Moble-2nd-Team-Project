@@ -294,18 +294,36 @@ namespace RemoteWork.WinForms.Features.Collaboration
             PreviewActions.ShowUnavailable(this);
         }
 
-        private void btnNewNoticePreview_Click(object? sender, EventArgs e)
+        private async void btnNewNoticePreview_Click(object? sender, EventArgs e)
         {
             if (previewRole != PreviewRole.Administrator || busy || IsDisposed) return;
             using var form = new NoticeEditForm(noticeService);
-            if (form.ShowDialog(FindForm()) != DialogResult.OK || form.CreatedNotice is null)
+            if (form.ShowDialog(FindForm()) != DialogResult.OK)
                 return;
 
             if (IsDisposed) return;
+            if (form.CreatedReceipt is not null)
+            {
+                await ReloadAfterCreationAsync(form.CreatedReceipt);
+                return;
+            }
+            if (form.CreatedNotice is null) return;
             // CreatedNotice is the committed server response (including ID/author/date).
             notices.RemoveAll(n => n.Id == form.CreatedNotice.Id);
             notices.Add(form.CreatedNotice);
             RefreshNotices(form.CreatedNotice);
+        }
+
+        public async Task ReloadAfterCreationAsync(NoticeCreationReceipt receipt)
+        {
+            if (busy || IsDisposed) return;
+            SetBusy(true);
+            try { await LoadNoticesAsync(receipt.NoticeId); }
+            catch (Exception ex) when (ex is ApiException or OperationCanceledException)
+            {
+                if (!IsDisposed) ShowLoadError($"공지 #{receipt.NoticeId} 등록은 완료되었습니다. 현재 목록을 조회하지 못했습니다. 다시 조회해 주세요.\r\n{ex.Message}");
+            }
+            finally { if (!IsDisposed) SetBusy(false); }
         }
 
     }

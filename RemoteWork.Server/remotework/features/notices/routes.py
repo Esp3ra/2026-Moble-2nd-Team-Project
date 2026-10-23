@@ -15,6 +15,8 @@ bp = Blueprint("notices", __name__, url_prefix="/api/v1/notices")
 def register_attachment_authority(state):
     from ..collaboration_attachments import register
     register(state.app, "notice")
+    from .operations import install
+    install(state.app)
 
 
 @bp.cli.command("init-table")
@@ -101,7 +103,22 @@ def validate(body):
 @bp.post("")
 @require_role("admin")
 def create_notice():
-    return success({"notice": create_notice_record(payload())}, 201)
+    body = payload()
+    if "operation_id" in body:
+        from .operations import strict_payload
+        body = strict_payload()
+        return success(create_notice_record(body, request_key=request.headers.get("Idempotency-Key")), 201)
+    # Explicit legacy compatibility only; new clients never fall back here.
+    return success({"notice": create_notice_record(body)}, 201)
+
+
+@bp.get("/operations/<identifier>")
+@require_role("admin")
+def original_operation(identifier):
+    if request.args:
+        raise AppError(400, "INVALID_INPUT", "원 요청 UUID만 전달해 주세요.")
+    from .operations import lookup
+    return success(lookup(identifier))
 
 
 @bp.post("/<int:notice_id>/delete")
@@ -136,28 +153,35 @@ def query_notices(target=None, page=1, limit=100, *, sort="created_at", directio
     return {"items": [n.public() for n in rows], "page": page, "limit": limit, "total": total}
 
 
-def create_notice_record(body):
+def create_notice_record(body, *, request_key=None):
     require_table()
-    names = validate(body)
+    ordinary = {k: v for k, v in body.items() if k != "operation_id"}
+    names = validate(ordinary)
+    if "operation_id" in body:
+        from .operations import create
+        return create(body, key=request_key, insert=lambda db: _insert_notice(db, ordinary, names))
     # Reuse the common guard to recheck role/session before an administrator write.
     with admin_transaction() as session:
-        notice = Notice(title=body["title"].strip(), content=body["content"].strip(),
-                        target=body["target"], is_pinned=body.get("is_pinned", False),
-                        author_id=g.user.id, author=g.user.display_name,
-                        attachment_names_json=json.dumps(names, ensure_ascii=False))
-        session.add(notice)
+        return _insert_notice(session, ordinary, names)
+
+
+def _insert_notice(session, body, names):
+    notice = Notice(title=body["title"].strip(), content=body["content"].strip(),
+                    target=body["target"], is_pinned=body.get("is_pinned", False),
+                    author_id=g.user.id, author=g.user.display_name,
+                    attachment_names_json=json.dumps(names, ensure_ascii=False))
+    session.add(notice)
+    session.flush()
+    if body.get("attachment_ids"):
+        from ..collaboration_attachments import provider
+        files = provider().replace_resource_files(session, "notice", notice.id, body["attachment_ids"])
+        notice.attachment_names_json = json.dumps([f["name"] for f in files], ensure_ascii=False)
         session.flush()
-        if body.get("attachment_ids"):
-            from ..collaboration_attachments import provider
-            files = provider().replace_resource_files(session, "notice", notice.id, body["attachment_ids"])
-            notice.attachment_names_json = json.dumps([f["name"] for f in files], ensure_ascii=False)
-            session.flush()
-        # Return stored values, including MySQL DATETIME precision, not the pre-flush timestamp.
-        session.refresh(notice)
-        audit("notice.created", "notice", notice.id,
-              {"target": notice.target, "attachment_count": len(body.get("attachment_ids", []))})
-        result = notice.public()
-    return result
+    # Return stored values, including MySQL DATETIME precision, not the pre-flush timestamp.
+    session.refresh(notice)
+    audit("notice.created", "notice", notice.id,
+          {"target": notice.target, "attachment_count": len(body.get("attachment_ids", []))})
+    return notice.public()
 
 
 def delete_notice_record(notice_id):

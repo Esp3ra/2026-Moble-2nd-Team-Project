@@ -7,7 +7,7 @@ using RemoteWork.WinForms.Infrastructure;
 using RemoteWork.WinForms.Ui;
 using RemoteWork.WinForms.Shell;
 
-internal static class Program
+internal static partial class Program
 {
     private static int checks;
     private static readonly BindingFlags Hidden = BindingFlags.Instance | BindingFlags.NonPublic;
@@ -39,6 +39,13 @@ internal static class Program
         {
             try
             {
+                if (args.Length == 2 && args[0] == "--operations-e2e")
+                {
+                    await OperationsEndToEnd(args[1], host);
+                    Console.WriteLine($"PASS: {checks} notice original-operation checks; actual HTTP/MySQL and WinForms.");
+                    result = 0;
+                    return;
+                }
                 if (args.Length == 2 && args[0] == "--popup-e2e")
                 {
                     await PopupEndToEnd(args[1], host);
@@ -47,6 +54,7 @@ internal static class Program
                     return;
                 }
                 await HttpContract();
+                await RecoverableCreation(host);
                 await PopupUnavailable(host);
                 await PopupSessionChanged(host);
                 await SaveLifecycle(host);

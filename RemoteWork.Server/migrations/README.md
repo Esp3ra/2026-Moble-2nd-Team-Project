@@ -1,5 +1,9 @@
 # DB 변경 기록
 
+## 017 공지 원 요청 영속 복구 — 2026-10-23
+
+[017_notice_operations.mysql.sql](017_notice_operations.mysql.sql)은 공지 생성의 원 UUID·본문 해시·최소 영수증·만료 tombstone을 보존하는 별도 테이블 한 개다. 공지 삭제로 원 UUID가 없어지지 않도록 공지 FK를 두지 않는다. 공통004·users·공지 준비 후 비공개 전체 백업/독립 복원·동일 DB/문자셋/FK를 확인해 명시 적용하며 기존 schema1·공지/첨부 구조를 바꾸지 않는다. 시작/HTTP/init-db의 자동 DDL·자동 정리/ALTER/DROP은 없다. [API·웹·실패/복구 경계](../../docs/NOTICE_RECOVERY.md)를 따르며 코드 제공을 실제 공유 적용으로 표시하지 않는다.
+
 ## 015 공지·채팅 첨부 참조 — 2026-10-22
 
 1번은 병합된 PR76 a6dc89c의 세 테이블 선언을 구조 변경 없이 [015_notice_chat_attachments.mysql.sql](015_notice_chat_attachments.mysql.sql)로 예약한다. 1번 명시 적용은015를 사용하고 PR76의 `docs/sql/notice_chat_attachments.mysql.sql`은 원 검토안으로 보존한다. 두 경로를 중복 적용하지 않는다. 기존003/005/013·014 마감 예약·schema1을 바꾸지 않으며 번호화는 공유 설치/정책 승인 완료가 아니다. 이미 제공·병합된 기능을3번에게 재구현하거나 별도 회신하라고 요청하지 않는다.

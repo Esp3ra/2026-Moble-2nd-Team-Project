@@ -1,5 +1,20 @@
 # 공지 저장·조회 검증
 
+## 원 UUID/W1 복구 최신 검사 — 2026-10-23
+
+제품 새 작성 화면은 [공지 원 요청 계약](../../docs/NOTICE_RECOVERY.md)의 `IRecoverableNoticeService`를 사용한다. 원 입력·파일 목록·UUID·키 고정, 응답 유실 뒤 명시 결과 확인/같은 요청 재시도, 최소 영수증 성공과 목록 GET 실패 분리, 삭제 뒤 재생성 차단을 제공한다. 기존 `CreateNoticeAsync`는 구형 호환이며 제품은 실패 시 자동 후퇴하지 않는다.
+
+직접 실행: 실제 WinForms/통제 HTTP handler **133검사 통과**. 새 소유 MySQL/raw017/API/cookie band는 **18검사 통과**했고 그중 한 검사가 실제 C#→TCP→Flask/W1→MySQL의 `--operations-e2e` **7검사**를 실행했다. 7을18에 다시 합산하지 않는다. 기존 공지 API·검토·웹은 별도 새 소유 MySQL에서 **73통과**했다. 대형 UTF-8 제목/본문의 고정 폼에서 표시 내용을 중복 전송하지 않아 실제 multipart32KiB 이내의 결과 확인도 검사했다. 이전 검증 수치는 아래 당시 이력이다.
+
+```powershell
+dotnet run --project Tests/Notices.Tests/Notices.Tests.csproj -c Release --artifacts-path <외부빌드폴더>
+$env:NOTICE_CSHARP_DLL = '<새 외부 빌드의 Notices.Tests.dll 절대경로>'
+python -X utf8 -B Tests/Notices.Tests/run_operations_mysql.py
+python -X utf8 -B Tests/Notices.Tests/run_operations_mysql.py --legacy
+```
+
+Python에는 서버 의존성·pytest가 필요하며 별도 pytest 경로는 `NOTICE_TEST_PYTHONPATH`로 지정할 수 있다. `NOTICE_CSHARP_DLL`이 없으면 실제 C# 검사는 명시 skip한다. 실행기는 기존 안전 소유 MySQL 도구로 새 datadir·임시 loopback 포트·`remote_work_test_*` DB를 만들고 소유 프로세스/runtime만 정리한다. 실제 공유 서버/DB·실계정·네이티브 브라우저·물리 두 PC는 미실행이다. SQLite는 DEMO 종료 후 제거 대상이므로 아래 과거 SQLite 실행기를 지속 관리/새 검증 기준으로 삼지 않는다.
+
 ## 현재 검토 범위 — 2026-10-17
 
 공지 API·ID·권한은 병합된 PR #12의 N4 회신을 반영합니다. 서버의 새 `tests/test_notice_migration_draft.py`는 notices를 ORM으로 생성하지 않고 실제 예약003 SQL로 생성해 타입/FK/default·기존 행/버전·실패·백업/복원을 검사합니다. 접속은 별도 opt-in/전용 URL만 허용합니다. [SQL 검증 절차](../../RemoteWork.Server/migrations/003_notices.md)를 따릅니다.

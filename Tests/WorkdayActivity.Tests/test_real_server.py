@@ -29,7 +29,7 @@ def test_noon_transition_and_retained_result(working, monkeypatch, mode):
     dll = Path(os.environ["MEMBER5_WORKDAY_ACTIVITY_CLIENT"]).resolve(strict=True)
     assert dll.name == "WorkdayActivity.Tests.dll"
     app = working[0]
-    clock = [datetime.now(timezone.utc).replace(hour=2, minute=59, second=50, microsecond=0, tzinfo=None)]
+    clock = [datetime.now(timezone.utc).replace(hour=1, minute=59, second=50, microsecond=0, tzinfo=None)]
     monkeypatch.setattr(routes, "now", lambda: clock[0])
     day = (clock[0] + timedelta(hours=9)).date().isoformat()
     work_id = str(uuid4())
@@ -42,7 +42,7 @@ def test_noon_transition_and_retained_result(working, monkeypatch, mode):
 
     def advance_after_first_read(response):
         if request.path == "/api/v1/device-identity/workday":
-            clock[0] = clock[0].replace(hour=3, minute=0, second=0)
+            clock[0] = clock[0].replace(hour=2, minute=0, second=0)
         return response
 
     # Fixture-only clock progression after the first response was constructed.

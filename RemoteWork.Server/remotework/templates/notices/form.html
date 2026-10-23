@@ -3,17 +3,18 @@
 <p class="eyebrow">WORKSPACE</p><h1>공지사항 작성</h1>
 <section class="card notice-editor">
 {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
-<form method="post" enctype="multipart/form-data" data-notice-attachments data-attachment-session="{{ attachment_session }}" data-csrf="{{ csrf_token() }}" action="{{ url_for('notice_web.create') }}">
+<form method="post" enctype="multipart/form-data" data-notice-attachments {% if operation_context %}data-notice-recovery data-operation-locked="{{ '1' if operation_locked else '0' }}"{% endif %} data-attachment-session="{{ attachment_session }}" data-csrf="{{ csrf_token() }}" action="{{ url_for('notice_web.create') }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <input type="hidden" name="attachment_session" value="{{ attachment_session }}">
-<label for="title">제목</label><input id="title" name="title" maxlength="200" required value="{{ values.title or '' }}" autofocus>
-<label for="audience">대상</label><select id="audience" name="target">{% for t in targets %}<option value="{{ t }}" {% if values.target == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select>
-<label class="notice-checkbox"><input type="checkbox" name="is_pinned" value="1" {% if values.is_pinned %}checked{% endif %}> 상단 고정</label>
-<label for="content">내용</label><textarea id="content" name="content" rows="12" maxlength="5000" required>{{ values.content or '' }}</textarea>
+{% if operation_context %}<input type="hidden" name="operation_context" value="{{ operation_context }}"><p class="muted">원 요청을 유지합니다. 응답을 받지 못하면 ‘처리 결과 확인’ 후 같은 요청을 명시 재시도하세요.</p>{% endif %}
+<label for="title">제목</label><input id="title" {% if not operation_locked %}name="title"{% endif %} maxlength="200" required value="{{ values.title or '' }}" autofocus {% if operation_locked %}readonly{% endif %}>
+<label for="audience">대상</label><select id="audience" name="target" {% if operation_locked %}disabled{% endif %}>{% for t in targets %}<option value="{{ t }}" {% if values.target == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select>
+<label class="notice-checkbox"><input type="checkbox" name="is_pinned" value="1" {% if values.is_pinned %}checked{% endif %} {% if operation_locked %}disabled{% endif %}> 상단 고정</label>
+<label for="content">내용</label><textarea id="content" {% if not operation_locked %}name="content"{% endif %} rows="12" maxlength="5000" required {% if operation_locked %}readonly{% endif %}>{{ values.content or '' }}</textarea>
 <label for="notice-files">첨부파일 <span class="muted">(선택)</span></label>
-<input id="notice-files" type="file" multiple data-file-picker>
+<input id="notice-files" type="file" multiple data-file-picker {% if operation_locked or operation_unavailable %}disabled{% endif %}>
 <input type="hidden" name="attachment_ids" value="{{ values.attachment_ids or '[]' }}">
 <p class="muted">최대 10개 · 파일당 25MiB. 전송 완료 후 공지사항 등록을 눌러 주세요.</p><p data-file-status role="status"></p>
-<div class="notice-actions"><a class="notice-button notice-neutral" href="{{ url_for('notice_web.index') }}">목록으로</a><button type="submit">공지사항 등록</button></div>
+<div class="notice-actions"><a class="notice-button notice-neutral" href="{{ url_for('notice_web.index') }}">목록으로</a><button type="submit" name="notice_action" value="publish" {% if operation_unavailable or (operation_locked and not operation_can_retry) %}disabled{% endif %}>{{ '같은 요청 다시 등록' if operation_can_retry else '공지사항 등록' }}</button>{% if operation_context %}<button type="submit" name="notice_action" value="check" formnovalidate>처리 결과 확인</button>{% endif %}</div>
 </form></section>
 {% endblock %}

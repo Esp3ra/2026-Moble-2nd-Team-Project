@@ -97,7 +97,7 @@ internal static partial class Program
             return server.Wire("matched-result");
         }
     }
-    private sealed class ClockServer : HttpMessageHandler
+    private sealed class ClockServer(string purpose = "clock_out") : HttpMessageHandler
     {
         public int OrdinaryFinalizes;
         private static string B64(byte[] bytes) => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
@@ -108,7 +108,7 @@ internal static partial class Program
             var envelope = JsonNode.Parse(vector.GetProperty("envelope_json").GetString()!)!;
             var b = envelope["payload_b64"]!.GetValue<string>();
             var p = JsonNode.Parse(Convert.FromBase64String(b.Replace('-', '+').Replace('_', '/') + new string('=', (4 - b.Length % 4) % 4)))!;
-            p["purpose"] = "clock_out"; p["work_session_ref"] = Work.ToString("D"); p["work_date"] = "2026-10-22";
+            p["purpose"] = purpose; p["work_session_ref"] = Work.ToString("D"); p["work_date"] = "2026-10-22";
             if (name != "clock-in-request") p["ticket_digest"] = Convert.ToHexString(SHA256.HashData(Wire("clock-in-request"))).ToLowerInvariant();
             envelope["payload_b64"] = B64(Encoding.UTF8.GetBytes(p.ToJsonString()));
             return Encoding.UTF8.GetBytes(envelope.ToJsonString()); // Structural double; real integration checks MAC.
@@ -123,7 +123,7 @@ internal static partial class Program
                 state = "issued", expires_at = DateTimeOffset.UtcNow.AddMinutes(1), request_b64 = B64(Wire("clock-in-request")) });
             if (path.EndsWith("/approvals")) return Reply(new { approval_b64 = B64(Wire(data.GetProperty("probe_b64").GetString() == B64(Wire("capture-probe")) ? "capture-approval" : "result-approval")) });
             if (path.EndsWith("/complete") || path.EndsWith(ClockChallenge.ToString("D"))) return Reply(new { challenge_id = ClockChallenge, state = "verified", workflow_state = "pending",
-                expires_at = DateTimeOffset.UtcNow.AddMinutes(1), identity_receipt = new { receipt_id = Guid.NewGuid(), purpose = "clock_out", verified_at = DateTimeOffset.UtcNow } });
+                expires_at = DateTimeOffset.UtcNow.AddMinutes(1), identity_receipt = new { receipt_id = Guid.NewGuid(), purpose, verified_at = DateTimeOffset.UtcNow } });
             if (path.EndsWith("/finalize")) OrdinaryFinalizes++;
             throw new VerificationFailure("Unexpected ordinary clock-out route: " + path);
         }

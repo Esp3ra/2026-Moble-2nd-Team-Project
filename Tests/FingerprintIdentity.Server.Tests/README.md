@@ -50,7 +50,7 @@ $identityReport = Join-Path $env:TEMP ('identity-report-' + [guid]::NewGuid().To
 4. 새 Pi runtime+새 서버 app/engine 뒤 같은 DB capture fence가 이전 요청의 새 probe를409로 막고 센서를 다시 읽지 않는다.
 5. 변조 request는 센서를 열지 않는다.
 6. **1번 AttendanceWorkflow 실제 코드**가 Pi 결과를 소비해 합성 회원의 출근·퇴근을 저장하고 같은 finalize UUID 재생, 암호화 token 보관·퇴근 후 세션 폐기를 처리한다.
-7. 제어된 서버 UTC로 정오 전 차단·정오 확인·같은 열린 근무·중복 정오 차단을 확인한다. 이 시나리오의 합성 로그인 수명은 명시8시간으로 설정하며 운영 기한/인증 검사를 완화하지 않는다.
+7. 제어된 서버 UTC로 한국 시간11:00 전 차단·11:00~12:00 오후 업무 전 지문 확인·같은 열린 근무·중복 확인 차단을 확인한다. 이 시나리오의 합성 로그인 수명은 명시8시간으로 설정하며 운영 기한/인증 검사를 완화하지 않는다. 기존 `noon_check` 목적 이름은 유지한다.
 
 `ready=lambda _: True`는 오직 새 임시DB·가짜 센서를 소유한 fixture의 대역이다. 이 코드/검사 통과를 운영 readiness ACK·실제 재시작 조정·개인키 설치·실물 로그인 성공으로 사용하지 않는다. 운영 서비스·007/사용DB·정식 DDL번호·등록 지문/회원 매핑은 바꾸지 않는다.
 

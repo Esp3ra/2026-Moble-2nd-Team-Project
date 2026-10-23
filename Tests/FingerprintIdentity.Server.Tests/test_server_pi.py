@@ -314,7 +314,7 @@ def test_noon_uses_same_open_work_session_and_commits_only_once(working, monkeyp
     from datetime import timedelta
     from remotework.features.identity import routes
     # The shared owned runner defaults to a one-hour login. This scenario moves
-    # the server clock two hours; use an explicitly longer synthetic session.
+    # the server clock one hour; use an explicitly longer synthetic session.
     monkeypatch.setitem(working[0].config, "SESSION_HOURS", 8)
     morning = routes.now().replace(hour=1, minute=0, second=0)
     monkeypatch.setattr(routes, "now", lambda: morning)
@@ -328,8 +328,8 @@ def test_noon_uses_same_open_work_session_and_commits_only_once(working, monkeyp
         work_ref = answer["data"]["work_session_ref"]
         code, denied = p.server("POST", "/challenges", dict(device_id=DID, purpose="noon_check", client_request_id=str(uuid4())), normal)
         assert code == 409 and denied["error"]["code"] == "ATTENDANCE_NOON_NOT_DUE"
-    # Controlled server UTC clock; do not wait two hours or use the PC calendar.
-    monkeypatch.setattr(routes, "now", lambda: morning + timedelta(hours=2))
+    # Controlled server UTC clock; do not wait one hour or use the PC calendar.
+    monkeypatch.setattr(routes, "now", lambda: morning + timedelta(hours=1))
     with pair(working) as p:
         job, _ = p.issue(normal, purpose="noon_check"); p.start(job)
         assert p.complete(normal, job, p.result(normal, job))[0] == 200

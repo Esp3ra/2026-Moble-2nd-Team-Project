@@ -33,7 +33,7 @@ public sealed class FingerprintWorkdayOperation : IDisposable
     {
         this.session = session ?? throw new ArgumentNullException(nameof(session));
         session.ThrowIfChanged();
-        if (purpose is not ("noon_check" or "clock_out")) throw new ArgumentException("정오 또는 퇴근 확인을 선택해 주세요.", nameof(purpose));
+        if (purpose is not ("noon_check" or "clock_out")) throw new ArgumentException("오후 업무 전 또는 퇴근 지문 확인을 선택해 주세요.", nameof(purpose));
         if (workSessionId == Guid.Empty || workDate == default) throw new ArgumentException("서버의 현재 근무 정보를 확인해 주세요.");
         ArgumentNullException.ThrowIfNull(device);
         if (prepareClockOut is not null && purpose != "clock_out") throw new ArgumentException("퇴근 전용 연결입니다.");
