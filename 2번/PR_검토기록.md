@@ -1,12 +1,12 @@
 <a id="pr86-88-reviewed-20261023"></a>
-## PR86·87·88 검토 — 2026-10-23
+## PR86·87·88 검토·정책 확정·병합 — 2026-10-23
 
-원 base는 모두 `412e20890dc3c5bf9288614d31fa95d0b02a7d2a`입니다. 86·87은 다른 대화에서 승인받았다는 PR 작성자의 보고와 본 채팅 팀장의 직접 결정을 구분해 정책을 확인 요청한 상태입니다. 코드 차단 결함은 없지만 정책 확정 전에는 병합하지 않습니다.
+원 base는 모두 `412e20890dc3c5bf9288614d31fa95d0b02a7d2a`입니다. 본 채팅에서 팀장이 **86은 제안대로 확정**, **87은 관리자 유지보수 용도로 한정해 확정**하고 두 PR의 병합을 직접 지시했습니다. 86은 **cfc2851f**,87은 **389f5ac5**로 병합 완료했습니다. 87의 범위는 현재 활성 관리자·해당 장치 등록 권한을 확인하는 기존 서버 로컬 CLI의 명시 유지보수입니다. 실제 계정/슬롯 이전·운영 DDL 적용·서버/Pi 재기동은 이번 작업 범위가 아닙니다.
 
 |PR|고정 head|현재 판정|
 |---|---|---|
-|[86](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/86#issuecomment-6359071539)|`3caa6c033b3b45f309dc2d663b3de23d84f48933`|기술 검토 통과·팀장 정책 확정 대기/미병합|
-|[87](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/87#issuecomment-6359071873)|`0ecf6807f143987c2ae456a9fc48559993737ccd`|기술 검토 통과·팀장 정책 확정 대기/미병합|
+|[86](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/86#issuecomment-6359071539)|`3caa6c033b3b45f309dc2d663b3de23d84f48933`|팀장 정책 확정·병합 `cfc2851f`|
+|[87](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/87#issuecomment-6359071873)|`0ecf6807f143987c2ae456a9fc48559993737ccd`|팀장 정책 확정·병합 `389f5ac5`|
 |[88](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/88#issuecomment-6359006697)|`f365953df50edb33360ebd976461fa6ab02a64f2`|병합 e2ee34bf|
 
 **88:** 같은 captured 관리자 세션으로 원 페이지·ID·로그인명·활성/역할을 재조회한 뒤 명시 확인합니다. 선택/접속/수명 변경 뒤 늦은 응답은 창을 열지 않습니다. 생성/기존 회원 target을 구분하고 일반 기존 회원은 복구번호 없이 기존 launcher/5번폼의 별도 시작으로 연결합니다. 미저장 입력·비밀번호·회원 쓰기0, 열기만 하면 issue/센서0이며 결과불명 자동 신규시도는 없습니다. 실제 병합 `e2ee34bfcb8a8ca7a75a2efe3f26c9ee2106e98f`의 tree `36b4bc50f65757fdfc165b295621cc8b845187d0`는 검증 head와 같고 부모도 원 base/head와 일치합니다.
@@ -15,7 +15,9 @@
 
 **87:** 공통 guard TX의 현재 관리자/장치 권한·양쪽 계정·mapping revision·원 completed Job/Claim·전체 이전 이력을 확인합니다. mapping·이전 이력·감사는 함께 commit/rollback하며 원 등록 증거·센서 지문은 보존합니다. 진행근무/미완료 등록·인증/대상 기존연결은 거절합니다. 옛 소유자는 완료된 원 결과만 원 문맥/바이트·동일 finalize UUID로 조회하고, 새 소유자는 그 결과를 승계하지 않습니다.
 
-|이번 직접 검증 밴드|결과와 범위|
+이번 병합 시 두 head가 직전 검증본과 동일함을 확인했습니다. 86의 사전/실제 merge tree는 `c7b0ed04914ae67ff83afab00602c7f7fe76577d`,87 최종 tree는 `d718268256dcf483f359cddfebe8314d4e867348`이며 최종본이 기존 결합32PASS 검증본과 일치합니다. 아래 검사 수치는 직전 실행 근거를 재사용하며 이번 중복 실행은0회입니다.
+
+|직전 직접 검증 밴드(이번 재사용)|결과와 범위|
 |---|---|
 |86 고정 head|native MySQL74PASS/1skip, child90.38초/전체96.48초. identity/service·workday·새postclockout·host. skip1은 현재 Windows 토큰의 임시 소유자 ACL 교체 불가|
 |87 고정 head|native MySQL239PASS/4skip, child245.02초/전체250.70초. 새 transfer20을 포함한 등록/내구성/복구·identity/근무/host. skip은 ACL1·명시 migration opt-in 미설정3|
