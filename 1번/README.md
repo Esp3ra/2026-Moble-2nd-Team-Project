@@ -1,3 +1,16 @@
+<a id="pr86-88-current-20261023"></a>
+## 최신 — PR86·87·88 검토와 현재 병합 상태
+
+|PR|고정 head|현재 판정|
+|---|---|---|
+|[86](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/86#issuecomment-6359071539)|`3caa6c033b3b45f309dc2d663b3de23d84f48933`|기술 검토 통과·팀장 정책 확정 대기/미병합|
+|[87](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/87#issuecomment-6359071873)|`0ecf6807f143987c2ae456a9fc48559993737ccd`|기술 검토 통과·팀장 정책 확정 대기/미병합|
+|[88](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/88#issuecomment-6359006697)|`f365953df50edb33360ebd976461fa6ab02a64f2`|병합 e2ee34bf|
+
+86은 퇴근 후 당일 일반 비밀번호 접속과 근태 종료 유지,87은 지문 템플릿을 보존한 관리자 계정 연결 이전,88은 재확인한 기존 회원의 명시적 지문 신규 등록 UI입니다. 86·87은 다른 대화에서 승인받았다는 PR 작성자의 보고와 본 채팅 팀장의 직접 결정을 구분해 정책을 확인 요청한 상태입니다. 코드 차단 결함은 없지만 정책 확정 전에는 병합하지 않습니다.
+
+직접 독립 MySQL86의74PASS/1skip,87의239PASS/4skip(새transfer20포함),별도추가6,세PR결합32와88실제폼/통제HTTP·Pi대역341/95/58/14시나리오46·Release0경고0오류를 확인했습니다. 각 밴드의 포함/반복/생략은 합산하지 않습니다. [정확한 검증·한계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr86-88-reviewed-20261023)·[정책/담당 후속](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr86-88-policy-20261023). 실제서버/공유DB·env/키/슬롯·센서·운영flags/ACK·두PC는 이번 검토에서 변경/검증하지 않았습니다. 아래는 이전 기록입니다.
+
 <a id="pr85-current-20261023"></a>
 ## 최신 — PR85 내부망 HTTP 업무·결과물 첨부 검증 연결·병합
 
