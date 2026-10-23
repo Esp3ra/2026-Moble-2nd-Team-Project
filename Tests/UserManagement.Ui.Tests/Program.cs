@@ -29,6 +29,7 @@ internal static class Program
                 LostResponse(); TargetLifetime(); ReentrantHandoff(); Unauthorized(); Disconnected();
                 EnrollmentConnectionChecks.Run(args.Length == 1);
                 RecoveryReentryChecks.Run();
+                ExistingMemberEnrollmentChecks.Run();
                 Console.WriteLine($"PASS UserManagement UI: {scenarios} scenarios / {checks} assertions; actual WinForms + controlled HTTP; no device/server/DB.");
                 exit = 0;
             }

@@ -90,7 +90,7 @@ internal static class RecoveryReentryChecks
         if(mode=="bad_id")Check(handler.UserReads==before,"Invalid recovery ID rejected before HTTP");
         owner.Close();
     }
-    private sealed class Pi : IEnrollmentPiChannel
+    internal sealed class Pi : IEnrollmentPiChannel
     {
         public int Calls;public TaskCompletionSource<string> Ready=new(TaskCreationOptions.RunContinuationsAsynchronously);
         public async Task<string> TransferAsync(EnrollmentJob job,bool readOnly,Func<JsonElement,CancellationToken,Task<string>> approve,IProgress<string>? progress,CancellationToken cancellation)
@@ -132,10 +132,11 @@ internal static class RecoveryReentryChecks
         driver.Start();Complete(Call(owner));driver.Stop();if(failure is not null)throw failure;
         Check(stage==4 && handler.UserWrites==0,"Same account remains; expected modal flow completed without account creation");owner.Close();
     }
-    private sealed class Server : HttpMessageHandler
+    internal sealed class Server : HttpMessageHandler
     {
         public int UserReads,UserWrites,Issues,Reissues,RecoveryReads,Completes,Target;public string UserMode="";public bool DenyRecovery;public string? PhysicalRaw;private string client="";
         public TaskCompletionSource? Gate;
+        public bool AllowNormalIssue;
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken cancellation)
         {
             string path=request.RequestUri!.AbsolutePath;object data;
@@ -164,7 +165,14 @@ internal static class RecoveryReentryChecks
                 }
                 else data=new{recovery=RecoveryValue()};
             }
-            else if(path.EndsWith("/device-enrollments")){Issues++;throw new Exception("Recovery-only owner must never issue normally");}
+            else if(path.EndsWith("/device-enrollments"))
+            {
+                Issues++;if(!AllowNormalIssue)throw new Exception("Recovery-only owner must never issue normally");
+                using var body=JsonDocument.Parse(await request.Content!.ReadAsStringAsync(cancellation));
+                Check(body.RootElement.EnumerateObject().Count()==3,"Normal registration uses original three-field contract");
+                client=body.RootElement.GetProperty("client_request_id").GetString()!;
+                Target=body.RootElement.GetProperty("target_user_id").GetInt32();data=JobValue();
+            }
             else if(path.EndsWith("/physical-result"))
             {
                 if(request.Method==HttpMethod.Post){using var body=JsonDocument.Parse(await request.Content!.ReadAsStringAsync(cancellation));PhysicalRaw=body.RootElement.GetProperty("result_envelope").GetString();}
