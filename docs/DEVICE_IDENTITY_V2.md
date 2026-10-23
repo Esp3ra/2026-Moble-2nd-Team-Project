@@ -1,5 +1,55 @@
 # 5번 인계: RW-ID-v2 본인인증 계약 2.0
 
+## 2026-10-23 관리자가 승인한 기존 지문 계정 연결 이전
+
+`transfer-enrollment-owner`는 서버 로컬의 명시 관리 명령이다. 기존 회원을 새로 만들거나
+센서의 지문을 저장·삭제하지 않는다. `enrollment_jobs.target_user_id`와 원 signed 결과는
+최초 등록 대상의 역사적 증거로 유지한다. `enrollment_mappings.user_id`는 현재 인증 대상이며,
+이전 시 같은 mapping/slot의 revision을 1 증가시키고 전후 사용자·사유·원 요청UUID와 감사를
+같은 transaction에 기록한다. 원 claim/등록·근태·capture fence·키/epoch/프로필은 바꾸지 않는다.
+
+명령은 활성 관리자 및 해당 장치의 명시 등록 권한, 활성 양쪽 계정, 현재 연결/기대 revision,
+원 completed 등록 증거와 전체 이관 이력을 현재 locking read로 확인한다. 대상 계정의 다른
+연결, 같은 장치의 미완료 등록/인증, 양쪽 계정의 열린 근무가 있으면 거절한다. 만료된 issued도
+자동 정리하지 않는다. 같은 요청UUID·내용은 영구 보관된 결과를 반환하고, 다른 내용의 재사용은
+거절한다. 감사 실패·충돌은 사용자 변경과 이관 기록까지 rollback한다. 미사용 pending login만
+철회하고 정상 일반 로그인 세션/완료 receipt 문맥을 임의 삭제하지 않는다.
+
+새 HTTP endpoint/DTO와 C#·Pi 변경은 없다. 새 인증 요청의 기존 `mapping_revision`/`expected_slot`
+계약을 그대로 사용한다. 이전 회원은 새 센서 승인·출근을 할 수 없고 새 회원은 증가한 revision으로
+새 요청을 발급받는다. 이미 workflow_completed인 원 요청에 한해서 이전 이력의 원 사용자·revision을
+확인하여 기존 result 조회/동일 complete·동일 finalize UUID replay를 허용한다. 새 승인·취소·다른 finalize
+UUID와 다른 회원으로의 결과 승계는 허용하지 않는다. 기존 만료/비밀번호·활성/현재 장치·키 검사는 유지된다.
+
+### 명시 DB 준비·배포 순서
+
+번호 없는 [이관 DDL 검토안](../RemoteWork.Server/migrations/drafts/enrollment_owner_transfer.mysql.sql)은
+기존007을 수정하지 않는다. 이관 이력 표 1개를 추가하고 기존 mapping의 4열 복합FK를
+등록/장치/slot 3열 FK로 한 ALTER에서 교체한다. 사용자 FK와 슬롯·현재 사용자 UNIQUE는 계속 강제된다.
+원 등록 대상은 job의 기존 target_user_id에 남는다. FK 검사 해제·과거 completed job 변경으로
+이전을 흉내 내지 않는다. 정식 DDL 번호는 팀장 취합 전 확정 번호로 표시하지 않는다.
+
+1. 전체 DB·외부 파일·비공개 설정 백업과 독립 MySQL 복원/DDL·행·파일 대조.
+2. 복원 DB에서 DDL 및 동일 대상 이관·원 요청 재실행 검증.
+3. Pi 단일 서비스를 기존 절차로 clean stop/drain하고 5000 서버도 종료.
+4. 현재 미확정/열린 근무·원 연결 재검사 후 DDL 명시 적용. 부분 설치는 원인 확인 전 재실행하지 않는다.
+5. 같은 DB/비공개 프로필을 사용하는 앱의 CLI에서 명시 실행:
+
+```text
+transfer-enrollment-owner --actor-login <관리자> --from-login <기존회원> --to-login <대상회원>
+  --device-id <현재장치UUID> --slot <기존슬롯> --expected-revision <기대값>
+  --request-id <변하지않는새UUID> --reason <사용자승인사유>
+```
+
+6. 보존 항목/현재 연결·revision·이력/감사/동일 요청 결과를 직접 대조하고 같은5000 서버 재시작.
+7. 변경된 서버 소스 pin과 새 ON 회차 묶음을 5번에게 비공개 전달. 기존 Pi 전환·복구 절차로
+   단일 서비스에 재연결하고 대상 회원의 실제 지문 입력·로그인 확인. 서버 검사만으로 실물 완료로 쓰지 않는다.
+
+복구도 원 UUID와 이력을 보존한다. 성공한 이전을 숨기기 위해 행을 삭제하거나 직접 user_id를
+되돌리지 않는다. 필요하면 명시적인 반대 방향 이관을 새 UUID/기대 revision으로 수행한다.
+구버전으로 돌아갈 때도 현재 소유자와 원 job 대상이 다른 상태에서 옛 4열FK를 재설치할 수 없으므로,
+승인된 역이관·이력/DDL 호환성을 먼저 확인해야 한다. 실제 운영 DB 전체 restore/DROP은 별도 판단이다.
+
 ## 2026-10-22 후속: 정상 요청 drain과 원 퇴근 결과 소유권
 
 1번 제공: `ApiClient.Session.BeginClockOutFinalizationAsync(workId,workDate,challengeId,
