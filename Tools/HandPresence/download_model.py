@@ -9,9 +9,16 @@ MODEL_SHA256 = "fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1
 MODEL_PATH = Path(__file__).parent / "models" / "hand_landmarker.task"
 
 
-def verify_model(path):
-    if hashlib.sha256(Path(path).read_bytes()).hexdigest() != MODEL_SHA256:
+def read_verified_model(path):
+    """Return the exact verified bytes without a native loader reopening the path."""
+    data = Path(path).read_bytes()
+    if hashlib.sha256(data).hexdigest() != MODEL_SHA256:
         raise ValueError("모델 파일 검증 실패. Setup-Hand-Presence.cmd를 실행하세요.")
+    return data
+
+
+def verify_model(path):
+    read_verified_model(path)
 
 
 def download(path=MODEL_PATH):

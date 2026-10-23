@@ -43,6 +43,7 @@ Windows Python3.13이 필요합니다. 이 PC에서는 Python3.13.15로 설치�
 - OpenCV로 지정한 카메라 하나만 열며 수신/모델 추론은 별도 스레드, Tk 화면 처리는 메인 스레드에서 수행합니다.
 - Python3.13.15, MediaPipe1.1.1, OpenCV contrib5.0.0.93(런타임5.0.0), Pillow13.0.0을 사용했습니다. 직접 의존성 버전은 requirements.txt에 고정했습니다.
 - 모델 URL은 [공식 가이드](https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker)의 다운로드 링크입니다. SHA256 `fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1`을 검증합니다. 모델·가상환경·개인 설정은 Git에서 제외합니다.
+- Windows 한글 경로에서 MediaPipe의 파일 경로 로더가 정상 모델을 열지 못하는 문제를 수정했습니다. Python에서 모델을 한 번 읽어 위 SHA256을 확인한 뒤, 검증한 동일 바이트를 `model_asset_buffer`로 전달합니다. 해시가 다르면 MediaPipe 객체를 만들기 전에 거부하며 기존 `verify_model()` 호출도 유지합니다.
 - 참고: [Python Hand Landmarker](https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker/python), [OpenCV VideoCapture](https://docs.opencv.org/4.x/d8/dfe/classcv_1_1VideoCapture.html). 모델의 출처·이용 조건은 해당 공식 안내를 따릅니다.
 
 ## 검증과 실제 사용 체크
@@ -54,9 +55,11 @@ Windows Python3.13이 필요합니다. 이 PC에서는 Python3.13.15로 설치�
 .\.venv\Scripts\python.exe -m py_compile hand_presence.py presence_core.py download_model.py
 ```
 
-자동 테스트30개 통과: 기존16개와 R23-01 지연/복구·bridge 시작/종료·JPEG/시각, 프레임 움직임의 기준/정지/부분 변화/노이즈/균일 노출/초기화, 움직임 이력 전달을 검증합니다. 물리 카메라는 열지 않습니다. C# 회귀에는 별도 새 Python 프로세스의 실제 bridge CLI 초기화와30초 통합 판정을 포함합니다.
+자동 테스트34개 통과: 기존30개가 검사하는 손 검출 표시·지연/복구·bridge 시작/종료·JPEG/시각·프레임 움직임에 더해, 한글 경로의 단일 읽기·검증한 동일 바이트 전달·변조 시 SDK 객체 생성 전 거부·기존 검증 함수 호환을4개 회귀로 확인합니다. 물리 카메라는 열지 않습니다. C# 회귀에는 별도 새 Python 프로세스의 실제 bridge CLI 초기화와30초 통합 판정을 포함합니다.
 
-실제 공식 모델을 로드해 합성 검은 영상 추론에서 손0개 반환을 확인했습니다. 사용자는 실제 카메라 인식이 정상이라고 확인했습니다. 정지 손·손 제거·조명/가림·USB 분리 정확도를 각각 확인했다는 근거는 아직 없으며 작성자가 실제 카메라 영상을 열어 검사하지 않았습니다. 카메라를 자동으로 켜 사용자 영상을 수집하지 않았습니다.
+2026-10-23 수정 검증에서는 Python3.13.12와 실제 설치된 MediaPipe에 한글·공백이 있는 폴더의 공식 모델을 메모리 바이트로 전달하여 로드하고, 합성 검은 영상에서 손0개 반환을 확인했습니다. 모델 파일의 전후 SHA256은 같았습니다.
+
+사용자가 요청한 실물 장비 검사에서는 Logi C310(DSHOW)의 실제 `winforms_bridge.py`에서161프레임을 수신하고 손 검출95프레임·움직임87프레임, 오류0·정상 종료를 확인했습니다. 실제 C# `ProcessActivityCamera`를 사용하는 외부 검사에서도49프레임/50프레임의 두 실행과 중지 후 재시작을 통과했습니다. 영상은 모델 추론과 메모리 전달에만 사용했고 저장하거나 서버에 전송하지 않았습니다. 정지 손·손 제거·조명/가림·USB 분리의 정확도별 시나리오와 전체 근태 저장은 미검증입니다. 지문·조도 장비의 서비스 복구와 기존 계정/등록 자료 이전은 별도이므로 전체 장비 연동 완료를 뜻하지 않습니다.
 
 사용자 확인 순서:
 
