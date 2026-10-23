@@ -7,12 +7,15 @@ from urllib.request import Request,urlopen
 from urllib.error import HTTPError
 
 import pytest
+from flask import g,request
 from sqlalchemy import delete,select,inspect,text
 from sqlalchemy.engine import make_url
 from werkzeug.serving import make_server
 
 from remotework import create_app,leave_service as s,leave_setup
 from remotework.auth import create_user
+from remotework.auth import load_identity,authenticated_transaction
+from remotework.common import AppError
 from remotework.db import transaction
 from remotework.models import Base,User,SchemaVersion,AdminGuard,AuditEvent,AuthSession,LoginFailure
 from remotework.write_requests import WriteReceipt
@@ -322,3 +325,132 @@ def test_check_literal_case_is_not_normalized_away(env):
     try:assert call(env,'leave/readiness').status_code==503
     finally:
         with e.begin() as c:c.exec_driver_sql("ALTER TABLE leave_requests DROP CHECK ck_leave_status, ADD CONSTRAINT ck_leave_status CHECK (status IN ('pending','approved','rejected'))")
+
+
+def prepare_other_applicant(env):
+    manifest=env['manifest']|{'members':[dict(applicant_id=env['ids']['other'],manager_id=env['ids']['boss'])]}
+    with env['app'].app_context(),transaction() as db:
+        leave_setup.prepare(db,manifest,operator_login='boss')
+
+
+def other_submission(env,*,start='2026-10-22'):
+    body=draft(start=start);k=key(env,who='other')
+    return data(call(env,'leave/requests','post',body,who='other',key=k),201)
+
+
+def cooperating_change(env,*,inactive=False):
+    # A second real connection commits after load_identity's RR snapshot, but
+    # before the feature acquires its guard. Preserve shared writer lock order.
+    with env['app'].extensions['db_engine'].begin() as db:
+        db.execute(select(AdminGuard).where(AdminGuard.id==1).with_for_update())
+        db.execute(select(User).where(User.id==env['ids']['outsider']).with_for_update())
+        db.execute(select(AuthSession).where(AuthSession.user_id==env['ids']['outsider']).with_for_update())
+        targets=sorted([env['ids']['worker'],env['ids']['boss']])
+        db.execute(select(User).where(User.id.in_(targets)).order_by(User.id).with_for_update())
+        if inactive:
+            db.execute(User.__table__.update().where(User.id==env['ids']['worker']).values(is_active=False))
+        else:
+            db.execute(s.reviewers.update().where(s.reviewers.c.applicant_id==env['ids']['worker']).values(manager_id=env['ids']['outsider'],revision=2))
+
+
+def test_review_list_current_assignment_after_identity_snapshot(env):
+    created=data(submit(env)[0],201);app=env['app'];done=[]
+    def change_after_identity():
+        if request.path=='/api/v1/leave/requests' and request.args.get('scope')=='review' and not done:
+            assert g.user.id==env['ids']['boss'] and g.auth_session is not None
+            cooperating_change(env);done.append(True)
+    app.before_request_funcs[None].append(change_after_identity)
+    try:
+        response=call(env,'leave/requests?scope=review',who='boss')
+    finally:app.before_request_funcs[None].remove(change_after_identity)
+    assert done==[True]
+    assert data(response)['items']==[]  # no stale reason/name/department disclosure
+    assert data(call(env,'leave/requests?scope=review',who='boss'))['items']==[]
+    assert call(env,'leave/requests/'+created['request_id'],who='boss').status_code==403
+    current=data(call(env,'leave/requests?scope=review',who='outsider'))['items']
+    assert [i['request_id'] for i in current]==[created['request_id']] and current[0]['can_review']
+
+
+def test_review_list_inactive_applicant_does_not_hide_active_applicant(env):
+    old=data(submit(env)[0],201);prepare_other_applicant(env);live=other_submission(env)
+    cooperating_change(env,inactive=True)
+    result=data(call(env,'leave/requests?scope=review',who='boss'))
+    assert [i['request_id'] for i in result['items']]==[live['request_id']]
+    assert result['next_cursor'] is None and result['items'][0]['can_review']
+    assert call(env,'leave/requests/'+old['request_id'],who='boss').status_code==403
+
+
+@pytest.mark.parametrize('hidden',['inactive','reassigned'])
+def test_review_pagination_filters_before_limit_and_cursor(env,monkeypatch,hidden):
+    prepare_other_applicant(env)
+    # Interleave hidden and readable canonical UUIDs independently of randomness.
+    # Construct intents/keys before fixing only the request's generated UUID.
+    identifiers={n:f'00000000-0000-4000-8000-{n:012d}' for n in range(1,7)}
+    for who,positions in [('worker',(1,3,6)),('other',(2,4,5))]:
+        for n,start in zip(positions,['2026-10-22','2026-10-23','2026-10-27']):
+            body=draft(start=start);k=key(env,who=who);identifier=identifiers[n]
+            with monkeypatch.context() as m:
+                m.setattr(s.uuid,'uuid4',lambda value=identifier:uuid.UUID(value))
+                assert data(call(env,'leave/requests','post',body,who=who,key=k),201)['request_id']==identifier
+    cooperating_change(env,inactive=hidden=='inactive')
+    cursor=None;seen=[]
+    for n in (2,4,5):
+        path='leave/requests?scope=review&limit=1'+('&after='+cursor if cursor else '')
+        page=data(call(env,path,who='boss'))
+        assert [i['request_id'] for i in page['items']]==[identifiers[n]]
+        assert page['items'][0]['can_review']
+        cursor=page['next_cursor'];seen.extend(i['request_id'] for i in page['items'])
+        assert cursor==(identifiers[n] if n!=5 else None)
+    assert seen==[identifiers[n] for n in (2,4,5)]
+    empty=data(call(env,'leave/requests?scope=review&limit=1&after='+identifiers[5],who='boss'))
+    assert empty['items']==[] and empty['next_cursor'] is None
+
+
+def test_request_view_rechecks_current_read_permission_before_serialization(env):
+    item=data(submit(env)[0],201)
+    with env['app'].test_request_context('/api/v1/leave/requests',headers={'Authorization':'Bearer '+env['tokens']['outsider']}):
+        load_identity()
+        with pytest.raises(AppError) as denied:
+            with authenticated_transaction() as db:
+                row=s.current(db,s.requests,s.requests.c.id==item['request_id'])
+                s.request_view(db,row)
+        assert denied.value.status==403 and denied.value.code=='FORBIDDEN'
+
+
+@pytest.mark.parametrize('reviewer_state',['removed','reassigned','inactive'])
+def test_own_history_survives_current_reviewer_change(env,reviewer_state):
+    created=data(submit(env)[0],201)
+    with env['app'].app_context(),transaction() as db:
+        if reviewer_state=='removed':db.execute(s.reviewers.delete())
+        elif reviewer_state=='reassigned':db.execute(s.reviewers.update().values(manager_id=env['ids']['outsider'],revision=2))
+        else:db.execute(User.__table__.update().where(User.id==env['ids']['boss']).values(is_active=False))
+    own=data(call(env,'leave/requests'))
+    assert [i['request_id'] for i in own['items']]==[created['request_id']]
+    detail=data(call(env,'leave/requests/'+created['request_id']))
+    assert detail==own['items'][0] and not detail['can_review']
+    assert detail['reason']=='synthetic reason' and detail['applicant_id']==env['ids']['worker']
+
+
+def test_inactive_own_identity_and_ungranted_actor_remain_denied(env):
+    created=data(submit(env)[0],201)
+    assert call(env,'leave/requests?scope=review').status_code==403
+    assert call(env,'leave/requests/'+created['request_id'],who='outsider').status_code==403
+    cooperating_change(env,inactive=True)
+    for path in ('leave/requests','leave/requests/'+created['request_id']):
+        response=call(env,path)
+        assert response.status_code==401 and response.json['error']['code']=='AUTH_REQUIRED'
+
+
+@pytest.mark.parametrize('path_kind',['list','detail'])
+def test_current_identity_recheck_after_load_identity_inactivation(env,path_kind):
+    created=data(submit(env)[0],201);app=env['app'];done=[]
+    path='/api/v1/leave/requests'+('/'+created['request_id'] if path_kind=='detail' else '')
+    def deactivate_after_identity():
+        if request.path==path and not done:
+            assert g.user.id==env['ids']['worker'] and g.auth_session is not None
+            cooperating_change(env,inactive=True);done.append(True)
+    app.before_request_funcs[None].append(deactivate_after_identity)
+    try:response=call(env,path.removeprefix('/api/v1/'))
+    finally:app.before_request_funcs[None].remove(deactivate_after_identity)
+    assert done==[True]
+    assert response.status_code==401 and response.json['error']['code']=='AUTH_REQUIRED'

@@ -30,6 +30,12 @@ type은 `annual/am_half/pm_half/sick/official`, decision/status는 `approved/rej
 상세 item은 `{request_id,revision,applicant_id,applicant_name,department,type,start_date,end_date,reason,status,charged_units,unit_days,can_review,decision_reason,decision_by,created_at,updated_at}`다.
 최소 receipt는 `{request_id,revision,status,charged_units,updated_at}`만 보관한다. 사유/성명/파일/자격정보를 W1 receipt에 보관하지 않는다. GET 상세에서 별도 결정사유를 읽는다.
 
+### 목록의 현재 권한·페이지 경계
+
+관리자 검토 목록은 신청·현재 담당관계·활성 신청인을 직접 JOIN해 같은 MySQL locking/current read로 조회한다. 인증이 만든 이전 RR snapshot의 서브쿼리로 담당자를 판단하지 않는다. 현재 관리자·활성 신청인 조건을 `after`/`limit+1` 전에 적용하므로 회수되거나 비활성화된 신청은 개인정보를 노출하거나 정상 페이지 자리를 차지하지 않는다. 각 행의 직렬화에서도 본인/현재 지정관리자 권한을 재검사하며 `can_review=false`는 열람 허가를 대신하지 않는다.
+
+비활성 신청인 한 명 때문에 다른 활성 직원의 검토 목록을403으로 중단시키지 않는다. 비활성 신청인의 상세 권한을 확대하지 않으며, 비활성 본인의 인증은 기존401 검사를 따른다. 본인 목록에는 담당관계 JOIN을 적용하지 않아 관리자 해제·비활성 후에도 현재 활성 본인의 이력 읽기를 유지한다. 관리자도 신청인이 될 수 있으므로 신청인 역할을 직원으로 제한하지 않는다. 페이지마다 현재 권한을 검사하며 여러 페이지 전체의 단일 snapshot은 보장하지 않는다.
+
 ## W1·원 요청 복구
 
 - 기존 POST `/write-requests/keys`의 `{action:"leave.submitted",target:"new"}` 또는 `{action:"leave.decided",target:<신청UUID>}`로 키를 발급한다. 신청/결정 POST에 같은 키를 `Idempotency-Key`로 전송한다.

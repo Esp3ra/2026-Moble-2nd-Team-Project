@@ -288,6 +288,9 @@ def reason(value, *, mandatory=False):
 
 
 def request_view(db, item):
+    # A display/action flag is not read authorization. Recheck every serialized
+    # row using current identity/relationship reads, including list responses.
+    readable(db, item.applicant_id)
     person = actor(db, item.applicant_id)
     link = assignment(db, item.applicant_id)
     can_review = bool(item.status == 'pending' and g.user.role == 'admin' and link and link.manager_id == g.user.id and item.applicant_id != g.user.id)
@@ -416,12 +419,19 @@ def listing():
     if after is not None:canonical(after)
     with authenticated_transaction() as db:
         storage(db)
+        source = requests
         where = [requests.c.applicant_id == g.user.id]
         if scope == 'review':
             if g.user.role != 'admin':error(403, 'FORBIDDEN', '관리자 검토 목록입니다.')
-            where = [requests.c.applicant_id.in_(select(reviewers.c.applicant_id).where(reviewers.c.manager_id == g.user.id)), requests.c.applicant_id != g.user.id]
+            # Locking the outer query does not make an IN subquery a current
+            # read under RR. Join the relation and active applicant directly,
+            # before limit/cursor so revoked/inactive rows consume no page.
+            source = requests.join(User.__table__, requests.c.applicant_id == User.id).join(
+                reviewers, reviewers.c.applicant_id == requests.c.applicant_id)
+            where = [reviewers.c.manager_id == g.user.id, User.is_active.is_(True),
+                     requests.c.applicant_id != g.user.id]
         if after:where.append(requests.c.id > after)
-        rows = db.execute(select(requests).where(*where).order_by(requests.c.id).limit(int(raw)+1).with_for_update()).mappings().all()
+        rows = db.execute(select(requests).select_from(source).where(*where).order_by(requests.c.id).limit(int(raw)+1).with_for_update()).mappings().all()
         data = {'items': [request_view(db, row) for row in rows[:int(raw)]],
                 'next_cursor': rows[int(raw)-1].id if len(rows) > int(raw) else None, 'server_time': iso(now(db))}
     return success(data)
