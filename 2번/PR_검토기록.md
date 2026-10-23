@@ -1,3 +1,38 @@
+<a id="pr89-fixed-merged-20261023"></a>
+## PR89 R89-01 직접 수정·재검토·병합 — 2026-10-23
+
+팀장이 이 채팅에서 필요한 PR 수정을 직접 진행하고 병합하도록 지시했습니다. 원 head **e2721d0ee661c862b5d7b729591d731a1af95194**에 수정 **58bc1ab21a4d8d68dfeb079e0462e84388d79fbf**를 정상 push했고, [R89-01 회신](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/89#discussion_r4357418215)·스레드 해결·수정 전 요청 해제·고정 head 승인을 거쳐 [PR89](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/89)를 병합했습니다. alpha **97136195d37ce70161bd1c76931f85557739b9d6**, 부모389f5ac5/58bc1ab2, tree **a68c53b465bf9db1470b2ca94116e9ba9f6bd162**는 검증 head와 같습니다.
+
+### 이번 변경 파일 6개
+
+|파일|내용|
+|---|---|
+|Devices/RaspberryPi/identity_startup.py|고정 /usr/bin/systemctl --system의 현재 MainPID/InvocationID/ControlGroup/ActiveState와 proc PID/cgroup을 대조. 최소 환경·1초 제한·조회 실패/비정상 출력 차단. 기존 root claim/lease/서버 승인 유지|
+|Devices/RaspberryPi/test_identity_startup.py|실제 process_stamp 경로의8개 경계 검사. 정상 active/activating, 첫 프로세스 종료 후 옛 자료·새 PID 재사용 거절, 다른 OS 회차/소속/상태, 오류/timeout/출력 이상/환경 주입, 소속 상실 후 영구 닫힘|
+|Devices/RaspberryPi/IDENTITY_SERVICE.md|실제 OS 소속 확인 조건과 수정 전 실물 보고의 시점·수정본 실물 미실행 구분|
+|Tests/Leave.Ui.Tests/Leave.Ui.Tests.csproj|제품과 동일 DpiUnawareGdiScaled/ForceDesignerDPIUnaware=true로 기본 명령의 DPI 일치|
+|Tests/Leave.Ui.Tests/README.md|제품 DPI로 검사하는 범위 안내|
+|README.md|PR89 수정·기능·검증 범위 최신화|
+
+### 직접 실행한 검증
+
+|명령/밴드|결과|
+|---|---|
+|python -X utf8 -B -m unittest test_identity_startup -q|28개 발견,27통과/권한 관련1생략|
+|python -X utf8 -B -m unittest discover -s Devices/RaspberryPi -p 'test_*.py' -q|302개 발견,298통과/Windows의 Linux 조건4생략. 앞28 및 새8 포함, 중복 합산 금지|
+|독립 회귀 민감도|수정 전 HEAD의 process_stamp만 메모리 주입 시 옛 인계 재사용 거절 검사 FAIL(ConfigurationError not raised), 수정 함수의 경계8개 PASS. 파일 덮어쓰기 없음|
+|dotnet run --project Tests/Leave.Ui.Tests -c Release --artifacts-path 외부폴더|기본 명령242통과. 제품 DPI 두 MSBuild 속성도 확인|
+|dotnet run --project Tests/WorkdayActivity.Tests -c Release --artifacts-path 외부폴더|109통과|
+|dotnet run --project Tests/UserManagement.Ui.Tests -c Release --artifacts-path 외부폴더 -- --require-mysql-enrollment|연결341·복구95·기존회원 신규58·회원관리14시나리오46 통과. 실제 폼/통제 HTTP·Pi 대역이며 실제 MySQL/센서 아님|
+|dotnet build RemoteWork.sln / Tools/ConnectedWorkspace 각각 -c Release --artifacts-path 외부폴더|각각 경고0·오류0|
+|git diff --check / 병합 tree 비교|통과·동일. 원격 CI status/workflow는 등록0개이며 로컬 검사와 구분|
+
+최초 전체 Python 실행은 이 PC의 tzdata 누락으로 실패했습니다. 제품 소스/운영 venv를 바꾸지 않고 소스 밖 전용 의존성 폴더에 tzdata를 설치한 뒤 같은 전체 명령을 재실행해 통과했습니다. 명시 sensor error 출력은 기존 실패 대역 검사이며 최종 exit0입니다. 기존 SQLite 호환 fixture 일부는 그대로 실행했으며 새 SQLite 기능을 추가하지 않았습니다.
+
+실제 Raspberry Pi/systemd/DBus 권한·1초 응답시간·root 전환/UART·공유DB/실계정·실제 정오/통신 단절/두PC는 미실행입니다. 작성자의 기존 실물 보고는 수정 전 코드에 대한 이력이며 수정본의 운영 검증으로 바꾸지 않습니다. 운영 프로세스/키·프로필/DB/flags/ACK·사용자 로컬 실행 서버를 변경하거나 재기동하지 않았습니다. KST11~12 정책·조회 버튼 정리는 기존1·5번 후속이며 이 PR에 섞지 않았습니다.
+
+아래는 수정 전 검토 이력입니다.
+
 <a id="pr89-reviewed-20261023"></a>
 ## PR89 독립 검토 — 시작 인계 재사용 수정 요청, 2026-10-23
 
