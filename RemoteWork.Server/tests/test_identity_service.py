@@ -393,7 +393,7 @@ def test_actual_attendance_commit_encrypted_replay_and_resume_without_fingerprin
     assert post(e, h, job, "finalize", {"client_request_id": str(uuid4())}).status_code == 409
 
 
-def test_clock_out_is_atomic_revokes_sessions_replays_receipt_and_no_same_day_reentry(working):
+def test_clock_out_revokes_old_sessions_but_allows_password_access_without_reentry(working):
     e = working; _, _, _, _, normal = clock_in(e)
     job, _ = issue(e, normal, purpose="clock_out")
     assert post(e, normal, job, "complete", result(e, normal, job)).status_code == 200
@@ -404,11 +404,15 @@ def test_clock_out_is_atomic_revokes_sessions_replays_receipt_and_no_same_day_re
     assert post(e, normal, job, "finalize", key).json["data"] == done.json["data"]
     assert e[1].get(ROOT + "/challenges/" + job["challenge_id"], headers=normal).json["data"]["workflow_state"] == "completed"
     again = e[1].post("/api/v1/auth/login", json={"login_id": "staff1", "password": PASSWORD})
-    assert again.status_code == 409 and again.json["error"]["code"] == "ATTENDANCE_DAY_CLOSED"
+    assert again.status_code == 200
+    logged_back = {"Authorization": "Bearer " + again.json["data"]["access_token"]}
+    assert e[1].get("/api/v1/auth/me", headers=logged_back).status_code == 200
+    closed = e[1].get(ROOT + "/workday", headers=logged_back)
+    assert closed.status_code == 409 and closed.json["error"]["code"] == "ATTENDANCE_DAY_CLOSED"
     with e[0].app_context():
         assert get_db().scalar(select(WorkSession)).ended_at is not None
         actor = get_db().scalar(select(User).where(User.login_id == "staff1"))
-        assert get_db().scalar(select(func.count()).select_from(AuthSession).where(AuthSession.user_id == actor.id)) == 0
+        assert get_db().scalar(select(func.count()).select_from(AuthSession).where(AuthSession.user_id == actor.id)) == 1
         assert get_db().scalar(select(func.count()).select_from(AuthSession).where(AuthSession.user_id != actor.id)) > 0
 
 

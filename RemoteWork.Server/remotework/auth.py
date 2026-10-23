@@ -79,7 +79,8 @@ def verify_credentials(login_id, password):
 
 
 def authenticate(login_id, password, channel):
-    # Block the old API/web path while the explicit identity service is enabled.
+    # First attendance still requires identity; later application login does not
+    # start/reopen work, including when today's work has already ended.
     if current_app.config.get("ENABLE_DEVICE_IDENTITY_DRAFT"):
         provider = current_app.extensions.get("identity_workflow")
         if not callable(getattr(provider, "resume", None)):
@@ -91,12 +92,13 @@ def authenticate(login_id, password, channel):
             if guard is None:
                 raise AppError(503, "IDENTITY_STORAGE_NOT_READY", "근무 저장소 준비가 필요합니다.")
             user = verify_credentials(login_id, password)
-            provider.resume(db, user)  # Actual same-day OPEN work only, never a PC flag.
+            work = provider.resume(db, user)  # Actual same-day attendance, never a PC flag.
             token = secrets.token_urlsafe(32)
             auth_session = AuthSession(token_hash=token_digest(token), user_id=user.id, channel=channel,
                 expires_at=utcnow() + timedelta(hours=current_app.config["SESSION_HOURS"]))
             db.add(auth_session)
-            audit("auth.login", "user", user.id, {"channel": channel, "resumed_work": True}, actor_id=user.id)
+            audit("auth.login", "user", user.id,
+                {"channel": channel, "resumed_work": work.ended_at is None}, actor_id=user.id)
         return user, token, auth_session
     user = verify_credentials(login_id, password)
     db = get_db()
