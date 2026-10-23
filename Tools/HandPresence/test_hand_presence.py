@@ -1,3 +1,5 @@
+import hashlib
+import sys
 import tempfile
 import time
 import tkinter as tk
@@ -5,8 +7,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from download_model import MODEL_SHA256, verify_model
-from hand_presence import CameraWorker, FrameUpdate, HandPresenceWindow
+from download_model import MODEL_SHA256, read_verified_model, verify_model
+from hand_presence import CameraWorker, FrameUpdate, HandDetector, HandPresenceWindow
 from presence_core import Evidence, EvidenceTracker, Region
 
 
@@ -46,6 +48,61 @@ class EvidenceTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 verify_model(model)
         self.assertEqual(len(MODEL_SHA256), 64)
+
+
+class ModelBufferTests(unittest.TestCase):
+    model_bytes = b'public synthetic model buffer for regression only'
+    model_sha256 = hashlib.sha256(model_bytes).hexdigest()
+
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        self.model = Path(self.folder.name) / '한글 경로와 공백' / '모델.task'
+        self.model.parent.mkdir()
+        self.model.write_bytes(self.model_bytes)
+        expected = patch('download_model.MODEL_SHA256', self.model_sha256)
+        expected.start()
+        self.addCleanup(expected.stop)
+
+    def test_verified_bytes_read_once_from_unicode_path(self):
+        original_read = Path.read_bytes
+        with patch.object(Path, 'read_bytes', autospec=True, side_effect=original_read) as read:
+            self.assertEqual(read_verified_model(self.model), self.model_bytes)
+        read.assert_called_once_with(self.model)
+
+    def test_detector_passes_exact_verified_buffer_without_native_path(self):
+        sdk = Mock()
+        original_read = Path.read_bytes
+        with patch.dict(sys.modules, {'mediapipe': sdk}), \
+                patch.object(Path, 'read_bytes', autospec=True, side_effect=original_read) as read:
+            detector = HandDetector(self.model)
+        read.assert_called_once_with(self.model)
+        sdk.tasks.BaseOptions.assert_called_once_with(model_asset_buffer=self.model_bytes)
+        sdk.tasks.vision.HandLandmarkerOptions.assert_called_once_with(
+            base_options=sdk.tasks.BaseOptions.return_value,
+            running_mode=sdk.tasks.vision.RunningMode.IMAGE,
+            num_hands=2, min_hand_detection_confidence=0.5,
+            min_hand_presence_confidence=0.5,
+        )
+        sdk.tasks.vision.HandLandmarker.create_from_options.assert_called_once_with(
+            sdk.tasks.vision.HandLandmarkerOptions.return_value)
+        detector.close()
+        sdk.tasks.vision.HandLandmarker.create_from_options.return_value.close.assert_called_once_with()
+
+    def test_tampered_model_is_rejected_before_sdk_construction(self):
+        self.model.write_bytes(self.model_bytes + b'tampered')
+        sdk = Mock()
+        with patch.dict(sys.modules, {'mediapipe': sdk}), self.assertRaises(ValueError):
+            HandDetector(self.model)
+        sdk.tasks.BaseOptions.assert_not_called()
+        sdk.tasks.vision.HandLandmarkerOptions.assert_not_called()
+        sdk.tasks.vision.HandLandmarker.create_from_options.assert_not_called()
+
+    def test_verify_model_keeps_existing_validation_only_contract(self):
+        self.assertIsNone(verify_model(self.model))
+        self.model.write_bytes(b'tampered')
+        with self.assertRaises(ValueError):
+            verify_model(self.model)
 
 
 class WorkerTests(unittest.TestCase):

@@ -6,18 +6,20 @@ import tkinter as tk
 from dataclasses import dataclass
 from tkinter import messagebox, ttk
 
-from download_model import MODEL_PATH, verify_model
+from download_model import MODEL_PATH, read_verified_model
 from presence_core import Evidence, EvidenceTracker, Region
 from frame_motion import FrameMotion
 
 
 class HandDetector:
     def __init__(self, model=MODEL_PATH):
+        model_bytes = read_verified_model(model)
         import mediapipe as mp
-        verify_model(model)
         self.mp = mp
         options = mp.tasks.vision.HandLandmarkerOptions(
-            base_options=mp.tasks.BaseOptions(model_asset_path=str(model)),
+            # Pass the same verified bytes to avoid native path decoding failures
+            # in Windows folders containing Korean or other Unicode characters.
+            base_options=mp.tasks.BaseOptions(model_asset_buffer=model_bytes),
             running_mode=mp.tasks.vision.RunningMode.IMAGE,
             num_hands=2, min_hand_detection_confidence=0.5,
             min_hand_presence_confidence=0.5,
