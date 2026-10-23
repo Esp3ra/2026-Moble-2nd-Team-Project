@@ -875,12 +875,12 @@ internal static class Program
                     .All(row => ((TaskSummary)row.Tag!).Status == (TaskDisplayStatus)index), "live filter renders only selected status");
                 CheckLiveRows(grid, own.Where(task => task.Status == (TaskDisplayStatus)index),
                     "live own filtered grid is complete and ordered");
+                CheckLivePreparation(page, (TaskSummary)grid.CurrentRow!.Tag!, management: false);
             }
             filter.SelectedIndex = 0;
             Until(() => queryStatus.Text == "상세 조회 완료");
             Check(grid.Rows.Count == own.Count, "live all filter restores full list");
             CheckLiveRows(grid, own, "live all filter restores exact authorized set");
-            CheckLivePreparation(page, (TaskSummary)grid.CurrentRow!.Tag!, management: false);
             if (identity.User.Role == "admin")
             {
                 Field<ComboBox>(page, "cmbTaskScope").SelectedIndex = 1;
@@ -894,14 +894,21 @@ internal static class Program
                         || (grid.Rows.Count == 0 && queryStatus.Text == "조회된 업무 0개"));
                     CheckLiveRows(grid, managed!.Where(task => task.Status == (TaskDisplayStatus)index),
                         "live managed filtered grid is complete and ordered");
+                    if (grid.CurrentRow?.Tag is TaskSummary selected)
+                        CheckLivePreparation(page, selected, management: true);
                 }
                 filter.SelectedIndex = 0;
                 Until(() => queryStatus.Text == "상세 조회 완료");
                 CheckLiveRows(grid, managed!, "live managed all filter restores exact designated set");
-                CheckLivePreparation(page, (TaskSummary)grid.CurrentRow!.Tag!, management: true);
+                WithLiveDialog<TaskEditForm>(() => Field<Button>(page, "btnNewTaskPreview").PerformClick(), form =>
+                {
+                    Field<TextBox>(form, "txtTaskTitle").Text = "Unsubmitted registration fixture";
+                    Check(form.CheckedInput is null && form.CreatedResult is null && form.DialogResult != DialogResult.OK,
+                        "opening registration and typing do not create a checked or persisted task");
+                });
             }
             Check(Field<DataGridView>(page, "gridTaskAttachments").Rows.Count == 0,
-                "member 3 attachments remain unconnected");
+                "the query-only fixture has no enabled attachment service or attachment rows");
 
             // Revoke the server session through a separate caller. The feature's
             // shared ApiClient must discover the 401 on its next real task read.
@@ -911,9 +918,13 @@ internal static class Program
             using var revoked = Wait(revoker.SendAsync(logout));
             Check(revoked.IsSuccessStatusCode, "isolated server session was revoked by another caller");
             Wait(page.RefreshAsync());
-            Check(grid.Rows.Count == 0 && queryStatus.Text.Contains("인증이 만료"),
+            Check(grid.Rows.Count == 0 && queryStatus.Text.Contains("접속 변경·인증 만료", StringComparison.Ordinal),
                 "real revoked-session task read clears the screen and shows authentication expiry");
             Check(api.CurrentUser is null, "common client clears the revoked identity");
+            Check(!Field<Button>(page, "btnAcceptTask").Enabled
+                && !Field<Button>(page, "btnDeadlineExtensionPreview").Enabled
+                && !Field<Button>(page, "btnEditTaskPreview").Enabled,
+                "revoked identity cannot act on stale own or managed task selection");
         }
         finally { Wait(api.LogoutAsync()); }
     }
@@ -933,9 +944,24 @@ internal static class Program
 
     private static void CheckLivePreparation(TasksControl page, TaskSummary expected, bool management)
     {
+        // This runner enables task reads only. The current connected dialogs must
+        // keep writes blocked when their separate context API is unavailable.
+        // Actual writes and valid extension dates have their own integration suites.
+        bool initial = expected.Status == TaskDisplayStatus.NotStarted;
+        bool working = expected.Status is TaskDisplayStatus.InProgress or TaskDisplayStatus.Returned;
         if (!management)
         {
-            if (expected.Status is TaskDisplayStatus.NotStarted or TaskDisplayStatus.Returned)
+            bool canStart = initial || expected.Status == TaskDisplayStatus.Returned;
+            Check(Field<Button>(page, "btnAcceptTask").Enabled == canStart,
+                "live own acceptance/rework button follows the five-state contract");
+            Check(Field<Button>(page, "btnDeadlineExtensionPreview").Enabled == working,
+                "live extension is offered only while in progress or returned");
+            Check(Field<Button>(page, "btnSubmitResult").Enabled == (expected.Status == TaskDisplayStatus.InProgress),
+                "live submission is offered only while in progress");
+            Check(!Field<Button>(page, "btnEditTaskPreview").Visible
+                && !Field<Button>(page, "btnNewTaskPreview").Visible,
+                "own view does not expose managed task editing or registration");
+            if (canStart)
             {
                 WithLiveDialog<TaskAcceptanceForm>(() => Field<Button>(page, "btnAcceptTask").PerformClick(), form =>
                 {
@@ -943,53 +969,48 @@ internal static class Program
                         "real HTTP selected task reaches the matching acceptance/rework target");
                     Check(Field<TextBox>(form, "txtTaskId").ReadOnly
                         && Field<TextBox>(form, "txtTaskStatus").ReadOnly,
-                        "acceptance/rework preparation is read-only");
+                        "acceptance/rework target identity is read-only");
+                    Until(() => Field<Button>(form, "btnReloadContext").Enabled);
+                    Check(!Field<Button>(form, "btnConfirmTarget").Enabled && form.CheckedTarget is null
+                        && !form.ShouldRefreshList,
+                        "missing write context prevents acceptance/rework confirmation or a success result");
                 });
             }
-            else Check(!Field<Button>(page, "btnAcceptTask").Enabled,
-                "other task states do not expose acceptance/rework target actions");
-            WithLiveDialog<DeadlineExtensionForm>(() => Field<Button>(page, "btnDeadlineExtensionPreview").PerformClick(), form =>
+            if (working)
             {
-                Check(Field<TextBox>(form, "txtTaskSummary").Text.Contains(expected.TaskId)
-                    && Field<TextBox>(form, "txtCurrentDeadline").Text == expected.DueDate.ToString("yyyy-MM-dd"),
-                    "real HTTP selected task and DATE reach the extension input");
-                var desired = Field<DateTimePicker>(form, "dtpRequestedDeadline");
-                desired.Value = expected.DueDate.ToDateTime(TimeOnly.MinValue);
-                desired.Checked = true;
-                var reason = Field<TextBox>(form, "txtExtensionReason");
-                reason.Text = "  Local-only live fixture input  ";
-                Field<Button>(form, "btnConfirm").PerformClick();
-                Check(form.CheckedInput is { } draft && draft.TaskId == expected.TaskId
-                    && draft.OriginalDueDate == expected.DueDate && draft.RequestedDueDate == expected.DueDate
-                    && draft.Reason == reason.Text && form.DialogResult != DialogResult.OK,
-                    "live extension captures exact local values without accepting a request");
-                reason.Text += "changed";
-                Check(form.CheckedInput is null, "live changed extension invalidates checked input");
-            });
+                WithLiveDialog<TaskLifecycleForm>(() => Field<Button>(page, "btnDeadlineExtensionPreview").PerformClick(), form =>
+                {
+                    Check(Field<Label>(form, "lblTarget").Text.EndsWith("업무 " + expected.TaskId, StringComparison.Ordinal),
+                        "real HTTP selected identity reaches the connected lifecycle form");
+                    Until(() => Field<Button>(form, "btnReload").Enabled);
+                    Check(!Field<Button>(form, "btnConfirm").Enabled
+                        && Field<TextBox>(form, "txtRequestedDueDate").ReadOnly
+                        && form.ConfirmedResult is null && !form.ShouldRefreshList,
+                        "missing lifecycle context keeps extension input and execution blocked");
+                });
+            }
             return;
         }
-        WithLiveDialog<TaskEditForm>(() => Field<Button>(page, "btnEditTaskPreview").PerformClick(), form =>
+        Check(Field<Button>(page, "btnEditTaskPreview").Enabled == initial
+            && Field<Button>(page, "btnReassignTask").Enabled == initial,
+            "live managed edit and reassignment are restricted to not-started tasks");
+        Check(Field<Button>(page, "btnChangeTaskManagers").Enabled == (initial || working)
+            && Field<Button>(page, "btnCancelTask").Enabled == (initial || working),
+            "live manager change and cancellation follow the allowed states");
+        Check(!Field<Button>(page, "btnAcceptTask").Visible
+            && !Field<Button>(page, "btnDeadlineExtensionPreview").Visible,
+            "managed view does not present another assignee's start or extension actions");
+        if (initial)
         {
-            Check(Field<TextBox>(form, "txtTaskTitle").Text == expected.Title,
-                "real HTTP managed task reaches its edit input");
-            Field<Button>(form, "btnConfirm").PerformClick();
-            Check(form.CheckedInput is { } draft && draft.TaskId == expected.TaskId
-                && draft.StartDate == expected.StartDate && draft.DueDate == expected.DueDate
-                && form.DialogResult != DialogResult.OK,
-                "live edit captures the exact local source identity and DATE values");
-        });
-        WithLiveDialog<TaskEditForm>(() => Field<Button>(page, "btnNewTaskPreview").PerformClick(), form =>
-        {
-            Field<TextBox>(form, "txtTaskTitle").Text = "Local-only registration fixture";
-            var start = Field<DateTimePicker>(form, "dtpStartDate");
-            var due = Field<DateTimePicker>(form, "dtpDeadline");
-            start.Value = expected.StartDate.ToDateTime(TimeOnly.MinValue);
-            due.Value = expected.DueDate.ToDateTime(TimeOnly.MinValue);
-            start.Checked = due.Checked = true;
-            Field<Button>(form, "btnConfirm").PerformClick();
-            Check(form.CheckedInput is { TaskId: null } && form.DialogResult != DialogResult.OK,
-                "live registration remains a local draft with no invented persistent identity");
-        });
+            WithLiveDialog<TaskManagementForm>(() => Field<Button>(page, "btnEditTaskPreview").PerformClick(), form =>
+            {
+                Check(Field<Label>(form, "lblTarget").Text.Contains("업무 " + expected.TaskId + "\r\n", StringComparison.Ordinal),
+                    "real HTTP managed identity reaches the connected management form");
+                Until(() => Field<Button>(form, "btnReload").Enabled);
+                Check(!Field<Button>(form, "btnConfirm").Enabled && form.ConfirmedResult is null && !form.ShouldRefreshList,
+                    "missing management context prevents confirmation and a false saved result");
+            });
+        }
     }
 
     private static void WithLiveDialog<T>(Action open, Action<T> inspect) where T : Form

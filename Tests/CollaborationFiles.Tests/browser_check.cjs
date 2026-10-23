@@ -19,7 +19,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   await admin.locator('#title').fill('브라우저 공지 첨부');await admin.locator('#content').fill('웹 실제 파일 전송');
   await admin.locator('#notice-files').setInputFiles({name:filename,mimeType:'text/plain',buffer:content});
   await admin.locator('[data-file-status]').filter({hasText:filename}).waitFor();
-  await admin.locator('form[data-notice-attachments] button[type=submit]').click();await admin.waitForURL(/\/notices\?choice=/);pass('notice browser upload chunks + same-TX create');
+  await admin.locator('form[data-notice-attachments] button[type=submit][name=notice_action][value=publish]').click();await admin.waitForURL(/\/notices\?choice=/);pass('notice browser upload chunks + same-TX create');
   const id=new URL(admin.url()).searchParams.get('choice');await staff.goto(base+`/notices?selected=${id}`);
   const button=staff.locator('[data-notice-downloads] button').filter({hasText:filename});await button.waitFor();
   const download=await Promise.all([staff.waitForEvent('download'),button.click()]);const saved=path.join(output,'notice-download.txt');await download[0].saveAs(saved);assert.deepEqual(fs.readFileSync(saved),content);pass('other cookie session notice download validates exact bytes');

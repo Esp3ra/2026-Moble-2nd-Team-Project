@@ -487,6 +487,15 @@ def fixture_server():
             def log(self, *_args, **_kwargs):
                 pass
         server = make_server("127.0.0.1", 0, app, threaded=True, request_handler=QuietRequestHandler)
+        from flask import request
+        feature_mutation_requests = []
+
+        @app.before_request
+        def observe_fixture_feature_writes():
+            if (request.path.startswith("/api/v1/") and not request.path.startswith("/api/v1/auth/")
+                    and request.method not in ("GET", "HEAD", "OPTIONS")):
+                feature_mutation_requests.append((request.method, request.path))
+
         thread = threading.Thread(target=lambda: server.serve_forever(poll_interval=0.1), daemon=True)
         thread.start()
         print(json.dumps({"id": message_id, "ok": True, "port": server.server_port}), flush=True)
@@ -502,6 +511,7 @@ def fixture_server():
                 with engine.connect() as connection:
                     result["database"] = _digest_rows(connection, common + task_tables)
                     result["feature"] = _digest_rows(connection, task_tables)
+                    result["feature_mutation_requests"] = len(feature_mutation_requests)
                     if connection.exec_driver_sql("SELECT version FROM schema_versions ORDER BY version").all() != [(1,)]:
                         raise shared.RunFailure("fixture schema version changed")
             elif action == "remove_manager":
@@ -583,8 +593,11 @@ def run(args):
                                       process_runner=run_owned_client)
                     shared.run_client(dotnet, dll, env, fixture, accounts["admin"], shared.ADMIN_OWN,
                                       shared.ADMIN_MANAGED, checks, process_runner=run_owned_client)
-                    checks.check(fixture.command("snapshot")["feature"] == before,
-                                 "C# reads and local preparation leave task/assignment/manager rows unchanged")
+                    after_client = fixture.command("snapshot")
+                    checks.check(after_client["feature"] == before,
+                                 "C# reads and connected dialogs leave task/assignment/manager rows unchanged")
+                    checks.check(after_client["feature_mutation_requests"] == 0,
+                                 "query-only C# dialogs send no feature mutation HTTP requests")
                     shared.verify_http(fixture, accounts, checks)
                 checks.check(fixture.process.poll() == 0, "owned HTTP fixture server exited cleanly")
             checks.check(mysql.clean, "owned MySQL database was removed and server stopped")

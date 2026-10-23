@@ -61,7 +61,10 @@ def main():
                     REMOTEWORK_ENABLE_TASK_QUERY_DRAFT="0", PYTEST_DISABLE_PLUGIN_AUTOLOAD="1",
                     PYTHONPATH=os.pathsep.join(str(source / p) for p in
                         ("RemoteWork.Server", "RemoteWork.Server/tests", "Devices/RaspberryPi")))
-                command = [sys.executable, "-m", "pytest", "-q", "--tb=short", "--no-header", "-p", "no:cacheprovider",
+                # Optional clients contain two distinct test_real_server.py
+                # modules. Keep their file identities without renaming tests or
+                # changing which scenarios run in the owned integration band.
+                command = [sys.executable, "-m", "pytest", "-q", "--import-mode=importlib", "--tb=short", "--no-header", "-p", "no:cacheprovider",
                            str(Path(__file__).with_name("test_server_pi.py"))]
                 if args.identity_login_client is not None:
                     client = args.identity_login_client.resolve(strict=True)

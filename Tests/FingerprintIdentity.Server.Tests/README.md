@@ -1,5 +1,32 @@
 # 5번: 1번 서버와 Pi 코드의 실제 HTTP/MySQL 연결 검사
 
+## V06 동명 테스트 모듈 수집 수정 — 2026-10-23
+
+기본 실행기가 `pytest --import-mode=importlib`를 명시한다. 로그인·근무 클라이언트 옵션을
+함께 사용하면 서로 다른 폴더의 `test_real_server.py` 두 개가 기본 import 이름으로 충돌했던
+문제다. 파일명·수집 대상·인증/근태 assertion은 유지하고 모듈의 파일별 식별만 보존한다.
+추가 환경변수나 외부 진단 패치 없이 아래 세 옵션을 같은 기본 명령에 함께 지정할 수 있다.
+
+```powershell
+& $identityPython Tests/FingerprintIdentity.Server.Tests/run_check.py `
+  --allow-disposable-mysql --mysql-bin-dir 'C:\Program Files\MySQL\MySQL Server 8.2\bin' `
+  --source-root $identitySource --report-directory $identityReport `
+  --identity-login-client '<IdentityLogin.Ui.Tests.dll 절대 경로>' `
+  --workday-activity-client '<WorkdayActivity.Tests.dll 절대 경로>' `
+  --workday-clockout-client '<같은 WorkdayActivity.Tests.dll 절대 경로>'
+```
+
+현재 전체 선택 대상은 서버/Pi10개·로그인/근무 폼7개·메인 오후 지문2개·퇴근2개로21개다.
+소유 MySQL·합성 회원/키·센서 대역 범위와 DLL SHA/자식 프로세스 정리 검사는 그대로 유지한다.
+아래 R67-01과13/10개 결과는 이전 실행 이력이다.
+
+직접 검증: alpha `6ab7a43` 제품 export와 이 수정 runner의 위 기본 명령으로 **21 passed in
+63.44s**, exit0을 확인했다. 추가 import 옵션을 외부에서 주입하지 않았다. 로그인 DLL SHA는
+`488ea958a4c381a6f0ca26edf7b45339993652000b1ae066ac52076f771a505f`, 근무/퇴근 DLL SHA는
+`805be374553d483dfb71c598027101a87ca13334f8f1d974897339432eb460d5`이며 실행 전후 동일했다.
+별도 기존 runner 정리 회귀7개도 통과했다(0.005초). 소유 MySQL·DB·runtime 정리를 확인했다.
+실제 운영 서버·장비·개인 키·공유 DB·물리 두PC는 사용하지 않았다.
+
 ## 최신 수정 — R67-01 작성자 수정·재검토 대기, 2026-10-22
 
 [팀장 R67-01/P2 요청](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/67#issuecomment-6330831748)을 수신했다. 최초 runner는 Popen/Job 등록 뒤에 정리 try/finally가 시작되어 등록 실패 시 suspended 자식이 남을 수 있었다. 새 `capture_pytest()`가 기존 `owned.run_owned_client`에 생성부터 종료까지 위임한다. 이 helper는 child/job=None에서 시작해 Popen·등록/스레드 재개 이전부터 finally로 보호하고 Job close→소유 자식 stop/wait→stdout/stderr close를 수행한다. **공통 helper는 수정하지 않았다.** timeout은 실패 상태를 유지하며 새 자식/DB로 자동 재실행하지 않는다.

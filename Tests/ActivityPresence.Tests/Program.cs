@@ -150,12 +150,29 @@ internal static partial class Program
         scenarios++;
     }
 
+    private static string HandPresenceTools()
+    {
+        foreach (string root in new[] { AppContext.BaseDirectory, Environment.CurrentDirectory })
+        {
+            var directory = new DirectoryInfo(root);
+            while (directory is not null)
+            {
+                string tools = Path.Combine(directory.FullName, "Tools", "HandPresence");
+                if (File.Exists(Path.Combine(tools, "winforms_bridge.py"))) return tools;
+                directory = directory.Parent;
+            }
+        }
+        throw new DirectoryNotFoundException("Run from the repository or place the test output under it.");
+    }
+
     private static ProcessStartInfo Python(string script)
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Tools", "HandPresence", "winforms_bridge.py"))) directory = directory.Parent;
-        if (directory is null) throw new DirectoryNotFoundException("repository");
-        var start = new ProcessStartInfo(Path.Combine(directory.FullName, "Tools", "HandPresence", ".venv", "Scripts", "python.exe"));
+        string? configured = Environment.GetEnvironmentVariable("REMOTEWORK_ACTIVITY_TEST_PYTHON");
+        string executable = string.IsNullOrWhiteSpace(configured)
+            ? Path.Combine(HandPresenceTools(), ".venv", "Scripts", "python.exe") : configured;
+        if (!Path.IsPathFullyQualified(executable) || !File.Exists(executable))
+            throw new FileNotFoundException("Prepare Tools/HandPresence/.venv or set REMOTEWORK_ACTIVITY_TEST_PYTHON to an existing absolute Python executable.", executable);
+        var start = new ProcessStartInfo(executable);
         start.ArgumentList.Add("-u"); start.ArgumentList.Add("-c"); start.ArgumentList.Add(script);
         return start;
     }
@@ -164,7 +181,7 @@ internal static partial class Program
     {
         // A cold child is essential: importing NumPy in this process or test doubles masked
         // the Windows native import/stdin-reader startup stall in the initial tests.
-        var tools = Path.GetDirectoryName(Python("").FileName)!.Replace(".venv\\Scripts", "");
+        var tools = HandPresenceTools();
         string coldScript = "import sys,runpy\n" +
             $"sys.path.insert(0,{JsonSerializer.Serialize(tools)})\n" +
             "import hand_presence\nOriginal=hand_presence.CameraWorker\n" +

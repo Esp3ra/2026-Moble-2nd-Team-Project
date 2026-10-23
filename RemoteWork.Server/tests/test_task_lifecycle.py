@@ -4,6 +4,7 @@ The explicit TESTING acknowledgment is a result-disabled test double, not proof
 of member 3/shared deployment integration. No SQLite maintenance is included.
 """
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 import json
 import os
@@ -12,7 +13,8 @@ import sys
 from threading import Barrier
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, inspect, select
+from sqlalchemy.engine import make_url
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.schema import CreateTable
 
@@ -32,6 +34,56 @@ from remotework.write_requests import WriteReceipt
 NOW = datetime(2026, 10, 20, 3, 4, 5, 123456)
 ACTIONS = ("task.cancelled", "task.deadline_extension_requested", "task.deadline_extension_approved",
            "task.deadline_extension_rejected", "task.deadline_extension_withdrawn")
+
+
+@contextmanager
+def preserve_empty_owned_table_ddl(app, *tables):
+    """Restore exact physical fixture DDL, including original index order.
+
+    ORM CREATE can emit its Index set in a different order than raw009. A
+    physical-corruption test must restore the captured original, not silently
+    alter the runner's SHOW CREATE baseline. Never rebuild populated tables.
+    """
+    engine = app.extensions["db_engine"]
+    configured = make_url(os.environ["MYSQL_TEST_URL"])
+    assert app.testing and engine.dialect.name == "mysql"
+    assert engine.url == configured
+    assert configured.host in ("127.0.0.1", "localhost", "::1")
+    assert configured.port is not None and (configured.database or "").startswith("remote_work_test_")
+    assert tables and all(table in (TaskCancellation.__table__, TaskDeadlineExtension.__table__) for table in tables)
+    saved = []
+    with engine.connect() as connection:
+        assert connection.exec_driver_sql("SELECT DATABASE()").scalar_one() == configured.database
+        for table in tables:
+            assert connection.scalar(select(func.count()).select_from(table)) == 0
+            name = engine.dialect.identifier_preparer.quote(table.name)
+            original = connection.exec_driver_sql("SHOW CREATE TABLE " + name).one()[1]
+            assert "DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci" in original.splitlines()[-1]
+            saved.append((table, original))
+    try:
+        yield
+    finally:
+        with engine.begin() as connection:
+            assert connection.exec_driver_sql("SELECT DATABASE()").scalar_one() == configured.database
+            for table, _original in reversed(saved):
+                if inspect(connection).has_table(table.name):
+                    assert connection.scalar(select(func.count()).select_from(table)) == 0
+                    table.drop(connection)
+            for table, original in saved:
+                # SHOW CREATE prints inherited COLLATE on character columns.
+                # Replaying it literally makes MySQL persist an explicit
+                # CHARACTER SET flag and changes the next SHOW CREATE output.
+                # Re-inherit only the known columns' unchanged table default;
+                # never alter a CHECK, literal, index, FK or column suffix.
+                lines = original.splitlines()
+                for index, line in enumerate(lines):
+                    for prefix in ("  `reason` text", "  `status` varchar(20)", "  `decision_reason` text"):
+                        inherited = prefix + " COLLATE utf8mb4_unicode_ci"
+                        if line.startswith(inherited + " ") or line.startswith(inherited + ","):
+                            lines[index] = prefix + line[len(inherited):]
+                connection.exec_driver_sql("\n".join(lines))
+                name = engine.dialect.identifier_preparer.quote(table.name)
+                assert connection.exec_driver_sql("SHOW CREATE TABLE " + name).one()[1] == original
 
 
 @pytest.fixture(autouse=True)
@@ -484,7 +536,7 @@ def test_request_lists_do_not_grant_old_assignment_or_other_requester_history(li
 ])
 def test_physical_generated_pending_expression_and_storage_are_checked(life, expression, stored):
     engine = life[0].extensions["db_engine"]
-    try:
+    with preserve_empty_owned_table_ddl(life[0], TaskDeadlineExtension.__table__):
         with engine.begin() as connection:
             # Recreate only this empty, attempt-owned fixture table. MySQL
             # forbids MODIFY from STORED to VIRTUAL even for equivalent SQL.
@@ -496,18 +548,12 @@ def test_physical_generated_pending_expression_and_storage_are_checked(life, exp
         with life[0].app_context(), pytest.raises(AppError) as caught:
             require_lifecycle_schema(get_db())
         assert caught.value.status == 503 and caught.value.code == "TASK_LIFECYCLE_SCHEMA_REQUIRED"
-    finally:
-        # MySQL cannot switch STORED<->VIRTUAL with MODIFY; rebuild this empty
-        # fixture-only table while preserving the task/assignment fixtures.
-        with engine.begin() as connection:
-            TaskDeadlineExtension.__table__.drop(connection, checkfirst=True)
-            TaskDeadlineExtension.__table__.create(connection)
 
 
 def test_missing_storage_is_not_a_false_no_pending_result_fact(life):
     engine = life[0].extensions["db_engine"]
     life[0].config["ENABLE_TASK_LIFECYCLE_DRAFT"] = False
-    try:
+    with preserve_empty_owned_table_ddl(life[0], TaskCancellation.__table__, TaskDeadlineExtension.__table__):
         with engine.begin() as connection:
             TaskDeadlineExtension.__table__.drop(connection)
             TaskCancellation.__table__.drop(connection)
@@ -517,10 +563,6 @@ def test_missing_storage_is_not_a_false_no_pending_result_fact(life):
             with pytest.raises(AppError) as caught:
                 pending_extension_facts(db, int(life[2]), 2)
             assert caught.value.status == 503 and caught.value.code == "TASK_LIFECYCLE_SCHEMA_REQUIRED"
-    finally:
-        with engine.begin() as connection:
-            TaskCancellation.__table__.create(connection, checkfirst=True)
-            TaskDeadlineExtension.__table__.create(connection, checkfirst=True)
 
 
 def test_lifecycle_is_cold_and_routes_absent_when_default_off():
