@@ -36,6 +36,8 @@ def validate_keys(values):
 def install(app):
     if app.extensions["db_engine"].dialect.name != "mysql":
         raise RuntimeError("Enrollment draft requires MySQL")
+    from .transfer import install as install_transfer
+    install_transfer(app)
     app.config.setdefault("ENROLLMENT_TICKET_TTL_SECONDS", 180)
     app.config.setdefault("ENROLLMENT_RESULT_TTL_SECONDS", 86400)
     for field, maximum in (("ENROLLMENT_TICKET_TTL_SECONDS", 3600), ("ENROLLMENT_RESULT_TTL_SECONDS", 604800)):

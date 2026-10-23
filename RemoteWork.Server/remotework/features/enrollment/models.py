@@ -70,8 +70,10 @@ class Mapping(EnrollmentBase):
     __tablename__ = "enrollment_mappings"
     __table_args__ = (UniqueConstraint("device_id", "slot", name="uq_enrollment_mapping_slot"),
                      UniqueConstraint("device_id", "user_id", name="uq_enrollment_mapping_user"),
-                     ForeignKeyConstraint(["enrollment_id", "device_id", "slot", "user_id"],
-                        ["enrollment_jobs.enrollment_id", "enrollment_jobs.device_id", "enrollment_jobs.reserved_slot", "enrollment_jobs.target_user_id"], name="fk_enrollment_mapping_binding"),
+                     # The job retains the original enrolled subject. user_id is
+                     # the CURRENT owner; an explicit audited transfer can change it.
+                     ForeignKeyConstraint(["enrollment_id", "device_id", "slot"],
+                        ["enrollment_jobs.enrollment_id", "enrollment_jobs.device_id", "enrollment_jobs.reserved_slot"], name="fk_enrollment_mapping_location"),
                      CheckConstraint("revision > 0 AND slot >= 0 AND active IN (0,1)", name="ck_enrollment_mapping_values"),
                      {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_unicode_ci"})
     mapping_id: Mapped[str] = mapped_column(String(36), primary_key=True)
