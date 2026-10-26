@@ -68,14 +68,21 @@ class AttendanceWorkflow:
             raise ValueError("Workflow encryption key must be independent")
 
     def schema_tables(self):
-        return tuple(AttendanceBase.metadata.tables.values())
+        from .history import exception_tables
+        return (*AttendanceBase.metadata.tables.values(), *exception_tables())
+
+    def prepare_login(self, db, user):
+        from .history import classify_missed_clockouts
+        classify_missed_clockouts(db, user)
 
     def _work(self, db, user, *, at=None):
         from .routes import now, fail
         day = ((at if at is not None else now()) + timedelta(hours=9)).date().isoformat()
         rows = list(db.scalars(select(WorkSession).where(WorkSession.user_id == user.id)
             .order_by(WorkSession.work_date).with_for_update().execution_options(populate_existing=True)))
-        if any(row.ended_at is None and row.work_date != day for row in rows):
+        from .history import classified_ids
+        settled = classified_ids(db, rows, day)
+        if any(row.ended_at is None and row.work_date != day and row.id not in settled for row in rows):
             fail(409, "ATTENDANCE_DAY_REVIEW_REQUIRED")
         return day, next((row for row in rows if row.work_date == day), None)
 

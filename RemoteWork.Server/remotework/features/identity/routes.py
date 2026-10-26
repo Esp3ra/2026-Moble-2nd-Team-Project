@@ -45,6 +45,7 @@ def fail(status, code):
         "IDENTITY_FINGERPRINT_REQUIRED": "오늘 첫 출근은 지문 본인 확인이 필요합니다.",
         "ATTENDANCE_DAY_CLOSED": "오늘 퇴근을 완료했습니다. 같은 날 재출근은 아직 지원하지 않습니다.",
         "ATTENDANCE_DAY_REVIEW_REQUIRED": "이전 근무일의 미종료 기록을 담당자와 확인해 주세요.",
+        "ATTENDANCE_PREVIOUS_OPERATION_PENDING": "이전 근무일의 본인 확인 결과를 먼저 복구하거나 만료 후 다시 시도해 주세요.",
         "ATTENDANCE_ALREADY_STARTED": "이미 출근했습니다. 아이디·비밀번호로 기존 근무에 다시 로그인해 주세요.",
         "ATTENDANCE_NOON_NOT_DUE": "오후 업무 전 지문 확인은 한국 시간 11:00 이상 12:00 미만에만 진행할 수 있습니다.",
         "ATTENDANCE_NOON_ALREADY_RECORDED": "오늘 오후 업무 전 지문 확인을 이미 완료했습니다.",
@@ -65,13 +66,14 @@ def locked(db, model, *conditions):
     return db.scalar(select(model).where(*conditions).with_for_update().execution_options(populate_existing=True))
 
 
-def storage():
+def storage(*, additional_tables=()):
     # No DDL or repair here; a partial migration must not become usable.
     inspector = inspect(current_app.extensions["db_engine"])
     database = inspector.default_schema_name
     if not database:
         fail(503, "IDENTITY_STORAGE_NOT_READY")
     tables = list(IdentityBase.metadata.tables.values())
+    tables.extend(additional_tables)
     extra = getattr(current_app.extensions["identity_workflow"], "schema_tables", None)
     if callable(extra):
         tables.extend(extra())
@@ -266,6 +268,9 @@ def issued_view(item):
 def login(db):
     data = body("login")
     actor = verify_credentials(data["login_id"], data["password"])
+    prepare = getattr(current_app.extensions["identity_workflow"], "prepare_login", None)
+    if callable(prepare):
+        prepare(db, actor)
     t = now()
     ctx = locked(db, Context, Context.user_id == actor.id, Context.login_request_id == data["client_request_id"])
     if ctx is not None and ctx.lookup_until <= t:

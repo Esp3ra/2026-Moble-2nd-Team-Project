@@ -15,6 +15,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--allow-disposable-mysql", action="store_true", required=True)
     parser.add_argument("--mysql-bin-dir", type=Path, required=True)
+    parser.add_argument("--include-attendance", action="store_true",
+        help="Include actual workday, post-clockout, missed-clockout/history and identity regressions")
     args = parser.parse_args()
     binary = owned.validate_binary_directory(args.mysql_bin_dir)
     with owned.owned_runtime() as runtime:
@@ -23,10 +25,14 @@ def main():
             PYTHONPATH=os.pathsep.join(str(ROOT / p) for p in ("RemoteWork.Server", "RemoteWork.Server/tests")))
         with owned.OwnedMySQL(binary, runtime, env) as mysql:
             env["MYSQL_TEST_URL"] = mysql.url.render_as_string(hide_password=False)
+            tests = ["test_identity_host.py"]
+            if args.include_attendance:
+                tests += ["test_identity_service.py", "test_identity_workday.py",
+                    "test_post_clockout_login.py", "test_missed_clockout_history.py"]
             result = owned.run_owned_client([sys.executable, "-m", "pytest", "-q",
-                str(ROOT / "RemoteWork.Server/tests/test_identity_host.py"), "--basetemp", str(runtime / "pytest"),
+                *(str(ROOT / "RemoteWork.Server/tests" / name) for name in tests), "--basetemp", str(runtime / "pytest"),
                 "--tb=short", "-p", "no:cacheprovider"], cwd=runtime, env=env,
-                stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8", timeout=150)
+                stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding="utf-8", timeout=300 if args.include_attendance else 150)
             print(result.stdout)
             if result.returncode:
                 print(result.stderr, file=sys.stderr)
