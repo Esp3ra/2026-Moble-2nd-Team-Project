@@ -1,3 +1,10 @@
+<a id="pr99-100-member2-20261026"></a>
+## PR99·100 — 별도 검토 요청·화면 검증과 기록 반영
+
+- PR99: head `7197320ed3fb0c7f772f555d66dcf7d8fc5493f1` → merge `e2b356db87998d675788384d6c0f100f7b36be8d`. 현재 사용자 확정 수동 요청 규약과 실제 연결·입력 오류 보완. 해당 head의 빌드·HTTP/MySQL/UI 검사 후 CLEAN 상태에서 병합했습니다.
+- PR100: head `d144afbc45a5a30b8f3ca37fbacfbb08ed61cd18` → merge `08fd2b0583abece431c0f73e81f477dc77aa6fdc`. 로컬 실제API28·서버 적용 기록과 중복 표 정리만 포함합니다. 문서 diff와 원 실행 보고를 대조 후 병합했습니다.
+- GitHub 자동 check는 등록되어 있지 않았고, 실행한 로컬 검사를 GitHub CI 통과로 표시하지 않습니다. 자세한 [실행 기록](업무_구현검증.md#member2-manual-review-validation-20261026)과 [규약·담당 경계](공통규약.md#member2-manual-review-policy-20261026)를 따릅니다. 새 코드와 기록 모두 alpha/사용자 폴더 반영, 두 작업 브랜치 삭제를 확인했습니다. 팀원 서버와 두PC 배포 완료를 뜻하지 않습니다.
+
 <a id="pr95-96-reviewed-merged-20261026"></a>
 ## PR95·96 독립 검토·병합 — 2026-10-26
 
