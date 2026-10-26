@@ -23,6 +23,7 @@ def create_app(test_config=None):
         host=os.getenv("MYSQL_HOST", "127.0.0.1"), port=int(os.getenv("MYSQL_PORT", "3306")),
         database=os.getenv("MYSQL_DATABASE", "remote_work"), query={"charset": "utf8mb4"})
     app.config.from_mapping(DATABASE_URL=database_url, SECRET_KEY=os.getenv("SECRET_KEY", ""),
+        MISSED_CLOCKOUT_POLICY=os.getenv("REMOTEWORK_MISSED_CLOCKOUT_POLICY", ""),
         ENABLE_TASK_QUERY_DRAFT=os.getenv("REMOTEWORK_ENABLE_TASK_QUERY_DRAFT") == "1",
         ENABLE_COMMON_WRITE_DRAFT=os.getenv("REMOTEWORK_ENABLE_COMMON_WRITE_DRAFT") == "1",
         ENABLE_DEADLINE_ALERTS_DRAFT=os.getenv("REMOTEWORK_ENABLE_DEADLINE_ALERTS_DRAFT") == "1",
@@ -33,7 +34,6 @@ def create_app(test_config=None):
         ENABLE_ENROLLMENT_DURABILITY_DRAFT=os.getenv("REMOTEWORK_ENABLE_ENROLLMENT_DURABILITY_DRAFT") == "1",
         ENABLE_ENROLLMENT_RECOVERY_DRAFT=os.getenv("REMOTEWORK_ENABLE_ENROLLMENT_RECOVERY_DRAFT") == "1",
         ENABLE_DEVICE_IDENTITY_DRAFT=os.getenv("REMOTEWORK_ENABLE_DEVICE_IDENTITY_DRAFT") == "1",
-        MISSED_CLOCKOUT_POLICY=os.getenv("REMOTEWORK_MISSED_CLOCKOUT_POLICY", ""),
         WRITE_REQUEST_TTL_SECONDS=int(os.getenv("WRITE_REQUEST_TTL_SECONDS", "86400")),
         COMPANY_NAME=os.getenv("COMPANY_NAME", "회사명"), SESSION_HOURS=int(os.getenv("SESSION_HOURS", "8")),
         COOKIE_SECURE=os.getenv("COOKIE_SECURE", "false").lower() == "true", MAX_CONTENT_LENGTH=32 * 1024,
