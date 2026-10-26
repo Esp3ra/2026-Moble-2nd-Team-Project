@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}{{ label }} 확인{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='tasks.css') }}">{% endblock %}
+{% block content %}
+<div class="task-page task-write-page">
+<a class="task-back" href="{{ url_for('task_web.review_requests', scope='own' if intent.action == 'task.review_requested' else 'reviewing') }}">← 검토 요청함으로</a>
+<p class="eyebrow">REVIEW CONFIRMATION</p><h1>{{ label }} 확인</h1>
+{% if error %}{% include 'tasks/_write_error.html' %}{% endif %}
+{% if not_recorded %}<section class="card" role="status"><h2>저장된 처리 결과가 없습니다</h2><p>아래 버튼을 누르면 확인한 원문과 같은 요청 키로 다시 전송합니다.</p></section>{% endif %}
+{% if not access_lost %}<section class="card"><h2>{{ intent.summary.title }}</h2>
+<dl class="task-info"><dt>결과 번호</dt><dd>#{{ intent.summary.submission_id }}</dd><dt>제출 회차</dt><dd>{{ intent.summary.round_no }}회차</dd><dt>지정 검토자</dt><dd>{{ intent.summary.reviewer_name }}</dd></dl>
+{% if intent.action == 'task.review_requested' %}<h3>검토 요청 내용</h3><div class="task-description">{{ intent.body.reason }}</div><p>별도 검토 요청을 저장합니다. 결과를 다시 제출하지 않으며 업무 상태와 제출 회차가 유지됩니다.</p>
+{% else %}<h3>받은 요청 내용</h3><div class="task-description">{{ intent.summary.reason }}</div><p>요청 #{{ intent.request_id }}의 내용을 확인했다는 표시를 저장합니다. 결과 승인·반려와 업무 상태 변경은 수행하지 않습니다.</p>{% endif %}
+</section>{% endif %}
+<section class="card" aria-label="검토 요청 실행 및 결과 확인">
+{% if intent.phase in ['prepared', 'retry'] %}<form method="post" action="{{ url_for('task_web.review_execute') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="ticket" value="{{ ticket }}"><button type="submit">{{ '같은 요청 다시 전송' if intent.phase == 'retry' else label + ' 저장' }}</button></form>{% endif %}
+<form method="post" action="{{ url_for('task_web.review_result') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="ticket" value="{{ ticket }}"><button class="secondary" type="submit">처리 결과 확인</button></form>
+<p class="muted">응답이 끊기거나 저장 여부가 불명확하면 이 확인 화면에서 처리 결과를 확인하세요. 같은 요청의 결과를 확인하기 전에는 새 요청을 작성하지 마세요. 자동으로 재전송하지 않습니다.</p>
+</section></div>
+{% endblock %}

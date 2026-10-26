@@ -47,6 +47,9 @@
 <a class="task-action-link" href="{{ results_url }}">{{ '결과물 읽기 전용 보기' if results_view == 'read' else '결과물 보기·제출' }}</a>
 </section>
 {% endif %}
+{% if has_review_requests and task.assignee_id == g.user.id and not task.get('is_cancelled') and task.task_status == 'submitted' %}
+<section class="card" aria-labelledby="task-review-request-heading"><h2 id="task-review-request-heading">검토 요청</h2><p class="muted">제출 완료된 결과의 기존 지정 검토자에게 별도 요청 내용을 전달합니다. 업무 상태와 제출 회차는 유지됩니다.</p><a class="task-action-link" href="{{ url_for('task_web.review_request', task_id=task.task_id, **filters) }}">검토 요청 작성</a><p><a href="{{ url_for('task_web.review_requests', scope='own') }}">보낸 검토 요청 보기</a></p></section>
+{% endif %}
 {% if has_start and task.assignee_id == g.user.id and not task.get('is_cancelled') and task.task_status in ['not_started', 'returned'] %}
 <section class="card" aria-labelledby="task-start-heading">
 {% set action = 'accept' if task.task_status == 'not_started' else 'rework-start' %}

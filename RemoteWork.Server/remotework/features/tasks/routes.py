@@ -67,6 +67,20 @@ def register_management(state):
 
 
 @bp.record_once
+def register_review_requests(state):
+    enabled = state.app.config.get("ENABLE_RESULTS_DRAFT", os.getenv("REMOTEWORK_ENABLE_RESULTS_DRAFT") == "1")
+    if enabled is True and state.app.config.get("ENABLE_COMMON_WRITE_DRAFT"):
+        from .review_requests import (acknowledge_request, create_review_request,
+            register_review_actions, review_request_context, review_request_list)
+        register_review_actions(state.app)
+        state.add_url_rule("/<string:task_id>/review-request-context", "review_request_context", review_request_context)
+        state.add_url_rule("/review-requests", "review_request_list", review_request_list)
+        state.add_url_rule("/<string:task_id>/review-requests", "create_review_request", create_review_request, methods=["POST"])
+        state.add_url_rule("/<string:task_id>/review-requests/<string:request_id>/acknowledge",
+                           "acknowledge_review_request", acknowledge_request, methods=["POST"])
+
+
+@bp.record_once
 def register_lifecycle(state):
     enabled = state.app.config.get("ENABLE_TASK_LIFECYCLE_DRAFT",
         os.getenv("REMOTEWORK_ENABLE_TASK_LIFECYCLE_DRAFT") == "1")

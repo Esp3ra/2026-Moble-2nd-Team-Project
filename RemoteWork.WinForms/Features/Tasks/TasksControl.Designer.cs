@@ -54,6 +54,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnCollaborationRequest = new System.Windows.Forms.Button();
             btnTaskRequests = new System.Windows.Forms.Button();
             btnLifecycleRequests = new System.Windows.Forms.Button();
+            btnReviewRequestsInbox = new System.Windows.Forms.Button();
             btnLifecycleResult = new System.Windows.Forms.Button();
             layoutContent4 = new System.Windows.Forms.TableLayoutPanel();
             panelContent2 = new System.Windows.Forms.Panel();
@@ -386,6 +387,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             flowActions.Controls.Add(btnCollaborationRequest);
             flowActions.Controls.Add(btnTaskRequests);
             flowActions.Controls.Add(btnLifecycleRequests);
+            flowActions.Controls.Add(btnReviewRequestsInbox);
             flowActions.Controls.Add(btnLifecycleResult);
             btnLifecycleRequests.Name = "btnLifecycleRequests";
             btnLifecycleRequests.Text = "마감 연장 요청함";
@@ -393,6 +395,12 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnLifecycleRequests.MinimumSize = new System.Drawing.Size(125, 35);
             btnLifecycleRequests.Margin = new System.Windows.Forms.Padding(0, 0, 8, 6);
             btnLifecycleRequests.Click += btnLifecycleRequests_Click;
+            btnReviewRequestsInbox.Name = "btnReviewRequestsInbox";
+            btnReviewRequestsInbox.Text = "검토 요청함";
+            btnReviewRequestsInbox.AutoSize = true;
+            btnReviewRequestsInbox.MinimumSize = new System.Drawing.Size(110, 35);
+            btnReviewRequestsInbox.Margin = new System.Windows.Forms.Padding(0, 0, 8, 6);
+            btnReviewRequestsInbox.Click += btnReviewRequestsInbox_Click;
             btnLifecycleResult.Name = "btnLifecycleResult";
             btnLifecycleResult.Text = "취소·연장 결과 확인";
             btnLifecycleResult.AutoSize = true;
@@ -1297,6 +1305,7 @@ namespace RemoteWork.WinForms.Features.Tasks
         private System.Windows.Forms.FlowLayoutPanel flowViewOptions;
         private System.Windows.Forms.CheckBox chkIncludeCancelled;
         private System.Windows.Forms.Button btnLifecycleRequests, btnLifecycleResult;
+        private System.Windows.Forms.Button btnReviewRequestsInbox;
         private System.Windows.Forms.Label lblTaskScope;
         private System.Windows.Forms.ComboBox cmbTaskScope;
         private System.Windows.Forms.Label lblTaskStatusFilter;

@@ -97,6 +97,9 @@ public sealed class HttpTaskQueryService : ITaskQueryService, ITaskPreparationSo
     public TaskLifecycleWorkflow? GetPendingLifecycleWorkflow() =>
         InCurrentSession(() => TaskLifecycleSessionStore.FindPending(api));
 
+    internal ReviewRequests.TaskReviewRequestsClient GetReviewRequestsClient() =>
+        InCurrentSession(() => ReviewRequests.TaskReviewRequestsClient.For(api));
+
     private T InCurrentSession<T>(Func<T> get)
     {
         session?.ThrowIfChanged();

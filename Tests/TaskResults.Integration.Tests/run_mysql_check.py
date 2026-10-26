@@ -55,6 +55,7 @@ def verify_integration(app, ids, initial_ddl):
     from remotework.db import get_db
     from remotework.models import AuditEvent, SchemaVersion
     from remotework.features.tasks.models import TaskRecord, TaskAssignment, TaskManager
+    from remotework.features.tasks.review_request_models import TaskReviewRequest
     from remotework.features import results
     from remotework.write_requests import WriteReceipt
     checks = owned.shared.Checks()
@@ -68,8 +69,9 @@ def verify_integration(app, ids, initial_ddl):
         decisions = list(db.scalars(select(results.Decision)))
         events = list(db.scalars(select(results.ResultEvent)))
         files = list(db.scalars(select(results.Attachment)))
+        requests = list(db.scalars(select(TaskReviewRequest)))
         checks.check((len(tasks), len(assignments), len(managers), len(receipts), len(submissions),
-                      len(decisions), len(events), len(files)) == (3, 3, 3, 15, 4, 4, 8, 2),
+                      len(decisions), len(events), len(files), len(requests)) == (3, 3, 3, 19, 4, 4, 8, 2, 2),
                      "one effect for each HTTP action, and no fabricated submissions or task rows")
         checks.check(list(db.scalars(select(SchemaVersion.version))) == [1],
                      "global schema remains version one")
@@ -79,9 +81,10 @@ def verify_integration(app, ids, initial_ddl):
         checks.check(ddl_digest(app.extensions["db_engine"]) == initial_ddl,
                      "runtime flow leaves all DDL unchanged apart from allocator position")
         feature_actions = {"task.created", "task.accepted", "task.rework_started",
-                           "submission.submitted", "submission.returned", "submission.approved"}
+                           "submission.submitted", "submission.returned", "submission.approved",
+                           "task.review_requested", "task.review_acknowledged"}
         audits = list(db.scalars(select(AuditEvent).where(AuditEvent.action.in_(feature_actions))))
-        checks.check(len(audits) == 15, "each committed business action records exactly one success audit")
+        checks.check(len(audits) == 19, "each committed business action records exactly one success audit")
         for task in tasks:
             related = [item for item in assignments if item.task_id == task.task_id]
             checks.check(len(related) == 1 and related[0].revision == task.current_assignment_revision == 1,
@@ -99,8 +102,8 @@ def verify_integration(app, ids, initial_ddl):
             expected_owner = ids["worker"] if task.title == "integration-employee" else ids["manager"]
             expected_reviewer = ids["manager"] if task.title == "integration-employee" else ids["upper"]
             checks.check(task.task_status == "approved" and task.row_version == 7
-                         and assignment.assignee_id == expected_owner and len(retained) == 7,
-                         "register accept submit return rework resubmit approve produce version seven")
+                         and assignment.assignee_id == expected_owner and len(retained) == 9,
+                         "seven task transitions plus two separate review writes preserve task version seven")
             accepted = [value for receipt, value in retained if receipt.action == "task.accepted"]
             checks.check(len(accepted) == 1 and assignment.accepted_at ==
                          datetime.fromisoformat(accepted[0]["updated_at"].replace("Z", "+00:00")).replace(tzinfo=None),
@@ -108,7 +111,7 @@ def verify_integration(app, ids, initial_ddl):
             rounds = sorted([item for item in submissions if item.task_id == task.task_id], key=lambda item: item.round_no)
             checks.check([item.round_no for item in rounds] == [1, 2]
                          and [item.status for item in rounds] == ["returned", "approved"]
-                         and [item.description for item in rounds] == ["Integration result 1", "Integration result 2"],
+                         and [item.description for item in rounds] == ["Integration result 1\r\n한글 결과 1", "Integration result 2\r\n한글 결과 2"],
                          "both actual rounds and descriptions survive rework")
             checks.check(all(item.submitted_by == expected_owner and item.reviewer_at_submission == expected_reviewer
                              and item.assignment_revision == 1 for item in rounds),
@@ -123,8 +126,25 @@ def verify_integration(app, ids, initial_ddl):
             checks.check(len(attached) == 1 and attached[0].submission_id == rounds[0].id
                          and attached[0].state == "ready" and attached[0].size == 4096,
                          "first-round uploaded file remains attached and ready")
-    return {"checks": checks.total, "tasks": 3, "receipts": 15,
-            "submissions": 4, "decisions": 4, "events": 8, "schema_versions": [1]}
+            task_requests = [row for row in requests if row.task_id == task.task_id]
+            checks.check(len(task_requests) == 1 and task_requests[0].submission_id == rounds[0].id
+                         and task_requests[0].round_no == task_requests[0].assignment_revision == 1
+                         and task_requests[0].requested_by == expected_owner
+                         and task_requests[0].reviewer_id == expected_reviewer,
+                         "separate request retains its original result round assignment requester and reviewer")
+            request_row = task_requests[0]
+            checks.check(request_row.status == "acknowledged" and request_row.acknowledged_by == expected_reviewer
+                         and request_row.acknowledged_at is not None and request_row.pending_submission_id is None
+                         and request_row.reason == "Integration review request · 검토 요청 확인",
+                         "acknowledgment and original request content survive later result return rework and approval")
+            request_receipts = [(receipt, value) for receipt, value in retained
+                                if receipt.action in ("task.review_requested", "task.review_acknowledged")]
+            checks.check(len(request_receipts) == 2 and all(value["request_id"] == str(request_row.request_id)
+                         and value["submission_id"] == str(rounds[0].id) and value["round_no"] == "1"
+                         for _, value in request_receipts),
+                         "each review action has one independent receipt without another result submission")
+    return {"checks": checks.total, "tasks": 3, "receipts": 19,
+            "submissions": 4, "decisions": 4, "events": 8, "review_requests": 2, "schema_versions": [1]}
 
 
 def fixture_server():
@@ -172,7 +192,7 @@ def fixture_server():
             raise owned.shared.RunFailure("refusing a nonempty integration fixture database")
         Base.metadata.create_all(engine, tables=common)
         with engine.begin() as connection:
-            for name in ("002_task_queries.mysql.sql", "004_write_receipts.mysql.sql", "006_results.mysql.sql"):
+            for name in ("002_task_queries.mysql.sql", "004_write_receipts.mysql.sql", "006_results.mysql.sql", "019_task_review_requests.mysql.sql"):
                 for statement in raw_ddl(name):
                     connection.exec_driver_sql(statement)
         with app.app_context(), transaction() as db:
@@ -183,7 +203,7 @@ def fixture_server():
                      for name, account in first["accounts"].items()}
             ids = {name: user.id for name, user in users.items()}
         expected = {table.name for table in common + task_tables + (WriteReceipt.__table__,)} | {
-            table.name for table in results.RESULT_TABLES}
+            table.name for table in results.RESULT_TABLES} | {"task_review_requests"}
         if set(inspect(engine).get_table_names()) != expected:
             raise owned.shared.RunFailure("unexpected tables in the integration fixture")
         cli = app.test_cli_runner()
@@ -284,7 +304,7 @@ def run(args):
     import flask  # noqa: F401
     accounts = {name: {"login_id": "fixture_" + name, "password": secrets.token_urlsafe(32), "role": role}
                 for name, role in (("manager", "admin"), ("worker", "employee"), ("upper", "admin"))}
-    print("Explicit task/results fixture: new owned MySQL, raw002/raw004/raw006, synthetic accounts, "
+    print("Explicit task/results fixture: new owned MySQL, raw002/raw004/raw006/raw019, synthetic accounts, "
           "local-development reviewer settings and loopback HTTP; no seeded tasks/states/submissions.", flush=True)
     mysql = runtime = None
     try:
@@ -303,11 +323,12 @@ def run(args):
                     run_client(dotnet, dll, env, runtime, settings)
                     verification = fixture.command("verify_integration")
                     if (verification.get("tasks"), verification.get("receipts"), verification.get("submissions"),
-                        verification.get("decisions"), verification.get("events"), verification.get("schema_versions")) != (3, 15, 4, 4, 8, [1]):
+                        verification.get("decisions"), verification.get("events"), verification.get("review_requests"),
+                        verification.get("schema_versions")) != (3, 19, 4, 4, 8, 2, [1]):
                         suffix = ": " + verification["failed_effect"] if "failed_effect" in verification else ""
                         raise owned.shared.RunFailure("committed integration effects do not match" + suffix)
                     print("PASS independent MySQL effects: " + str(verification["checks"])
-                          + " checks; tasks3/receipts15/submissions4/decisions4/events8/schema1.", flush=True)
+                          + " checks; tasks3/receipts19/submissions4/decisions4/events8/review_requests2/schema1.", flush=True)
             if not mysql.clean:
                 raise owned.shared.RunFailure("owned MySQL cleanup was not confirmed")
         if runtime.exists():
