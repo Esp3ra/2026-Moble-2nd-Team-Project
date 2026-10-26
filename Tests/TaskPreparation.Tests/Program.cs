@@ -26,7 +26,7 @@ internal static class Program
                 else
                 {
                     capture = args.FirstOrDefault();
-                    Wire(); Malformed(); Receipts(); SessionChanges(); CandidateScreen();
+                    Wire(); Malformed(); Receipts(); SessionChanges(); CandidateScreen(); ReadOnlyConnectionInfo();
                     NewTaskManagers(); NewTaskInvalidation(); NonAdminNewTask(); ExistingTaskManagerRemoval();
                     LateResponses(); ParentDialog();
                 }
@@ -181,6 +181,40 @@ internal static class Program
             if (itemManager == manager && itemId == id) return index;
         }
         return -1;
+    }
+    private static void ReadOnlyConnectionInfo()
+    {
+        using var stub = new Stub();
+        using var form = new TaskPreparationForm(stub, "1", readOnly: true);
+        Show(form);
+        var list = Field<ListBox>(form, "listSelected");
+        PumpUntil(() => list.Items.Count == 2 && Field<Button>(form, "btnRefreshContext").Enabled);
+        Check(stub.CanSelectCandidates && stub.ContextCalls == 1 && stub.CandidateCalls == 0,
+            "Read-only connection info loads context without candidate requests even for an authorized manager");
+        Check(SelectedItemIndex(list, false, 7) >= 0 && SelectedItemIndex(list, true, stub.UserId) >= 0,
+            "Read-only connection info displays the current assignee and managers");
+        list.SelectedIndex = SelectedItemIndex(list, true, stub.UserId);
+        foreach (string name in new[] { "btnSearch", "btnPrevious", "btnNext", "btnChoose", "btnRemove", "btnConfirm" })
+        {
+            var button = Field<Button>(form, name);
+            Check(!button.Enabled, "Read-only connection info disables " + name);
+            button.PerformClick();
+        }
+        Field<ComboBox>(form, "cmbKind").SelectedIndex = 1;
+        Wait(form.LoadCandidatesAsync(1).ContinueWith(_ => true));
+        Check(stub.CandidateCalls == 0 && list.Items.Count == 2 && form.Selection is null,
+            "Disabled selection actions and direct candidate loading cannot change read-only connection info");
+        Field<Button>(form, "btnRefreshContext").PerformClick();
+        PumpUntil(() => stub.ContextCalls == 2 && Field<Button>(form, "btnRefreshContext").Enabled);
+        Check(stub.CandidateCalls == 0 && form.Selection is null && list.Items.Count == 2,
+            "Read-only refresh reloads only context and never returns a candidate selection");
+        Check(Field<Label>(form, "lblStatus").Text.Contains("읽기 전용")
+            && Field<Label>(form, "lblStatus").Text.Contains("담당자 변경")
+            && Field<Label>(form, "lblStatus").Text.Contains("관리자 변경"),
+            "Read-only connection info directs edits to the actual task-management actions");
+        NoScreenWrites(stub);
+        Capture(form, "Read-Only-Connection-Info");
+        form.Close();
     }
     private static void ChooseCandidate(TaskPreparationForm form, int id)
     {

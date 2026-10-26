@@ -20,15 +20,18 @@ internal static class SubmissionLifetimeChecks
         checks = 0;
         Check(Application.MessageLoop && SynchronizationContext.Current is WindowsFormsSynchronizationContext,
             "lifetime checks require the STA WinForms message loop");
-        RunScenario(Outcome.Cancel);
-        RunScenario(Outcome.SessionChanged);
-        RunScenario(Outcome.PageDisposed);
+        foreach (string button in new[] { "btnSubmitResult", "btnReviewRequestPreview" })
+        {
+            RunScenario(Outcome.Cancel, button);
+            RunScenario(Outcome.SessionChanged, button);
+            RunScenario(Outcome.PageDisposed, button);
+        }
         return checks;
     }
 
     private enum Outcome { Cancel, SessionChanged, PageDisposed }
 
-    private static void RunScenario(Outcome outcome)
+    private static void RunScenario(Outcome outcome, string buttonName)
     {
         using var handler = new FixtureHandler();
         using var api = new ApiClient("http://lifetime-fixture.invalid/", handler);
@@ -54,7 +57,7 @@ internal static class SubmissionLifetimeChecks
         try
         {
             host.Show();
-            var submit = Field<Button>(page, "btnSubmitResult");
+            var submit = Field<Button>(page, buttonName);
             var grid = Field<DataGridView>(page, "gridTasks");
             var content = Field<TextBox>(page, "txtContent");
             if (Field<Label>(page, "lblTaskQueryStatus").Text == "업무 조회를 기다리고 있습니다.")
@@ -94,6 +97,9 @@ internal static class SubmissionLifetimeChecks
                 {
                     Check(child.Tag is IDictionary<string, string> tag && tag["TaskId"] == "1",
                         "the modal receives the selected task identifier");
+                    Check(!Field<Button>(page, "btnSubmitResult").Enabled
+                        && !Field<Button>(page, "btnReviewRequestPreview").Enabled,
+                        "both submission entry points prevent modal reentry");
                     if (outcome == Outcome.SessionChanged)
                     {
                         api.ClearIdentity();
@@ -147,7 +153,7 @@ internal static class SubmissionLifetimeChecks
                     && content.Text.Contains("Lifetime fixture description", StringComparison.Ordinal),
                     "ordinary cancel preserves the current selected task without saving");
             }
-            Console.WriteLine("PASS controlled submission lifetime: " + outcome + " (simulated modal outcome only).");
+            Console.WriteLine("PASS controlled submission lifetime: " + buttonName + "/" + outcome + " (simulated modal outcome only).");
         }
         finally { Application.ThreadException -= collect; }
     }

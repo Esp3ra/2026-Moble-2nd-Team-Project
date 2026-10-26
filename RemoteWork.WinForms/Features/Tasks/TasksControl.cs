@@ -74,7 +74,18 @@ namespace RemoteWork.WinForms.Features.Tasks
             InitializeComponent();
             if (PreviewActions.IsDesignMode(this)) return;
             btnRetryQuery.AccessibleDescription = "상세 조회 실패 시 선택한 업무만 다시 조회합니다. 목록 정보 변경 안내 시 목록 전체를 다시 조회합니다. F5 키는 업무 목록을 다시 조회합니다.";
-            new ToolTip(components!).SetToolTip(btnRetryQuery, "F5: 업무 목록 전체 다시 조회");
+            var actionTips = new ToolTip(components!);
+            actionTips.SetToolTip(btnRetryQuery, "F5: 업무 목록 전체 다시 조회");
+            btnEditTaskPreview.AccessibleDescription = "업무 수정은 진행전 상태의 관리 업무에서만 가능합니다.";
+            btnReassignTask.AccessibleDescription = "담당자 변경은 진행전 상태의 관리 업무에서만 가능합니다.";
+            btnChangeTaskManagers.AccessibleDescription = "관리자 변경은 진행전·진행중·반려완료 상태의 관리 업무에서 가능합니다.";
+            btnSubmitResult.AccessibleDescription = btnReviewRequestPreview.AccessibleDescription
+                = "결과 제출과 검토 요청은 같은 결과 제출 창을 엽니다. 진행 중인 내 업무의 결과를 제출하면 필수 검토 절차로 이어집니다.";
+            actionTips.SetToolTip(btnEditTaskPreview, btnEditTaskPreview.AccessibleDescription);
+            actionTips.SetToolTip(btnReassignTask, btnReassignTask.AccessibleDescription);
+            actionTips.SetToolTip(btnChangeTaskManagers, btnChangeTaskManagers.AccessibleDescription);
+            actionTips.SetToolTip(btnSubmitResult, btnSubmitResult.AccessibleDescription);
+            actionTips.SetToolTip(btnReviewRequestPreview, btnReviewRequestPreview.AccessibleDescription);
             lblTaskScope.Visible = role == PreviewRole.Administrator;
             cmbTaskScope.Visible = role == PreviewRole.Administrator;
             cmbTaskScope.SelectedIndex = 0;
@@ -86,9 +97,10 @@ namespace RemoteWork.WinForms.Features.Tasks
             lblTaskQueryStatus.Text = "업무 조회를 기다리고 있습니다.";
             if (queryService is ITaskStartSource)
                 lblTaskQuerySource.Text = queryService.SourceDescription
-                    + "\r\n신규 등록·수락·재작업: 개발 서버 요청 연결 · 수정·재배정·관리자 변경: 개발 연결 · 취소·연장: 조회·폼 연결 / 공통·제출 차단 연결 확인 전 저장 잠금";
+                    + "\r\n연결된 업무 처리 창에서 현재 권한과 업무 상태를 확인합니다. 최종 실행 가능 여부는 서버에서 확인합니다.";
             if (queryService is HttpTaskQueryService)
-                lblTaskQuerySource.Text += "\r\n결과 제출: 선택 업무의 결과물 폼 연결 · 성공 후 업무 재조회 · 결과 미확인은 결과물 메뉴에서 확인";
+                lblTaskQuerySource.Text += "\r\n업무 수정·담당자 변경: 진행전만 가능 · 관리자 변경: 진행전·진행중·반려완료에서 가능"
+                    + "\r\n결과 제출·검토 요청: 같은 결과 제출 창에서 제출 후 필수 검토로 진행 · 성공 후 업무 재조회 · 미확인 결과는 결과물 메뉴에서 확인";
             gridTaskAttachments.AccessibleDescription = "현재 선택 업무에 연결된 첨부파일입니다. 저장 버튼을 누르면 현재 권한과 파일 내용을 확인하고 저장 위치를 선택합니다.";
             ClearDetail("목록에서 업무를 선택하면 상세 내용이 표시됩니다.");
             UpdateViewScope();
@@ -108,8 +120,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnManagementResult.Visible = PendingManagementWorkflow() is not null;
             btnCancelTask.Visible = managementView;
             btnAcceptTask.Visible = !managementView || PendingStartWorkflow() is not null;
-            btnSubmitResult.Visible = !managementView && queryService is HttpTaskQueryService;
-            btnReviewRequestPreview.Visible = !managementView;
+            btnSubmitResult.Visible = btnReviewRequestPreview.Visible = !managementView && queryService is HttpTaskQueryService;
             btnDeadlineExtensionPreview.Visible = !managementView;
             btnCollaborationRequest.Visible = true;
             btnTaskRequests.Visible = managementView && queryService is not ITaskLifecycleSource;
@@ -147,9 +158,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnManagementResult.Enabled = !managementFormOpen && PendingManagementWorkflow()?.IsCurrent == true;
             btnManagementResult.Visible = PendingManagementWorkflow() is not null;
             bool ownView = viewRole != PreviewRole.Administrator || cmbTaskScope.SelectedIndex == 0;
-            btnSubmitResult.Enabled = !submissionFormOpen && !pendingLifecycle && ownView
-                && viewSession?.Session.IsCurrent == true && currentListQuery?.Scope == TaskQueryScope.Own
-                && detail?.Summary.IsCancelled == false && detail.Summary.Status == TaskDisplayStatus.InProgress;
+            btnSubmitResult.Enabled = btnReviewRequestPreview.Enabled = CanOpenSubmission(detail);
             TaskStartWorkflow? pendingStart = PendingStartWorkflow();
             btnAcceptTask.Text = detail?.Summary.Status == TaskDisplayStatus.Returned ? "재작업 시작" : "업무 수락";
             btnAcceptTask.Enabled = ownView && mutableDetail && !pendingLifecycle && detail?.Summary.Status is TaskDisplayStatus.NotStarted or TaskDisplayStatus.Returned;
@@ -825,7 +834,7 @@ namespace RemoteWork.WinForms.Features.Tasks
         private void PrepareWrite_Click(object? sender, EventArgs e)
         {
             if (PreparationDetail() is { } detail && preparationService?.IsCurrent == true)
-                PreviewActions.Open(this, new TaskPreparationForm(preparationService, detail.Summary.TaskId));
+                PreviewActions.Open(this, new TaskPreparationForm(preparationService, detail.Summary.TaskId, readOnly: true));
         }
 
         private async void btnAcceptTask_Click(object? sender, EventArgs e)
@@ -882,18 +891,22 @@ namespace RemoteWork.WinForms.Features.Tasks
             PreviewActions.ShowUnavailable(this);
         }
 
-        private void btnReviewRequestPreview_Click(object? sender, EventArgs e)
-        {
-            PreviewActions.Open(this, new ReviewRequestForm(previewRole));
-        }
+        private async void btnReviewRequestPreview_Click(object? sender, EventArgs e) => await OpenSubmissionAsync();
 
-        private async void btnSubmitResult_Click(object? sender, EventArgs e)
+        private async void btnSubmitResult_Click(object? sender, EventArgs e) => await OpenSubmissionAsync();
+
+        private bool CanOpenSubmission(TaskDetail? detail) => queryService is HttpTaskQueryService
+            && !submissionFormOpen && !queriesDisposed && !IsDisposed
+            && viewSession?.Session.IsCurrent == true && currentListQuery?.Scope == TaskQueryScope.Own
+            && (viewRole != PreviewRole.Administrator || cmbTaskScope.SelectedIndex == 0)
+            && PendingLifecycleWorkflow() is null
+            && detail?.Summary.IsCancelled == false && detail.Summary.Status == TaskDisplayStatus.InProgress;
+
+        private async Task OpenSubmissionAsync()
         {
             TaskDetail? detail = PreparationDetail();
             TaskQuerySession? captured = viewSession;
-            if (submissionFormOpen || queriesDisposed || IsDisposed || !btnSubmitResult.Enabled
-                || captured?.Session.IsCurrent != true || currentListQuery?.Scope != TaskQueryScope.Own
-                || detail?.Summary.Status != TaskDisplayStatus.InProgress) return;
+            if (detail is null || captured is null || !CanOpenSubmission(detail)) return;
             submissionFormOpen = true;
             UpdatePreparationActions();
             try
