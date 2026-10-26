@@ -71,7 +71,7 @@ def verify_integration(app, ids, initial_ddl):
         files = list(db.scalars(select(results.Attachment)))
         requests = list(db.scalars(select(TaskReviewRequest)))
         checks.check((len(tasks), len(assignments), len(managers), len(receipts), len(submissions),
-                      len(decisions), len(events), len(files), len(requests)) == (3, 3, 3, 19, 4, 4, 8, 2, 2),
+                      len(decisions), len(events), len(files), len(requests)) == (3, 3, 4, 19, 4, 4, 8, 2, 2),
                      "one effect for each HTTP action, and no fabricated submissions or task rows")
         checks.check(list(db.scalars(select(SchemaVersion.version))) == [1],
                      "global schema remains version one")
@@ -90,8 +90,10 @@ def verify_integration(app, ids, initial_ddl):
             checks.check(len(related) == 1 and related[0].revision == task.current_assignment_revision == 1,
                          "initial assignment revision and historical assignment row are preserved")
             assignment = related[0]
-            checks.check({item.user_id for item in managers if item.task_id == task.task_id} == {ids["manager"]},
-                         "registration creator manager is preserved")
+            expected_managers = ({ids["manager"], ids["upper"]} if task.title == "integration-admin-own"
+                                 else {ids["manager"]})
+            checks.check({item.user_id for item in managers if item.task_id == task.task_id} == expected_managers,
+                         "the explicit registration manager relationships are preserved")
             retained = [(item, json.loads(item.result_json)) for item in receipts
                         if json.loads(item.result_json).get("task_id") == str(task.task_id)]
             if task.title == "integration-distractor":
@@ -206,12 +208,8 @@ def fixture_server():
             table.name for table in results.RESULT_TABLES} | {"task_review_requests"}
         if set(inspect(engine).get_table_names()) != expected:
             raise owned.shared.RunFailure("unexpected tables in the integration fixture")
-        cli = app.test_cli_runner()
-        for command in (["results", "set-department-reviewer", "--reviewer-login", first["accounts"]["manager"]["login_id"]],
-                        ["results", "set-upper-reviewer", "--submitter-login", first["accounts"]["manager"]["login_id"],
-                         "--reviewer-login", first["accounts"]["upper"]["login_id"]]):
-            if cli.invoke(args=command).exit_code != 0:
-                raise owned.shared.RunFailure("explicit development reviewer configuration failed")
+        # Task registration supplies all review rights. This MySQL fixture has
+        # no separate department/upper reviewer mappings.
         before_ddl = ddl_digest(engine)
 
         class QuietRequestHandler(WSGIRequestHandler):

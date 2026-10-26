@@ -74,7 +74,7 @@ def test_web_linked_request_acknowledgement_prg_and_receipt_replay(review_env):
     detail = owner.get(f"/tasks/{target}")
     page = owner.get(_link(detail, "검토 요청 작성"))
     assert page.status_code == 200 and "Submitted original result" in page.text
-    assert "TEST-reviewer" in page.text and "지정 검토자" in page.text
+    assert "TEST-manager" in page.text and "업무 관리자" in page.text
     prepared = _prepare(owner, target, draft=_hidden(page, "draft_ticket"))
     assert prepared.status_code == 200, prepared.text
     assert "<script>검토</script>" not in prepared.text and "&lt;script&gt;검토&lt;/script&gt;" in prepared.text

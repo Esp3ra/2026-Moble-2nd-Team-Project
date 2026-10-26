@@ -163,12 +163,15 @@ def local_facts(db, task, assignment, *, lock=False):
     user = db.get(User, assignment.assignee_id)
     if user is None or not user.is_active:
         return ExternalFacts(None, False)
-    query = (select(UpperReviewer).where(UpperReviewer.submitter_id == user.id)
-             if user.role == "admin" else
-             select(DepartmentReviewer).where(DepartmentReviewer.department == user.department))
+    # The current task managers are also its result reviewers. Historical
+    # department/upper mappings must not grant or be required for this access.
+    query = (select(User.id).join(TaskManager, TaskManager.user_id == User.id)
+             .where(TaskManager.task_id == task.task_id, User.is_active.is_(True),
+                    User.role == "admin", User.id != assignment.assignee_id)
+             .order_by(User.id))
     if lock:
         query = query.with_for_update()
-    relation = db.scalar(query.execution_options(populate_existing=True))
+    reviewer_id = db.scalar(query.execution_options(populate_existing=True))
     from .tasks.lifecycle_support import storage_present, pending_extension_facts
     if storage_present(db):
         # The real member 2 source remains authoritative even if its route flag
@@ -182,8 +185,7 @@ def local_facts(db, task, assignment, *, lock=False):
             gate_query = gate_query.with_for_update()
         gate = db.scalar(gate_query.execution_options(populate_existing=True))
         pending = False if gate is None else gate.extension_pending
-    return ExternalFacts(None if relation is None else relation.reviewer_id,
-                         pending)
+    return ExternalFacts(reviewer_id, pending)
 
 def _error(status, code, message):
     raise AppError(status, code, message)
@@ -236,27 +238,33 @@ def _current(db, task_id):
 
 
 def _facts(db, task, assignment, managers):
-    # This adapter must read the current organization/reviewer relationship and
-    # extension status from members 1/2. It must not call a remote API in this TX.
+    # Read current task-manager/extension facts in this transaction. A single
+    # reviewer_id remains a representative snapshot in the existing wire format;
+    # every current active task manager except the assignee may review.
     binding = current_app.extensions.get("results_facts")
     if not callable(binding):
         _error(503, "RESULTS_DEPENDENCY_REQUIRED",
-               "부서 검토자·상위 검토자·연장 승인 상태 연결이 필요합니다.")
+               "업무 관리자·연장 승인 상태 연결이 필요합니다.")
     tentative = binding(db, task, assignment, lock=False)
     if not isinstance(tentative, ExternalFacts):
         _error(503, "RESULTS_DEPENDENCY_REQUIRED", "결과물 연결 자료 형식을 확인해 주세요.")
-    if tentative.reviewer_id is None:
-        _error(409, "REVIEWER_UNAVAILABLE", "현재 지정된 검토자가 없습니다.")
-    if type(tentative.reviewer_id) is not int or tentative.reviewer_id < 1:
+    if tentative.reviewer_id is not None and (type(tentative.reviewer_id) is not int or tentative.reviewer_id < 1):
         _error(503, "RESULTS_DEPENDENCY_REQUIRED", "검토자 연결 자료를 확인해 주세요.")
-    reviewer_id = positive_integer(tentative.reviewer_id, "reviewer_id")
-    users = lock_users(db, [assignment.assignee_id, *managers, reviewer_id])
+    users = lock_users(db, [assignment.assignee_id, *managers])
     current = binding(db, task, assignment, lock=True)
     if not isinstance(current, ExternalFacts) or (current.extension_pending is not None and type(current.extension_pending) is not bool):
         _error(503, "RESULTS_DEPENDENCY_REQUIRED", "현재 검토자·연장 상태를 확인할 수 없습니다.")
-    if current.reviewer_id != reviewer_id:
+    if current.reviewer_id is not None and (type(current.reviewer_id) is not int or current.reviewer_id < 1):
+        _error(503, "RESULTS_DEPENDENCY_REQUIRED", "검토자 연결 자료를 확인해 주세요.")
+    if current.reviewer_id != tentative.reviewer_id:
         _error(409, "REVIEWER_CHANGED", "검토자가 변경되었습니다. 다시 조회해 주세요.")
-    return current, users.get(reviewer_id)
+    eligible = sorted(user_id for user_id in managers if user_id != assignment.assignee_id
+                      and (user := users.get(user_id)) is not None
+                      and user.is_active and user.role == "admin")
+    if not eligible:
+        _error(409, "REVIEWER_UNAVAILABLE", "본인 외 활성 업무 관리자를 지정해 주세요.")
+    reviewer_id = g.user.id if g.user.id in eligible else eligible[0]
+    return ExternalFacts(reviewer_id, current.extension_pending), users[reviewer_id]
 
 
 def _owner(assignment):
