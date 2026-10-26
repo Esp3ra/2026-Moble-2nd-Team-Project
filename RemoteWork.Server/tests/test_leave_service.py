@@ -41,6 +41,7 @@ def leave_app():
 @pytest.fixture
 def env(leave_app,monkeypatch):
     app=leave_app;e=app.extensions['db_engine'];app.config['LEAVE_WRITE_POLICY']=s.POLICY
+    monkeypatch.setitem(app.config, 'LEAVE_NEW_USER_MANAGER', '')
     monkeypatch.setattr(s,'now',lambda db:datetime(2026,10,22,0,0,0))
     with app.app_context(),transaction() as db:
         for table in reversed(s.TABLES):db.execute(table.delete())
@@ -454,3 +455,129 @@ def test_current_identity_recheck_after_load_identity_inactivation(env,path_kind
     finally:app.before_request_funcs[None].remove(deactivate_after_identity)
     assert done==[True]
     assert response.status_code==401 and response.json['error']['code']=='AUTH_REQUIRED'
+
+
+def new_member_body(name='newmember',role='employee'):
+    return dict(login_id=name,password='Synthetic-new-member-2026!',display_name=name,
+                employee_no='new-'+name,department='fixture',role=role)
+
+
+def member_setup_counts(app):
+    with app.extensions['db_engine'].connect() as db:
+        return tuple(db.execute(text('SELECT COUNT(*) FROM '+name)).scalar_one()
+                     for name in ('users','leave_balances','leave_reviewers','audit_events','leave_requests','leave_operations'))
+
+
+@pytest.mark.parametrize('role',['employee','admin'])
+def test_new_member_automatically_receives_eight_days_and_can_submit(env,monkeypatch,role):
+    app=env['app'];monkeypatch.setitem(app.config,'LEAVE_NEW_USER_MANAGER','boss')
+    before=balance(env)
+    member=data(call(env,'users','post',new_member_body(role=role),who='boss'),201)['user']
+    response=app.test_client().post('/api/v1/auth/login',json=dict(login_id='newmember',password='Synthetic-new-member-2026!'))
+    env['tokens']['newmember']=data(response)['access_token']
+    ready=data(call(env,'leave/readiness',who='newmember'))
+    assert ready['schema_ready'] and ready['write_ready'] and ready['pending']==[]
+    assert data(call(env,'leave/balance?year=2026',who='newmember'))['remaining_units']==16
+    with app.app_context(),transaction() as db:
+        link=s.assignment(db,member['id'],required=True)
+        assert link.manager_id==env['ids']['boss'] and link.manager_id!=member['id']
+        event=db.scalar(select(AuditEvent).where(AuditEvent.action=='leave.auto_prepared'))
+        assert event.actor_id==env['ids']['boss'] and event.resource_id==str(member['id'])
+    body=draft('am_half');k=key(env,s.SUBMIT,who='newmember')
+    item=data(call(env,'leave/requests','post',body,who='newmember',key=k),201)
+    assert data(call(env,'leave/balance?year=2026',who='newmember'))['remaining_units']==15
+    assert data(decision(env,item['request_id'])[0])['status']=='approved'
+    result=data(call(env,'leave/balance?year=2026',who='newmember'))
+    assert result['used_units']==1 and result['reserved_units']==0 and balance(env)==before
+
+
+def test_new_member_default_off_preserves_manual_preparation(env):
+    member=data(call(env,'users','post',new_member_body(),who='boss'),201)['user']
+    with env['app'].app_context(),transaction() as db:
+        assert s.current(db,s.balances,s.balances.c.applicant_id==member['id']) is None
+        assert s.assignment(db,member['id']) is None
+
+
+@pytest.mark.parametrize('problem,code',[
+    ('missing-manager','LEAVE_REVIEWER_REQUIRED'),('employee-manager','LEAVE_REVIEWER_REQUIRED'),
+    ('inactive-manager','LEAVE_REVIEWER_REQUIRED'),('invalid-setting','LEAVE_NEW_USER_SETUP_REQUIRED'),
+    ('policy-off','LEAVE_POLICY_REQUIRED'),('unprepared-year','LEAVE_CALENDAR_REQUIRED'),
+    ('unprepared-schema','LEAVE_SCHEMA_REQUIRED')])
+def test_new_member_preparation_missing_rolls_back_entire_creation(env,monkeypatch,problem,code):
+    app=env['app'];monkeypatch.setitem(app.config,'LEAVE_NEW_USER_MANAGER','boss')
+    if problem=='missing-manager':monkeypatch.setitem(app.config,'LEAVE_NEW_USER_MANAGER','missing')
+    elif problem=='employee-manager':monkeypatch.setitem(app.config,'LEAVE_NEW_USER_MANAGER','worker')
+    elif problem=='inactive-manager':
+        with app.app_context(),transaction() as db:db.execute(User.__table__.update().where(User.id==env['ids']['boss']).values(is_active=False))
+    elif problem=='invalid-setting':monkeypatch.setitem(app.config,'LEAVE_NEW_USER_MANAGER',True)
+    elif problem=='policy-off':monkeypatch.setitem(app.config,'LEAVE_WRITE_POLICY','')
+    elif problem=='unprepared-year':monkeypatch.setattr(s,'now',lambda db:datetime(2026,12,31,15,0))
+    elif problem=='unprepared-schema':
+        def missing(db):raise AppError(503,'LEAVE_SCHEMA_REQUIRED','fixture schema missing')
+        monkeypatch.setattr(s,'storage',missing)
+    before=member_setup_counts(app)
+    response=call(env,'users','post',new_member_body(),who='outsider')
+    assert response.status_code==503 and response.json['error']['code']==code
+    assert member_setup_counts(app)==before
+
+
+def test_new_member_audit_failure_rolls_back_user_grant_and_reviewer(env,monkeypatch):
+    app=env['app'];monkeypatch.setitem(app.config,'LEAVE_NEW_USER_MANAGER','boss')
+    def fail(*args,**kwargs):raise RuntimeError('synthetic new-member audit failure')
+    monkeypatch.setattr(leave_setup,'audit',fail)
+    before=member_setup_counts(app)
+    response=call(env,'users','post',new_member_body(),who='boss')
+    assert response.status_code==500 and member_setup_counts(app)==before
+
+
+def test_new_member_cli_uses_same_automatic_setup_without_fake_operator(env,monkeypatch):
+    app=env['app'];monkeypatch.setitem(app.config,'LEAVE_NEW_USER_MANAGER','boss')
+    result=app.test_cli_runner().invoke(args=['create-user','--login-id','climember','--display-name','CLI fixture',
+        '--employee-no','CLI-FIXTURE','--department','fixture','--role','employee','--password','Synthetic-new-member-2026!'])
+    assert result.exit_code==0,result.output
+    with app.app_context(),transaction() as db:
+        person=db.scalar(select(User).where(User.login_id=='climember'))
+        assert s.totals(db,person.id,2026)['remaining_units']==16
+        assert s.assignment(db,person.id,required=True).manager_id==env['ids']['boss']
+        event=db.scalar(select(AuditEvent).where(AuditEvent.action=='leave.auto_prepared'))
+        assert event.actor_id is None
+
+
+def test_new_member_duplicate_or_login_or_update_does_not_regrant(env,monkeypatch):
+    app=env['app'];monkeypatch.setitem(app.config,'LEAVE_NEW_USER_MANAGER','boss')
+    person=data(call(env,'users','post',new_member_body(),who='boss'),201)['user']
+    counts=member_setup_counts(app)
+    assert call(env,'users','post',new_member_body(),who='boss').status_code==409
+    assert member_setup_counts(app)==counts
+    data(call(env,'users/'+str(person['id']),'patch',dict(display_name='Updated fixture'),who='boss'))
+    response=app.test_client().post('/api/v1/auth/login',json=dict(login_id='newmember',password='Synthetic-new-member-2026!'))
+    assert response.status_code==200
+    with app.app_context(),transaction() as db:
+        assert s.totals(db,person['id'],2026)['granted_units']==16
+        assert len(db.scalars(select(AuditEvent).where(AuditEvent.action=='leave.auto_prepared')).all())==1
+
+
+def test_new_member_untrusted_input_and_employee_cannot_control_preparation(env,monkeypatch):
+    app=env['app'];monkeypatch.setitem(app.config,'LEAVE_NEW_USER_MANAGER','boss')
+    assert call(env,'users','post',new_member_body(),who='worker').status_code==403
+    body=new_member_body()|dict(granted_units=732,manager_id=env['ids']['outsider'],year=2027)
+    person=data(call(env,'users','post',body,who='boss'),201)['user']
+    with app.app_context(),transaction() as db:
+        assert s.totals(db,person['id'],2026)['granted_units']==16
+        assert s.assignment(db,person['id'],required=True).manager_id==env['ids']['boss']
+
+
+def test_new_member_kst_year_uses_only_explicit_confirmed_calendar(env,monkeypatch):
+    app=env['app'];monkeypatch.setitem(app.config,'LEAVE_NEW_USER_MANAGER','boss')
+    monkeypatch.setattr(s,'now',lambda db:datetime(2026,12,31,14,59,59))
+    first=data(call(env,'users','post',new_member_body('yearbefore'),who='boss'),201)['user']
+    monkeypatch.setattr(s,'now',lambda db:datetime(2026,12,31,15,0))
+    response=call(env,'users','post',new_member_body('yearafter'),who='boss')
+    assert response.status_code==503 and response.json['error']['code']=='LEAVE_CALENDAR_REQUIRED'
+    with app.app_context(),transaction() as db:
+        assert s.totals(db,first['id'],2026)['granted_units']==16
+        db.execute(s.years.insert().values(year=2027,policy_id=s.POLICY,holidays_json='[]',configured_at=datetime(2026,12,31)))
+    second=data(call(env,'users','post',new_member_body('yearafter'),who='boss'),201)['user']
+    with app.app_context(),transaction() as db:
+        assert s.totals(db,second['id'],2027)['granted_units']==16
+        assert s.current(db,s.balances,s.balances.c.applicant_id==first['id'],s.balances.c.year==2027) is None

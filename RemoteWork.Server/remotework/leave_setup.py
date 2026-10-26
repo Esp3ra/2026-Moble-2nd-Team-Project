@@ -5,10 +5,46 @@ calendar and entitlements are immutable here; adjustments require a separate
 agreement/tool. Existing matching settings are a safe no-op.
 """
 import json
+from datetime import timedelta
+import re
+from flask import current_app
 from sqlalchemy import select
 from .common import AppError, audit
 from .models import AdminGuard, User
 from . import leave_service as service
+
+
+def plan_new_user(db):
+    """Explicit opt-in for future members; never manufactures a year/calendar."""
+    manager_login = current_app.config.get('LEAVE_NEW_USER_MANAGER', '')
+    if manager_login == '':
+        return None
+    if (not isinstance(manager_login, str) or not re.fullmatch(r'[a-z0-9_.-]{3,50}', manager_login)
+            or 'leave' not in current_app.blueprints):
+        service.error(503, 'LEAVE_NEW_USER_SETUP_REQUIRED', '신규 회원의 연차 초기 설정을 확인해 주세요.')
+    if db.scalar(select(AdminGuard).where(AdminGuard.id == 1).with_for_update()) is None:
+        service.error(503, 'DATABASE_UNAVAILABLE', '관리자 보호 테이블 준비가 필요합니다.')
+    service.storage(db)
+    service.write_policy()
+    year = (service.now(db) + timedelta(hours=9)).year
+    service.year_data(db, year)  # Existing confirmed calendar only.
+    manager = db.scalar(select(User).where(User.login_id == manager_login).with_for_update()
+                        .execution_options(populate_existing=True))
+    if manager is None or not manager.is_active or manager.role != 'admin':
+        service.error(503, 'LEAVE_REVIEWER_REQUIRED', '신규 회원의 연차 승인 관리자를 확인해 주세요.')
+    return year, manager.id
+
+
+def initialize_new_user(db, user, plan):
+    year, manager_id = plan
+    if user.id == manager_id:
+        service.error(503, 'LEAVE_REVIEWER_REQUIRED', '본인 외의 연차 승인 관리자가 필요합니다.')
+    # This is called only after a new user's INSERT, never during login/update.
+    db.execute(service.balances.insert().values(applicant_id=user.id, year=year, granted_units=16))
+    db.execute(service.reviewers.insert().values(applicant_id=user.id, manager_id=manager_id, revision=1))
+    service.totals(db, user.id, year)
+    audit('leave.auto_prepared', 'user', user.id,
+          {'year': year, 'granted_units': 16, 'manager_id': manager_id, 'policy_id': service.POLICY})
 
 
 def prepare(db, manifest, *, operator_login):

@@ -46,8 +46,14 @@ def create_user(db, body):
                 display_name=text_field(body, "display_name", 80),
                 employee_no=text_field(body, "employee_no", 40),
                 department=text_field(body, "department", 80, required=False), role=role)
+    # Optional deployment policy, not a client field. Plan under the common
+    # guard before inserting the user, then commit all three records together.
+    from .leave_setup import plan_new_user, initialize_new_user
+    leave_plan = plan_new_user(db)
     db.add(user)
     db.flush()
+    if leave_plan is not None:
+        initialize_new_user(db, user, leave_plan)
     return user
 
 
