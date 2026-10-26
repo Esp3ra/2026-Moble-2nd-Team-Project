@@ -10,15 +10,18 @@ public sealed record LeaveDraft(string Type, DateOnly StartDate, DateOnly EndDat
     public bool DeductsAnnualBalance => Type is "연차" or "반차(오전)" or "반차(오후)";
 }
 public sealed record LeaveRequestView(string Id, string Revision, int ApplicantId, string ApplicantName,
-    string Department, LeaveDraft Draft, string Status, bool CanReview = false, string? DecisionReason = null);
+    string Department, LeaveDraft Draft, string Status, bool CanReview = false, string? DecisionReason = null,
+    bool CanReadAssigned = false);
 public sealed record LeaveSubmissionReceipt(Guid RequestId, LeaveRequestView Request);
 public sealed record LeaveDecisionReceipt(Guid RequestId, LeaveRequestView Request);
 
 /// <summary>Must be bound to the same captured administrator/employee session.
-/// List must return only the employee's own requests or the administrator's assigned employees.
+/// List must return only the current user's own requests or the administrator's assigned applicants.
 /// CanReview comes from the server for this session, never from a user-editable field.
-/// A future server adapter must recheck assignment on every decision and enforce atomic/idempotent writes.
-/// No implementation of an HTTP contract or local persistence is installed by this seam.
+/// CanReadAssigned records a server-authorized assigned-list response, including completed history;
+/// it never authorizes a decision. Pending CanReview rows remain readable for existing adapters.
+/// The server must recheck assignment on every decision and enforce atomic/idempotent writes.
+/// This UI seam does not define the HTTP contract or local persistence.
 /// </summary>
 public interface ILeaveWorkflow
 {
@@ -63,6 +66,12 @@ internal static class LeaveInput
 
     public static bool Live(ApiClient.Session? session) => session?.IsCurrent == true && session.User.IsActive;
     public static bool Administrator(ApiClient.Session? session) => Live(session) && session!.User.Role == "admin";
+    public static bool CanRead(ApiClient.Session? session, LeaveRequestView? request)
+        => Live(session) && request is not null && (request.ApplicantId == session!.User.Id
+            || Administrator(session) && (request.CanReadAssigned || request is { CanReview: true, Status: "pending" }));
+    public static bool CanReview(ApiClient.Session? session, LeaveRequestView? request)
+        => Administrator(session) && request is { CanReview: true, Status: "pending" }
+            && request.ApplicantId != session!.User.Id;
     public static string Applicant(ApiClient.Session? session)
         => Live(session) ? $"{session!.User.DisplayName} · {session.User.Department}" : "로그인이 필요합니다.";
     public static bool Same(LeaveDraft left, LeaveDraft right) => left == right;

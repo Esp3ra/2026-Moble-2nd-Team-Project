@@ -25,7 +25,8 @@ internal static class PreviewChecks
             var store = new PreviewStore();
             var own = store.For(employee.CaptureSession()); var managed = store.For(reviewer.CaptureSession());
             Check(own.ListAsync(default).Result.All(r => r.ApplicantId == PreviewStore.Employee.Id && !r.CanReview), "Employee sees only own rows");
-            Check(managed.ListAsync(default).Result.All(r => r.ApplicantId == PreviewStore.Employee.Id && r.CanReview), "Reviewer sees only assigned rows");
+            Check(managed.ListAsync(default).Result.All(r => r.ApplicantId == PreviewStore.Employee.Id && r.CanReadAssigned
+                && r.CanReview == (r.Status == "pending")), "Reviewer sees assigned history with decisions limited to pending rows");
             using var application = new LeaveApplicationForm(employee.CaptureSession(), own); application.Show();
             Field<ComboBox>(application, "cmbOptions").SelectedItem = "공가";
             Field<TextBox>(application, "txtLeaveReason").Text = "화면 체험 자동 검사";
@@ -36,6 +37,11 @@ internal static class PreviewChecks
             Check(Field<Label>(review, "lblCharge").Text.Contains("차감하지"), "Official leave charge notice shown to reviewer");
             Field<Button>(review, "btnApprove").PerformClick(); Wait(review.PendingOperation);
             Check(review.DecisionCompleted && own.ListAsync(default).Result.Single(r => r.Id == row.Id).Status == "approved", "Actual review form updates the same preview request");
+            var approved = managed.ListAsync(default).Result.Single(r => r.Id == row.Id);
+            Check(approved.CanReadAssigned && !approved.CanReview, "Completed preview request remains assigned-readable without approval permission");
+            using var approvedDetail = new LeaveDecisionForm(reviewer.CaptureSession(), managed, approved, readOnly: true);
+            Check(Field<TextBox>(approvedDetail, "txtRequestReason").Text == approved.Draft.Reason,
+                "Reviewer can read the approved preview history");
             var draft = new LeaveDraft("병가", row.Draft.StartDate, row.Draft.EndDate, "same-id-fixture");
             var id = Guid.NewGuid();
             var first = own.SubmitAsync(draft, id, default).Result;
@@ -46,6 +52,9 @@ internal static class PreviewChecks
             Field<TextBox>(reject, "txtDecisionReason").Text = rejection;
             Field<Button>(reject, "btnReject").PerformClick(); Wait(reject.PendingOperation);
             var rejected = own.ListAsync(default).Result.Single(r => r.Id == rejectRow.Id);
+            var assignedRejected = managed.ListAsync(default).Result.Single(r => r.Id == rejectRow.Id);
+            Check(assignedRejected.CanReadAssigned && !assignedRejected.CanReview && assignedRejected.DecisionReason == rejection,
+                "Rejected preview history remains readable with its decision reason");
             Check(reject.DecisionCompleted && rejected.Status == "rejected" && rejected.DecisionReason == rejection,
                 "Reviewer reason is retained in the same employee request");
             using var detail = new LeaveDecisionForm(employee.CaptureSession(), own, rejected, readOnly: true); detail.Show();
@@ -57,6 +66,44 @@ internal static class PreviewChecks
             try { own.DecideAsync(row, "approved", "", Guid.NewGuid(), default).GetAwaiter().GetResult(); }
             catch (InvalidOperationException) { refused = true; }
             Check(refused, "Employee cannot review using the preview adapter");
+
+            using var managerApplication = new LeaveApplicationForm(reviewer.CaptureSession(), managed); managerApplication.Show();
+            Field<ComboBox>(managerApplication, "cmbOptions").SelectedItem = "공가";
+            Field<TextBox>(managerApplication, "txtLeaveReason").Text = "관리자 본인 화면 체험 신청";
+            Field<Button>(managerApplication, "btnApplyLeave").PerformClick(); Wait(managerApplication.PendingOperation);
+            Check(managerApplication.SubmissionCompleted, "Actual administrator application form submits to RAM fixture");
+            var managerOwn = managed.ListAsync(default).Result.Single(r => r.Draft.Reason == "관리자 본인 화면 체험 신청");
+            Check(managerOwn.ApplicantId == PreviewStore.Reviewer.Id && !managerOwn.CanReview && !managerOwn.CanReadAssigned,
+                "Administrator can list own request without gaining review permission");
+            Check(own.ListAsync(default).Result.All(r => r.ApplicantId == PreviewStore.Employee.Id),
+                "Administrator application stays hidden from the employee list");
+            using var managerDetail = new LeaveDecisionForm(reviewer.CaptureSession(), managed, managerOwn, readOnly: true);
+            Check(Field<TextBox>(managerDetail, "txtRequestReason").Text == managerOwn.Draft.Reason,
+                "Administrator can read personal request details");
+            using var selfReview = new LeaveDecisionForm(reviewer.CaptureSession(), managed, managerOwn);
+            Check(!Field<Button>(selfReview, "btnApprove").Enabled && !Field<Button>(selfReview, "btnReject").Enabled,
+                "Administrator own request cannot enable either decision button");
+            foreach (string decision in new[] { "approved", "rejected" })
+            {
+                refused = false;
+                try { managed.DecideAsync(managerOwn, decision, "본인 검토 금지 검사", Guid.NewGuid(), default).GetAwaiter().GetResult(); }
+                catch (InvalidOperationException) { refused = true; }
+                Check(refused, "Preview adapter rejects administrator self " + decision);
+            }
+            var managerReceipt = managed.SubmitAsync(draft, id, default).Result;
+            Check(managerReceipt.Request.ApplicantId == PreviewStore.Reviewer.Id && managerReceipt.Request.Id != first.Request.Id,
+                "Same submission UUID for another applicant creates only that applicant's receipt");
+            Check(managed.SubmitAsync(draft, id, default).Result == managerReceipt
+                && own.SubmitAsync(draft, id, default).Result == first,
+                "Submission receipt retries remain isolated by applicant");
+            refused = false;
+            try { managed.SubmitAsync(draft with { Reason = "바뀐 요청 내용" }, id, default).GetAwaiter().GetResult(); }
+            catch (InvalidOperationException) { refused = true; }
+            Check(refused, "Administrator receipt cannot be reused with a different body");
+            Check(managed.ListAsync(default).Result.Single(r => r.Id == managerOwn.Id).Status == "pending",
+                "Rejected self-review attempts preserve the original pending request");
+            managerApplication.Close();
+
             employee.ClearIdentity(); refused = false;
             try { own.ListAsync(default).GetAwaiter().GetResult(); } catch (OperationCanceledException) { refused = true; }
             Check(refused, "Ended preview identity cannot use old adapter");

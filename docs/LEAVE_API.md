@@ -74,7 +74,11 @@ type은 `annual/am_half/pm_half/sick/official`, decision/status는 `approved/rej
 
 ## 5번: 기존 화면에 연결
 
-1번 새 `Infrastructure/HttpLeaveWorkflow.cs`는 기존 공개 `ILeaveWorkflow`를 구현한다. 기존 Designer/폼/시작 코드는 수정하지 않았다.
+2026-10-26 팀장 확인: 관리자도 자신의 연차를 신청하며, 신청인별로 **지정된 다른 관리자 한 명**이 승인·반려한다. 관리자 역할만으로 모든 신청을 처리하거나 자기 신청을 처리할 수 없다. 관리자 본인의 연도별 지급량과 다른 검토자 지정이 없으면 본인 신청은 준비 오류로 제한하되, 이미 담당 중인 다른 신청의 검토는 가능하다.
+
+WinForms는 관리자에게도 `연차 신청`을 표시하고 `내 신청 · 담당 신청` 목록에서 본인 이력과 서버가 허용한 담당 이력을 함께 읽는다. 공통 어댑터는 `scope=review`의 응답에 내부 표시용 `CanReadAssigned`를 설정한다. 이 필드는 HTTP 요청·DB 정책 필드가 아니며 승인 권한을 추가하지 않는다. `CanReview`는 현재 다른 신청인의 검토 대기 항목에만 결정 버튼을 허용한다. 승인·반려 이력을 읽는 것과 다시 결정하는 것은 별개다.
+
+공통 `Infrastructure/HttpLeaveWorkflow.cs`는 기존 공개 `ILeaveWorkflow`를 구현한다. 화면은 기존 Designer 구성을 유지한다.
 
 ```csharp
 var captured = AppServices.Api.CaptureSession();
@@ -89,7 +93,7 @@ var remainingDays = balance.RemainingUnits / 2m;
 
 캡처 Session 외 토큰/HttpClient를 받지 않는다. 늦은 응답/401/다른 로그인/서버는 공통 규약을 따른다. 각 의도는 RAM에 원본문/key를 유지하고 동시 호출을 직렬화한다. 첫 POST 실패 직후 자동 재시도0. 다음 명시 호출에서는 원의도→필요시 원 W1 조회→둘 다 not_recorded인 경우에만 **같은key/body**를 한 번 재송신한다. 완료 receipt는 검증 후 캐시하며 재조회/목록 실패로 성공을 지우지 않는다. 신청 receipt를 나중에 승인된 GET 상태로 바꾸지 않고 원 pending 영수증/원 draft를 보존한다. 타입 한글/영문·DecisionReason을 매핑한다. 24시간/64의도 RAM한도·최대각scope20페이지를 넘으면 명시 오류이며 조용히 데이터를 누락하지 않는다. 새 로그인마다 새 instance를 만들고 일반 화면 dispose에서 다른 로그인 작업을 복원하지 않는다.
 
-현재 `Tools/ConnectedWorkspace/WorkspaceConnector.cs`가 명시적인 연차 연결 프로필에서 기존 메뉴/폼에 위 instance를 주입한다. 잔여일·준비항목과 원UUID 결과 복구 연결은 구현됐으며 2026-10-23 소유 MySQL/raw016·실제 HTTP/C# 포함50검사를 통과했다. 실제 직원 자료·실계정/두PC 검증은 남아 있다. 기본 startup의 자동 지급·임의 관리자 지정은 없다.
+현재 `RemoteWork.WinForms/Infrastructure/Workspace/WorkspaceConnector.cs`가 명시적인 연차 연결 프로필에서 기존 메뉴/폼에 위 instance를 주입한다. 일반 WinForms 실행과 호환 실행기가 같은 연결을 사용한다. 잔여일·준비항목과 원UUID 결과 복구 연결은 구현됐으며 2026-10-23 소유 MySQL/raw016·실제 HTTP/C# 포함50검사를 통과했다. 실제 직원 자료·실계정/두PC 검증은 남아 있다. 기본 startup의 자동 지급·임의 관리자 지정은 없다.
 
 ## 016 SQL·명시 운영 준비와 복구
 

@@ -29,7 +29,7 @@ namespace RemoteWork.WinForms.Features.Attendance
                 layoutRecords.RowStyles[0].Height = value ? 0 : 35;
                 layoutRecords.RowStyles[1].SizeType = SizeType.Percent;
                 layoutRecords.RowStyles[1].Height = value ? 100 : 65;
-                lblPageTitle.Text = value ? (LeaveInput.Administrator(leaveSession) ? "연차 · 휴가 검토" : "연차 · 휴가 신청") : "출퇴근 · 연차";
+                lblPageTitle.Text = value ? (LeaveInput.Administrator(leaveSession) ? "연차 · 휴가 신청·검토" : "연차 · 휴가 신청") : "출퇴근 · 연차";
             }
         }
 
@@ -71,14 +71,14 @@ namespace RemoteWork.WinForms.Features.Attendance
             columnAttendanceDepartment.Visible = administrator;
             columnLeaveEmployee.Visible = administrator;
             columnLeaveDepartment.Visible = administrator;
-            btnLeaveApplicationPreview.Visible = !administrator;
+            btnLeaveApplicationPreview.Visible = true;
             btnLeaveDecision.Visible = administrator;
             cmbOptions.Visible = false; // Old sample month filter is not a server filter.
             btnQuery.Text = "연차 조회";
             lblBalance.Text = "잔여 연차 조회 전";
             lblAttendanceTitle.Text = administrator ? "직원 출퇴근 기록 · 예시" : "출퇴근 기록 · 예시";
             lblLeaveTitle.Text = leaveWorkflow.IsConnected
-                ? (administrator ? "지정된 직원의 연차 신청 · 조회 전" : "내 연차 신청 · 조회 전")
+                ? (administrator ? "내 신청 · 담당 신청 · 조회 전" : "내 연차 신청 · 조회 전")
                 : "연차 서버 연결 전 · 저장된 신청을 아직 조회하지 않았습니다.";
 
             if (administrator)
@@ -131,10 +131,9 @@ namespace RemoteWork.WinForms.Features.Attendance
         {
             UpdateLeaveApplicationButton();
             btnLeaveDecision.Enabled = LeaveLive && !leaveLoading
-                && leaveWorkflow.IsConnected && LeaveInput.Administrator(leaveSession)
-                && SelectedLeave is { CanReview: true, Status: "pending" };
+                && leaveWorkflow.IsConnected && LeaveInput.CanReview(leaveSession, SelectedLeave);
             btnLeaveDetails.Enabled = LeaveLive && !leaveLoading && SelectedLeave is { } selected
-                && (LeaveInput.Administrator(leaveSession) ? selected.CanReview : selected.ApplicantId == leaveSession!.User.Id);
+                && LeaveInput.CanRead(leaveSession, selected);
         }
         private async void QueryLeave_Click(object? sender, EventArgs e)
         { PendingLeaveLoad = LoadLeaveAsync(); await PendingLeaveLoad; }
@@ -164,8 +163,7 @@ namespace RemoteWork.WinForms.Features.Attendance
                 var rows = await leaveWorkflow.ListAsync(linked.Token);
                 if (!LeaveLive || linked.IsCancellationRequested) return;
                 // An adapter must already enforce this on the server. Do not display accidental cross-scope rows.
-                loadedLeaveRequests = rows.Where(r => LeaveInput.Administrator(leaveSession)
-                    ? r.CanReview : r.ApplicantId == leaveSession.User.Id).ToArray();
+                loadedLeaveRequests = rows.Where(r => LeaveInput.CanRead(leaveSession, r)).ToArray();
                 ApplyLeaveFilter();
             }
             catch (OperationCanceledException) when (linked.IsCancellationRequested) { }
@@ -200,7 +198,7 @@ namespace RemoteWork.WinForms.Features.Attendance
                 gridLeaveRequests.Rows[index].Cells[columnLeaveDecisionReason.Index].ToolTipText = r.DecisionReason ?? "";
             }
             gridLeaveRequests.ClearSelection(); gridLeaveRequests.CurrentCell = null;
-            lblLeaveTitle.Text = (LeaveInput.Administrator(leaveSession) ? "지정된 직원의 연차 신청" : "내 연차 신청")
+            lblLeaveTitle.Text = (LeaveInput.Administrator(leaveSession) ? "내 신청 · 담당 신청" : "내 연차 신청")
                 + $" · {visible.Length}건 / 전체 {loadedLeaveRequests.Count}건";
             lblLeaveEmpty.Text = visible.Length == 0 ? "선택한 상태의 신청 내역이 없습니다." : "검토 대기: 처리 전 · 승인: 사용 승인 · 반려: 승인되지 않은 신청";
             UpdateReviewButton();

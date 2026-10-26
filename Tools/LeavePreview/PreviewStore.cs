@@ -13,7 +13,7 @@ internal sealed class PreviewStore
     internal static readonly UserInfo Employee = new(5, "preview-employee", "체험 직원", "DEMO-5", "체험 부서", "employee", true);
     internal static readonly UserInfo Reviewer = new(1, "preview-reviewer", "체험 담당자", "DEMO-1", "체험 부서", "admin", true);
     private readonly Dictionary<string, LeaveRequestView> rows = new();
-    private readonly Dictionary<Guid, LeaveSubmissionReceipt> submissions = new();
+    private readonly Dictionary<(int ApplicantId, Guid RequestId), LeaveSubmissionReceipt> submissions = new();
     private readonly Dictionary<Guid, (string Id, string Revision, string Decision, string Reason, LeaveDecisionReceipt Receipt)> decisions = new();
     public PreviewStore()
     {
@@ -55,24 +55,27 @@ internal sealed class PreviewStore
         {
             Current(ct);
             return Task.FromResult<IReadOnlyList<LeaveRequestView>>(store.rows.Values
-                .Where(r => session.User.Role == "admin" ? CanReview(r) : r.ApplicantId == session.User.Id)
-                .Select(r => r with { CanReview = CanReview(r) }).ToArray());
+                .Where(r => r.ApplicantId == session.User.Id || CanReview(r))
+                .Select(r => r with { CanReadAssigned = CanReview(r), CanReview = CanReview(r) && r.Status == "pending" }).ToArray());
         }
         public Task<LeaveSubmissionReceipt> SubmitAsync(LeaveDraft draft, Guid requestId, CancellationToken ct)
         {
             Current(ct);
-            if (session.User.Id != Employee.Id || session.User.Role != "employee" || requestId == Guid.Empty)
-                throw new InvalidOperationException("체험 직원의 신청만 입력할 수 있습니다.");
-            if (store.submissions.TryGetValue(requestId, out var old))
+            bool knownApplicant = session.User.Id == Employee.Id && session.User.Role == "employee"
+                || session.User.Id == Reviewer.Id && session.User.Role == "admin";
+            if (!knownApplicant || requestId == Guid.Empty)
+                throw new InvalidOperationException("체험 계정 본인의 신청만 입력할 수 있습니다.");
+            var key = (session.User.Id, requestId);
+            if (store.submissions.TryGetValue(key, out var old))
             {
                 if (old.Request.Draft != draft) throw new InvalidOperationException("같은 요청의 입력이 달라졌습니다.");
                 return Task.FromResult(old);
             }
-            var row = new LeaveRequestView(Guid.NewGuid().ToString("D"), "1", Employee.Id, Employee.DisplayName,
-                Employee.Department, draft, "pending");
+            var row = new LeaveRequestView(Guid.NewGuid().ToString("D"), "1", session.User.Id, session.User.DisplayName,
+                session.User.Department, draft, "pending");
             store.rows.Add(row.Id, row);
             var receipt = new LeaveSubmissionReceipt(requestId, row);
-            store.submissions.Add(requestId, receipt);
+            store.submissions.Add(key, receipt);
             return Task.FromResult(receipt);
         }
         public Task<LeaveDecisionReceipt> DecideAsync(LeaveRequestView request, string decision, string reason, Guid requestId, CancellationToken ct)
@@ -89,8 +92,8 @@ internal sealed class PreviewStore
             }
             if (current.Status != "pending" || current.Revision != request.Revision || current.Draft != request.Draft)
                 throw new InvalidOperationException("목록을 다시 확인해 주세요.");
-            var changed = current with { Status = decision, Revision = "2", CanReview = true, DecisionReason = reason };
-            store.rows[current.Id] = changed with { CanReview = false };
+            var changed = current with { Status = decision, Revision = "2", CanReview = false, CanReadAssigned = true, DecisionReason = reason };
+            store.rows[current.Id] = changed with { CanReadAssigned = false };
             var receipt = new LeaveDecisionReceipt(requestId, changed);
             store.decisions.Add(requestId, (request.Id, request.Revision, decision, reason, receipt));
             return Task.FromResult(receipt);

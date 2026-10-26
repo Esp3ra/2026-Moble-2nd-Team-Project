@@ -39,6 +39,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             lblStatus.Text = readOnly ? DetailsStatus()
                 : !LeaveInput.Administrator(this.session) ? "관리자 로그인이 필요합니다."
                 : request is null ? "지정된 직원의 신청을 목록에서 선택해 주세요."
+                : request.ApplicantId == this.session!.User.Id ? "본인 신청은 지정된 다른 관리자가 검토합니다."
                 : !request.CanReview ? "검토 권한이 확인된 신청만 처리할 수 있습니다."
                 : !this.workflow.IsConnected ? "서버 연결 전입니다. 승인·반려는 저장되지 않습니다."
                 : request.Status != "pending" ? "이미 처리된 신청입니다. 목록을 새로 확인해 주세요."
@@ -54,8 +55,7 @@ namespace RemoteWork.WinForms.Features.Attendance
             FormClosed += (_, _) => EndLifetime();
         }
 
-        private bool CanRead => LeaveInput.Live(session) && request is not null
-            && (LeaveInput.Administrator(session) ? request.CanReview : session!.User.Role == "employee" && request.ApplicantId == session.User.Id);
+        private bool CanRead => LeaveInput.CanRead(session, request);
         private bool Live => !ended && !IsDisposed && !Disposing && (readOnly ? CanRead : LeaveInput.Administrator(session));
         private string DetailsStatus()
         {
@@ -86,7 +86,7 @@ namespace RemoteWork.WinForms.Features.Attendance
         }
         private void SetButtons()
         {
-            bool ready = !readOnly && Live && workflow.IsConnected && request is { CanReview: true, Status: "pending" }
+            bool ready = !readOnly && Live && workflow.IsConnected && LeaveInput.CanReview(session, request)
                 && !busy && !DecisionCompleted;
             btnApprove.Enabled = ready && (!uncertain || frozenDecision == "approved");
             btnReject.Enabled = ready && (!uncertain || frozenDecision == "rejected");
@@ -101,7 +101,7 @@ namespace RemoteWork.WinForms.Features.Attendance
         {
             if (readOnly || decision is not ("approved" or "rejected")) return;
             if (!Live || busy || DecisionCompleted || !workflow.IsConnected
-                || request is not { CanReview: true, Status: "pending" }) return;
+                || request is null || !LeaveInput.CanReview(session, request)) return;
             string reason = txtDecisionReason.Text.Trim();
             if (reason.Length > LeaveInput.TextLimit) { lblStatus.Text = "검토 의견은 1,000자 이내로 입력해 주세요."; return; }
             if (frozenDecision is not null && (frozenDecision != decision || frozenReason != reason))

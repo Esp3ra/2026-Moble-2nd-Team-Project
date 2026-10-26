@@ -20,6 +20,8 @@ dotnet run --project Tests/Leave.Ui.Tests -c Release
 
 2026-10-23 목록 가림 보완 후 **242검사**(기존144 포함)다. 수정 전 실제 1100×600 창에서 표 높이22px/첫 행0px로 재현했다. 1100×600·900×460·1320×760에서 직원/관리자와 통합→연차 전용→통합 전환을 확인한다. 첫 행 전체 표시, 작은 창의 스크롤 접근, 행 선택 후 상세 버튼, 반려 사유 보존을 검사하며 높이600 이상에서는 스크롤 전에도 첫 행이 보여야 한다. 출력 폴더를 넘기면 작은 창의 목록 PNG도 만든다. 실제 WinForms와 합성 workflow 검사이며 실제 연차 신청·승인·반려/DB 차감 검증과 구분한다.
 
+2026-10-26 관리자 본인 신청 보완 후 **280검사**(이전242 포함)를 통과했다. 관리자도 준비 상태 확인 후 신청할 수 있고 본인 신청·지정 직원의 승인/반려 이력을 읽는다. 자기 신청의 잘못된 `CanReview=true`가 들어와도 승인·반려 버튼과 직접 호출을 차단한다. 공통 `HttpLeaveWorkflow`의 합성 HTTP 응답으로 own/review 구분, 완료 이력의 `CanReadAssigned`, 본인 scope의 타인 행·review scope의 자기 행 거절, 직원 권한 유지도 확인한다. 이 추가 검사는 실제 WinForms·HTTP 대역이며 실계정·공유 DB 검증은 아니다.
+
 ## PR79 실제 adapter + 서버 + 소유 MySQL 결합 검사
 
 Draft PR79는 제품 alpha에 합치지 않는다. `Tests/WorkdayActivity.Tests/prepare_peer.py`로 자신의 커밋과 PR79 head를 **새 외부 폴더**에 export한 뒤 그 소스의 `Tests/Leave.Ui.Tests`를 빌드한다. `HttpLeaveWorkflow.cs`가 있는 결합 소스에서만 `REAL_LEAVE_ADAPTER` 검사가 컴파일된다. `.env`·운영 DB·실제 계정·장비를 사용하지 않는다.

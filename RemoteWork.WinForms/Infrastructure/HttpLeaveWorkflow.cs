@@ -162,9 +162,11 @@ public sealed class HttpLeaveWorkflow(ApiClient.Session session) : ILeaveWorkflo
                     if (item.ApplicantId <= 0 || item.UnitDays != "0.5" || item.ChargedUnits is < 0 or > 732
                         || item.Status is not ("pending" or "approved" or "rejected") || item.EndDate < item.StartDate
                         || item.Reason is null || item.DecisionReason is null
-                        || (scope == "own" && item.ApplicantId != session.User.Id)) throw Invalid();
+                        || (scope == "own" && item.ApplicantId != session.User.Id)
+                        || (scope == "review" && item.ApplicantId == session.User.Id)) throw Invalid();
                     result[item.RequestId] = new(item.RequestId, item.Revision, item.ApplicantId, item.ApplicantName, item.Department,
-                        new(UiType(item.Type), item.StartDate, item.EndDate, item.Reason), item.Status, item.CanReview, item.DecisionReason);
+                        new(UiType(item.Type), item.StartDate, item.EndDate, item.Reason), item.Status, item.CanReview, item.DecisionReason,
+                        CanReadAssigned: scope == "review");
                 }
                 if (values.NextCursor is null) { done = true;break; }
                 Canonical(values.NextCursor);

@@ -13,7 +13,7 @@ internal static partial class Program
     private static readonly DateOnly Day = new(2026, 10, 21);
     private static readonly LeaveDraft Draft = new("공가", Day, Day, "테스트 사유");
     private static LeaveRequestView Request(int id = 5, bool assigned = true)
-        => new("leave-1", "revision-1", id, "테스트 직원", "시험팀", Draft, "pending", assigned);
+        => new("leave-1", "revision-1", id, "테스트 직원", "시험팀", Draft, "pending", assigned, CanReadAssigned: assigned);
     [STAThread]
     private static int Main(string[] args)
     {
@@ -42,6 +42,7 @@ internal static partial class Program
                 ClosingSubmission(false); ClosingSubmission(true);
                 ClosingDecision(false); ClosingDecision(true); ClosingDecisionSessionEnded();
                 ConnectedLeaveScreens(); ManagerPreparation(); LatePreparation(false); LatePreparation(true); LeaveConnectionLifetime();
+                AdministratorSelfAndHistory(); AdministratorApplication(); EmployeeCannotReadAssigned(); LeaveHttpReadScopes();
                 LeaveListLayout(args.Length == 1 ? args[0] : null);
                 if (args.Length == 1) Render(args[0]);
                 Console.WriteLine($"PASS Leave UI: {checks} assertions; actual WinForms + synthetic workflow/identity; no real server, database or device.");
