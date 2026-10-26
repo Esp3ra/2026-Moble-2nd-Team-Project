@@ -113,7 +113,8 @@ internal static class Program
         Check(managed.Select(item => item.TaskId).ToHashSet().SetEquals(new[] { distractor, employeeTask, adminTask }),
             "creator manager sees only its three explicitly managed tasks");
         var upperManaged = Wait(new HttpTaskQueryService(upper).GetTasksAsync(new(TaskQueryScope.Managed)));
-        Check(upperManaged.Count == 0, "upper reviewer status does not grant the member2 managed-task relationship");
+        Check(upperManaged.Count == 1 && upperManaged[0].TaskId == adminTask,
+            "the other manager reviews only the explicitly assigned manager-owned task");
         ExpectForbidden(() => Wait(workerQueries.GetTasksAsync(new(TaskQueryScope.Managed))));
         ExpectForbidden(() => Wait(workerQueries.GetTaskAsync(adminTask)));
         Check(Wait(workerQueries.GetTaskAsync(distractor)).Summary.Status == TaskDisplayStatus.NotStarted,
@@ -152,7 +153,8 @@ internal static class Program
             title, description = "Explicit owned integration fixture created through HTTP",
             start_date = today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             due_date = today.AddDays(3).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            assignee_id = assigneeId, manager_user_ids = new[] { settings.Manager.Id }
+            assignee_id = assigneeId, manager_user_ids = assigneeId == settings.Manager.Id
+                ? new[] { settings.Manager.Id, settings.Upper.Id } : new[] { settings.Manager.Id }
         }, Key(session, "task.created", "new")));
         Check(result.GetProperty("task_status").GetString() == "not_started"
             && result.GetProperty("row_version").GetString() == "1"

@@ -21,7 +21,7 @@ from remotework.features import results
 from remotework.features.tasks import review_requests as feature
 from remotework.features.tasks.models import TaskAssignment, TaskManager, TaskRecord
 from remotework.features.tasks.review_request_models import TaskReviewRequest
-from remotework.models import AdminGuard, AuditEvent, Base, SchemaVersion
+from remotework.models import AdminGuard, AuditEvent, Base, SchemaVersion, User
 from remotework.write_requests import WriteReceipt
 
 PASSWORD = "Owned-review-request-2026!"
@@ -61,8 +61,8 @@ def review_env(tmp_path):
             (("manager", "admin"), ("reviewer", "admin"), ("replacement", "admin"),
              ("worker", "employee"), ("other", "employee"))}
         ids = {name: user.id for name, user in users.items()}
-        db.add(results.DepartmentReviewer(department="TEST", reviewer_id=ids["reviewer"]))
-        db.add(results.UpperReviewer(submitter_id=ids["manager"], reviewer_id=ids["reviewer"]))
+        # No separate department/upper reviewer registration: task managers alone
+        # must support submission, request acknowledgement and final decisions.
     env = SimpleNamespace(app=app, ids=ids, headers={},
         today=datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=9))).date())
     try:
@@ -108,7 +108,7 @@ def versions(env, target):
 def create_submitted(env, actor="worker", *, stop=None):
     created = send(env, "task.created", "new", "tasks", dict(title="Manual review target", description="Task original",
         start_date=env.today.isoformat(), due_date=(env.today + timedelta(days=4)).isoformat(),
-        assignee_id=env.ids[actor], manager_user_ids=[env.ids["manager"]]), actor="manager")
+        assignee_id=env.ids[actor], manager_user_ids=[env.ids["manager"], env.ids["reviewer"]]), actor="manager")
     target = created["task_id"]
     if stop == "not_started":
         return target, None
@@ -150,6 +150,117 @@ def decide(env, target, submission, outcome="approved"):
              outcome=outcome, reason="Actual reviewer decision"), actor="reviewer", expected=200)
 
 
+@pytest.mark.parametrize("actor", ["manager", "reviewer"])
+@pytest.mark.parametrize("outcome", ["approved", "returned"])
+def test_each_current_task_manager_can_acknowledge_and_decide_without_separate_mapping(review_env, actor, outcome):
+    env = review_env
+    target, submission = create_submitted(env)
+    assert any(row["task_id"] == target for row in get(env, "results/review-tasks", actor)["items"])
+    body = request_body(env, target)
+    saved = send(env, feature.REQUEST_ACTION, target, f"tasks/{target}/review-requests", body)
+    item = get(env, "tasks/review-requests?scope=reviewing", actor)["items"][0]
+    assert item["request_id"] == saved["request_id"]
+    ack_body = {name: item[name] for name in ("row_version", "assignment_revision")}
+    ack_body = {"expected_" + name: value for name, value in ack_body.items()}
+    send(env, feature.ACK_ACTION, target,
+         f"tasks/{target}/review-requests/{saved['request_id']}/acknowledge",
+         ack_body, actor=actor, expected=200)
+    context = get(env, f"results/submissions/{submission}/context", actor)
+    decision = send(env, "submission." + outcome, submission, f"results/submissions/{submission}/decisions",
+        dict(expected_row_version=context["row_version"], expected_assignment_revision=context["assignment_revision"],
+             outcome=outcome, reason="Task manager decision"), actor=actor, expected=200)
+    assert decision["task_status"] == outcome
+    with env.app.extensions["db_engine"].connect() as db:
+        assert db.scalar(select(results.Decision.reviewer_id).where(results.Decision.submission_id == int(submission))) == env.ids[actor]
+
+
+def test_department_and_upper_mappings_do_not_grant_non_manager_review_rights(review_env):
+    env = review_env
+    target, submission = create_submitted(env)
+    with env.app.app_context(), transaction() as db:
+        db.add(results.DepartmentReviewer(department="TEST", reviewer_id=env.ids["replacement"]))
+        db.add(results.UpperReviewer(submitter_id=env.ids["worker"], reviewer_id=env.ids["replacement"]))
+    assert get(env, "results/review-tasks", "replacement")["items"] == []
+    assert get(env, f"results/submissions/{submission}/context", "replacement", expected=403) == "FORBIDDEN"
+    assert get(env, f"results/tasks/{target}", "replacement", expected=403) == "FORBIDDEN"
+
+
+def test_existing_submission_with_old_reviewer_snapshot_uses_current_task_managers(review_env):
+    env = review_env
+    target, submission = create_submitted(env)
+    # Represent a retained submission from the previous department-based policy.
+    with env.app.app_context(), transaction() as db:
+        db.get(results.Submission, int(submission)).reviewer_at_submission = env.ids["replacement"]
+        db.add(results.DepartmentReviewer(department="TEST", reviewer_id=env.ids["replacement"]))
+    context = get(env, f"results/submissions/{submission}/context", "manager")
+    send(env, "submission.approved", submission, f"results/submissions/{submission}/decisions",
+         dict(expected_row_version=context["row_version"], expected_assignment_revision=context["assignment_revision"],
+              outcome="approved", reason="Current task manager reviews a retained result"), actor="manager", expected=200)
+    with env.app.extensions["db_engine"].connect() as db:
+        assert db.scalar(select(results.Submission.reviewer_at_submission).where(results.Submission.id == int(submission))) == env.ids["replacement"]
+        assert db.scalar(select(results.Decision.reviewer_id).where(results.Decision.submission_id == int(submission))) == env.ids["manager"]
+
+
+@pytest.mark.parametrize("change", ["removed", "inactive", "employee"])
+def test_current_relation_change_revokes_an_already_prepared_manager_decision(review_env, change):
+    env = review_env
+    target, submission = create_submitted(env)
+    context = get(env, f"results/submissions/{submission}/context", "reviewer")
+    value = key(env, "submission.approved", submission, "reviewer")
+    with env.app.app_context(), transaction() as db:
+        if change == "removed":
+            db.execute(delete(TaskManager).where(TaskManager.task_id == int(target), TaskManager.user_id == env.ids["reviewer"]))
+        elif change == "inactive":
+            db.get(User, env.ids["reviewer"]).is_active = False
+        else:
+            db.get(User, env.ids["reviewer"]).role = "employee"
+    response = env.app.test_client().post(f"/api/v1/results/submissions/{submission}/decisions",
+        headers=auth(env, "reviewer") | {"Idempotency-Key": value}, json=dict(
+            expected_row_version=context["row_version"], expected_assignment_revision=context["assignment_revision"],
+            outcome="approved", reason="Prepared before permission loss"))
+    assert response.status_code in (401, 403), response.json
+    with env.app.extensions["db_engine"].connect() as db:
+        assert db.scalar(select(results.Decision.id).where(results.Decision.submission_id == int(submission))) is None
+    assert get(env, f"results/submissions/{submission}/context", "manager")["task_id"] == target
+
+
+def test_another_active_manager_still_accepts_submission_when_one_is_inactive(review_env):
+    env = review_env
+    target, _ = create_submitted(env, stop="in_progress")
+    with env.app.app_context(), transaction() as db:
+        db.get(User, env.ids["reviewer"]).is_active = False
+    assert get(env, f"results/tasks/{target}/context")["reviewer_id"] == env.ids["manager"]
+
+
+def test_only_self_as_manager_does_not_allow_self_review_or_submission(review_env):
+    env = review_env
+    target, _ = create_submitted(env, actor="manager", stop="in_progress")
+    with env.app.app_context(), transaction() as db:
+        db.execute(delete(TaskManager).where(TaskManager.task_id == int(target), TaskManager.user_id != env.ids["manager"]))
+    assert get(env, f"results/tasks/{target}/context", "manager", expected=409) == "REVIEWER_UNAVAILABLE"
+
+
+def test_two_managers_racing_to_decide_commit_only_one_decision(review_env):
+    env = review_env
+    target, submission = create_submitted(env)
+    requests = []
+    for actor, outcome in (("manager", "approved"), ("reviewer", "returned")):
+        context = get(env, f"results/submissions/{submission}/context", actor)
+        requests.append((auth(env, actor) | {"Idempotency-Key": key(env, "submission." + outcome, submission, actor)},
+            dict(expected_row_version=context["row_version"], expected_assignment_revision=context["assignment_revision"],
+                 outcome=outcome, reason="Concurrent task manager decision")))
+    barrier = Barrier(2)
+    def post(item):
+        headers, body = item
+        barrier.wait(timeout=10)
+        return env.app.test_client().post(f"/api/v1/results/submissions/{submission}/decisions", headers=headers, json=body)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        responses = list(pool.map(post, requests))
+    assert sorted(response.status_code for response in responses) == [200, 409], [response.json for response in responses]
+    with env.app.extensions["db_engine"].connect() as db:
+        assert len(list(db.scalars(select(results.Decision.id).where(results.Decision.submission_id == int(submission))))) == 1
+
+
 def test_request_acknowledge_replay_and_derived_resolution_preserve_originals(review_env):
     env = review_env
     target, submission = create_submitted(env)
@@ -163,7 +274,9 @@ def test_request_acknowledge_replay_and_derived_resolution_preserve_originals(re
     assert send(env, feature.REQUEST_ACTION, target, f"tasks/{target}/review-requests", body, expected=409) == "REVIEW_REQUEST_PENDING"
     item = get(env, "tasks/review-requests?scope=reviewing", "reviewer")["items"][0]
     assert item["reason"] == body["reason"] and item["reviewer_id"] == env.ids["reviewer"]
-    assert get(env, "tasks/review-requests?scope=reviewing", "manager")["items"] == []
+    manager_item = get(env, "tasks/review-requests?scope=reviewing", "manager")["items"][0]
+    assert manager_item["request_id"] == saved["request_id"]
+    assert manager_item["reviewer_id"] == env.ids["manager"]
     ack_body = {"expected_row_version": item["row_version"], "expected_assignment_revision": item["assignment_revision"]}
     ack_key = key(env, feature.ACK_ACTION, target, "reviewer")
     path = f"tasks/{target}/review-requests/{saved['request_id']}/acknowledge"
@@ -225,7 +338,7 @@ def test_old_or_mismatched_selection_is_rejected(review_env, field, value, code)
     assert (own_counts(env), source_snapshot(env)) == before
 
 
-def test_admin_own_submission_uses_existing_upper_reviewer(review_env):
+def test_admin_own_submission_requires_another_task_manager(review_env):
     env = review_env
     target, _ = create_submitted(env, actor="manager")
     body = request_body(env, target, "manager")
@@ -243,7 +356,9 @@ def test_reviewer_replacement_revokes_old_inbox_and_acknowledgement(review_env):
     saved = send(env, feature.REQUEST_ACTION, target, f"tasks/{target}/review-requests", request_body(env, target))
     old_key = key(env, feature.ACK_ACTION, target, "reviewer")
     with env.app.app_context(), transaction() as db:
-        db.get(results.DepartmentReviewer, "TEST").reviewer_id = env.ids["replacement"]
+        db.execute(delete(TaskManager).where(TaskManager.task_id == int(target),
+                                            TaskManager.user_id == env.ids["reviewer"]))
+        db.add(TaskManager(task_id=int(target), user_id=env.ids["replacement"]))
     assert get(env, "tasks/review-requests?scope=reviewing", "reviewer")["items"] == []
     item = get(env, "tasks/review-requests?scope=reviewing", "replacement")["items"][0]
     body = {"expected_row_version": item["row_version"], "expected_assignment_revision": item["assignment_revision"]}

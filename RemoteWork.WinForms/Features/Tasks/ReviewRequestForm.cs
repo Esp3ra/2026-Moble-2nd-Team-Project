@@ -47,14 +47,14 @@ namespace RemoteWork.WinForms.Features.Tasks
         public async Task ReloadAsync()
         {
             if (!Current || busy || client!.Pending is not null || taskId is null) return;
-            busy = true; context = null; UpdateActions(); lblStatus.Text = "제출 결과와 현재 지정 검토자를 확인하고 있습니다.";
+            busy = true; context = null; UpdateActions(); lblStatus.Text = "제출 결과와 현재 업무 관리자를 확인하고 있습니다.";
             try
             {
                 var value = await client.ContextAsync(taskId, lifetime.Token);
                 if (!Current) return;
                 context = value;
                 txtTaskSummary.Text = value.TaskId + " · " + value.Title;
-                txtCurrentStatus.Text = "제출완료 · " + value.RoundNo + "차 · 검토자: " + value.ReviewerName;
+                txtCurrentStatus.Text = "제출완료 · " + value.RoundNo + "차 · 업무관리자: " + value.ReviewerName;
                 txtCurrentDeadline.Text = value.DueDate.ToString("yyyy-MM-dd");
                 txtResultPreview.Text = value.Description;
                 lblStatus.Text = value.Request?.State == "pending"

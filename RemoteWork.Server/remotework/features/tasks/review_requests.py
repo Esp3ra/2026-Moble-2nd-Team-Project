@@ -13,9 +13,9 @@ from ...auth import authenticated_transaction, login_required
 from ...common import AppError, audit, success
 from ...db import get_db
 from ...models import User, iso, utcnow
-from ...write_contract import ExpectedVersions, lock_users, positive_bigint, positive_integer
+from ...write_contract import ExpectedVersions, positive_bigint
 from ...write_requests import WriteResult, perform_once, register_write_action
-from ..results import ExternalFacts, Submission
+from ..results import Submission, _facts
 from .lifecycle_support import ensure_not_cancelled
 from .models import TaskAssignment, TaskManager, TaskRecord
 from .review_request_models import TaskReviewRequest
@@ -198,29 +198,11 @@ def _current(db, target):
 
 
 def _reviewer(db, task, assignment, managers):
-    # Consume the existing facts adapter; never infer a reviewer from task managers.
-    binding = current_app.extensions.get("results_facts")
-    if "results" not in current_app.blueprints or not callable(binding):
+    # Use exactly the same locked current-manager permission as result decisions.
+    if "results" not in current_app.blueprints:
         raise AppError(503, "RESULTS_DEPENDENCY_REQUIRED", "기존 결과물 검토자 연결이 필요합니다.")
-    first = binding(db, task, assignment, lock=False)
-    if not isinstance(first, ExternalFacts):
-        raise AppError(503, "RESULTS_DEPENDENCY_REQUIRED", "현재 검토자 연결 자료를 확인해 주세요.")
-    if first.reviewer_id is None:
-        raise AppError(409, "REVIEWER_UNAVAILABLE", "현재 지정된 검토자가 없습니다.")
-    try:
-        reviewer_id = positive_integer(first.reviewer_id, "reviewer_id")
-    except AppError:
-        raise AppError(503, "RESULTS_DEPENDENCY_REQUIRED", "현재 검토자 연결 자료를 확인해 주세요.") from None
-    users = lock_users(db, [assignment.assignee_id, *managers, reviewer_id])
-    current = binding(db, task, assignment, lock=True)
-    if not isinstance(current, ExternalFacts):
-        raise AppError(503, "RESULTS_DEPENDENCY_REQUIRED", "현재 검토자 연결 자료를 확인해 주세요.")
-    if current.reviewer_id is not None and type(current.reviewer_id) is not int:
-        raise AppError(503, "RESULTS_DEPENDENCY_REQUIRED", "현재 검토자 연결 자료를 확인해 주세요.")
-    if current.reviewer_id != reviewer_id:
-        raise AppError(409, "REVIEWER_CHANGED", "검토자가 변경되었습니다. 다시 조회해 주세요.")
-    reviewer = users.get(reviewer_id)
-    owner = users.get(assignment.assignee_id)
+    _current_facts, reviewer = _facts(db, task, assignment, managers)
+    owner = db.get(User, assignment.assignee_id)
     if (reviewer is None or not reviewer.is_active or reviewer.role != "admin" or
             reviewer.id == assignment.assignee_id or owner is None or not owner.is_active):
         raise AppError(409, "REVIEWER_UNAVAILABLE", "본인과 다른 현재 활성 검토자가 필요합니다.")
