@@ -171,12 +171,13 @@ internal static class Program
         Until(() => Field<Label>(page, "lblTaskQueryStatus").Text == "상세 조회 완료");
         stage = label + " selected task";
         Select(page, taskId);
-        Check(!Field<Button>(page, "btnSubmitResult").Enabled,
-            "not_started task cannot open the submission action");
+        Check(!Field<Button>(page, "btnSubmitResult").Enabled && !Field<Button>(page, "btnReviewRequestPreview").Enabled,
+            "not_started task cannot open submission or review request");
         stage = label + " acceptance";
         Start(page, taskId);
-        Check(Current(page)?.Status == TaskDisplayStatus.InProgress && Field<Button>(page, "btnSubmitResult").Enabled,
-            "actual member2 acceptance enables the current own in_progress submission");
+        Check(Current(page)?.Status == TaskDisplayStatus.InProgress && Field<Button>(page, "btnSubmitResult").Enabled
+            && Field<Button>(page, "btnReviewRequestPreview").Enabled,
+            "actual acceptance enables both own in_progress submission entry points");
         var accepted = Wait(new HttpTaskPreparationService(api.CaptureSession()).GetContextAsync(taskId));
 
         if (api.CurrentUser!.Role == "admin")
@@ -184,7 +185,8 @@ internal static class Program
             stage = label + " managed scope";
             Field<ComboBox>(page, "cmbTaskScope").SelectedIndex = 1;
             Until(() => Field<Label>(page, "lblTaskQueryStatus").Text == "상세 조회 완료");
-            Check(!Field<Button>(page, "btnSubmitResult").Visible, "management view hides the own submission action");
+            Check(!Field<Button>(page, "btnSubmitResult").Visible && !Field<Button>(page, "btnReviewRequestPreview").Visible,
+                "management view hides both own submission actions");
             Field<ComboBox>(page, "cmbTaskScope").SelectedIndex = 0;
             stage = label + " own scope restored";
             Until(() => Field<Label>(page, "lblTaskQueryStatus").Text == "상세 조회 완료");
@@ -206,28 +208,36 @@ internal static class Program
         string file = Path.Combine(settings.Storage, "client-source-" + label + ".any");
         byte[] bytes = Enumerable.Range(0, 4096).Select(index => (byte)(index % 251)).ToArray();
         File.WriteAllBytes(file, bytes);
-        Submission(page, taskId, 1, file);
+        Submission(page, taskId, 1, file, buttonName: "btnReviewRequestPreview");
         Until(() => Field<DataGridView>(page, "gridTasks").Rows.Count == 0
             && Field<Button>(page, "btnRetryQuery").Enabled);
         Check(Field<ComboBox>(page, "cmbTaskStatusFilter").SelectedIndex == 2,
             "successful submission preserves in_progress filter while the changed task disappears");
+        Check(!Field<Button>(page, "btnSubmitResult").Enabled && !Field<Button>(page, "btnReviewRequestPreview").Enabled,
+            "empty filtered list cannot submit or open a sample review request");
         Check(!Field<TextBox>(page, "txtContent").Text.Contains("Explicit owned integration fixture"),
             "successful filtered submission does not retain the previous task detail");
         Field<ComboBox>(page, "cmbTaskStatusFilter").SelectedIndex = 0;
         Until(() => Field<Label>(page, "lblTaskQueryStatus").Text == "상세 조회 완료");
         Select(page, taskId);
-        Check(Current(page)?.Status == TaskDisplayStatus.Submitted && !Field<Button>(page, "btnSubmitResult").Enabled,
+        Check(Current(page)?.Status == TaskDisplayStatus.Submitted && !Field<Button>(page, "btnSubmitResult").Enabled
+            && !Field<Button>(page, "btnReviewRequestPreview").Enabled,
             "all filter reads submitted from the server without another state POST");
         JsonElement first = Submissions(api, taskId).EnumerateArray().Single();
         Check(first.GetProperty("round_no").GetString() == "1"
             && first.GetProperty("attachments").GetArrayLength() == 1,
             "first actual form submission stores one first-round attachment");
+        JsonElement reviewTasks = Wait(reviewer.CaptureSession().GetAsync<JsonElement>("results/review-tasks"));
+        Check(reviewTasks.GetProperty("items").EnumerateArray().Any(item =>
+            item.GetProperty("task_id").GetString() == taskId && item.GetProperty("task_status").GetString() == "submitted"),
+            "review request submission appears in the authenticated reviewer's real pending list");
 
         stage = label + " review return";
         Decide(reviewer, first.GetProperty("submission_id").GetString()!, "returned");
         Wait(page.RefreshAsync());
         Select(page, taskId);
-        Check(Current(page)?.Status == TaskDisplayStatus.Returned && !Field<Button>(page, "btnSubmitResult").Enabled,
+        Check(Current(page)?.Status == TaskDisplayStatus.Returned && !Field<Button>(page, "btnSubmitResult").Enabled
+            && !Field<Button>(page, "btnReviewRequestPreview").Enabled,
             "returned task cannot directly reopen submission before rework");
         // MySQL DATETIME(0) may round the accepted instant forward. Wait only to
         // that returned server instant; do not fake a timestamp or retry a write.
@@ -251,7 +261,8 @@ internal static class Program
         Decide(reviewer, submitted[0].GetProperty("submission_id").GetString()!, "approved");
         Wait(page.RefreshAsync());
         Select(page, taskId);
-        Check(Current(page)?.Status == TaskDisplayStatus.Approved && !Field<Button>(page, "btnSubmitResult").Enabled,
+        Check(Current(page)?.Status == TaskDisplayStatus.Approved && !Field<Button>(page, "btnSubmitResult").Enabled
+            && !Field<Button>(page, "btnReviewRequestPreview").Enabled,
             "approval refresh shows approved and disables further submission");
         string attachmentId = first.GetProperty("attachments")[0].GetProperty("attachment_id").GetString()!;
         JsonElement chunk = Wait(reviewer.CaptureSession().GetAsync<JsonElement>(
@@ -301,13 +312,16 @@ internal static class Program
         Check(step == 2, "start uses separate target confirmation and actual execution");
     }
 
-    private static void Submission(TasksControl page, string taskId, int round, string? attachment, bool cancel = false)
+    private static void Submission(TasksControl page, string taskId, int round, string? attachment, bool cancel = false,
+        string buttonName = "btnSubmitResult")
     {
         bool ready = false;
-        DriveModal<SubmissionForm>(() => Field<Button>(page, "btnSubmitResult").PerformClick(), form =>
+        DriveModal<SubmissionForm>(() => Field<Button>(page, buttonName).PerformClick(), form =>
         {
             if (ready || Field<bool>(form, "busy") || !Field<Button>(form, "btnSubmit").Enabled) return;
             ready = true;
+            Check(!Application.OpenForms.OfType<ReviewRequestForm>().Any(),
+                "actual review request never opens the sample-only request form");
             Check(form.Tag is IDictionary<string, string> data && data["TaskId"] == taskId,
                 "member2 hands the selected task ID to the real member3 submission form");
             Check(Field<TextBox>(form, "txtSubmissionVersion").Text.Contains(round + "차"),

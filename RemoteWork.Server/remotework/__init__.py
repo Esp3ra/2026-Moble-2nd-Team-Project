@@ -201,4 +201,13 @@ def create_app(test_config=None):
         from .leave_service import install as install_leave
         install_leave(app)
 
+    # Explicit deployment opt-in; read-only checks precede lifecycle activation.
+    # Default OFF preserves cold startup and never creates feature storage.
+    from .features.tasks.lifecycle_deployment import install as install_lifecycle_deployment
+    try:
+        install_lifecycle_deployment(app)
+    except Exception:
+        app.extensions["db_engine"].dispose()
+        raise
+
     return app

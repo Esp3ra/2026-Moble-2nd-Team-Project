@@ -1,5 +1,21 @@
 # 3번 결과물 HTTP·MySQL·WinForms 검증
 
+## 취소·연장 일반 서버 활성화 검사 — 2026-10-26
+
+`verify_lifecycle.py`는 실행 중 앱에 ACK를 직접 넣는 대신, 기본 차단을 먼저 확인한 뒤 `TESTING=False`와 명시적인 `TASK_LIFECYCLE_INTEGRATION` 설정으로 일반 `create_app`을 다시 실행합니다. 새 시작 검사가 실제 공통·결과물 연결과 MySQL 저장소를 확인한 뒤에만 통합 ACK를 설치합니다. 모든 쓰기·DDL은 실행기가 소유한 임시 MySQL과 합성 계정에 한정합니다.
+
+```powershell
+$env:PYTHON_DOTENV_DISABLED='1'
+python -B Tests/Results.Http.Tests/verify_lifecycle.py
+python -B Tests/Results.Http.Tests/verify_cold.py
+# RemoteWork.Server 폴더에서:
+python -B -m pytest tests/test_task_lifecycle_deployment.py -q
+```
+
+이번 직접 결과는 **실제 MySQL·loopback HTTP 263개**, **활성화 경계 단위검사 56개**, **기본 OFF 독립 프로세스 검사 통과**입니다. 263개에는 기존 취소/신청과 제출의 동시 실행·업로드 도중 취소·과거 제출 보존·연장 승인 기한 반영·트랜잭션 rollback, 실제 013 미준비 거절/준비 성공, AUTO_INCREMENT 누락 거절/복원 후 활성화가 포함됩니다. 단위검사는 명시 저장소 대역을 사용하며 DB 준비·권한의 실제 검증과 구분합니다. 의도적으로 결과물 사건 기록 오류를 주입한 한 건의 500 로그는 rollback 검사의 예상 출력입니다. 반복 실행과 이전 258/259개 결과를 합산하지 않습니다.
+
+사용자·공유 DB, `192.168.0.232` 서버 설정·재시작, 실제 WinForms 촬영 화면과 두 PC 검증은 수행하지 않았습니다. 마감 알림을 켠 배포의 기존 journal/head와 업무별 검토자·파일 저장 권한은 별도 적용 확인 대상입니다. [서버 적용 순서](../../docs/TASK_LIFECYCLE.md#task-lifecycle-deployment-activation)를 따르며, 이 격리 검사 통과만으로 공유 서버가 활성화됐다고 표시하지 않습니다.
+
 사용자 DB와 분리한 새 소유 MySQL 프로세스/임시 DB만 생성하고 종료 시 소유를 재확인하여 정리합니다. 실제 직원·업무·제출 자료를 제품 DB에 자동 입력하지 않습니다.
 
 Windows, Python 서버 requirements, MySQL 8.0.16 이상, PowerShell 7 및 .NET 8 참조팩이 필요합니다. C# 검사는 로컬 검증 환경의 8.0.29 참조팩과 PowerShell에 포함된 Roslyn을 사용합니다. 설치 경로가 다르면 검증 스크립트의 참조팩/런타임 경로를 해당 설치와 맞춰야 합니다. 제품 csproj를 변경하지 않습니다.
