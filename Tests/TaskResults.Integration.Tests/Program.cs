@@ -2,11 +2,13 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using RemoteWork.WinForms.Features.Results;
 using RemoteWork.WinForms.Features.Tasks;
 using RemoteWork.WinForms.Features.Tasks.Preparation;
 using RemoteWork.WinForms.Features.Tasks.Queries;
+using RemoteWork.WinForms.Features.Tasks.ReviewRequests;
 using RemoteWork.WinForms.Infrastructure;
 using RemoteWork.WinForms.Ui;
 
@@ -15,6 +17,9 @@ internal static class Program
     private static int checks;
     private static string stage = "startup";
     private static Settings settings = null!;
+    private const string ReviewReason = "Integration review request · 검토 요청 확인";
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr SendMessageW(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
 
     private sealed record Account(string LoginId, string Password, int Id);
     private sealed record Settings(string Server, string Storage, Account Manager, Account Worker, Account Upper);
@@ -122,6 +127,9 @@ internal static class Program
             "accept and rework execute once per real task");
         Check(requests.Count(request => request.Method == HttpMethod.Post && request.Path.EndsWith("/submissions")) == 4,
             "two submission rounds per task are the only submitted writes");
+        Check(requests.Count(request => request.Method == HttpMethod.Post && request.Path.EndsWith("/review-requests")) == 2
+            && requests.Count(request => request.Method == HttpMethod.Post && request.Path.EndsWith("/acknowledge")) == 2,
+            "each submitted task sends one separate review request and its reviewer acknowledges it once");
         Check(!requests.Any(request => request.Method == HttpMethod.Patch
                 || request.Path.Contains("/status", StringComparison.Ordinal)),
             "member2 never sends a separate status mutation after member3 saves");
@@ -176,8 +184,8 @@ internal static class Program
         stage = label + " acceptance";
         Start(page, taskId);
         Check(Current(page)?.Status == TaskDisplayStatus.InProgress && Field<Button>(page, "btnSubmitResult").Enabled
-            && Field<Button>(page, "btnReviewRequestPreview").Enabled,
-            "actual acceptance enables both own in_progress submission entry points");
+            && !Field<Button>(page, "btnReviewRequestPreview").Enabled,
+            "actual acceptance enables submission but separate review request waits for a submitted result");
         var accepted = Wait(new HttpTaskPreparationService(api.CaptureSession()).GetContextAsync(taskId));
 
         if (api.CurrentUser!.Role == "admin")
@@ -208,7 +216,7 @@ internal static class Program
         string file = Path.Combine(settings.Storage, "client-source-" + label + ".any");
         byte[] bytes = Enumerable.Range(0, 4096).Select(index => (byte)(index % 251)).ToArray();
         File.WriteAllBytes(file, bytes);
-        Submission(page, taskId, 1, file, buttonName: "btnReviewRequestPreview");
+        Submission(page, taskId, 1, file);
         Until(() => Field<DataGridView>(page, "gridTasks").Rows.Count == 0
             && Field<Button>(page, "btnRetryQuery").Enabled);
         Check(Field<ComboBox>(page, "cmbTaskStatusFilter").SelectedIndex == 2,
@@ -221,8 +229,8 @@ internal static class Program
         Until(() => Field<Label>(page, "lblTaskQueryStatus").Text == "상세 조회 완료");
         Select(page, taskId);
         Check(Current(page)?.Status == TaskDisplayStatus.Submitted && !Field<Button>(page, "btnSubmitResult").Enabled
-            && !Field<Button>(page, "btnReviewRequestPreview").Enabled,
-            "all filter reads submitted from the server without another state POST");
+            && Field<Button>(page, "btnReviewRequestPreview").Enabled,
+            "submitted status enables only the separate review request without another state POST");
         JsonElement first = Submissions(api, taskId).EnumerateArray().Single();
         Check(first.GetProperty("round_no").GetString() == "1"
             && first.GetProperty("attachments").GetArrayLength() == 1,
@@ -230,7 +238,12 @@ internal static class Program
         JsonElement reviewTasks = Wait(reviewer.CaptureSession().GetAsync<JsonElement>("results/review-tasks"));
         Check(reviewTasks.GetProperty("items").EnumerateArray().Any(item =>
             item.GetProperty("task_id").GetString() == taskId && item.GetProperty("task_status").GetString() == "submitted"),
-            "review request submission appears in the authenticated reviewer's real pending list");
+            "actual submission appears in the authenticated reviewer's result pending list");
+        Check(first.GetProperty("description").GetString() == Description(1),
+            "native Korean and newline edit input is persisted by the real first submission");
+
+        stage = label + " separate review request and acknowledgment";
+        SeparateReview(page, api, reviewer, taskId, first.GetProperty("submission_id").GetString()!);
 
         stage = label + " review return";
         Decide(reviewer, first.GetProperty("submission_id").GetString()!, "returned");
@@ -254,7 +267,8 @@ internal static class Program
         Until(() => Current(page)?.TaskId == taskId && Current(page)?.Status == TaskDisplayStatus.Submitted);
         JsonElement[] submitted = Submissions(api, taskId).EnumerateArray().ToArray();
         Check(submitted.Length == 2 && submitted[0].GetProperty("round_no").GetString() == "2"
-            && submitted[1].GetProperty("description").GetString() == "Integration result 1",
+            && submitted[1].GetProperty("description").GetString() == Description(1)
+            && submitted[0].GetProperty("description").GetString() == Description(2),
             "second successful submission increments the round and retains the first description");
 
         stage = label + " review approval and preserved file";
@@ -312,16 +326,26 @@ internal static class Program
         Check(step == 2, "start uses separate target confirmation and actual execution");
     }
 
-    private static void Submission(TasksControl page, string taskId, int round, string? attachment, bool cancel = false,
-        string buttonName = "btnSubmitResult")
+    private static string Description(int round) => "Integration result " + round + "\r\n한글 결과 " + round;
+
+    private static void NativeType(TextBox box, string value)
+    {
+        Check(!box.ReadOnly && box.Enabled, "actual input control is editable before native character input");
+        box.Focus();
+        foreach (char character in value.Replace("\r\n", "\r", StringComparison.Ordinal))
+            SendMessageW(box.Handle, 0x0102, (IntPtr)character, IntPtr.Zero);
+        Check(box.Text == value, "WM_CHAR input retains exact Korean text and requested newline");
+    }
+
+    private static void Submission(TasksControl page, string taskId, int round, string? attachment, bool cancel = false)
     {
         bool ready = false;
-        DriveModal<SubmissionForm>(() => Field<Button>(page, buttonName).PerformClick(), form =>
+        DriveModal<SubmissionForm>(() => Field<Button>(page, "btnSubmitResult").PerformClick(), form =>
         {
             if (ready || Field<bool>(form, "busy") || !Field<Button>(form, "btnSubmit").Enabled) return;
             ready = true;
             Check(!Application.OpenForms.OfType<ReviewRequestForm>().Any(),
-                "actual review request never opens the sample-only request form");
+                "result submission remains separate from the manual review-request form");
             Check(form.Tag is IDictionary<string, string> data && data["TaskId"] == taskId,
                 "member2 hands the selected task ID to the real member3 submission form");
             Check(Field<TextBox>(form, "txtSubmissionVersion").Text.Contains(round + "차"),
@@ -329,7 +353,7 @@ internal static class Program
             Check(Field<DataGridView>(form, "gridPreviousFiles").Rows.Count == (round == 1 ? 0 : 1),
                 "member3 previous attachment view reflects only actual earlier submissions");
             if (cancel) { form.Close(); return; }
-            Field<TextBox>(form, "txtResultDescription").Text = "Integration result " + round;
+            NativeType(Field<TextBox>(form, "txtResultDescription"), Description(round));
             if (attachment is not null)
                 form.GetType().GetMethod("AddAttachments", BindingFlags.Instance | BindingFlags.NonPublic)!
                     .Invoke(form, new object[] { new[] { attachment } });
@@ -337,6 +361,76 @@ internal static class Program
         });
         Check(ready, "the real member3 submission form becomes ready without preview data");
     }
+
+    private static void SeparateReview(TasksControl page, ApiClient submitter, ApiClient reviewer, string taskId, string submissionId)
+    {
+        var before = Wait(new HttpTaskPreparationService(submitter.CaptureSession()).GetContextAsync(taskId));
+        var client = TaskReviewRequestsClient.For(submitter);
+        bool sent = false;
+        DriveModal<ReviewRequestForm>(() => Field<Button>(page, "btnReviewRequestPreview").PerformClick(), form =>
+        {
+            if (Field<bool>(form, "busy") || !Field<Button>(form, "btnConfirm").Enabled) return;
+            if (client.Pending?.Stage == "completed")
+            {
+                Check(form.Saved && client.Pending.Saved?.SubmissionId == submissionId
+                    && client.Pending.Saved.RoundNo == "1", "manual request save identifies the original submitted round");
+                Field<Button>(form, "btnConfirm").PerformClick();
+                return;
+            }
+            if (sent) return;
+            Check(Field<TextBox>(form, "txtResultPreview").Text == Description(1)
+                && Field<TextBox>(form, "txtTaskSummary").Text.StartsWith(taskId + " · ", StringComparison.Ordinal),
+                "separate request displays the selected saved result instead of a fresh submission draft");
+            NativeType(Field<TextBox>(form, "txtRequestReason"), ReviewReason);
+            sent = true;
+            Field<Button>(form, "btnConfirm").PerformClick();
+        });
+        Check(sent && client.Pending is null, "confirmed manual request clears only its completed operation");
+        var afterRequest = Wait(new HttpTaskPreparationService(submitter.CaptureSession()).GetContextAsync(taskId));
+        Check(SameContext(afterRequest, before) && Submissions(submitter, taskId).GetArrayLength() == 1,
+            "manual request leaves task status version assignment update time and submission count unchanged");
+        var own = Wait(client.ListAsync(false, CancellationToken.None));
+        ReviewRequestItem item = own.Single(row => row.TaskId == taskId);
+        Check(item.State == "pending" && item.SubmissionId == submissionId && item.RoundNo == "1"
+            && item.Reason == ReviewReason, "requester sees one pending request for the exact existing first round");
+
+        bool acknowledged = false;
+        var reviewerClient = TaskReviewRequestsClient.For(reviewer);
+        using (var inbox = new TaskReviewRequestsForm(reviewerClient, true))
+        {
+            DriveModal<TaskReviewRequestsForm>(() => inbox.ShowDialog(page.FindForm()), form =>
+            {
+                var grid = Field<DataGridView>(form, "gridRequests");
+                if (Field<bool>(form, "busy")) return;
+                var row = grid.Rows.Cast<DataGridViewRow>().SingleOrDefault(row =>
+                    row.Tag is ReviewRequestItem current && current.RequestId == item.RequestId);
+                if (row is null) return;
+                grid.ClearSelection(); grid.CurrentCell = row.Cells[0]; row.Selected = true;
+                if (row.Tag is ReviewRequestItem { State: "acknowledged" } updated)
+                {
+                    Check(updated.AcknowledgedBy == reviewer.CurrentUser!.Id && updated.AcknowledgedAt is not null
+                        && Field<TextBox>(form, "txtDetail").Text.Contains(ReviewReason),
+                        "actual reviewer inbox shows its persisted acknowledgement and original reason");
+                    form.Close(); return;
+                }
+                if (acknowledged || !Field<Button>(form, "btnAcknowledge").Enabled) return;
+                Check(Field<ComboBox>(form, "cmbScope").SelectedIndex == 1, "reviewer opens the actual received-request scope");
+                acknowledged = true;
+                Field<Button>(form, "btnAcknowledge").PerformClick();
+            });
+        }
+        var afterAcknowledgment = Wait(new HttpTaskPreparationService(submitter.CaptureSession()).GetContextAsync(taskId));
+        Check(acknowledged && SameContext(afterAcknowledgment, before) && Submissions(submitter, taskId).GetArrayLength() == 1,
+            "acknowledgment changes only the manual request and never approves returns or resubmits the result");
+        Check(Wait(client.ListAsync(false, CancellationToken.None)).Single(row => row.RequestId == item.RequestId).State == "acknowledged",
+            "the requester sees the actual reviewer acknowledgment through HTTP");
+    }
+
+    private static bool SameContext(TaskWriteContext current, TaskWriteContext original) =>
+        current.TaskId == original.TaskId && current.AssigneeId == original.AssigneeId
+        && current.RowVersion == original.RowVersion && current.AssignmentRevision == original.AssignmentRevision
+        && current.Status == original.Status && current.UpdatedAt == original.UpdatedAt
+        && current.ManagerUserIds.SequenceEqual(original.ManagerUserIds);
 
     private static void DriveModal<T>(Action open, Action<T> drive) where T : Form
     {

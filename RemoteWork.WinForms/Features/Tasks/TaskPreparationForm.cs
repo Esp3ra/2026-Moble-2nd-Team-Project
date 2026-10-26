@@ -3,11 +3,14 @@ using RemoteWork.WinForms.Ui;
 
 namespace RemoteWork.WinForms.Features.Tasks;
 
+public enum TaskPreparationMode { AssigneeAndManagers, AssigneeOnly, ManagersOnly }
+
 public partial class TaskPreparationForm : Form
 {
     private readonly ITaskPreparationService? service;
     private readonly string? taskId;
     private readonly bool readOnly;
+    private readonly TaskPreparationMode selectionMode;
     private const string ReadOnlyDescription = "읽기 전용입니다. 변경하려면 이 창을 닫고 ‘업무 수정’, ‘담당자 변경’, ‘관리자 변경’ 버튼을 사용해 주세요.";
     private CancellationTokenSource? requestCancellation;
     private CancellationTokenRegistration sessionRegistration;
@@ -26,11 +29,14 @@ public partial class TaskPreparationForm : Form
     public TaskPreparationSelection? Selection { get; private set; }
 
     public TaskPreparationForm() : this(null, null) { }
-    public TaskPreparationForm(ITaskPreparationService? service, string? taskId, bool readOnly = false)
+    public TaskPreparationForm(ITaskPreparationService? service, string? taskId, bool readOnly = false,
+        TaskPreparationMode selectionMode = TaskPreparationMode.AssigneeAndManagers)
     {
+        if (!Enum.IsDefined(selectionMode)) throw new ArgumentOutOfRangeException(nameof(selectionMode));
         this.service = service;
         this.taskId = taskId;
         this.readOnly = readOnly;
+        this.selectionMode = selectionMode;
         InitializeComponent();
         if (PreviewActions.IsDesignMode(this)) return;
         if (readOnly)
@@ -45,7 +51,14 @@ public partial class TaskPreparationForm : Form
             layout.RowStyles[4] = new RowStyle(SizeType.Absolute, 0);
             layout.RowStyles[5] = new RowStyle(SizeType.Percent, 100);
         }
-        cmbKind.SelectedIndex = 0;
+        else if (selectionMode != TaskPreparationMode.AssigneeAndManagers)
+        {
+            Text = lblHeading.Text = selectionMode == TaskPreparationMode.AssigneeOnly ? "업무 담당자 선택" : "업무 관리자 선택";
+            listSelected.AccessibleDescription = selectionMode == TaskPreparationMode.AssigneeOnly
+                ? "변경할 담당자만 선택합니다. 업무 관리자 목록은 변경하지 않습니다."
+                : "변경할 업무 관리자만 선택합니다. 담당자는 변경하지 않습니다.";
+        }
+        cmbKind.SelectedIndex = selectionMode == TaskPreparationMode.ManagersOnly ? 1 : 0;
         initialized = true;
         SetState();
     }
@@ -105,7 +118,7 @@ public partial class TaskPreparationForm : Form
         if (readOnly || service is null || stopped || !contextReady || !manage) return;
         var (request, token) = BeginRequest();
         string search = txtSearch.Text;
-        var kind = cmbKind.SelectedIndex == 1 ? TaskCandidateKind.Manager : TaskCandidateKind.Assignee;
+        TaskCandidateKind kind = CandidateKind;
         try
         {
             var result = await service.GetCandidatesAsync(new(kind, taskId, search, requestedPage), token);
@@ -122,6 +135,8 @@ public partial class TaskPreparationForm : Form
             pageReady = true;
             lblPage.Text = $"{page}페이지 · 총 {total}명";
             lblStatus.Text = total == 0 ? "조회된 후보가 없습니다. 기존 선택은 아래에서 확인할 수 있습니다."
+                : selectionMode == TaskPreparationMode.AssigneeOnly ? "담당자를 선택한 뒤 ‘선택 반영’을 누르세요. 업무 관리자 목록은 변경하지 않습니다."
+                : selectionMode == TaskPreparationMode.ManagersOnly ? "업무 관리자를 선택한 뒤 ‘선택 반영’을 누르세요. 담당자는 변경하지 않으며 선택은 페이지를 이동해도 유지됩니다."
                 : "후보를 선택한 뒤 ‘선택 반영’을 누르세요. 업무 관리자 선택은 페이지를 이동해도 유지됩니다.";
         }
         catch (OperationCanceledException) { if (Current(request, token)) CancelSession(); }
@@ -157,16 +172,28 @@ public partial class TaskPreparationForm : Form
     {
         bool current = !stopped && service?.IsCurrent == true;
         bool edit = !readOnly && current && !busy && manage && contextReady;
-        cmbKind.Enabled = txtSearch.Enabled = btnSearch.Enabled = edit;
+        cmbKind.Enabled = edit && selectionMode == TaskPreparationMode.AssigneeAndManagers;
+        txtSearch.Enabled = btnSearch.Enabled = edit;
         btnRefreshContext.Enabled = current && !busy;
         gridCandidates.Enabled = edit && pageReady;
         btnPrevious.Enabled = edit && pageReady && page > 1;
         btnNext.Enabled = edit && pageReady && (long)page * 20 < total;
         btnChoose.Enabled = edit && pageReady && gridCandidates.SelectedRows.Count == 1;
         SelectionItem? selected = listSelected.SelectedItem as SelectionItem;
-        btnRemove.Enabled = edit && selected != null && !IsRequiredCreator(selected);
-        btnConfirm.Enabled = edit && pageReady && HasRequiredManagers();
+        btnRemove.Enabled = edit && selected != null && CanEditSelection(selected) && !IsRequiredCreator(selected);
+        btnConfirm.Enabled = edit && pageReady && HasRequiredManagers() && HasModeSelection;
     }
+    private TaskCandidateKind CandidateKind => selectionMode == TaskPreparationMode.ManagersOnly ? TaskCandidateKind.Manager
+        : selectionMode == TaskPreparationMode.AssigneeOnly ? TaskCandidateKind.Assignee
+        : cmbKind.SelectedIndex == 1 ? TaskCandidateKind.Manager : TaskCandidateKind.Assignee;
+    private bool CanEditSelection(SelectionItem item) => selectionMode == TaskPreparationMode.AssigneeAndManagers
+        || item.Manager == (selectionMode == TaskPreparationMode.ManagersOnly);
+    private bool HasModeSelection => selectionMode switch
+    {
+        TaskPreparationMode.AssigneeOnly => assignee is not null,
+        TaskPreparationMode.ManagersOnly => managers.Count > 0,
+        _ => true
+    };
     private bool IsRequiredCreator(SelectionItem item)
     {
         if (taskId != null || service == null) return false;
@@ -214,9 +241,11 @@ public partial class TaskPreparationForm : Form
     private void RenderSelection()
     {
         listSelected.Items.Clear();
-        if (assignee is not null) listSelected.Items.Add(new SelectionItem(false, assignee.Id, "담당자: " + assignee.SelectionLabel));
+        if (assignee is not null && (readOnly || selectionMode != TaskPreparationMode.ManagersOnly))
+            listSelected.Items.Add(new SelectionItem(false, assignee.Id, "담당자: " + assignee.SelectionLabel));
         foreach (KeyValuePair<int, string> item in managers)
         {
+            if (!readOnly && selectionMode == TaskPreparationMode.AssigneeOnly) continue;
             string label = "업무 관리자: " + item.Value;
             if (taskId == null && service != null && item.Key == service.UserId)
                 label += " (등록자 · 필수)";
@@ -227,20 +256,20 @@ public partial class TaskPreparationForm : Form
     private void ChooseClick(object? sender, EventArgs e)
     {
         if (readOnly || !btnChoose.Enabled || gridCandidates.SelectedRows[0].Tag is not TaskUserCandidate selected) return;
-        if (cmbKind.SelectedIndex == 1) managers[selected.Id] = selected.SelectionLabel;
+        if (CandidateKind == TaskCandidateKind.Manager) managers[selected.Id] = selected.SelectionLabel;
         else assignee = selected;
         RenderSelection();
     }
     private void RemoveClick(object? sender, EventArgs e)
     {
         if (readOnly || !btnRemove.Enabled || listSelected.SelectedItem is not SelectionItem selected) return;
-        if (IsRequiredCreator(selected)) return;
+        if (!CanEditSelection(selected) || IsRequiredCreator(selected)) return;
         if (selected.Manager) managers.Remove(selected.Id); else assignee = null;
         RenderSelection();
     }
     private void ConfirmClick(object? sender, EventArgs e)
     {
-        if (readOnly || !btnConfirm.Enabled || service?.IsCurrent != true) return;
+        if (readOnly || !btnConfirm.Enabled || service?.IsCurrent != true || !HasModeSelection) return;
         if (!HasRequiredManagers())
         {
             lblStatus.Text = "등록자를 포함한 업무 관리자 1명 이상이 필요합니다. 정보를 다시 조회해 주세요.";
@@ -253,7 +282,15 @@ public partial class TaskPreparationForm : Form
     }
     private void CandidateChanged(object? sender, EventArgs e) => SetState();
     private async void SearchClick(object? sender, EventArgs e) => await LoadCandidatesAsync(1);
-    private async void KindChanged(object? sender, EventArgs e) { if (initialized && contextReady && manage) await LoadCandidatesAsync(1); }
+    private async void KindChanged(object? sender, EventArgs e)
+    {
+        if (selectionMode != TaskPreparationMode.AssigneeAndManagers)
+        {
+            int expected = selectionMode == TaskPreparationMode.ManagersOnly ? 1 : 0;
+            if (cmbKind.SelectedIndex != expected) { cmbKind.SelectedIndex = expected; return; }
+        }
+        if (initialized && contextReady && manage) await LoadCandidatesAsync(1);
+    }
     private async void PreviousClick(object? sender, EventArgs e) => await LoadCandidatesAsync(page - 1);
     private async void NextClick(object? sender, EventArgs e) => await LoadCandidatesAsync(page + 1);
     private async void RefreshContextClick(object? sender, EventArgs e) => await RefreshContextAsync();

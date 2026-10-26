@@ -27,6 +27,15 @@ def register_writes(state):
 
 
 @bp.record_once
+def register_review_requests(state):
+    if (state.app.config.get("ENABLE_COMMON_WRITE_DRAFT") is True
+            and state.app.config.get("ENABLE_RESULTS_DRAFT",
+                os.getenv("REMOTEWORK_ENABLE_RESULTS_DRAFT") == "1") is True):
+        from .web_review_requests import register
+        register(state)
+
+
+@bp.record_once
 def register_lifecycle_inbox(state):
     # Keep lifecycle imports and routes behind their existing explicit opt-in.
     enabled = state.app.config.get("ENABLE_TASK_LIFECYCLE_DRAFT",
@@ -94,6 +103,7 @@ def index():
                            include_cancelled=include_cancelled, filters=filters,
                            status_links=status_links, status_labels=STATUS_LABELS,
                            has_creation="task_web.new" in current_app.view_functions,
+                           has_review_requests="task_web.review_requests" in current_app.view_functions,
                            has_lifecycle_inbox="task_web.extension_requests" in current_app.view_functions)
 
 
@@ -135,6 +145,7 @@ def detail(task_id):
     return render_template("tasks/detail.html", task=task, status_labels=STATUS_LABELS,
                            lifecycle_context=lifecycle_context,
                            has_start="task_web.start_prepare" in current_app.view_functions,
+                           has_review_requests="task_web.review_request" in current_app.view_functions,
                            management_actions=management_actions,
                            lifecycle_actions=lifecycle_actions,
                            results_url=results_url, results_view=results_view,

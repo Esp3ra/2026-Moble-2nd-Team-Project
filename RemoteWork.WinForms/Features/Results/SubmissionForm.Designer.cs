@@ -25,6 +25,9 @@ namespace RemoteWork.WinForms.Features.Results
             layoutContent = new System.Windows.Forms.TableLayoutPanel();
             layoutContent2 = new System.Windows.Forms.TableLayoutPanel();
             lblPageTitle = new System.Windows.Forms.Label();
+            layoutSubmissionStatus = new System.Windows.Forms.TableLayoutPanel();
+            txtSubmissionStatus = new System.Windows.Forms.TextBox();
+            btnRetryTask = new System.Windows.Forms.Button();
             panelContent = new System.Windows.Forms.Panel();
             layoutContent3 = new System.Windows.Forms.TableLayoutPanel();
             panelContent2 = new System.Windows.Forms.Panel();
@@ -102,16 +105,49 @@ namespace RemoteWork.WinForms.Features.Results
             layoutContent.AutoScroll = false;
             layoutContent.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowOnly;
             layoutContent.ColumnCount = 1;
-            layoutContent.RowCount = 3;
+            layoutContent.RowCount = 4;
             layoutContent.GrowStyle = System.Windows.Forms.TableLayoutPanelGrowStyle.AddRows;
             layoutContent.Name = "layoutContent";
             layoutContent.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 50F));
+            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 82F));
             layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 50F));
+            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             layoutContent.Controls.Add(layoutContent2, 0, 0);
-            layoutContent.Controls.Add(panelContent, 0, 1);
-            layoutContent.Controls.Add(flowActions2, 0, 2);
+            layoutContent.Controls.Add(layoutSubmissionStatus, 0, 1);
+            layoutContent.Controls.Add(panelContent, 0, 2);
+            layoutContent.Controls.Add(flowActions2, 0, 3);
+            // Always visible outside the attachment/history tabs and content scroll.
+            layoutSubmissionStatus.Name = "layoutSubmissionStatus";
+            layoutSubmissionStatus.Dock = System.Windows.Forms.DockStyle.Fill;
+            layoutSubmissionStatus.Margin = new System.Windows.Forms.Padding(0, 0, 0, 8);
+            layoutSubmissionStatus.ColumnCount = 2;
+            layoutSubmissionStatus.RowCount = 1;
+            layoutSubmissionStatus.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            layoutSubmissionStatus.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
+            layoutSubmissionStatus.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            txtSubmissionStatus.Name = "txtSubmissionStatus";
+            txtSubmissionStatus.Dock = System.Windows.Forms.DockStyle.Fill;
+            txtSubmissionStatus.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
+            txtSubmissionStatus.Multiline = true;
+            txtSubmissionStatus.ReadOnly = true;
+            txtSubmissionStatus.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            txtSubmissionStatus.BackColor = System.Drawing.Color.White;
+            txtSubmissionStatus.AccessibleName = "결과 제출 상태 및 오류 안내";
+            txtSubmissionStatus.AccessibleDescription = "현재 조회 상태, 입력 잠금 사유 또는 제출 결과입니다.";
+            txtSubmissionStatus.TabIndex = 0;
+            btnRetryTask.Name = "btnRetryTask";
+            btnRetryTask.Text = "업무 다시 확인";
+            btnRetryTask.AutoSize = true;
+            btnRetryTask.MinimumSize = new System.Drawing.Size(120, 36);
+            btnRetryTask.Padding = new System.Windows.Forms.Padding(8, 4, 8, 4);
+            btnRetryTask.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            btnRetryTask.Margin = new System.Windows.Forms.Padding(0);
+            btnRetryTask.TabIndex = 1;
+            btnRetryTask.AccessibleDescription = "현재 업무 정보를 다시 조회합니다. 결과 제출이나 파일 전송을 실행하지 않습니다.";
+            btnRetryTask.Click += new System.EventHandler(RetryTask_Click);
+            layoutSubmissionStatus.Controls.Add(txtSubmissionStatus, 0, 0);
+            layoutSubmissionStatus.Controls.Add(btnRetryTask, 1, 0);
             //
             // layoutContent2
             //
@@ -496,7 +532,7 @@ namespace RemoteWork.WinForms.Features.Results
             txtResultDescription.UseSystemPasswordChar = false;
             txtResultDescription.WordWrap = true;
             txtResultDescription.MaxLength = 32767;
-            txtResultDescription.AcceptsReturn = false;
+            txtResultDescription.AcceptsReturn = true;
             txtResultDescription.AcceptsTab = false;
             txtResultDescription.Name = "txtResultDescription";
             //
@@ -1121,6 +1157,9 @@ namespace RemoteWork.WinForms.Features.Results
         private System.Windows.Forms.TableLayoutPanel layoutContent;
         private System.Windows.Forms.TableLayoutPanel layoutContent2;
         private System.Windows.Forms.Label lblPageTitle;
+        private System.Windows.Forms.TableLayoutPanel layoutSubmissionStatus;
+        private System.Windows.Forms.TextBox txtSubmissionStatus;
+        private System.Windows.Forms.Button btnRetryTask;
         private System.Windows.Forms.Panel panelContent;
         private System.Windows.Forms.TableLayoutPanel layoutContent3;
         private System.Windows.Forms.Panel panelContent2;

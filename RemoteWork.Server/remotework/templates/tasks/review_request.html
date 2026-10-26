@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}검토 요청 작성{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{{ url_for('static', filename='tasks.css') }}">{% endblock %}
+{% block content %}
+<div class="task-page task-write-page">
+<a class="task-back" href="{{ url_for('task_web.detail', task_id=context.task_id, **filters) }}">← 업무 상세로</a>
+<p class="eyebrow">REVIEW REQUEST</p><h1>검토 요청 작성</h1>
+<p>제출 완료된 결과에 별도 요청 내용을 전달합니다. 지정 검토자, 업무 상태와 제출 회차는 그대로 유지됩니다.</p>
+{% if error %}{% include 'tasks/_write_error.html' %}{% endif %}
+<section class="card" aria-labelledby="review-target"><h2 id="review-target">{{ context.title }}</h2>
+<dl class="task-info"><dt>결과 번호</dt><dd>#{{ context.submission_id }}</dd><dt>제출 회차</dt><dd>{{ context.round_no }}회차</dd><dt>지정 검토자</dt><dd>{{ context.reviewer_name }}</dd></dl>
+<h3>제출한 내용</h3><div class="task-description">{{ context.description }}</div></section>
+{% if context.request and context.request.state == 'pending' %}
+<section class="card" role="status"><h2>대기 중인 검토 요청이 있습니다</h2><p>같은 제출 회차에는 대기 중인 요청을 중복 저장할 수 없습니다.</p><div class="task-description">{{ context.request.reason }}</div><p><a href="{{ url_for('task_web.review_requests', scope='own') }}">보낸 검토 요청 보기</a></p></section>
+{% else %}
+<section class="card"><form class="task-create-form" method="post" action="{{ url_for('task_web.review_request', task_id=context.task_id, **filters) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="draft_ticket" value="{{ draft_ticket }}">
+<label for="review-reason">검토 요청 내용</label><textarea id="review-reason" name="reason" rows="7" maxlength="4000" required>{{ reason }}</textarea>
+<p class="muted">최대 4,000자. 다음 화면에서 내용을 확인한 뒤 저장합니다.</p><button type="submit">검토 요청 내용 확인</button>
+</form></section>
+{% endif %}
+</div>
+{% endblock %}

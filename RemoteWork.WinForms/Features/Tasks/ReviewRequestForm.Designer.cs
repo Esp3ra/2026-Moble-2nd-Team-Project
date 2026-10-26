@@ -21,6 +21,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             layoutContent = new System.Windows.Forms.TableLayoutPanel();
             layoutContent2 = new System.Windows.Forms.TableLayoutPanel();
             lblPageTitle = new System.Windows.Forms.Label();
+            lblStatus = new System.Windows.Forms.Label();
             panelContent = new System.Windows.Forms.Panel();
             panelContent2 = new System.Windows.Forms.Panel();
             layoutContent3 = new System.Windows.Forms.TableLayoutPanel();
@@ -66,16 +67,33 @@ namespace RemoteWork.WinForms.Features.Tasks
             layoutContent.AutoScroll = false;
             layoutContent.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowOnly;
             layoutContent.ColumnCount = 1;
-            layoutContent.RowCount = 3;
+            layoutContent.RowCount = 4;
             layoutContent.GrowStyle = System.Windows.Forms.TableLayoutPanelGrowStyle.AddRows;
             layoutContent.Name = "layoutContent";
             layoutContent.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 50F));
+            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 50F));
+            layoutContent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             layoutContent.Controls.Add(layoutContent2, 0, 0);
-            layoutContent.Controls.Add(panelContent, 0, 1);
-            layoutContent.Controls.Add(flowActions, 0, 2);
+            lblStatus.Name = "lblStatus";
+            lblStatus.AutoSize = true;
+            lblStatus.Dock = System.Windows.Forms.DockStyle.Fill;
+            lblStatus.MinimumSize = new System.Drawing.Size(0, 52);
+            lblStatus.Padding = new System.Windows.Forms.Padding(0, 6, 0, 6);
+            lblStatus.UseMnemonic = false;
+            lblStatus.MaximumSize = new System.Drawing.Size(
+                System.Math.Max(1, layoutContent.ClientSize.Width - layoutContent.Padding.Horizontal - lblStatus.Margin.Horizontal), 0);
+            layoutContent.SizeChanged += (_, _) =>
+            {
+                int width = System.Math.Max(1,
+                    layoutContent.ClientSize.Width - layoutContent.Padding.Horizontal - lblStatus.Margin.Horizontal);
+                if (lblStatus.MaximumSize.Width != width)
+                    lblStatus.MaximumSize = new System.Drawing.Size(width, 0);
+            };
+            layoutContent.Controls.Add(lblStatus, 0, 1);
+            layoutContent.Controls.Add(panelContent, 0, 2);
+            layoutContent.Controls.Add(flowActions, 0, 3);
             //
             // layoutContent2
             //
@@ -520,7 +538,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnConfirm.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(255, 52, 101, 224);
             btnConfirm.FlatAppearance.BorderSize = 1;
             btnConfirm.Name = "btnConfirm";
-            btnConfirm.Click += new System.EventHandler(Unavailable_Click);
+            btnConfirm.Click += new System.EventHandler(Confirm_Click);
             //
             // btnCancel
             //
@@ -548,7 +566,7 @@ namespace RemoteWork.WinForms.Features.Tasks
             btnCancel.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(255, 213, 220, 231);
             btnCancel.FlatAppearance.BorderSize = 1;
             btnCancel.Name = "btnCancel";
-            btnCancel.Click += new System.EventHandler(ClosePreview_Click);
+            btnCancel.Click += new System.EventHandler(Refresh_Click);
             //
             // btnClose
             //
@@ -623,6 +641,7 @@ namespace RemoteWork.WinForms.Features.Tasks
         private System.Windows.Forms.TableLayoutPanel layoutContent;
         private System.Windows.Forms.TableLayoutPanel layoutContent2;
         private System.Windows.Forms.Label lblPageTitle;
+        private System.Windows.Forms.Label lblStatus;
         private System.Windows.Forms.Panel panelContent;
         private System.Windows.Forms.Panel panelContent2;
         private System.Windows.Forms.TableLayoutPanel layoutContent3;

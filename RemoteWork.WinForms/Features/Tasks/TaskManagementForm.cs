@@ -226,7 +226,8 @@ public partial class TaskManagementForm : Form
     private void ChooseCandidates_Click(object? sender, EventArgs e)
     {
         if (busy || stopped || source is null || context is null || preparation?.IsCurrent != true) return;
-        using var picker = new TaskPreparationForm(preparation, source.Summary.TaskId);
+        using var picker = new TaskPreparationForm(preparation, source.Summary.TaskId,
+            selectionMode: kind == TaskManagementKind.Reassign ? TaskPreparationMode.AssigneeOnly : TaskPreparationMode.ManagersOnly);
         if (picker.ShowDialog(this) != DialogResult.OK || workflow?.IsCurrent != true || stopped
             || picker.Selection is not { } selection) return;
         checkedRequest = null;

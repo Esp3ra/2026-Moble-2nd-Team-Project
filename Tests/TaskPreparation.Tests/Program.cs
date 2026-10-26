@@ -3,8 +3,10 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using RemoteWork.WinForms.Features.Tasks;
+using RemoteWork.WinForms.Features.Tasks.Management;
 using RemoteWork.WinForms.Features.Tasks.Preparation;
 using RemoteWork.WinForms.Features.Tasks.Queries;
+using RemoteWork.WinForms.Features.Tasks.Queries.TestDoubles;
 using RemoteWork.WinForms.Infrastructure;
 
 internal static class Program
@@ -28,7 +30,7 @@ internal static class Program
                     capture = args.FirstOrDefault();
                     Wire(); Malformed(); Receipts(); SessionChanges(); CandidateScreen(); ReadOnlyConnectionInfo();
                     NewTaskManagers(); NewTaskInvalidation(); NonAdminNewTask(); ExistingTaskManagerRemoval();
-                    LateResponses(); ParentDialog();
+                    LateResponses(); ParentDialog(); PurposeSpecificManagementDialogs();
                 }
                 Console.WriteLine($"PASS: {checks} preparation checks. " + (args.SequenceEqual(new[] { "--live" }) ? "Actual HTTP/MySQL fixture; no product writes." : "Controlled HTTP and actual WinForms; no server/DB."));
                 exit = 0;
@@ -398,6 +400,81 @@ internal static class Program
         PumpUntil(() => form.PreparedSelection is null && !Field<Button>(form, "btnPrepareCandidates").Enabled);
         form.Close();
     }
+    private static void PurposeSpecificManagementDialogs()
+    {
+        foreach (TaskManagementKind action in new[] { TaskManagementKind.Reassign, TaskManagementKind.ChangeManagers })
+        {
+            using var handler = new Handler();
+            using var api = Api(handler);
+            using var preparation = new Stub();
+            using var workflow = new TaskManagementWorkflow(new HttpTaskManagementService(api.CaptureSession()));
+            var detail = new TaskDetail(new TaskSummary("1", "목적별 선택 검사", "현재 담당자", TaskDisplayStatus.NotStarted,
+                new DateOnly(2026, 10, 1), new DateOnly(2026, 12, 31)), "검사 업무");
+            var queries = new TaskQueryTestDouble(new[] { detail });
+            using var form = new TaskManagementForm(action, detail, queries, preparation, workflow);
+            Show(form);
+            PumpUntil(() => Field<Button>(form, "btnChooseCandidates").Enabled);
+            bool managerAction = action == TaskManagementKind.ChangeManagers;
+            TaskCandidateKind expectedKind = managerAction ? TaskCandidateKind.Manager : TaskCandidateKind.Assignee;
+            Exception? modalError = null;
+            bool exercised = false;
+            using var timer = new System.Windows.Forms.Timer { Interval = 10 };
+            var deadline = DateTime.UtcNow.AddSeconds(10);
+            timer.Tick += (_, _) =>
+            {
+                var dialog = Application.OpenForms.OfType<TaskPreparationForm>().FirstOrDefault();
+                if (DateTime.UtcNow > deadline)
+                {
+                    modalError = new TimeoutException("Purpose-specific management picker did not become ready");
+                    dialog?.Close(); timer.Stop(); return;
+                }
+                if (dialog is null || !Field<Button>(dialog, "btnConfirm").Enabled) return;
+                timer.Stop();
+                try
+                {
+                    var kind = Field<ComboBox>(dialog, "cmbKind");
+                    var list = Field<ListBox>(dialog, "listSelected");
+                    Check(kind.SelectedIndex == (managerAction ? 1 : 0) && !kind.Enabled,
+                        "The actual management modal starts with its own candidate kind and cannot switch roles");
+                    Check(list.Items.Count == 1 && SelectedItemIndex(list, managerAction, managerAction ? 2 : 7) == 0,
+                        "The management picker displays only the relationship this action can change");
+                    kind.SelectedIndex = managerAction ? 0 : 1;
+                    Check(kind.SelectedIndex == (managerAction ? 1 : 0)
+                        && preparation.CandidateKinds.All(value => value == expectedKind),
+                        "Even a programmatic kind change cannot query the unrelated candidate endpoint");
+                    list.SelectedIndex = 0;
+                    Field<Button>(dialog, "btnRemove").PerformClick();
+                    Check(!Field<Button>(dialog, "btnConfirm").Enabled,
+                        "A purpose-specific picker cannot confirm an empty required relationship");
+                    ChooseCandidate(dialog, 3);
+                    Check(Field<Button>(dialog, "btnConfirm").Enabled,
+                        "Choosing a valid replacement enables confirmation");
+                    Capture(dialog, managerAction ? "Managers-Only-Picker" : "Assignee-Only-Picker");
+                    Field<Button>(dialog, "btnConfirm").PerformClick();
+                    exercised = true;
+                }
+                catch (Exception error) { modalError = error; dialog.Close(); }
+            };
+            timer.Start();
+            Field<Button>(form, "btnChooseCandidates").PerformClick();
+            timer.Stop();
+            if (modalError is not null) throw modalError;
+            Check(exercised && preparation.CandidateCalls > 0 && preparation.CandidateKinds.All(value => value == expectedKind),
+                "The actual management button opens and completes only its intended picker");
+            Check(Field<int>(form, "selectedAssignee") == (managerAction ? 7 : 3)
+                && Field<IReadOnlyList<int>>(form, "selectedManagers").SequenceEqual(managerAction ? new[] { 3 } : new[] { 2 }),
+                "The parent receives the intended replacement while preserving the other relationship");
+            Field<Button>(form, "btnConfirm").PerformClick();
+            var request = Field<TaskManagementRequest>(form, "checkedRequest");
+            Check(request.Kind == action && (managerAction
+                    ? request.ManagerUserIds.SequenceEqual(new[] { 3 }) && request.AssigneeId is null
+                    : request.AssigneeId == 3 && request.ManagerUserIds.Count == 0),
+                "The checked management request contains exactly the relationship selected in the modal");
+            Check(handler.Count == 1, "Candidate selection and input checking do not send a management write");
+            NoScreenWrites(preparation);
+            form.Close();
+        }
+    }
     private static void Capture(Form form, string name)
     {
         if (capture is null) return;
@@ -470,6 +547,7 @@ internal static class Program
         public int KeyCalls;
         public int ResultCalls;
         public int CandidateCalls;
+        public readonly List<TaskCandidateKind> CandidateKinds = new();
         public int ContextCalls;
         public Func<TaskCandidateQuery, Task<TaskCandidatePage>>? Next;
         public Stub(bool canSelectCandidates = true) { CanSelectCandidates = canSelectCandidates; }
@@ -481,6 +559,7 @@ internal static class Program
         public Task<TaskCandidatePage> GetCandidatesAsync(TaskCandidateQuery q, CancellationToken ct = default)
         {
             CandidateCalls++;
+            CandidateKinds.Add(q.Kind);
             if (Next is not null) return Next(q);
             var items = q.Search == "empty" ? Array.Empty<TaskUserCandidate>()
                 : Enumerable.Range(q.Page == 1 ? 1 : 21, q.Page == 1 ? 20 : 1).Select(id => new TaskUserCandidate(id, "동명이인", "동명이인 · #" + id)).ToArray();

@@ -77,6 +77,7 @@ namespace RemoteWork.WinForms.Features.Results
             txtSubmissionVersion.Clear();
             txtResultDescription.Clear();
             txtContent4.Text = "선택한 업무 정보를 기다리고 있습니다.";
+            txtSubmissionStatus.Text = "선택한 업무의 제출 가능 여부를 확인하면 결과 설명을 입력할 수 있습니다.";
             txtResultDescription.PlaceholderText = "제출할 결과 설명을 입력하세요.";
 
             gridPendingFiles.Rows.Clear();
@@ -125,6 +126,7 @@ namespace RemoteWork.WinForms.Features.Results
                 });
 
                 busy = true;
+                SetStatus("업무·배정·마감·검토자 정보를 확인하고 있습니다. 확인 중에는 입력과 제출이 잠깁니다.");
                 UpdateButtons();
                 var pending = results.Pending("submission.submitted", taskId);
                 if (pending != null)
@@ -151,6 +153,8 @@ namespace RemoteWork.WinForms.Features.Results
         private async Task ReadCurrentTaskAsync()
         {
             DemandSession();
+            submissionContext = null;
+            UpdateButtons();
 
             if (taskQueries == null || taskPreparation == null)
                 throw new InvalidOperationException("업무 조회 연결을 확인해 주세요.");
@@ -184,6 +188,12 @@ namespace RemoteWork.WinForms.Features.Results
                     "현재 로그인한 사용자에게 배정된 업무만 제출할 수 있습니다.");
             }
 
+            // Display only after the captured login's current assignment is
+            // confirmed. Result-provider failures must not leave an unexplained
+            // blank form, and this display is not permission to submit.
+            txtTaskSummary.Text = $"{taskId} · {detail.Summary.Title}";
+            txtSubmissionVersion.Text = $"{detail.Summary.AssigneeName} / 제출 회차 확인 중";
+
             if (context.Status != TaskDisplayStatus.InProgress)
                 throw new InvalidOperationException(StateMessage(context.Status));
 
@@ -214,6 +224,7 @@ namespace RemoteWork.WinForms.Features.Results
             var last = previous.FirstOrDefault();
             txtContent4.Text = $"마감일: {ready.DueDate:yyyy-MM-dd}\r\n검토자 ID: {ready.ReviewerId}\r\n" +
                 (last == null ? "이전 제출 없음" : $"이전 {last.RoundNo}차 · {last.Status}\r\n검토 의견: {last.Reason}");
+            SetStatus($"제출 준비 완료 · {ready.NextRoundNo}차 · 마감일 {ready.DueDate:yyyy-MM-dd}\r\n결과 설명을 입력하고 ‘결과 제출’을 누르세요.");
         }
 
         private void RestorePending(PendingResultWrite operation)
@@ -228,6 +239,7 @@ namespace RemoteWork.WinForms.Features.Results
             foreach (var file in operation.Files)
                 gridPendingFiles.Rows.Add(file.Name, $"{file.Size / 1024.0:N1} KB", "서버 임시 첨부");
             txtContent4.Text = ResultsApi.PendingText(operation);
+            SetStatus(txtContent4.Text);
         }
 
         private static void ValidateDeadline(
@@ -274,6 +286,8 @@ namespace RemoteWork.WinForms.Features.Results
             btnRemoveAttachment.Enabled = canEdit && pendingFiles.Count > 0;
             btnSubmit.Enabled = connected && pending?.Stage != "expired" &&
                 (submissionContext != null || pending != null);
+            // Never replace an ambiguous write with a fresh context/read path.
+            btnRetryTask.Enabled = connected && pending == null;
             btnSubmit.Text = pending?.Stage switch
             {
                 "check" or "completed" => "처리 결과 확인",
@@ -405,6 +419,7 @@ namespace RemoteWork.WinForms.Features.Results
                 submissionContext = null;
                 await ReadCurrentTaskAsync();
                 txtContent4.AppendText("\r\n현재 업무를 다시 확인했습니다. 입력 확인 후 제출해 주세요.");
+                SetStatus(txtContent4.Text);
                 return null;
             }
             if (pending == null)
@@ -431,7 +446,10 @@ namespace RemoteWork.WinForms.Features.Results
             }
             ResultSaved? saved = await results.RunAsync(pending, linked.Token);
             if (saved == null)
+            {
                 txtContent4.Text = ResultsApi.PendingText(pending);
+                SetStatus(txtContent4.Text);
+            }
             else
                 results.Forget(pending);
             return saved;
@@ -465,6 +483,7 @@ namespace RemoteWork.WinForms.Features.Results
                 else if (sender == btnSubmit)
                 {
                     busy = true;
+                    SetStatus("현재 업무와 입력 내용을 확인하고 제출 요청을 처리하고 있습니다.");
                     UpdateButtons();
                     ResultSaved? saved = await CheckSubmissionAsync();
                     if (saved != null && CanShowMessage() && session?.IsCurrent == true)
@@ -532,6 +551,8 @@ namespace RemoteWork.WinForms.Features.Results
                     _ => "업무 조회에 실패했습니다. 입력은 유지되며 다시 확인할 수 있습니다."
                 }
                 : ex.Message;
+            if (ex is ApiException { Code: { Length: > 0 } code })
+                message += "\r\n오류 코드: " + code;
 
             if (denied)
                 BlockAccess(message);
@@ -539,6 +560,11 @@ namespace RemoteWork.WinForms.Features.Results
             {
                 var pending = taskId.Length > 0 ? results?.Pending("submission.submitted", taskId) : null;
                 txtContent4.Text = message + (pending == null ? "" : "\r\n" + ResultsApi.PendingText(pending));
+                SetStatus(txtContent4.Text + (pending == null
+                    ? submissionContext == null
+                        ? "\r\n원인을 확인한 뒤 ‘업무 다시 확인’을 누르세요. 확인 전에는 제출할 수 없습니다."
+                        : "\r\n입력 내용을 확인한 뒤 다시 제출해 주세요."
+                    : ""), error: true);
             }
         }
 
@@ -554,7 +580,32 @@ namespace RemoteWork.WinForms.Features.Results
             gridPendingFiles.Rows.Clear();
             gridPreviousFiles.Rows.Clear();
             txtContent4.Text = message;
+            SetStatus(message, error: true);
             UpdateButtons();
+        }
+
+        private void SetStatus(string message, bool error = false)
+        {
+            txtSubmissionStatus.Text = message.ReplaceLineEndings(Environment.NewLine);
+            txtSubmissionStatus.ForeColor = error ? Color.Firebrick : Color.FromArgb(30, 42, 61);
+            txtSubmissionStatus.SelectionStart = 0;
+            txtSubmissionStatus.SelectionLength = 0;
+            txtSubmissionStatus.ScrollToCaret();
+        }
+
+        private async void RetryTask_Click(object? sender, EventArgs e)
+        {
+            if (busy || accessBlocked || !CanShowMessage() || session?.IsCurrent != true
+                || taskId.Length == 0 || results?.Pending("submission.submitted", taskId) != null) return;
+            busy = true;
+            SetStatus("업무·배정·마감·검토자 정보를 다시 확인하고 있습니다. 입력한 설명과 선택 파일은 유지합니다.");
+            UpdateButtons();
+            try { await ReadCurrentTaskAsync(); }
+            catch (OperationCanceledException)
+            { if (CanShowMessage()) BlockAccess("업무 확인이 취소되었습니다. 다시 로그인하거나 창을 다시 열어 주세요."); }
+            catch (Exception ex) when (IsExpectedError(ex))
+            { if (CanShowMessage()) ShowError(ex); }
+            finally { busy = false; if (CanShowMessage()) UpdateButtons(); }
         }
 
         private bool CanShowMessage() => !IsDisposed && !Disposing;

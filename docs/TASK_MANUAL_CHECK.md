@@ -1,5 +1,67 @@
 # 2번 업무 화면 점검과 공동 연동 절차
 
+<a id="member2-screen-and-review-check-20261026"></a>
+## 2026-10-26 업무 화면 연결 · 결과 설명 입력 · 별도 검토 요청
+
+이번에는 실제 연결이 빠진 화면 진입과 제출 폼의 오류 표시를 보완하고, 사용자 확정에 따라 **결과 제출과 별도 검토 요청을 분리**했습니다. 진행중의 결과 제출은 기존 `SubmissionForm`, 제출완료의 검토 요청은 현재 제출 회차를 대상으로 하는 별도 `ReviewRequestForm`을 사용합니다. 요청 확인은 승인·반려가 아니며 업무 상태·버전·제출 회차를 바꾸지 않습니다. 독립적으로 연 업무 연결 정보 창은 읽기 전용으로 표시합니다.
+
+결과 설명 입력은 현재 로그인·본인 배정·상태·기한·검토자·버전 확인 뒤에만 허용합니다. 조회 실패 때 업무/담당자까지 빈칸으로 보이고 오류가 다른 탭에 가려지던 부분을 보완했습니다. 조회 단계·차단 사유·오류 코드를 항상 보이는 영역에 표시하고, 안전한 GET 재조회로 입력을 복구합니다. 마감 경과 등 정상적인 제출 차단은 우회하지 않습니다. 불명확한 기존 쓰기가 있으면 새 조회로 원래 요청을 덮지 않습니다.
+
+### 실제 서버 코드 · 일회용 MySQL 검증
+
+| 검사 | 직접 확인한 결과 | 구분 |
+| --- | --- | --- |
+| [업무·결과물·별도 요청 통합](../Tests/TaskResults.Integration.Tests/README.md) | 실제 C# HTTP·WinForms **147개**, 독립 SQL 효과 **32개** 통과 | 직원·관리자 본인 각각 수락→제출→별도 요청 전송→현재 검토자의 요청 확인→반려→재작업→2차 제출→승인 |
+| [별도 검토 요청 서버·웹](../Tests/TaskReviewRequests.Tests/README.md) | **71개** 통과 | 소유 MySQL·실제 Flask·loopback HTTP, 요청/확인과 결과 판단 경합, 입력 거절·권한·멱등·rollback·raw019 손상 차단 |
+| [취소·마감 연장 통합](../Tests/Results.Http.Tests/README.md) | **263개** 통과 | 소유 MySQL과 실제 결과물 연결·HTTP, 취소/연장 소비 경계 |
+| [업무 웹](../Tests/TaskWeb.Tests/README.md) | **415개** 통과 | 소유 MySQL·실제 Flask 웹/공통 연결 회귀; 수동 브라우저 전체 검수와 구분 |
+| [업무 수정 통합](../Tests/TaskManagement.Http.Tests/README.md) | 실제 HTTP·WinForms **59개**, 독립 SQL 효과 **28개** 통과 | 소유 MySQL의 업무 수정·재배정·관리자 변경과 저장 효과 |
+| [별도 검토 요청 서버·웹](../Tests/TaskReviewRequests.Tests/README.md) | **71개** 통과 | 실제 MySQL·loopback HTTP, 웹8개 포함, 요청/확인과 승인/반려 경합·물리 스키마 훼손 거절 |
+
+결과물 통합의 최종 실행은 권한 상실 보호·폼 폐기 보완 이후 다시 빌드해 오류0·경고0으로 확인했습니다. 결과 설명은 native `WM_CHAR`로 **한글·줄바꿈을 실제 컨트롤에 입력**한 다음 저장 값과 비교했습니다. 이는 `.Text` 대입 검사와 다르지만 실제 키보드·IME를 사람이 조작한 검증은 아닙니다.
+
+같은 실행의 독립 SQL에서 업무3개·receipt19개·제출4개·판단4개·결과 이벤트8개·검토 요청2개를 확인했습니다. 별도 요청/확인 직후 제출완료·1차·업무 버전이 유지됐고, 이후 반려·재작업·승인에도 원래 요청·설명·첨부·최초 수락·배정이 보존됐습니다. raw002/004/006/019를 새 DB에 명시 적용했으며 schema1과 물리 DDL을 유지하고 소유 HTTP/MySQL·DB·runtime을 정리했습니다. 사용자의 DB나 팀원 서버에 이 스키마를 적용한 결과가 아닙니다.
+
+별도 검토 요청 서버·웹71개는70.15초에 통과했고 `ddl_unchanged=true`, `schema_versions=[1]`, `changed_tables=[]`, 소유 자원 정리를 확인했습니다. 요청/확인과 실제 승인/반려를 동시에 호출하는4개 경합에서 판단을 방해하거나 제출 차수를 추가하지 않았습니다. raw JSON 중복 필드·bool 타입·잘못된 UTF-8·NaN·고립 surrogate·크기 초과·조회 조건·미디어 형식 거절12개도 포함됩니다. 크기 초과의 첫 기대값은 개별 기능 코드였으나 실제 공통 처리기의 `HTTP_413`이 우선하므로 공통 계약에 맞춰 검사했고, 앞선 실패를 최종71개에 중복 합산하지 않습니다. 근거는 소스 밖 `ES/tmp/member2_review_requests_validation_20261026_06/verification.json`입니다.
+
+### 실제 WinForms · 명시 대역 회귀
+
+아래 17개 프로젝트는 실제 WinForms/API 클라이언트 또는 정책 코드를 실행하되 HTTP·서비스 응답을 명시적인 테스트 대역으로 제공합니다. 각 프로젝트 빌드와 실행은 모두 성공했고 빌드 경고·오류는0개였습니다. 서버의 인증·권한·DB 저장 증거로 합산하지 않습니다.
+
+| 프로젝트 | 통과 수 |
+| --- | ---: |
+| TaskQueries.Tests | 172 |
+| TaskReadSession.Tests | 92 |
+| TaskInputSession.Tests | 43 |
+| TaskCreation.Tests | 133 |
+| TaskCreationUploads.Tests | 440 |
+| TaskCreationAttachmentUi.Tests | 95 |
+| TaskPreparation.Tests | 123 |
+| TaskStart.Tests | 179 |
+| TaskStartPreparation.Tests | 149 |
+| TaskStart.Ui.Tests | 20 |
+| TaskManagement.Tests | 143 |
+| TaskManagementAttachments.Tests | 120 |
+| TaskManagementAttachmentUi.Tests | 149 |
+| TaskLifecycle.Tests | 171 |
+| TaskAttachments.Tests | 295 |
+| TaskDeadlinePolicy.Tests | 32 |
+| SubmissionForm.Ui.Tests | 43 |
+
+17개 순차 실행 중 새 별도 검토 요청 코드가 추가되어 제품 DLL 해시가3종입니다. 이 표를 모든 최종 변경이 반영된 단일 빌드 전체 검증이라고 부르지 않습니다. 기존 담당 기능의 회귀 결과이며 최종 변경의 실제 통합은 위147/32로 별도 확인했습니다. 재현 명령은 각 `Tests/<프로젝트>/README.md`를 따릅니다. 실행 로그·빌드 해시는 소스 밖 `ES/tmp/remote_work_member2_recheck_20261026/`의 `summary.json`, `results.json`, `logs/`에 있습니다.
+
+제출 모달 수명 검사는 별도 최종 실행에서 **29개·3시나리오**를 통과했습니다. 실제 메시지 루프에서 취소·접속 변경·부모 폐기와 중복 진입 차단을 확인하되 HTTP와 자식 창의 반환값은 대역입니다. `SubmissionForm.Ui.Tests`43개는 유효 문맥의 native 문자 입력, 마감/권한/서버 오류의 입력 차단, GET 재조회, 불명확 요청 유지, 최소 창·150% 컨트롤 배율에서 오류/재조회 버튼 접근을 확인합니다. 이 배율 검사는 실제 모니터 DPI 전환이나 수동 UI 검수와 다릅니다.
+
+신규 `TaskReviewRequests.Tests`는 별도 **127개**를 통과했습니다. 요청 원문·BIGINT·같은 키 복구, 세션 변경·403 후 내용 숨김과 권한 복원, 창 닫기/다시 열기·중복 Dispose, 최소 창·150% 배율의 긴 오류 안내를 검사합니다. HTTP는 명시 대역이며 서버71개와 구분합니다.
+
+### 공유 환경에서 남은 검증
+
+- **팀원232 서버에는 이번 변경·raw019를 직접 배포하지 않았으며 동작을 확인하지 않았습니다.** 팀원 PC에서 코드·설정·스키마·기존 결과물 검토자 연결을 대조해야 합니다. 취소·연장 활성화는 같은 배포의 명시 설정과 read-only 사전 점검을 통과한 경우에만 적용합니다.
+- 동일 서버에 연결한 직원/관리자 두 PC에서 목록·상세·결과 제출·별도 검토 요청·요청 확인·반려·재작업·승인을 직접 조작하고 현재 권한·화면 새로고침을 확인합니다. API 검사 통과를 사람의 전체 UI 조작 완료로 표시하지 않습니다.
+- 실제 파일 선택/저장 대화상자, 키보드·IME, 실제 모니터 배율, 장시간 사용, 네트워크 단절·응답 유실과 재로그인 복구를 확인합니다. 이번 범위의 자동 결과 제출은 없습니다.
+
+아래2026-10-22 이전 절은 당시 실행 기록입니다. 별도 검토 요청의 당시 미확정 표시와 과거 미연결 표시는 이 최신 절 및 현재 공통규약과 구분합니다.
+
 <a id="task-deadline-journal-check-20261022"></a>
 ## 2026-10-22 업무 저장과 실제 기한 사건 기록
 

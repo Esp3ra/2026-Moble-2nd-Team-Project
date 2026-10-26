@@ -20,12 +20,9 @@ internal static class SubmissionLifetimeChecks
         checks = 0;
         Check(Application.MessageLoop && SynchronizationContext.Current is WindowsFormsSynchronizationContext,
             "lifetime checks require the STA WinForms message loop");
-        foreach (string button in new[] { "btnSubmitResult", "btnReviewRequestPreview" })
-        {
-            RunScenario(Outcome.Cancel, button);
-            RunScenario(Outcome.SessionChanged, button);
-            RunScenario(Outcome.PageDisposed, button);
-        }
+        RunScenario(Outcome.Cancel, "btnSubmitResult");
+        RunScenario(Outcome.SessionChanged, "btnSubmitResult");
+        RunScenario(Outcome.PageDisposed, "btnSubmitResult");
         return checks;
     }
 
@@ -99,7 +96,7 @@ internal static class SubmissionLifetimeChecks
                         "the modal receives the selected task identifier");
                     Check(!Field<Button>(page, "btnSubmitResult").Enabled
                         && !Field<Button>(page, "btnReviewRequestPreview").Enabled,
-                        "both submission entry points prevent modal reentry");
+                        "submission modal blocks reentry and cannot open the separate submitted-only review request");
                     if (outcome == Outcome.SessionChanged)
                     {
                         api.ClearIdentity();
