@@ -1,3 +1,16 @@
+<a id="pr95-96-current-20261026"></a>
+## 최신 — PR95·96 독립 검토·병합 완료
+
+|PR|검토 head|병합|
+|---|---|---|
+|[95](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/95#pullrequestreview-5646638247)|`71897f12b35e3e1bbe61d301beb16ca2fab33645`|`cb315b84440da8ab8a468fea4a525e8998820466`|
+|[96](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/pull/96#pullrequestreview-5646638390)|`4550610d1ee372f50b092fc0d5110d9460046527`|`bd20f87c6bd4235a833c030aec71a819d4bf9a8d`|
+
+
+95는 명시 설정에서 신규 회원의 현재 KST 연도8일(16units)·활성 승인자·감사를 회원 생성과 같은 TX에 준비합니다.96은 명시018/absence-v1에서 이전 퇴근 누락을 별도 원장에 기록하고 정상 세션의 실제 근태 이력을 제공합니다. 원 근무·퇴근NULL/UUID·결과/fence를 보존하며 새 날짜의 첫 출근은 계속 새 지문이 필요합니다. 두 PR 모두 Open 상태에서 검토 승인 후95→96 순으로 병합했고, 최종 tree `c4faba8991a36499c413ec8567e6d1c9f3fe8018`가 독립 결합 검증본과 같습니다.
+
+직접 소유 MySQL의95연차65PASS·공통인증13PASS,96근태/지문96PASS·Windows ACL1SKIP, 별도 결합36PASS와 C# bridge Release 경고0/오류0을 확인했습니다. 결합15/20은 개별 밴드 일부의 반복이며 합산하지 않습니다. 초기 결합 시계/1시간 세션 불일치의1실패와 제품 기본8시간으로 교정한20개 전체 재검사를 구분해 보존했습니다. [정확한 검증·한계](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/PR_검토기록.md#pr95-96-reviewed-merged-20261026)·[담당별 후속](https://github.com/Esp3ra/2026-Moble-2nd-Team-Project/blob/LOG/2번/공통규약.md#member2-pr95-96-boundaries-20261026). 실제 공유 서버 적용·실물 보고는 작성자 보고이며 이번 독립 검증/배포로 바꾸지 않습니다.5번 C# 이력표 연결·Pi 재연결/새날 실물·두PC는 별도입니다. 아래는 이전 기록입니다.
+
 <a id="pr89-current-20261023"></a>
 ## 최신 — PR89 R89-01 수정·재검토·병합 완료
 
