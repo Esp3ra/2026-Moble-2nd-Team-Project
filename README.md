@@ -1,5 +1,7 @@
 # 원격 근무용 업무 처리 확인 시스템
 
+업무 취소·마감 연장이 **기술 연결 필요**로 잠긴 서버를 위한 [명시적인 시작 설정과 적용 절차](docs/TASK_LIFECYCLE.md#task-lifecycle-deployment-activation)를 추가했습니다. `REMOTEWORK_TASK_LIFECYCLE_INTEGRATION=member2-task-lifecycle-v1`은 기존 공통 쓰기·결과물 연결과 MySQL 구조 검사를 통과한 경우에만 저장을 허용합니다. 기본은 OFF이며 DB를 자동 생성·수정하지 않습니다. 클라이언트 갱신만으로 서버가 활성화되지 않으므로 서버 담당자가 적용·재시작하고 검증용 업무로 확인해야 합니다. 공유 서버·두 PC 검증은 별도입니다.
+
 데스크톱 실행은 **빌드된 EXE 또는 Visual Studio**로 통일했습니다. 중복된 데스크톱 CMD 두 개는
 제거했고 서버 실행·초기화·장비 준비 스크립트는 유지합니다. PC별 실행 바로가기는 Git에 올리지 않습니다.
 

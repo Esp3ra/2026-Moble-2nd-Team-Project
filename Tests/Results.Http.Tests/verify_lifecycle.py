@@ -1,7 +1,7 @@
 """Actual member 2/3 HTTP+MySQL integration, only in an owned disposable DB.
 
 No TEST_DOUBLE_ACK, product .env, product account or user database is used.
-The versioned integration ACK below is installed ONLY in this isolated app
+The real deployment installer is exercised ONLY against this isolated app/DB
 to execute its real services; no shared deployment acknowledgment is installed.
 """
 import sys, os, pathlib, tempfile, json, secrets, hashlib, base64, threading
@@ -22,6 +22,7 @@ from remotework.models import Base, User, AdminGuard, SchemaVersion, AuditEvent,
 from remotework.features import results
 from remotework.features.tasks.lifecycle_models import TaskCancellation, TaskDeadlineExtension
 from remotework.features.tasks.lifecycle_support import INTEGRATED_ACK
+from remotework.features.tasks.lifecycle_deployment import ActivationError
 from remotework.features.tasks.models import TaskRecord
 from remotework.write_requests import WriteReceipt
 from sqlalchemy import select, func
@@ -119,7 +120,17 @@ def run(database_url, storage):
             target=task();body={**versions(target),'reason':'TEST cancel'}
             call('manager','write-requests/keys',{'action':'task.cancelled','target':target},status=503)
             call('manager',f'tasks/{target}/cancel',body,status=503)
-            app.extensions['task_lifecycle_integration_ack']=dict(INTEGRATED_ACK)
+            # Restart this owned loopback app through the ordinary opt-in factory.
+            # No ACK injection or post-request activation bypass is used.
+            server.close();thread.join(timeout=3)
+            settings=dict(app.config, TESTING=False,
+                          TASK_LIFECYCLE_INTEGRATION='member2-task-lifecycle-v1')
+            app=create_app(settings)
+            check(app.extensions.get('task_lifecycle_integration_ack')==INTEGRATED_ACK,
+                  'ordinary startup validates storage/providers before installing ACK')
+            server=create_server(app,host='127.0.0.1',port=0,threads=6)
+            thread=threading.Thread(target=server.run,daemon=True);thread.start()
+            url='http://127.0.0.1:'+str(server.effective_port)
             cancel(target)
             check(call('worker',f'results/tasks/{target}/context',status=409)['error']['code']=='TASK_CANCELLED','cancelled context blocked')
             submit(target,status=409);legacy(target,status=409)
@@ -271,10 +282,54 @@ def run(database_url, storage):
             finally:
                 with engine.begin() as db:db.exec_driver_sql('RENAME TABLE TEST_hidden_extensions TO task_deadline_extensions')
             check('task_lifecycle_integration_ack' in app.extensions,'ACK installed only in this isolated app')
+
+            # Exercise optional shared-file readiness through the same startup
+            # path, using raw013 only in this process-owned disposable database.
+            shared_settings=dict(app.config, ENABLE_SHARED_ATTACHMENTS_DRAFT=True)
+            try:
+                candidate=create_app(shared_settings)
+            except ActivationError:
+                check(True, 'shared attachment opt-in rejects missing raw013 storage')
+            else:
+                candidate.extensions['db_engine'].dispose()
+                raise AssertionError('missing shared attachment storage was activated')
+            sql=(ROOT.parents[1]/'RemoteWork.Server/migrations/013_shared_attachments.mysql.sql').read_text(encoding='utf-8')
+            sql='\n'.join(line for line in sql.splitlines() if not line.lstrip().startswith('--'))
+            with engine.begin() as db:
+                for statement in sql.split(';'):
+                    if statement.strip():db.exec_driver_sql(statement)
+            candidate=create_app(shared_settings)
+            try:
+                check(candidate.extensions.get('task_lifecycle_integration_ack')==INTEGRATED_ACK,
+                      'raw013 and real shared/resource providers pass startup checks')
+            finally:candidate.extensions['db_engine'].dispose()
+
+            # Attribute corruption also fails closed; these reversible DDL
+            # probes target only the owned database after all HTTP work ends.
+            for malformed, restored, label in (
+                    ('extension_id BIGINT NOT NULL', 'extension_id BIGINT NOT NULL AUTO_INCREMENT', 'auto increment'),):
+                with engine.begin() as db:
+                    db.exec_driver_sql('ALTER TABLE task_deadline_extensions MODIFY '+malformed)
+                try:
+                    try: candidate=create_app(shared_settings)
+                    except ActivationError:check(True, 'startup rejects missing '+label)
+                    else:
+                        candidate.extensions['db_engine'].dispose()
+                        raise AssertionError('malformed lifecycle column was activated: '+label)
+                finally:
+                    with engine.begin() as db:
+                        db.exec_driver_sql('ALTER TABLE task_deadline_extensions MODIFY '+restored)
+            candidate=create_app(shared_settings)
+            try:
+                check(candidate.extensions.get('task_lifecycle_integration_ack')==INTEGRATED_ACK,
+                      'restored lifecycle storage passes startup checks')
+            finally:candidate.extensions['db_engine'].dispose()
             print(f'PASS {COUNT} real member2/member3 MySQL+loopback HTTP checks; no deployment ACK installed outside this test.')
         finally:
             server.close();thread.join(timeout=3)
-    finally:engine.dispose()
+    finally:
+        app.extensions['db_engine'].dispose()
+        engine.dispose()
 
 if __name__=='__main__':
     tempfile.tempdir=r'C:/Windows/Temp'
