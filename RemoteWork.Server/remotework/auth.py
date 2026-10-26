@@ -93,18 +93,32 @@ def authenticate(login_id, password, channel):
             raise AppError(503, "IDENTITY_WORKFLOW_NOT_READY", "지문 본인 확인 로그인 연결이 필요합니다.")
         from .features.identity.routes import storage
         storage()
+        fingerprint_required = None
         with transaction() as db:
             guard = db.scalar(select(AdminGuard).where(AdminGuard.id == 1).with_for_update())
             if guard is None:
                 raise AppError(503, "IDENTITY_STORAGE_NOT_READY", "근무 저장소 준비가 필요합니다.")
             user = verify_credentials(login_id, password)
-            work = provider.resume(db, user)  # Actual same-day attendance, never a PC flag.
-            token = secrets.token_urlsafe(32)
-            auth_session = AuthSession(token_hash=token_digest(token), user_id=user.id, channel=channel,
-                expires_at=utcnow() + timedelta(hours=current_app.config["SESSION_HOURS"]))
-            db.add(auth_session)
-            audit("auth.login", "user", user.id,
-                {"channel": channel, "resumed_work": work.ended_at is None}, actor_id=user.id)
+            prepare = getattr(provider, "prepare_login", None)
+            if callable(prepare):
+                prepare(db, user)
+            try:
+                work = provider.resume(db, user)  # Never grants attendance from a password.
+            except AppError as exc:
+                if exc.code != "IDENTITY_FINGERPRINT_REQUIRED":
+                    raise
+                fingerprint_required = exc
+            if fingerprint_required is None:
+                token = secrets.token_urlsafe(32)
+                auth_session = AuthSession(token_hash=token_digest(token), user_id=user.id, channel=channel,
+                    expires_at=utcnow() + timedelta(hours=current_app.config["SESSION_HOURS"]))
+                db.add(auth_session)
+                audit("auth.login", "user", user.id,
+                    {"channel": channel, "resumed_work": work.ended_at is None}, actor_id=user.id)
+        # Commit only the old-day exception and its audit, without a normal login
+        # token. Raising inside transaction() would roll that classification back.
+        if fingerprint_required is not None:
+            raise fingerprint_required
         return user, token, auth_session
     user = verify_credentials(login_id, password)
     db = get_db()

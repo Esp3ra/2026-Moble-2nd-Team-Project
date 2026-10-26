@@ -7,6 +7,8 @@ from ... import device_identity_contract as wire
 
 def validate_configuration(config):
     """Trusted operator injection, never an HTTP body or a readiness ACK."""
+    if config.get("MISSED_CLOCKOUT_POLICY", "") not in ("", "absence-v1"):
+        raise ValueError("Unknown missed clock-out policy")
     values = config.get("IDENTITY_DEVICE_PROFILES")
     provider = config.get("IDENTITY_WORKFLOW_PROVIDER")
     if not values or not callable(getattr(provider, "current", None)):
@@ -58,3 +60,5 @@ def install(app, profiles):
     app.extensions["identity_workflow"] = app.config["IDENTITY_WORKFLOW_PROVIDER"]
     from .routes import bp
     app.register_blueprint(bp)
+    from .history import bp as history_bp
+    app.register_blueprint(history_bp)

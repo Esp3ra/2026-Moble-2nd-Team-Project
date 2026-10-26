@@ -120,6 +120,7 @@ def preflight(app):
     if engine.dialect.name != "mysql":
         raise ValueError("Identity host requires MySQL")
     checker = Flask("identity-host-preflight")
+    checker.config["MISSED_CLOCKOUT_POLICY"] = app.config.get("MISSED_CLOCKOUT_POLICY", "")
     checker.extensions.update(db_engine=engine, identity_workflow=app.config["IDENTITY_WORKFLOW_PROVIDER"])
     with checker.app_context():
         storage()
