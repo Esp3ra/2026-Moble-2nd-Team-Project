@@ -57,6 +57,8 @@ internal static partial class Program
         using var panel = new AttendanceControl(PreviewRole.Administrator, session, flow);
         using var host = new Form(); host.Controls.Add(panel); host.Show(); panel.BindLeaveConnection(connection);
         flow.ListCompletion.SetResult([Request(5, true), Request(99, false)]); Complete(panel.RefreshLeaveAsync());
+        Check(Field<Button>(panel, "btnLeaveApplicationPreview").Visible
+            && !Field<Button>(panel, "btnLeaveApplicationPreview").Enabled, "Manager application is visible but needs personal preparation");
         var grid = Field<DataGridView>(panel, "gridLeaveRequests");
         Check(grid.Rows.Count == 1, "Manager sees only assigned records with own preparation missing");
         grid.Rows[0].Selected = true;
